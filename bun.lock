@@ -16,6 +16,31 @@
         "vitest": "^4.1.9",
       },
     },
+    "packages/biome": {
+      "name": "@nx-devkit/biome",
+      "version": "0.0.1",
+      "peerDependencies": {
+        "@nx/devkit": "^22.0.0",
+      },
+    },
+    "packages/oxlint": {
+      "name": "@nx-devkit/oxlint",
+      "version": "0.0.1",
+      "dependencies": {
+        "@nx/devkit": "22.7.1",
+      },
+      "devDependencies": {
+        "@types/node": "^26.0.0",
+        "memfs": "^4.57.8",
+        "tsdown": "^0.22.3",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.9",
+      },
+      "peerDependencies": {
+        "@nx/devkit": "22.7.1",
+        "nx": "22.7.1",
+      },
+    },
     "packages/tsdown": {
       "name": "@nx-devkit/tsdown",
       "version": "0.0.0",
@@ -148,6 +173,10 @@
     "@nodelib/fs.stat": ["@nodelib/fs.stat@2.0.5", "", {}, "sha512-RkhPPp2zrqDAQA/2jNhnztcPAlv64XdhIp7a7454A5ovI7Bukxgt7MX7udwAu3zg1DcpPU0rz3VV1SeaqvY4+A=="],
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
+
+    "@nx-devkit/biome": ["@nx-devkit/biome@workspace:packages/biome"],
+
+    "@nx-devkit/oxlint": ["@nx-devkit/oxlint@workspace:packages/oxlint"],
 
     "@nx-devkit/tsdown": ["@nx-devkit/tsdown@workspace:packages/tsdown"],
 
