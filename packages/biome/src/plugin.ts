@@ -28,7 +28,7 @@ export interface BiomeProjectConfiguration {
 export type BiomeCreateNodesResult = ReadonlyArray<readonly [string, BiomeProjectConfiguration]>
 
 function isWorkspaceRoot(configFilePath: string): boolean {
-  const normalized = configFilePath.replaceAll('\\', '/')
+  const normalized = configFilePath.replaceAll('\\', '/').replace(/^\.\//, '')
   return normalized === WORKSPACE_ROOT_MARKER || normalized === 'biome.jsonc'
 }
 
@@ -42,7 +42,7 @@ function inferBiomeTargets(
   const lintCommand = options?.lintCommand ?? 'npx biome lint .'
 
   const configInput = `{projectRoot}/${configFileBasename}`
-  const baseInputs: string[] = [configInput, '{projectRoot}/src/**/*']
+  const baseInputs: string[] = [configInput, '{projectRoot}/**/*']
 
   return {
     format: {
@@ -73,6 +73,7 @@ const createNodesFn: CreateNodesFunctionV2<BiomePluginOptions> = (
 ) => {
   const workspaceRoot = context.workspaceRoot.replaceAll('\\', '/')
   const results: BiomeCreateNodesResult = []
+  const seenRoots = new Set<string>()
 
   for (const configFile of configFiles) {
     const normalized = configFile.replaceAll('\\', '/')
@@ -81,10 +82,15 @@ const createNodesFn: CreateNodesFunctionV2<BiomePluginOptions> = (
       continue
     }
 
-    const projectRoot = normalized.replace(/\/biome\.jsonc?$/, '')
+    const projectRoot = normalized.replace(/^\.\//, '').replace(/\/biome\.jsonc?$/, '')
     if (projectRoot === '' || projectRoot === workspaceRoot) {
       continue
     }
+
+    if (seenRoots.has(projectRoot)) {
+      continue
+    }
+    seenRoots.add(projectRoot)
 
     const configFileBasename = normalized.split('/').pop() ?? 'biome.json'
 
@@ -103,7 +109,9 @@ const createNodesFn: CreateNodesFunctionV2<BiomePluginOptions> = (
   return results as unknown as ReturnType<CreateNodesFunctionV2<BiomePluginOptions>>
 }
 
-export const createNodesV2: readonly ['**/biome.json', CreateNodesFunctionV2<BiomePluginOptions>] =
-  ['**/biome.json', createNodesFn]
+export const createNodesV2: readonly [
+  '**/biome.json{,c}',
+  CreateNodesFunctionV2<BiomePluginOptions>,
+] = ['**/biome.json{,c}', createNodesFn]
 
 export default { createNodesV2, name: PLUGIN_NAME }
