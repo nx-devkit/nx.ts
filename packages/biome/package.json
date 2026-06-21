@@ -1,0 +1,23 @@
+{
+  "name": "@nx-devkit/biome",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "module": "./dist/plugin.mjs",
+  "exports": {
+    ".": {
+      "default": "./dist/plugin.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@nx/devkit": "^22.0.0"
+  }
+}
