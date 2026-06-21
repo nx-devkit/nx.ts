@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, relative } from 'node:path'
+import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import {
   type CreateNodesResult,
   type CreateNodesV2,
@@ -24,26 +24,45 @@ const VITEST_CONFIG_NAMES = [
 
 const PLUGIN_SCOPE = 'nx-typescript'
 
+let cachedEnv: { exists: boolean; verbose: boolean } | null = null
+
+function readEnv(): { exists: boolean; verbose: boolean } {
+  if (cachedEnv) return cachedEnv
+  try {
+    const envPath = join(defaultWorkspaceRoot, '.env')
+    if (!existsSync(envPath)) {
+      cachedEnv = { exists: false, verbose: false }
+      return cachedEnv
+    }
+    const stat = statSync(envPath)
+    if (stat.size > 1_048_576) {
+      cachedEnv = { exists: true, verbose: false }
+      return cachedEnv
+    }
+    const fd = openSync(envPath, 'r')
+    try {
+      const buf = Buffer.alloc(Math.min(stat.size, 4096))
+      readSync(fd, buf, 0, buf.length, 0)
+      const content = buf.toString('utf-8')
+      cachedEnv = { exists: true, verbose: content.includes('NX_VERBOSE_LOGGING=true') }
+      return cachedEnv
+    } finally {
+      closeSync(fd)
+    }
+  } catch {
+    cachedEnv = { exists: false, verbose: false }
+    return cachedEnv
+  }
+}
+
 export function isVerbose(): boolean {
   if (process.argv.includes('--verbose')) {
     return true
   }
-
   if (process.env.NX_VERBOSE_LOGGING === 'true') {
     return true
   }
-
-  try {
-    const envPath = join(defaultWorkspaceRoot, '.env')
-    if (existsSync(envPath)) {
-      const envContent = readFileSync(envPath, 'utf-8')
-      return envContent.includes('NX_VERBOSE_LOGGING=true')
-    }
-  } catch {
-    // ignore
-  }
-
-  return false
+  return readEnv().verbose
 }
 
 export function logDebug(scope: string, message: string): void {
@@ -56,8 +75,7 @@ export function shouldSkipPath(
   projectRoot: string,
   workspaceRoot: string = defaultWorkspaceRoot,
 ): boolean {
-  const absProjectRoot = isAbsolute(projectRoot) ? projectRoot : join(workspaceRoot, projectRoot)
-
+  const absProjectRoot = resolve(workspaceRoot, projectRoot)
   if (absProjectRoot === workspaceRoot) {
     return true
   }
@@ -182,21 +200,18 @@ export function inferVitestTargets(
 }
 
 function findVitestConfig(projectRoot: string, workspaceRoot: string): string | null {
-  const absProjectRoot = isAbsolute(projectRoot) ? projectRoot : join(workspaceRoot, projectRoot)
+  const absProjectRoot = resolve(workspaceRoot, projectRoot)
   for (const name of VITEST_CONFIG_NAMES) {
     const candidate = join(absProjectRoot, name)
     if (existsSync(candidate)) {
       return candidate
     }
   }
-  // workspace-root vitest.config.ts is the input for the shared {workspaceRoot}/vitest.config.ts;
-  // not a project itself, so we don't return it.
-  void workspaceRoot
   return null
 }
 
 export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
-  '**/tsconfig.json',
+  '**/tsconfig*.json',
   (configFiles, options = {}, context) => {
     const configFileName = options.configFile ?? 'tsconfig.json'
     const tsgo = options.tsgo ?? true
@@ -218,7 +233,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           return null
         }
 
-        const projectKey = relative(workspaceRoot, projectRoot) || '.'
+        const projectKey = relative(workspaceRoot, resolve(workspaceRoot, projectRoot)) || '.'
 
         logDebug(PLUGIN_SCOPE, `Registering targets for ${projectKey}`)
 
