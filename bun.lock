@@ -34,6 +34,10 @@
     "packages/biome": {
       "name": "@nx-devkit/biome",
       "version": "0.0.1",
+      "devDependencies": {
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.9",
+      },
       "peerDependencies": {
         "@nx/devkit": "^22.0.0",
       },
@@ -41,9 +45,6 @@
     "packages/oxlint": {
       "name": "@nx-devkit/oxlint",
       "version": "0.0.1",
-      "dependencies": {
-        "@nx/devkit": "22.7.1",
-      },
       "devDependencies": {
         "@types/node": "^26.0.0",
         "memfs": "^4.57.8",
@@ -76,9 +77,6 @@
     "packages/typescript-preset": {
       "name": "@nx-devkit/typescript",
       "version": "0.0.0",
-      "dependencies": {
-        "@nx/devkit": "22.7.1",
-      },
       "devDependencies": {
         "tsdown": "^0.22.3",
         "vitest": "^4.1.9",
@@ -206,6 +204,7 @@
     "@nx-devkit/biome": ["@nx-devkit/biome@workspace:packages/biome"],
 
     "@nx-devkit/demo-workspace": ["@nx-devkit/demo-workspace@workspace:apps/demo"],
+
     "@nx-devkit/oxlint": ["@nx-devkit/oxlint@workspace:packages/oxlint"],
 
     "@nx-devkit/tsdown": ["@nx-devkit/tsdown@workspace:packages/tsdown"],
@@ -341,6 +340,7 @@
     "@typescript/native-preview-win32-arm64": ["@typescript/native-preview-win32-arm64@7.0.0-dev.20260621.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-JyxxNWWs2X7WzK90zN8hgGKqP4zo2/y7Z2tlLLaHhSFtEh1AC+tsQun3NBlW9JvF1vHhGI/hPpnoZOxLO0CEWw=="],
 
     "@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20260621.1", "", { "os": "win32", "cpu": "x64" }, "sha512-2ijIynqyxK1LkWUpLlmsBKuH7XHk6K4TAwdnfZ7x7BQHF9Z3okIXtKMzOik8fajB3oooVrEvbfOe2Mf+uZ7maQ=="],
+
     "@vitest/expect": ["@vitest/expect@4.1.9", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "@types/chai": "^5.2.2", "@vitest/spy": "4.1.9", "@vitest/utils": "4.1.9", "chai": "^6.2.2", "tinyrainbow": "^3.1.0" } }, "sha512-vl/rYsUKcBr3SnQn166+XR5ZQcgMx3DQhFWdfli/cWpLnLUmbxZvyrJZotLFUryib+LtArYMSTJ5RbQ57ZqrlA=="],
 
     "@vitest/mocker": ["@vitest/mocker@4.1.9", "", { "dependencies": { "@vitest/spy": "4.1.9", "estree-walker": "^3.0.3", "magic-string": "^0.30.21" }, "peerDependencies": { "msw": "^2.4.9", "vite": "^6.0.0 || ^7.0.0 || ^8.0.0" }, "optionalPeers": ["msw", "vite"] }, "sha512-EVkXzBjrPGM+cK8/ANWgBrkUCfJfb38/EfTSO8h7pWvKkyPkpWxvR7BkD2MyItMF62C97zAEoqdpUixwR/e+Rw=="],
