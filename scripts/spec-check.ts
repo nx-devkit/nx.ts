@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { lstatSync, readdirSync, readFileSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
 
 const ROOT = process.cwd()
@@ -30,7 +30,10 @@ type Finding = { file: string; line: number; key: string; content: string }
 
 const findings: Finding[] = []
 
-function walk(dir: string): string[] {
+const MAX_DEPTH = 10
+
+function walk(dir: string, depth: number = 0): string[] {
+  if (depth > MAX_DEPTH) return []
   const out: string[] = []
   let entries: string[]
   try {
@@ -39,15 +42,19 @@ function walk(dir: string): string[] {
     return out
   }
   for (const entry of entries) {
+    if (entry === 'node_modules' || entry.startsWith('.')) continue
     const full = join(dir, entry)
     let st
     try {
-      st = statSync(full)
+      st = lstatSync(full)
     } catch {
       continue
     }
+    if (st.isSymbolicLink()) {
+      continue
+    }
     if (st.isDirectory()) {
-      out.push(...walk(full))
+      out.push(...walk(full, depth + 1))
     } else if (['.ts', '.md'].includes(extname(full))) {
       out.push(full)
     }
@@ -55,7 +62,12 @@ function walk(dir: string): string[] {
   return out
 }
 
-const files = SCAN_DIRS.flatMap((d) => walk(join(ROOT, d)))
+const files = SCAN_DIRS.flatMap((d) => {
+  const root = join(ROOT, d)
+  const rel = relative(ROOT, root)
+  if (rel.startsWith('..') || rel === '..' || root === ROOT) return []
+  return walk(root)
+})
 
 for (const file of files) {
   const rel = relative(ROOT, file)
