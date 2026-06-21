@@ -1,0 +1,2 @@
+#!/usr/bin/env bun
+bunx biome format --write .
