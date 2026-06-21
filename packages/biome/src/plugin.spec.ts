@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest'
 import { createNodesV2 } from './plugin.js'
 import type { CreateNodesContextV2 } from 'nx/src/project-graph/plugins/public-api'
 
@@ -10,15 +9,15 @@ function makeContext(workspaceRoot: string): CreateNodesContextV2 {
 }
 
 describe('@nx-devkit/biome createNodesV2', () => {
-  it('returns empty array when no biome config files are matched', async () => {
-    const result = await createNodesV2[1]([], {}, makeContext('/workspace'))
+  it('returns empty array when no biome config files are matched', () => {
+    const result = createNodesV2[1]([], {}, makeContext('/workspace'))
     expect(result).toEqual([])
   })
 
-  it('infers format, format-check, and lint targets for a biome.json project', async () => {
+  it('infers format, format-check, and lint targets for a biome.json project', () => {
     const workspaceRoot = '/workspace'
     const configFile = 'packages/lib/biome.json'
-    const result = await createNodesV2[1]([configFile], {}, makeContext(workspaceRoot))
+    const result = createNodesV2[1]([configFile], {}, makeContext(workspaceRoot))
 
     expect(result).toHaveLength(1)
     const [file, project] = result[0]!
@@ -34,8 +33,8 @@ describe('@nx-devkit/biome createNodesV2', () => {
     expect(targets!.lint).toBeDefined()
   })
 
-  it('format target writes files, is uncached, and runs in projectRoot', async () => {
-    const result = await createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
+  it('format target writes files, is uncached, and runs in projectRoot', () => {
+    const result = createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
     const targets = result[0]![1].projects?.['apps/demo']?.targets
     const format = targets!.format!
     expect(format.executor).toBe('nx:run-commands')
@@ -44,8 +43,8 @@ describe('@nx-devkit/biome createNodesV2', () => {
     expect(format.cache).toBe(false)
   })
 
-  it('format-check target is read-only and cacheable', async () => {
-    const result = await createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
+  it('format-check target is read-only and cacheable', () => {
+    const result = createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
     const targets = result[0]![1].projects?.['apps/demo']?.targets
     const check = targets!['format-check']!
     expect(check.executor).toBe('nx:run-commands')
@@ -54,8 +53,8 @@ describe('@nx-devkit/biome createNodesV2', () => {
     expect(check.cache).toBe(true)
   })
 
-  it('lint target runs biome lint and is cacheable', async () => {
-    const result = await createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
+  it('lint target runs biome lint and is cacheable', () => {
+    const result = createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
     const targets = result[0]![1].projects?.['apps/demo']?.targets
     const lint = targets!.lint!
     expect(lint.executor).toBe('nx:run-commands')
@@ -64,24 +63,24 @@ describe('@nx-devkit/biome createNodesV2', () => {
     expect(lint.cache).toBe(true)
   })
 
-  it('inputs include biome config file and src/**/*', async () => {
-    const result = await createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
+  it('inputs include biome config file and src/**/*', () => {
+    const result = createNodesV2[1](['apps/demo/biome.json'], {}, makeContext('/workspace'))
     const targets = result[0]![1].projects?.['apps/demo']?.targets
     const formatInputs = targets!.format!.inputs as string[]
     expect(formatInputs).toContain('{projectRoot}/biome.json')
     expect(formatInputs).toContain('{projectRoot}/src/**/*')
   })
 
-  it('handles biome.jsonc (json with comments) the same as biome.json', async () => {
-    const result = await createNodesV2[1](['apps/demo/biome.jsonc'], {}, makeContext('/workspace'))
+  it('handles biome.jsonc (json with comments) the same as biome.json', () => {
+    const result = createNodesV2[1](['apps/demo/biome.jsonc'], {}, makeContext('/workspace'))
     expect(result).toHaveLength(1)
     const targets = result[0]![1].projects?.['apps/demo']?.targets
     expect(targets!.format).toBeDefined()
     expect(targets!.lint).toBeDefined()
   })
 
-  it('skips workspace root (biome.json at workspace root)', async () => {
-    const result = await createNodesV2[1](['biome.json'], {}, makeContext('/workspace'))
+  it('skips workspace root (biome.json at workspace root)', () => {
+    const result = createNodesV2[1](['biome.json'], {}, makeContext('/workspace'))
     expect(result).toEqual([])
   })
 
