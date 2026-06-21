@@ -1,0 +1,35 @@
+{
+  "name": "nx-devkit-plugins",
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "packageManager": "bun@1.3.14",
+  "version": 2,
+  "pluginsConfig": {
+    "@nx-devkit/tsdown": {},
+    "@nx-devkit/oxlint": {},
+    "@nx-devkit/biome": {},
+    "@nx-devkit/typescript": {}
+  },
+  "plugins": [],
+  "namedInputs": {
+    "sharedGlobals": [
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/biome.json",
+      "{workspaceRoot}/.oxlintrc.json"
+    ]
+  },
+  "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    },
+    "test": {
+      "cache": true
+    }
+  }
+}
