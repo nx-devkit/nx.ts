@@ -1,0 +1,31 @@
+{
+  "name": "@nx-devkit/typescript",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Preset Nx plugin that infers typecheck and vitest test targets from tsconfig.json and vitest.config.* without any project.json.",
+  "main": "./dist/plugin.mjs",
+  "types": "./dist/plugin.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.mts",
+      "import": "./dist/plugin.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@nx/devkit": "^22.0.0"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.3",
+    "vitest": "^4.1.9"
+  }
+}
