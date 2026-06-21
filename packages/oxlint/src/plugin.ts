@@ -1,18 +1,17 @@
 import { readFileSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
 
 const OXLINT_RC_GLOB = '**/.oxlintrc.{json,yml,yaml,cjs,mjs,js,cts,mts}'
 
-function inferLintTarget(projectRoot: string, workspaceRoot: string): TargetConfiguration {
-  const cwd = relative(workspaceRoot, projectRoot) || '.'
+function inferLintTarget(projectRoot: string): TargetConfiguration {
   return {
     executor: 'nx:run-commands',
     cache: true,
     inputs: ['{projectRoot}/src/**/*', '{projectRoot}/.oxlintrc.*', '{projectRoot}/package.json'],
     options: {
       command: 'npx oxlint .',
-      cwd,
+      cwd: projectRoot || '.',
     },
   }
 }
@@ -56,7 +55,7 @@ export const createNodesV2: CreateNodesV2 = [
 
       const project: ProjectConfiguration = {
         targets: {
-          lint: inferLintTarget(projectRootAbs, workspaceRoot),
+          lint: inferLintTarget(projectRoot),
         },
       }
       results.push([configFilePath, { projects: { [projectRoot]: project } }])
