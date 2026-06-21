@@ -1,0 +1,40 @@
+{
+  "name": "@nx-devkit/tsdown",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./plugin": {
+      "types": "./src/plugin.d.ts",
+      "default": "./src/plugin.js"
+    }
+  },
+  "files": [
+    "src",
+    "tsdown.config.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
+  },
+  "dependencies": {
+    "tsdown": "^0.22.3"
+  },
+  "devDependencies": {
+    "@nx/devkit": "^22.7.1",
+    "@types/node": "^26.0.0",
+    "memfs": "^4.50.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}
