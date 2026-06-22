@@ -67,9 +67,9 @@ function resolveNpmCommand(): string {
   return found ?? 'npm'
 }
 
-
 function resolveTrustRepo(option: string | undefined): string {
-  const raw = option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY ?? 'ThePlenkov/nx.ts'
+  const raw =
+    option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY ?? 'ThePlenkov/nx.ts'
   if (!TRUST_REPO_RE.test(raw)) {
     throw new Error(
       `Invalid trustRepo "${raw}": expected "owner/repo" slug (e.g. ThePlenkov/nx.ts). ` +
@@ -78,7 +78,6 @@ function resolveTrustRepo(option: string | undefined): string {
   }
   return raw
 }
-
 
 function detectPackageManager(): 'npm' {
   return 'npm'

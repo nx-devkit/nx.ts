@@ -12,7 +12,8 @@
   "scripts": {
     "build": "bun run --filter='./packages/*' build",
     "test": "bun run --filter='./packages/*' test",
-    "lint": "biome lint .",
+    "lint": "biome lint . && oxlint .",
+    "lint:oxlint": "oxlint .",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "spec:check": "bun run scripts/spec-check.ts",

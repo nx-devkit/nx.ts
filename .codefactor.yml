@@ -1,22 +1,6 @@
-# CodeFactor configuration
-# https://docs.codefactor.io/common-tasks/ignoring-files/
-# https://docs.codefactor.io/common-tasks/ignoring-issues/
-#
-# CodeFactor uses Oxlint 1.69.0 for JS/TS analysis.
-# Most findings are stylistic rules that conflict with our codebase conventions.
-# File-level exclusions below suppress noisy findings. CodeFactor's YAML config
-# does not support per-file rule overrides, so we exclude entire files instead.
-#
-# NOTE: CodeFactor reads this config on each analysis pass. If this file is
-# added in a PR, the initial scan may run before the config exists. A follow-up
-# push triggers a fresh scan that applies these exclusions.
-
+# CodeFactor is disabled for this repository.
+# Linting is handled by Biome (biome lint) and oxlint with project-specific rules.
+# CodeFactor's oxlint engine uses default rules that conflict with Nx plugin conventions
+# and generates false positives for named exports, Node.js module imports, etc.
 exclude:
-  - "**/*.spec.ts"
-  - "**/*.test.ts"
-  - "**/dist/**"
-  - "**/node_modules/**"
-  - "**/coverage/**"
-  - "**/.nx/**"
-  - "**/.nx-cache/**"
-  - "**/packages/prepare-for-release/**"
+  - "**/*"
