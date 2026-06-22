@@ -1,0 +1,9 @@
+---
+exclude_paths:
+  - "**/*.spec.ts"
+  - "**/*.test.ts"
+  - "**/dist/**"
+  - "**/node_modules/**"
+  - "**/coverage/**"
+  - "**/.nx/**"
+  - "**/.nx-cache/**"

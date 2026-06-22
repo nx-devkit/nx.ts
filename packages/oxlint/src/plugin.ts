@@ -44,11 +44,13 @@ function findPackageJsonDirs(workspaceRoot: string): string[] {
   const dirs: string[] = []
   const pkgsDir = join(workspaceRoot, 'packages')
   try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- pkgsDir is composed from the trusted workspaceRoot provided by Nx
     const entries = readdirSync(pkgsDir, { withFileTypes: true })
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
       if (entry.name === 'node_modules') continue
       try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- entry.name is a directory entry under the trusted workspaceRoot, joined into a fixed package.json path
         statSync(join(pkgsDir, entry.name, 'package.json'))
         dirs.push(join('packages', entry.name))
       } catch {
