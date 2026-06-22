@@ -1,6 +1,2 @@
-# CodeFactor is disabled for this repository.
-# Linting is handled by Biome (biome lint) and oxlint with project-specific rules.
-# CodeFactor's oxlint engine uses default rules that conflict with Nx plugin conventions
-# and generates false positives for named exports, Node.js module imports, etc.
 exclude:
   - "**/*"

@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
 
@@ -40,11 +40,33 @@ function readOxLintrc(file: string): Record<string, unknown> | null {
   }
 }
 
+function findPackageJsonDirs(workspaceRoot: string): string[] {
+  const dirs: string[] = []
+  const pkgsDir = join(workspaceRoot, 'packages')
+  try {
+    const entries = readdirSync(pkgsDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      if (entry.name === 'node_modules') continue
+      try {
+        statSync(join(pkgsDir, entry.name, 'package.json'))
+        dirs.push(join('packages', entry.name))
+      } catch {
+        // no package.json — skip
+      }
+    }
+  } catch {
+    // packages/ dir doesn't exist — skip
+  }
+  return dirs
+}
+
 export const createNodesV2: CreateNodesV2 = [
   OXLINT_RC_GLOB,
   (projectConfigurationFiles, _options, context) => {
     const workspaceRoot = context.workspaceRoot
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> = []
+    const coveredRoots = new Set<string>()
 
     for (const configFilePath of projectConfigurationFiles) {
       const fileName = basename(configFilePath)
@@ -56,6 +78,7 @@ export const createNodesV2: CreateNodesV2 = [
       const config = readOxLintrc(join(workspaceRoot, configFilePath))
       if (config === null) continue
 
+      coveredRoots.add(projectRoot)
       const project: ProjectConfiguration = {
         targets: {
           lint: inferLintTarget(projectRoot),
@@ -63,6 +86,21 @@ export const createNodesV2: CreateNodesV2 = [
       }
       results.push([configFilePath, { projects: { [projectRoot]: project } }])
     }
+
+    const rootConfig = readOxLintrc(join(workspaceRoot, '.oxlintrc.json'))
+    if (rootConfig !== null) {
+      const allProjectRoots = findPackageJsonDirs(workspaceRoot)
+      for (const projectRoot of allProjectRoots) {
+        if (coveredRoots.has(projectRoot)) continue
+        const project: ProjectConfiguration = {
+          targets: {
+            lint: inferLintTarget(projectRoot),
+          },
+        }
+        results.push(['.oxlintrc.json', { projects: { [projectRoot]: project } }])
+      }
+    }
+
     return results
   },
 ]
