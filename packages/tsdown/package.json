@@ -1,6 +1,7 @@
 {
   "name": "@nx-devkit/tsdown",
   "version": "0.0.0",
+  "license": "MIT",
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",

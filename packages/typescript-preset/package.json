@@ -1,6 +1,7 @@
 {
   "name": "@nx-devkit/typescript",
   "version": "0.0.0",
+  "license": "MIT",
   "private": false,
   "type": "module",
   "description": "Preset Nx plugin that infers typecheck and vitest test targets from tsconfig.json and vitest.config.* without any project.json.",
