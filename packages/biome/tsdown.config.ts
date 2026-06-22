@@ -6,6 +6,6 @@ export default defineConfig({
   clean: true,
   dts: true,
   deps: {
-    neverBundle: ['nx', '@nx/devkit'],
+    neverBundle: ['nx', '@nx/devkit', 'axios', 'enquirer'],
   },
 })
