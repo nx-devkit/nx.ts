@@ -1,4 +1,4 @@
-import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
+import type { CreateNodesContextV2, CreateNodesResultV2 } from 'nx/src/devkit-exports'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { vol } from 'memfs'
 import { createNodesV2 } from './plugin.js'
@@ -58,8 +58,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
     const [pattern, fn] = createNodesV2
     expect(pattern).toBe('**/tsdown.config.ts')
 
-    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext())
-
+    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext()) as CreateNodesResultV2
     expect(results).toHaveLength(1)
     const [configFile, project] = results[0]!
     expect(configFile).toBe('project-a/tsdown.config.ts')
@@ -71,8 +70,8 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
 
   it('build target uses nx:run-commands with cwd, outputs, cache, dependsOn', () => {
     const [, fn] = createNodesV2
-    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext())
-    const build = results[0]![1].projects['project-a']!.targets!.build!
+    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext()) as CreateNodesResultV2
+    const build = results[0]![1].projects!['project-a']!.targets!.build!
 
     expect(build.executor).toBe('nx:run-commands')
     expect(build.options).toEqual({
@@ -86,8 +85,8 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
 
   it('build inputs include src/**/*.ts, tsdown.config.ts, tsconfig.lib.json, package.json', () => {
     const [, fn] = createNodesV2
-    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext())
-    const inputs = results[0]![1].projects['project-a']!.targets!.build!.inputs
+    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext()) as CreateNodesResultV2
+    const inputs = results[0]![1].projects!['project-a']!.targets!.build!.inputs
 
     expect(inputs).toEqual(
       expect.arrayContaining([
@@ -113,7 +112,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
       makeContext(),
     )
     expect(results).toHaveLength(2)
-    const roots = results.flatMap((r) => Object.keys(r[1].projects))
+    const roots = (results as CreateNodesResultV2).flatMap((r) => Object.keys(r[1].projects!))
     expect(roots).toEqual(expect.arrayContaining(['project-a', 'project-b']))
   })
 
