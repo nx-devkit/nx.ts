@@ -9,11 +9,11 @@ import { sync as whichSync } from 'which'
 export interface NxPrepareForReleaseOptions {
   /** Package scopes to check. Default: derived from packages/* names in the workspace. */
   scope?: string[]
-  /** npm dist-tag applied to the placeholder publish. Default: "placeholder". */
+  /** Npm dist-tag applied to the placeholder publish. Default: "placeholder". */
   placeholderTag?: string
   /** Version written into the temporary placeholder package.json. Default: "0.0.0". */
   placeholderVersion?: string
-  /** npm registry URL. Default: https://registry.npmjs.org/. */
+  /** Npm registry URL. Default: https://registry.npmjs.org/. */
   registry?: string
   /** If true, do not actually publish or pack; just report what would happen. Default: false. */
   dryRun?: boolean
@@ -55,12 +55,12 @@ interface ResolvedOptions {
 
 function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
   return {
-    registry: options.registry ?? DEFAULT_REGISTRY,
+    dryRun: options.dryRun ?? false,
     placeholderTag: options.placeholderTag ?? DEFAULT_TAG,
     placeholderVersion: options.placeholderVersion ?? DEFAULT_VERSION,
-    dryRun: options.dryRun ?? false,
-    trustRepo: resolveTrustRepo(options.trustRepo),
+    registry: options.registry ?? DEFAULT_REGISTRY,
     scope: options.scope,
+    trustRepo: resolveTrustRepo(options.trustRepo),
   }
 }
 
@@ -110,17 +110,17 @@ function spawnWithTimeout(
 }
 
 async function readPackageJson(pkgRoot: string): Promise<Record<string, unknown>> {
-  const raw = await readFile(join(pkgRoot, 'package.json'), 'utf-8')
+  const raw = await readFile(join(pkgRoot, 'package.json'), 'utf8')
   return JSON.parse(raw) as Record<string, unknown>
 }
 
 function readPackageJsonSafe(pkgJsonPath: string): Record<string, unknown> | null {
   let fileContent: string
   try {
-    fileContent = readFileSync(pkgJsonPath, 'utf-8')
+    fileContent = readFileSync(pkgJsonPath, 'utf8')
   } catch (error) {
     // Filesystem errors (EACCES, ENOENT on the dir itself) bubble up so the
-    // executor fails loudly rather than silently dropping the workspace.
+    // Executor fails loudly rather than silently dropping the workspace.
     if (error instanceof SyntaxError) {
       console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`)
       return null
@@ -139,7 +139,7 @@ function readPackageJsonSafe(pkgJsonPath: string): Record<string, unknown> | nul
 }
 
 function matchesScope(name: string, scope: string[] | undefined): boolean {
-  if (!scope || scope.length === 0) return true
+  if (!scope || scope.length === 0) {return true}
   return scope.some((s) => name.startsWith(s))
 }
 
@@ -161,32 +161,32 @@ async function buildPlaceholderTarball(
 
     const original = await readPackageJson(pkgRoot)
     // Minimal metadata-only placeholder. Do NOT spread `original`: lifecycle
-    // scripts (prepare/prepack/prepublishOnly) from the source package would
-    // run during `npm pack` and crash because the staged dir has no sources
-    // or node_modules.
+    // Scripts (prepare/prepack/prepublishOnly) from the source package would
+    // Run during `npm pack` and crash because the staged dir has no sources
+    // Or node_modules.
     const placeholder = {
-      name: pkgName,
-      version: placeholderVersion,
-      description: `Placeholder for ${pkgName} published by @nx-devkit/prepare-for-release.`,
-      type: typeof original.type === 'string' ? original.type : undefined,
-      license: typeof original.license === 'string' ? original.license : 'MIT',
       author: original.author,
-      repository: original.repository,
       bugs: original.bugs,
+      description: `Placeholder for ${pkgName} published by @nx-devkit/prepare-for-release.`,
       homepage: original.homepage,
+      license: typeof original.license === 'string' ? original.license : 'MIT',
+      name: pkgName,
       publishConfig: {
         access: 'public',
         registry,
       },
+      repository: original.repository,
+      type: typeof original.type === 'string' ? original.type : undefined,
+      version: placeholderVersion,
     }
 
     const placeholderJson = JSON.stringify(placeholder, null, 2)
-    await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf-8')
+    await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf8')
 
     const npmCmd = resolveNpmCommand()
     const packResult = spawnWithTimeout(npmCmd, packArgs(stagedPkgRoot, tempDir), {
       cwd: tempDir,
-      encoding: 'utf-8',
+      encoding: 'utf8',
     })
 
     if (packResult.status !== 0) {
@@ -204,8 +204,8 @@ async function buildPlaceholderTarball(
     return { tarballPath: join(tempDir, tarballName), tempDir }
   } catch (error) {
     // Best-effort cleanup on any failure so the OS tempdir does not fill up
-    // when `npm pack` errors out.
-    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined)
+    // When `npm pack` errors out.
+    await rm(tempDir, { force: true, recursive: true }).catch(() => undefined)
     throw error
   }
 }
@@ -213,7 +213,7 @@ async function buildPlaceholderTarball(
 function isPublished(pkgName: string, registry: string): boolean {
   const npmCmd = resolveNpmCommand()
   const result = spawnWithTimeout(npmCmd, viewArgs(pkgName, registry), {
-    encoding: 'utf-8',
+    encoding: 'utf8',
   })
   if (result.status !== 0) {
     const stderr = (result.stderr ?? '').toString()
@@ -221,16 +221,16 @@ function isPublished(pkgName: string, registry: string): boolean {
       return false
     }
     // Any other npm-view failure (network, auth, registry error) is a hard
-    // error so the executor fails loudly instead of silently republishing.
+    // Error so the executor fails loudly instead of silently republishing.
     throw new Error(
       `npm view failed for ${pkgName} (exit ${result.status}): ${stderr || '<no stderr>'}`,
     )
   }
   const stdout = (result.stdout ?? '').toString().trim()
-  if (!stdout) return false
+  if (!stdout) {return false}
   try {
     const parsed = JSON.parse(stdout) as unknown
-    if (typeof parsed === 'string') return parsed.length > 0
+    if (typeof parsed === 'string') {return parsed.length > 0}
     if (parsed && typeof parsed === 'object' && 'version' in (parsed as Record<string, unknown>)) {
       return Boolean((parsed as { version?: unknown }).version)
     }
@@ -260,7 +260,7 @@ async function publishOnePackage(
     const publishResult = spawnWithTimeout(
       npmCmd,
       publishArgs(tarballPath, resolved.registry, resolved.placeholderTag),
-      { encoding: 'utf-8' },
+      { encoding: 'utf8' },
     )
     if (publishResult.status !== 0) {
       throw new Error(
@@ -268,7 +268,7 @@ async function publishOnePackage(
       )
     }
   } finally {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined)
+    await rm(tempDir, { force: true, recursive: true }).catch(() => undefined)
   }
 }
 
@@ -286,10 +286,10 @@ async function processPackage(
   acc: PackageAccumulators,
 ): Promise<PackageOutcome> {
   const parsed = readPackageJsonSafe(pkgJsonPath)
-  if (!parsed) return 'ignored'
+  if (!parsed) {return 'ignored'}
   const name = typeof parsed.name === 'string' ? parsed.name : null
-  if (!name) return 'ignored'
-  if (!matchesScope(name, resolved.scope)) return 'ignored'
+  if (!name) {return 'ignored'}
+  if (!matchesScope(name, resolved.scope)) {return 'ignored'}
 
   if (isPublished(name, resolved.registry)) {
     acc.skipped.push(name)
@@ -316,9 +316,9 @@ export async function publishPlaceholderExecutor(
   detectPackageManager()
 
   const pkgDirs = await glob(['packages/*/package.json'], {
+    absolute: true,
     cwd: ctx.workspaceRoot,
     onlyFiles: true,
-    absolute: true,
   })
 
   const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] }

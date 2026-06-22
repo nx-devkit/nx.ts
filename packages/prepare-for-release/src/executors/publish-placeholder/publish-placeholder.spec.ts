@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state: {
-  calls: Array<{ command: string; args: string[] }>
+  calls: { command: string; args: string[] }[]
   responses: Map<string, { status: number; stdout: string; stderr: string }>
 } = {
   calls: [],
@@ -13,12 +13,12 @@ const state: {
 
 vi.mock('node:child_process', () => ({
   spawnSync: (command: string, args: string[] = [], _options?: unknown) => {
-    state.calls.push({ command, args })
+    state.calls.push({ args, command })
     const key = `${command} ${args.join(' ')}`
     for (const [pattern, response] of state.responses.entries()) {
-      if (key.includes(pattern)) return response
+      if (key.includes(pattern)) {return response}
     }
-    return { status: 0, stdout: '', stderr: '' }
+    return { status: 0, stderr: '', stdout: '' }
   },
 }))
 
@@ -35,14 +35,14 @@ function makePackage(root: string, name: string, version = '0.0.0'): string {
   mkdirSync(pkgRoot, { recursive: true })
   writeFileSync(
     join(pkgRoot, 'package.json'),
-    JSON.stringify({ name, version, license: 'MIT' }, null, 2),
+    JSON.stringify({ license: 'MIT', name, version }, null, 2),
   )
   writeFileSync(join(pkgRoot, 'index.js'), 'module.exports = {}\n')
   return pkgRoot
 }
 
 function readJson(path: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown>
+  return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
 }
 
 describe('publishPlaceholderExecutor', () => {
@@ -62,7 +62,7 @@ describe('publishPlaceholderExecutor', () => {
 
   afterEach(() => {
     process.chdir(originalCwd)
-    rmSync(workspace, { recursive: true, force: true })
+    rmSync(workspace, { force: true, recursive: true })
     if (originalTrustRepo === undefined) {
       delete process.env.NPM_TRUST_REPO
     } else {
@@ -75,21 +75,21 @@ describe('publishPlaceholderExecutor', () => {
     const pkgJsonPath = join(pkgRoot, 'package.json')
     const originalBytes = readFileSync(pkgJsonPath)
 
-    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
     state.responses.set('npm pack', {
       status: 0,
-      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
       stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
     })
     state.responses.set('npm publish', {
       status: 0,
-      stdout: '+ @nx-devkit/prepare-for-release@0.0.0',
       stderr: '',
+      stdout: '+ @nx-devkit/prepare-for-release@0.0.0',
     })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
 
     const options: NxPrepareForReleaseOptions = { dryRun: false }
-    const result = await publishPlaceholderExecutor({ workspaceRoot: workspace, options })
+    const result = await publishPlaceholderExecutor({ options, workspaceRoot: workspace })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
     expect(result.skipped).toEqual([])
@@ -117,9 +117,9 @@ describe('publishPlaceholderExecutor', () => {
 
   it('skips a package that is already published on the registry', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
-    state.responses.set('npm view', { status: 0, stdout: '0.5.0', stderr: '' })
+    state.responses.set('npm view', { status: 0, stderr: '', stdout: '0.5.0' })
 
-    const result = await publishPlaceholderExecutor({ workspaceRoot: workspace, options: {} })
+    const result = await publishPlaceholderExecutor({ options: {}, workspaceRoot: workspace })
 
     expect(result.published).toEqual([])
     expect(result.skipped).toEqual(['@nx-devkit/prepare-for-release'])
@@ -132,16 +132,16 @@ describe('publishPlaceholderExecutor', () => {
 
   it('emits trust commands so the user can run `npm trust github` against each placeholder', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
-    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
     state.responses.set('npm pack', {
       status: 0,
-      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
       stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
     })
-    state.responses.set('npm publish', { status: 0, stdout: 'ok', stderr: '' })
+    state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
 
-    const result = await publishPlaceholderExecutor({ workspaceRoot: workspace, options: {} })
+    const result = await publishPlaceholderExecutor({ options: {}, workspaceRoot: workspace })
 
     expect(result.trustCommands.length).toBeGreaterThanOrEqual(1)
     expect(result.trustCommands[0]).toContain('npm trust github')
@@ -152,11 +152,11 @@ describe('publishPlaceholderExecutor', () => {
 
   it('dryRun: true does not call npm publish or npm pack', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
-    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
 
     const result = await publishPlaceholderExecutor({
-      workspaceRoot: workspace,
       options: { dryRun: true },
+      workspaceRoot: workspace,
     })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
@@ -169,18 +169,18 @@ describe('publishPlaceholderExecutor', () => {
   it('honors a custom placeholderVersion and placeholderTag', async () => {
     const pkgRoot = makePackage(workspace, '@nx-devkit/prepare-for-release', '1.2.3')
     const originalBytes = readFileSync(join(pkgRoot, 'package.json'))
-    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
     state.responses.set('npm pack', {
       status: 0,
-      stdout: join(workspace, 'nx-devkit-prepare-for-release-1.2.3.tgz'),
       stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-1.2.3.tgz'),
     })
-    state.responses.set('npm publish', { status: 0, stdout: 'ok', stderr: '' })
+    state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-1.2.3.tgz'), 'fake-tarball-bytes')
 
     const result = await publishPlaceholderExecutor({
-      workspaceRoot: workspace,
       options: { placeholderTag: 'alpha', placeholderVersion: '0.0.1' },
+      workspaceRoot: workspace,
     })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
@@ -190,18 +190,18 @@ describe('publishPlaceholderExecutor', () => {
 
   it('uses a custom trustRepo option when provided', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
-    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
     state.responses.set('npm pack', {
       status: 0,
-      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
       stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
     })
-    state.responses.set('npm publish', { status: 0, stdout: 'ok', stderr: '' })
+    state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
 
     const result = await publishPlaceholderExecutor({
-      workspaceRoot: workspace,
       options: { trustRepo: 'my-org/my-repo' },
+      workspaceRoot: workspace,
     })
 
     expect(result.trustCommands[0]).toContain('--repo my-org/my-repo')
@@ -210,12 +210,12 @@ describe('publishPlaceholderExecutor', () => {
 
   it('rejects an invalid trustRepo slug', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
-    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
 
     await expect(
       publishPlaceholderExecutor({
-        workspaceRoot: workspace,
         options: { trustRepo: 'not a slug' },
+        workspaceRoot: workspace,
       }),
     ).rejects.toThrow(/Invalid trustRepo/)
   })
@@ -225,8 +225,8 @@ describe('publishPlaceholderExecutor', () => {
     writeFileSync(join(pkgRoot, 'package.json'), '{ this is not valid json')
 
     const result = await publishPlaceholderExecutor({
-      workspaceRoot: workspace,
       options: {},
+      workspaceRoot: workspace,
     })
 
     expect(result.published).toEqual([])
@@ -237,14 +237,14 @@ describe('publishPlaceholderExecutor', () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', {
       status: 1,
-      stdout: '',
       stderr:
         'npm ERR! code E404\nnpm ERR! 404 Not Found - GET https://registry.npmjs.org/@nx-devkit/prepare-for-release',
+      stdout: '',
     })
 
     const result = await publishPlaceholderExecutor({
-      workspaceRoot: workspace,
       options: { dryRun: true },
+      workspaceRoot: workspace,
     })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
@@ -255,14 +255,14 @@ describe('publishPlaceholderExecutor', () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', {
       status: 1,
-      stdout: '',
       stderr: 'npm ERR! code EAI_AGAIN\nnpm ERR! getaddrinfo EAI_AGAIN registry.npmjs.org',
+      stdout: '',
     })
 
     await expect(
       publishPlaceholderExecutor({
-        workspaceRoot: workspace,
         options: { dryRun: true },
+        workspaceRoot: workspace,
       }),
     ).rejects.toThrow(/npm view failed for @nx-devkit\/prepare-for-release/)
   })

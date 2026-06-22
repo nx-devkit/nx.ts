@@ -10,9 +10,9 @@ const DEFAULT_PROJECT_NAME = 'tools'
 const DEFAULT_PLUGIN_PATH = '@nx-devkit/prepare-for-release'
 
 function readJson(tree: Tree, path: string): Record<string, unknown> | null {
-  if (!tree.exists(path)) return null
+  if (!tree.exists(path)) {return null}
   try {
-    return JSON.parse(tree.read(path, 'utf-8') ?? '{}') as Record<string, unknown>
+    return JSON.parse(tree.read(path, 'utf8') ?? '{}') as Record<string, unknown>
   } catch {
     return null
   }
@@ -24,11 +24,11 @@ function writeJson(tree: Tree, path: string, value: unknown): void {
 
 function ensureToolsProject(tree: Tree, projectName: string, pluginPath: string): void {
   const projectJsonPath = joinPathFragments(projectName, 'project.json')
-  if (tree.exists(projectJsonPath)) return
+  if (tree.exists(projectJsonPath)) {return}
 
   const project = {
-    name: projectName,
     $schema: '../../node_modules/nx/schemas/project-schema.json',
+    name: projectName,
     sourceRoot: `${projectName}`,
     targets: {
       'prepare-for-release': {
@@ -52,9 +52,9 @@ function registerPlugin(tree: Tree, pluginPath: string): void {
         entry !== null &&
         (entry as { plugin?: string }).plugin === pluginPath),
   )
-  if (alreadyRegistered) return
+  if (alreadyRegistered) {return}
 
-  plugins.push({ plugin: pluginPath, options: {} })
+  plugins.push({ options: {}, plugin: pluginPath })
   nxJson.plugins = plugins
   writeJson(tree, 'nx.json', nxJson)
 }
@@ -83,7 +83,7 @@ export async function initGenerator(
   }
 
   return () => {
-    /* no-op */
+    /* No-op */
   }
 }
 

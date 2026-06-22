@@ -14,7 +14,7 @@ describe('isReleaseBootstrapProject', () => {
     workspace = makeWorkspace()
   })
   afterEach(() => {
-    rmSync(workspace, { recursive: true, force: true })
+    rmSync(workspace, { force: true, recursive: true })
   })
 
   it('returns true for a project.json referencing the publish-placeholder executor', () => {
@@ -48,7 +48,7 @@ describe('createNodesV2', () => {
     workspace = makeWorkspace()
   })
   afterEach(() => {
-    rmSync(workspace, { recursive: true, force: true })
+    rmSync(workspace, { force: true, recursive: true })
   })
 
   it('infers a prepare-for-release target only on the tools project', () => {
@@ -76,7 +76,7 @@ describe('createNodesV2', () => {
     )
 
     const roots = (
-      result as Array<readonly [string, { projects: Record<string, unknown> }]>
+      result as (readonly [string, { projects: Record<string, unknown> }])[]
     ).flatMap(([_file, body]) => Object.keys(body.projects))
     expect(roots).toContain('tools')
     expect(roots).not.toContain('packages/lib')
@@ -101,9 +101,7 @@ describe('createNodesV2', () => {
     )
 
     const projects = (
-      result as Array<
-        readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }]
-      >
+      result as (readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }])[]
     ).map(([_file, body]) => body.projects)[0]
     expect(Object.keys(projects.tools.targets ?? {})).toEqual(['release-bootstrap'])
   })
@@ -137,7 +135,7 @@ describe('createNodesV2', () => {
     )
 
     const roots = (
-      result as Array<readonly [string, { projects: Record<string, unknown> }]>
+      result as (readonly [string, { projects: Record<string, unknown> }])[]
     ).flatMap(([_file, body]) => Object.keys(body.projects))
     expect(roots).toEqual(['packages/bootstrap'])
   })
