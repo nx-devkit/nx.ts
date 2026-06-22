@@ -212,7 +212,7 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
         >
       ).find(([, { projects }]) => projects[join('packages', 'fallback')])
       expect(fallbackEntry).toBeDefined()
-      const lint = fallbackEntry![1].projects[join('packages', 'fallback')].targets['lint']
+      const lint = fallbackEntry![1].projects[join('packages', 'fallback')]!.targets['lint']!
       expect(lint.options.command).toBe('npx oxlint .')
       expect(lint.options.cwd).toBe(join('packages', 'fallback'))
     })

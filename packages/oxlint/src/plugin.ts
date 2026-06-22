@@ -80,6 +80,7 @@ export const createNodesV2: CreateNodesV2 = [
 
       coveredRoots.add(projectRoot)
       const project: ProjectConfiguration = {
+        root: projectRoot,
         targets: {
           lint: inferLintTarget(projectRoot),
         },
@@ -93,6 +94,7 @@ export const createNodesV2: CreateNodesV2 = [
       for (const projectRoot of allProjectRoots) {
         if (coveredRoots.has(projectRoot)) continue
         const project: ProjectConfiguration = {
+          root: projectRoot,
           targets: {
             lint: inferLintTarget(projectRoot),
           },
