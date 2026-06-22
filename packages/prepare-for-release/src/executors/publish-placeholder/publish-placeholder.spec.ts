@@ -186,6 +186,10 @@ describe('publishPlaceholderExecutor', () => {
     })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
+    const publishCall = state.calls.find((c) => c.args[0] === 'publish')
+    expect(publishCall).toBeDefined()
+    expect(publishCall?.args).toContain('--tag')
+    expect(publishCall?.args).toContain('alpha')
     const afterBytes = readFileSync(join(pkgRoot, 'package.json'))
     expect(Buffer.compare(originalBytes, afterBytes)).toBe(0)
   })

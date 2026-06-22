@@ -64,7 +64,7 @@ The fork PR and the upstream PR reference the same branch and contain the same c
 
 ---
 
-## CodeFactor findings (152 total, 8 fixed, 65 excluded via .codefactor.yml, 79 suppressed via dashboard)
+## CodeFactor findings (152 total, 5 fixed, 65 excluded via .codefactor.yml, 79 suppressed via dashboard)
 
 CodeFactor uses Oxlint 1.69.0 for JS/TS analysis. The 152 findings break down into categories that fall into three buckets: real code issues we fixed, test-file noise excluded via `.codefactor.yml`, and stylistic rules suppressed via the CodeFactor dashboard UI.
 
@@ -72,7 +72,7 @@ CodeFactor uses Oxlint 1.69.0 for JS/TS analysis. The 152 findings break down in
 
 | Decision | Count | Files affected |
 |----------|-------|----------------|
-| fix in code | 8 | generator.ts, plugin.ts, tsdown.config.ts x2 |
+| fix in code | 5 | generator.ts, plugin.ts, tsdown.config.ts x2 |
 | excluded via .codefactor.yml | 65 | *.spec.ts, *.test.ts (3 spec files) |
 | suppressed via CodeFactor dashboard | 79 | executor.ts, plugin.ts, generator.ts, index.ts |
 

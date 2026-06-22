@@ -1,7 +1,7 @@
 {
   "name": "@nx-devkit/biome",
   "version": "0.0.1",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",

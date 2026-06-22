@@ -33,7 +33,7 @@
     "trustRepo": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
-      "description": "`owner/repo` slug used to build the `npm trust github` command. Default: process.env.NPM_TRUST_REPO or `ThePlenkov/nx.ts`."
+      "description": "`owner/repo` slug used to build the `npm trust github` command. Falls back to NPM_TRUST_REPO or GITHUB_REPOSITORY env vars."
     }
   },
   "additionalProperties": false

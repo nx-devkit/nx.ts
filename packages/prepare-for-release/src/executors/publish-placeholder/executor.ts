@@ -19,9 +19,8 @@ export interface NxPrepareForReleaseOptions {
   dryRun?: boolean
   /**
    * `owner/repo` slug used to build the `npm trust github` command.
-   * Default: `process.env.NPM_TRUST_REPO` or `ThePlenkov/nx.ts`.
-   * Override per-workspace via `nx.json` plugin options or env to avoid
-   * accidentally granting trust to the wrong repository.
+   * Falls back to `NPM_TRUST_REPO` env var, then `GITHUB_REPOSITORY` env var.
+   * Throws if none are set.
    */
   trustRepo?: string
 }
@@ -40,7 +39,6 @@ export interface PublishPlaceholderContext {
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org/'
 const DEFAULT_TAG = 'placeholder'
 const DEFAULT_VERSION = '0.0.0'
-const DEFAULT_TRUST_REPO = 'ThePlenkov/nx.ts'
 const TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 const NPM_SUBPROCESS_TIMEOUT_MS = 120_000
 
@@ -70,9 +68,12 @@ function resolveNpmCommand(): string {
 }
 
 function resolveTrustRepo(option: string | undefined): string {
-  // Explicit option wins over env. Env wins over the hardcoded default so
-  // CI can pin the slug without rebuilding.
-  const raw = option ?? process.env.NPM_TRUST_REPO ?? DEFAULT_TRUST_REPO
+  const raw = option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY
+  if (!raw) {
+    throw new Error(
+      'Missing trustRepo: set options.trustRepo, NPM_TRUST_REPO, or GITHUB_REPOSITORY.',
+    )
+  }
   if (!TRUST_REPO_RE.test(raw)) {
     throw new Error(
       `Invalid trustRepo "${raw}": expected "owner/repo" slug (e.g. ThePlenkov/nx.ts). ` +

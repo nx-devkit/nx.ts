@@ -28,14 +28,23 @@ export function isReleaseBootstrapProject(
   if (!existsSync(projectJsonPath)) {
     return false
   }
+  let contents: string
   try {
-    const raw = JSON.parse(readFileSync(projectJsonPath, 'utf8')) as Record<string, unknown>
+    contents = readFileSync(projectJsonPath, 'utf8')
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT') return false
+    throw error
+  }
+  try {
+    const raw = JSON.parse(contents) as Record<string, unknown>
     const targets = (raw.targets ?? {}) as Record<string, Record<string, unknown>>
     return Object.values(targets).some(
       (t) => typeof t.executor === 'string' && t.executor === executor,
     )
-  } catch {
-    return false
+  } catch (error) {
+    if (error instanceof SyntaxError) return false
+    throw error
   }
 }
 
