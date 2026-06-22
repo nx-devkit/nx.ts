@@ -37,7 +37,7 @@ The plugin needs no other setup. By default it scans every `tsconfig.json` in th
   "typecheck": {
     "executor": "nx:run-commands",
     "options": {
-      "command": "npx tsgo --build tsconfig.json",
+      "command": "tsgo --build tsconfig.json",
       "cwd": "{projectRoot}"
     },
     "cache": true,
