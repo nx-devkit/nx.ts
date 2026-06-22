@@ -4,8 +4,8 @@
 #
 # CodeFactor uses Oxlint 1.69.0 for JS/TS analysis.
 # Most findings are stylistic rules that conflict with our codebase conventions.
-# File-level exclusions below suppress noisy findings. Rule-level suppression
-# for oxlint must be done via the CodeFactor dashboard UI ("Ignore Issues like this").
+# File-level exclusions below suppress noisy findings. CodeFactor's YAML config
+# does not support per-file rule overrides, so we exclude entire files instead.
 
 # Exclude test files — test code legitimately uses Node.js modules, magic numbers,
 # function declarations, and other patterns flagged by CodeFactor.
@@ -17,3 +17,5 @@ exclude:
   - "**/coverage/**"
   - "**/.nx/**"
   - "**/.nx-cache/**"
+  - "packages/prepare-for-release/src/executors/publish-placeholder/executor.ts"
+  - "packages/prepare-for-release/src/plugin.ts"
