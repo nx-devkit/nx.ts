@@ -17,5 +17,4 @@ exclude:
   - "**/coverage/**"
   - "**/.nx/**"
   - "**/.nx-cache/**"
-  - "packages/prepare-for-release/src/executors/publish-placeholder/executor.ts"
-  - "packages/prepare-for-release/src/plugin.ts"
+  - "packages/prepare-for-release/**"
