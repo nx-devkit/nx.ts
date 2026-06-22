@@ -1,6 +1,6 @@
+import type { CreateNodesV2, ProjectConfiguration } from '@nx/devkit'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
-import type { CreateNodesV2, ProjectConfiguration } from '@nx/devkit'
 
 export interface NxPrepareForReleasePluginOptions {
   /** Path to the tools project that hosts the prepare-for-release target. */
@@ -80,4 +80,5 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
   },
 ]
 
-export default { createNodesV2, name: PLUGIN_NAME }
+const plugin = { createNodesV2, name: PLUGIN_NAME }
+export default plugin
