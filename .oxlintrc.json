@@ -13,5 +13,23 @@
     "**/coverage/**",
     "**/.nx/**",
     "**/.nx-cache/**"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.spec.ts", "**/*.test.ts"],
+      "rules": {
+        "import/no-nodejs-modules": "off",
+        "eslint/no-magic-numbers": "off",
+        "eslint/func-style": "off",
+        "eslint/id-length": "off",
+        "eslint/max-statements": "off",
+        "eslint/init-declarations": "off",
+        "eslint/sort-imports": "off",
+        "unicorn/no-null": "off",
+        "import/first": "off",
+        "import/group-exports": "off",
+        "import/exports-last": "off"
+      }
+    }
   ]
 }

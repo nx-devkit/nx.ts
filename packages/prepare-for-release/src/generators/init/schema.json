@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "init generator",
+  "description": "Wires @nx-devkit/prepare-for-release into an Nx workspace: adds the plugin to nx.json, creates a `tools` project with a `prepare-for-release` target, and prints the post-setup checklist.",
+  "type": "object",
+  "properties": {
+    "projectName": {
+      "type": "string",
+      "description": "Name of the workspace project that hosts the prepare-for-release target.",
+      "default": "tools"
+    },
+    "pluginPath": {
+      "type": "string",
+      "description": "Module specifier for the plugin in nx.json plugins[]. Use a relative path or package name.",
+      "default": "@nx-devkit/prepare-for-release"
+    }
+  },
+  "additionalProperties": false
+}

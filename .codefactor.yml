@@ -1,0 +1,19 @@
+# CodeFactor configuration
+# https://docs.codefactor.io/common-tasks/ignoring-files/
+# https://docs.codefactor.io/common-tasks/ignoring-issues/
+#
+# CodeFactor uses Oxlint 1.69.0 for JS/TS analysis.
+# Most findings are stylistic rules that conflict with our codebase conventions.
+# File-level exclusions below suppress noisy findings. Rule-level suppression
+# for oxlint must be done via the CodeFactor dashboard UI ("Ignore Issues like this").
+
+# Exclude test files — test code legitimately uses Node.js modules, magic numbers,
+# function declarations, and other patterns flagged by CodeFactor.
+exclude:
+  - "**/*.spec.ts"
+  - "**/*.test.ts"
+  - "**/dist/**"
+  - "**/node_modules/**"
+  - "**/coverage/**"
+  - "**/.nx/**"
+  - "**/.nx-cache/**"

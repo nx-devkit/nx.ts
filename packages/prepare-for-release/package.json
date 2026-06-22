@@ -1,0 +1,41 @@
+{
+  "name": "@nx-devkit/prepare-for-release",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.mts",
+      "import": "./dist/plugin.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
+  },
+  "dependencies": {
+    "@nx/devkit": "22.7.1",
+    "tinyglobby": "^0.2.0",
+    "which": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "memfs": "^4.50.0",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

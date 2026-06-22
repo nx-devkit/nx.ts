@@ -11,6 +11,27 @@ infers a `build` target — no `project.json` required.
 | --- | --- | --- |
 | `**/tsdown.config.ts` | `build` | `nx:run-commands` |
 
+## Install
+
+```sh
+bun add -D @nx-devkit/tsdown tsdown
+```
+
+## Register in nx.json
+
+```json
+{
+  "plugins": ["@nx-devkit/tsdown"]
+}
+```
+
+## Options
+
+```ts
+// Currently no options. Reserved for future use.
+export interface NxTsdownPluginOptions {}
+```
+
 The inferred target:
 
 - runs `npx tsdown` with `cwd` set to the project root
@@ -22,26 +43,10 @@ The inferred target:
 The workspace root (where `tsdown.config.ts` lives at `./`) is skipped so the
 repo itself is not treated as a project.
 
-## Install
-
-```sh
-bun add -D @nx-devkit/tsdown tsdown
-```
-
-## Wire it up
-
-Add the plugin to `nx.json`:
-
-```json
-{
-  "plugins": ["@nx-devkit/tsdown"]
-}
-```
-
 That's it. Any directory under the workspace containing a `tsdown.config.ts`
 now has a `build` target.
 
-## Targets generated
+## Targets generated (inferred)
 
 For a project at `packages/foo/` with a `tsdown.config.ts`:
 
