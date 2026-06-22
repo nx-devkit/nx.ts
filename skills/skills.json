@@ -21,6 +21,11 @@
       "description": "Preset Nx plugin that infers typecheck and vitest test targets from tsconfig.json and vitest.config.*"
     },
     {
+      "name": "nx-devkit-prepare-for-release",
+      "path": "nx-devkit-prepare-for-release/SKILL.md",
+      "description": "General-purpose Nx tool plugin that bootstraps a workspace of packages onto npm by publishing 0.0.0 placeholders and emitting `npm trust github` commands for OIDC trusted publishing."
+    },
+    {
       "name": "nx-vs-nx",
       "path": "nx-vs-nx/SKILL.md",
       "description": "Explains how @nx-devkit plugins extend Nx without replacing it"
