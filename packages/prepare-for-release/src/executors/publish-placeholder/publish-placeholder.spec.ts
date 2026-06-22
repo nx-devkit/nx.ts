@@ -24,9 +24,9 @@ vi.mock('node:child_process', () => ({
   },
 }))
 
-const { publishPlaceholderExecutor } = await import('./executor.js')
+const { publishPlaceholderExecutor } = await import('./executor.ts')
 
-import type { NxPrepareForReleaseOptions } from './executor.js'
+import type { NxPrepareForReleaseOptions } from './executor.ts'
 
 function makeWorkspace(): string {
   return mkdtempSync(join(tmpdir(), 'nx-prepare-for-release-'))

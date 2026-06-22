@@ -1,7 +1,7 @@
 import { vol } from 'memfs'
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNodesV2 } from './plugin.js'
+import { createNodesV2 } from './plugin.ts'
 
 vi.mock('fs', async () => {
   const memfs = await import('memfs')
@@ -129,7 +129,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
       vi.doMock('@nx/devkit', () => ({ logger, workspaceRoot: '/workspace' }))
       process.argv.push('--verbose')
 
-      const { createNodesV2: cn } = await import('./plugin.js')
+      const { createNodesV2: cn } = await import('./plugin.ts')
       const [, fn] = cn
       fn(['project-a/tsdown.config.ts'], {}, makeContext())
       expect(logger.info).toHaveBeenCalled()
@@ -146,7 +146,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
       vi.doMock('@nx/devkit', () => ({ logger, workspaceRoot: '/workspace' }))
       process.env.NX_VERBOSE_LOGGING = 'true'
 
-      const { createNodesV2: cn } = await import('./plugin.js')
+      const { createNodesV2: cn } = await import('./plugin.ts')
       const [, fn] = cn
       fn(['project-a/tsdown.config.ts'], {}, makeContext())
       expect(logger.info).toHaveBeenCalled()
@@ -164,7 +164,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
       delete process.env.NX_VERBOSE_LOGGING
       process.argv = process.argv.filter((a) => a !== '--verbose')
 
-      const { createNodesV2: cn } = await import('./plugin.js')
+      const { createNodesV2: cn } = await import('./plugin.ts')
       const [, fn] = cn
       fn(['project-a/tsdown.config.ts'], {}, makeContext())
       expect(logger.info).not.toHaveBeenCalled()

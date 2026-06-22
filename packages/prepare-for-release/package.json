@@ -4,16 +4,17 @@
   "license": "MIT",
   "private": false,
   "type": "module",
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./plugin": {
-      "types": "./dist/plugin.d.mts",
-      "import": "./dist/plugin.mjs"
+      "types": "./src/plugin.ts",
+      "default": "./src/plugin.ts"
     }
   },
   "files": [

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createNodesV2, isReleaseBootstrapProject } from './plugin.js'
+import { createNodesV2, isReleaseBootstrapProject } from './plugin.ts'
 
 function makeWorkspace(): string {
   return mkdtempSync(join(tmpdir(), 'nx-prepare-plugin-'))

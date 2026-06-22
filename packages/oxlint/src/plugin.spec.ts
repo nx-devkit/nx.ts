@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createNodesV2 } from './plugin.js'
+import { createNodesV2 } from './plugin.ts'
 
 let tmp: string
 
