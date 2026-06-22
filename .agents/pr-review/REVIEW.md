@@ -1,8 +1,8 @@
 # Aggregated review — branch nx-devkit-docs-skills-prepare-release
 # Fork PR: ThePlenkov/nx.ts#17
 # Upstream PR: nx-devkit/nx.ts#4
-# Last updated: 2026-06-22T14:55:00Z
-# Head SHA: e753cfde4c0fc3a4e8042470224036d9a1facb3f (pre-fix; see changelog for post-fix)
+# Last updated: 2026-06-22T16:14:00Z
+# Head SHA: 6777445 (pre-fix; see changelog for post-fix)
 
 ## Threads
 
@@ -58,3 +58,40 @@
 - T11, T12, T13: addressed transitively.
 
 Tests: 11/11 pass in `@nx-devkit/prepare-for-release`. `bun run lint` clean for changed files (one pre-existing warning in unrelated file). `bun run build` green. `bash scripts/e2e.sh` green.
+
+---
+
+## Ready-for-review cycle (post-promote, ~15:22 UTC)
+
+| # | Source | File:Line | Reviewer | Substance | Verdict | Why |
+|---|--------|-----------|----------|-----------|---------|-----|
+| N1 | fork#17 (issue 4770222932) | packages/prepare-for-release/src/executors/publish-placeholder/schema.json | kilo-code-bot (CRITICAL) | `trustRepo` option is defined in `executor.ts:9-27` but missing from `schema.json` (lines 1-35), preventing users from configuring it via `nx.json`. | fix | With `additionalProperties: false`, Nx rejects the option. Added trustRepo property with `owner/repo` regex pattern. |
+| N2 | fork#17 (issue 4770289407) | schema.json:34, schema.d.ts:7 | kilo-code-bot (CRITICAL) | `trustRepo` missing from both `schema.json` and `schema.d.ts`. | fix | Same root cause as N1; added to both files. |
+| N3 | fork#17 (PRRT_kwDOTA4Etc6LUMOL) | schema.json:34 | cubic-dev-ai (P1, conf=9) | Schema missing `trustRepo` property despite the executor accepting and using it; with `additionalProperties: false`, passing `trustRepo` via nx.json will be rejected. | fix | Consensus with kilo + CodeRabbit. |
+| N4 | fork#17 (PRRT_kwDOTA4Etc6LUIRr) | schema.json | coderabbitai (Major) | Same: Missing `trustRepo` property in executor schema. | fix | Duplicate of N3. |
+| N5 | fork#17 (PRRT_kwDOTA4Etc6LUIRO) | packages/prepare-for-release/AGENTS.md:33-40 | coderabbitai (Major) | `NxPrepareForReleaseOptions` interface in AGENTS.md is missing `trustRepo`. | fix | Doc-only, cheap. |
+| N6 | fork#17 (PRRT_kwDOTA4Etc6LUIRX) | packages/prepare-for-release/README.md:45-53 | coderabbitai (Major) | `NxPrepareForReleaseOptions` interface in README is missing `trustRepo`. | fix | Doc-only, cheap. |
+| N7 | fork#17 (PRRT_kwDOTA4Etc6LUISJ) | skills/nx-devkit-prepare-for-release/SKILL.md:50-58 | coderabbitai (Major) | `NxPrepareForReleaseOptions` interface in skill is missing `trustRepo`. | fix | Doc-only, cheap. |
+| N8 | fork#17 (PRRT_kwDOTA4Etc6LUIRm) | executor.ts:174-252 | coderabbitai + sonarqubecloud (Major) | `publishPlaceholderExecutor` exceeds cognitive complexity threshold (23 > 15) — Sonar gate failure. | fix | Extracted `processPackage` helper; complexity now well under 15. |
+| N9 | fork#17 (PRRT_kwDOTA4Etc6LUIRf) | executor.ts:122,150,239 | coderabbitai (Major) | All three `spawnSync` calls lack timeout configuration. Hung npm op would block CI indefinitely. | fix | Added 120s timeout via `spawnWithTimeout` helper used by all 3 call sites. |
+| N10 | fork#17 (PRRT_kwDOTA4Etc6LUMOd) | executor.ts:153 | cubic-dev-ai (P2, conf=8) | `isPublished` treats every `npm view` error as "unpublished". Should distinguish 404 from other errors. | fix | Added 404 detection (`isNotFoundStderr`); other errors now throw. |
+| N11 | fork#17 (PRRT_kwDOTA4Etc6LUMOR) | packages/typescript-preset/AGENTS.md:26 | cubic-dev-ai (P2, conf=10) | AGENTS.md documents the interface as `NxTypecheckPluginOptions` but actual source defines `NxDevkitTypescriptOptions`. Agent following guide would get resolution error. | fix | Renamed interface in AGENTS.md to match source. |
+| N12 | fork#17 (PRRT_kwDOTA4Etc6LUISB) | plugin.ts:5-10,42-59 | coderabbitai (Major) | `createNodesV2` ignores its `options` parameter entirely. Declared `toolsProject` and `targetName` are not honored. | fix | `createNodesV2` now reads `options.targetName` and `options.toolsProject` and applies them. |
+| N13 | fork#17 (PRRT_kwDOTA4Etc6LUMOq) | plugin.ts:42 | cubic-dev-ai (P2, conf=8) | Same: `createNodesV2` callback ignores `_options`. | fix | Duplicate of N12. |
+| N14 | fork#17 (PRRT_kwDOTA4Etc6LUIQ_) | .github/workflows/release.yml:59-69 | coderabbitai (Major) | Add pre-publish release gates (`bun run check:spec`, `bash scripts/e2e.sh`) before `nx release publish`. | wontfix | Already addressed in cycle 1 (release.yml:64-65, 70-71). Reviewed current workflow — both gates present between lint and the publish step. No additional change needed. |
+| N15 | fork#17 (PRRT_kwDOTA4Etc6LUMOl) | release.yml:63 | cubic-dev-ai (P2, conf=7) | Same: missing `bun run check:spec` and `bash scripts/e2e.sh`. | wontfix | Duplicate of N14. |
+| N16 | fork#17 (PRRT_kwDOTA4Etc6LUIQu) | release.yml:16,45,81 | coderabbitai + zizmor (Major) | Add `persist-credentials: false` to all `actions/checkout` steps. | fix | Already addressed in cycle 1. Verified: all 3 checkouts have `persist-credentials: false` set. No additional change needed. |
+| N17 | fork#17 (PRRT_kwDOTA4Etc6LUMOi) | release.yml:16,45,81 | cubic-dev-ai (P2, conf=8) | Same: add `persist-credentials: false` to all checkouts. | fix | Duplicate of N16. |
+
+## Resolutions (post-implementation, cycle 2)
+
+- N1/N2/N3/N4: added `trustRepo` to `schema.json` (with `owner/repo` regex pattern) and `schema.d.ts` (with docstring).
+- N5/N6/N7: added `trustRepo` to `packages/prepare-for-release/AGENTS.md`, `README.md`, and `skills/nx-devkit-prepare-for-release/SKILL.md` Options sections.
+- N8: refactored `executor.ts` — extracted `resolveOptions`, `readPackageJsonSafe`, `matchesScope`, `publishOnePackage`, `processPackage`. `publishPlaceholderExecutor` now only orchestrates: resolve options, glob packages, iterate, aggregate. Cognitive complexity well under threshold.
+- N9: added `spawnWithTimeout` helper with `NPM_SUBPROCESS_TIMEOUT_MS = 120_000`; applied to all 3 `spawnSync` call sites (pack, view, publish).
+- N10: extracted `isNotFoundStderr`; `isPublished` now throws on non-404 `npm view` failures (network, auth, etc.) instead of silently treating them as "unpublished".
+- N11: renamed `NxTypecheckPluginOptions` → `NxDevkitTypescriptOptions` in `packages/typescript-preset/AGENTS.md` to match `src/plugin.ts`.
+- N12/N13: `createNodesV2` now reads `options.targetName` (default `'prepare-for-release'`) and `options.toolsProject` (filters matches by exact project root).
+- N14/N15/N16/N17: no change required — all four pre-existing in release.yml (added in commit `ff2b196` / `6777445`).
+
+Tests: 15/15 pass in `@nx-devkit/prepare-for-release` (2 new for isPublished 404-vs-error split). 72/72 pass across all 5 plugin packages. `bun run lint` clean (1 pre-existing warning in `scripts/spec-check.ts:101`). `bun run build` green. `bash scripts/e2e.sh` green. `bun run check:spec` green.

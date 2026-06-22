@@ -23,7 +23,7 @@ packages/typescript-preset/
 ## Standard options interface
 
 ```ts
-export interface NxTypecheckPluginOptions {
+export interface NxDevkitTypescriptOptions {
   /** Use the experimental `@typescript/native-preview` (`tsgo`) binary. Default: true. */
   tsgo?: boolean;
   /** Name of the tsconfig file to detect. Default: "tsconfig.json". */

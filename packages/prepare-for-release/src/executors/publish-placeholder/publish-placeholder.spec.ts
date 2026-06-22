@@ -232,4 +232,38 @@ describe('publishPlaceholderExecutor', () => {
     expect(result.published).toEqual([])
     expect(result.skipped).toEqual([])
   })
+
+  it('treats a 404 from `npm view` as not-published (does not republish)', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', {
+      status: 1,
+      stdout: '',
+      stderr:
+        'npm ERR! code E404\nnpm ERR! 404 Not Found - GET https://registry.npmjs.org/@nx-devkit/prepare-for-release',
+    })
+
+    const result = await publishPlaceholderExecutor({
+      workspaceRoot: workspace,
+      options: { dryRun: true },
+    })
+
+    expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
+    expect(result.skipped).toEqual([])
+  })
+
+  it('throws when `npm view` fails with a non-404 error (does not silently republish)', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', {
+      status: 1,
+      stdout: '',
+      stderr: 'npm ERR! code EAI_AGAIN\nnpm ERR! getaddrinfo EAI_AGAIN registry.npmjs.org',
+    })
+
+    await expect(
+      publishPlaceholderExecutor({
+        workspaceRoot: workspace,
+        options: { dryRun: true },
+      }),
+    ).rejects.toThrow(/npm view failed for @nx-devkit\/prepare-for-release/)
+  })
 })

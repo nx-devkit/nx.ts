@@ -42,6 +42,27 @@ const DEFAULT_TAG = 'placeholder'
 const DEFAULT_VERSION = '0.0.0'
 const DEFAULT_TRUST_REPO = 'ThePlenkov/nx.ts'
 const TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+const NPM_SUBPROCESS_TIMEOUT_MS = 120_000
+
+interface ResolvedOptions {
+  registry: string
+  placeholderTag: string
+  placeholderVersion: string
+  dryRun: boolean
+  trustRepo: string
+  scope: string[] | undefined
+}
+
+function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
+  return {
+    registry: options.registry ?? DEFAULT_REGISTRY,
+    placeholderTag: options.placeholderTag ?? DEFAULT_TAG,
+    placeholderVersion: options.placeholderVersion ?? DEFAULT_VERSION,
+    dryRun: options.dryRun ?? false,
+    trustRepo: resolveTrustRepo(options.trustRepo),
+    scope: options.scope,
+  }
+}
 
 function resolveNpmCommand(): string {
   const found = whichSync('npm', { nothrow: true })
@@ -77,9 +98,53 @@ function publishArgs(tarball: string, registry: string, tag: string): string[] {
   return ['publish', tarball, '--access', 'public', '--tag', tag, '--registry', registry]
 }
 
+function spawnWithTimeout(
+  command: string,
+  args: string[],
+  options: { cwd?: string; encoding: BufferEncoding },
+): ReturnType<typeof spawnSync> {
+  return spawnSync(command, args, {
+    ...options,
+    timeout: NPM_SUBPROCESS_TIMEOUT_MS,
+  })
+}
+
 async function readPackageJson(pkgRoot: string): Promise<Record<string, unknown>> {
   const raw = await readFile(join(pkgRoot, 'package.json'), 'utf-8')
   return JSON.parse(raw) as Record<string, unknown>
+}
+
+function readPackageJsonSafe(pkgJsonPath: string): Record<string, unknown> | null {
+  let fileContent: string
+  try {
+    fileContent = readFileSync(pkgJsonPath, 'utf-8')
+  } catch (error) {
+    // Filesystem errors (EACCES, ENOENT on the dir itself) bubble up so the
+    // executor fails loudly rather than silently dropping the workspace.
+    if (error instanceof SyntaxError) {
+      console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`)
+      return null
+    }
+    throw error
+  }
+  try {
+    return JSON.parse(fileContent) as Record<string, unknown>
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`)
+      return null
+    }
+    throw error
+  }
+}
+
+function matchesScope(name: string, scope: string[] | undefined): boolean {
+  if (!scope || scope.length === 0) return true
+  return scope.some((s) => name.startsWith(s))
+}
+
+function isNotFoundStderr(stderr: string): boolean {
+  return /\b(E404|404|not\s*found|ENOTFOUND_NOT_PUBLISHED)\b/i.test(stderr)
 }
 
 async function buildPlaceholderTarball(
@@ -119,7 +184,7 @@ async function buildPlaceholderTarball(
     await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf-8')
 
     const npmCmd = resolveNpmCommand()
-    const packResult = spawnSync(npmCmd, packArgs(stagedPkgRoot, tempDir), {
+    const packResult = spawnWithTimeout(npmCmd, packArgs(stagedPkgRoot, tempDir), {
       cwd: tempDir,
       encoding: 'utf-8',
     })
@@ -147,11 +212,19 @@ async function buildPlaceholderTarball(
 
 function isPublished(pkgName: string, registry: string): boolean {
   const npmCmd = resolveNpmCommand()
-  const result = spawnSync(npmCmd, viewArgs(pkgName, registry), {
+  const result = spawnWithTimeout(npmCmd, viewArgs(pkgName, registry), {
     encoding: 'utf-8',
   })
   if (result.status !== 0) {
-    return false
+    const stderr = (result.stderr ?? '').toString()
+    if (isNotFoundStderr(stderr)) {
+      return false
+    }
+    // Any other npm-view failure (network, auth, registry error) is a hard
+    // error so the executor fails loudly instead of silently republishing.
+    throw new Error(
+      `npm view failed for ${pkgName} (exit ${result.status}): ${stderr || '<no stderr>'}`,
+    )
   }
   const stdout = (result.stdout ?? '').toString().trim()
   if (!stdout) return false
@@ -171,91 +244,93 @@ function trustCommandFor(pkgName: string, trustRepo: string): string {
   return `npm trust github ${pkgName} --file release.yml --repo ${trustRepo} --allow-publish`
 }
 
+async function publishOnePackage(
+  pkgRoot: string,
+  name: string,
+  resolved: ResolvedOptions,
+): Promise<void> {
+  const { tarballPath, tempDir } = await buildPlaceholderTarball(
+    pkgRoot,
+    name,
+    resolved.placeholderVersion,
+    resolved.registry,
+  )
+  try {
+    const npmCmd = resolveNpmCommand()
+    const publishResult = spawnWithTimeout(
+      npmCmd,
+      publishArgs(tarballPath, resolved.registry, resolved.placeholderTag),
+      { encoding: 'utf-8' },
+    )
+    if (publishResult.status !== 0) {
+      throw new Error(
+        `npm publish failed for ${name} (exit ${publishResult.status}): ${publishResult.stderr ?? ''}`,
+      )
+    }
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined)
+  }
+}
+
+type PackageOutcome = 'published' | 'skipped' | 'ignored'
+
+interface PackageAccumulators {
+  published: string[]
+  skipped: string[]
+  trustCommands: string[]
+}
+
+async function processPackage(
+  pkgJsonPath: string,
+  resolved: ResolvedOptions,
+  acc: PackageAccumulators,
+): Promise<PackageOutcome> {
+  const parsed = readPackageJsonSafe(pkgJsonPath)
+  if (!parsed) return 'ignored'
+  const name = typeof parsed.name === 'string' ? parsed.name : null
+  if (!name) return 'ignored'
+  if (!matchesScope(name, resolved.scope)) return 'ignored'
+
+  if (isPublished(name, resolved.registry)) {
+    acc.skipped.push(name)
+    return 'skipped'
+  }
+
+  if (resolved.dryRun) {
+    acc.published.push(name)
+    acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo))
+    return 'published'
+  }
+
+  const pkgRoot = dirname(pkgJsonPath)
+  await publishOnePackage(pkgRoot, name, resolved)
+  acc.published.push(name)
+  acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo))
+  return 'published'
+}
+
 export async function publishPlaceholderExecutor(
   ctx: PublishPlaceholderContext,
 ): Promise<PublishPlaceholderResult> {
-  const { workspaceRoot } = ctx
-  const registry = ctx.options.registry ?? DEFAULT_REGISTRY
-  const placeholderTag = ctx.options.placeholderTag ?? DEFAULT_TAG
-  const placeholderVersion = ctx.options.placeholderVersion ?? DEFAULT_VERSION
-  const dryRun = ctx.options.dryRun ?? false
-  const trustRepo = resolveTrustRepo(ctx.options.trustRepo)
-
+  const resolved = resolveOptions(ctx.options)
   detectPackageManager()
 
   const pkgDirs = await glob(['packages/*/package.json'], {
-    cwd: workspaceRoot,
+    cwd: ctx.workspaceRoot,
     onlyFiles: true,
     absolute: true,
   })
 
-  const published: string[] = []
-  const skipped: string[] = []
-  const trustCommands: string[] = []
-
+  const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] }
   for (const pkgJsonPath of pkgDirs) {
-    const pkgRoot = dirname(pkgJsonPath)
-    let parsed: Record<string, unknown>
-    try {
-      const fileContent = readFileSync(pkgJsonPath, 'utf-8')
-      parsed = JSON.parse(fileContent) as Record<string, unknown>
-    } catch (error) {
-      // JSON parse errors are recoverable (skip the package); filesystem
-      // errors (EACCES, ENOENT on the dir itself) bubble up so the executor
-      // fails loudly rather than silently dropping the workspace.
-      if (error instanceof SyntaxError) {
-        console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`)
-        continue
-      }
-      throw error
-    }
-    const name = typeof parsed.name === 'string' ? parsed.name : null
-    if (!name) continue
-    if (ctx.options.scope && ctx.options.scope.length > 0) {
-      const matchesScope = ctx.options.scope.some((s) => name.startsWith(s))
-      if (!matchesScope) continue
-    }
-
-    if (isPublished(name, registry)) {
-      skipped.push(name)
-      continue
-    }
-
-    if (dryRun) {
-      published.push(name)
-      trustCommands.push(trustCommandFor(name, trustRepo))
-      continue
-    }
-
-    const { tarballPath, tempDir } = await buildPlaceholderTarball(
-      pkgRoot,
-      name,
-      placeholderVersion,
-      registry,
-    )
-
-    try {
-      const npmCmd = resolveNpmCommand()
-      const publishResult = spawnSync(npmCmd, publishArgs(tarballPath, registry, placeholderTag), {
-        encoding: 'utf-8',
-      })
-      if (publishResult.status !== 0) {
-        throw new Error(
-          `npm publish failed for ${name} (exit ${publishResult.status}): ${publishResult.stderr ?? ''}`,
-        )
-      }
-      published.push(name)
-      trustCommands.push(trustCommandFor(name, trustRepo))
-    } finally {
-      await rm(tempDir, { recursive: true, force: true }).catch(() => undefined)
-    }
+    await processPackage(pkgJsonPath, resolved, acc)
   }
 
-  if (existsSync(join(workspaceRoot, 'scripts/trust-github.sh'))) {
+  if (existsSync(join(ctx.workspaceRoot, 'scripts/trust-github.sh'))) {
     // Trust commands are also captured in scripts/trust-github.sh when present.
   }
 
-  return { published, skipped, trustCommands }
+  return acc
 }
 
 export default publishPlaceholderExecutor

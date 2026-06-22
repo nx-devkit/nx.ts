@@ -39,7 +39,9 @@ export function isReleaseBootstrapProject(
 
 export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
   '**/project.json',
-  (configFiles, _options, context) => {
+  (configFiles, options = {}, context) => {
+    const targetName = options.targetName ?? 'prepare-for-release'
+    const toolsProjectRoot = options.toolsProject?.replace(/\\/g, '/').replace(/^\.\//, '')
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> = []
     for (const configFile of configFiles) {
       const normalized = configFile.replace(/\\/g, '/')
@@ -48,13 +50,14 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
       if (projectRoot === '' || projectRoot === '.' || projectRoot === context.workspaceRoot) {
         continue
       }
+      if (toolsProjectRoot && projectRoot !== toolsProjectRoot) continue
       results.push([
         configFile,
         {
           projects: {
             [projectRoot]: {
               targets: {
-                'prepare-for-release': {
+                [targetName]: {
                   executor: `${PLUGIN_NAME}:publish-placeholder`,
                   options: {},
                 },

@@ -81,4 +81,64 @@ describe('createNodesV2', () => {
     expect(roots).toContain('tools')
     expect(roots).not.toContain('packages/lib')
   })
+
+  it('respects a custom targetName plugin option', () => {
+    const toolsDir = join(workspace, 'tools')
+    mkdirSync(toolsDir, { recursive: true })
+    writeFileSync(
+      join(toolsDir, 'project.json'),
+      JSON.stringify({
+        targets: {
+          'release-bootstrap': { executor: '@nx-devkit/prepare-for-release:publish-placeholder' },
+        },
+      }),
+    )
+
+    const result = createNodesV2[1](
+      ['tools/project.json'],
+      { targetName: 'release-bootstrap' },
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    const projects = (
+      result as Array<
+        readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }]
+      >
+    ).map(([_file, body]) => body.projects)[0]
+    expect(Object.keys(projects.tools.targets ?? {})).toEqual(['release-bootstrap'])
+  })
+
+  it('limits inference to a custom toolsProject when provided', () => {
+    const toolsDir = join(workspace, 'tools')
+    mkdirSync(toolsDir, { recursive: true })
+    writeFileSync(
+      join(toolsDir, 'project.json'),
+      JSON.stringify({
+        targets: {
+          'prepare-for-release': { executor: '@nx-devkit/prepare-for-release:publish-placeholder' },
+        },
+      }),
+    )
+    const otherDir = join(workspace, 'packages/bootstrap')
+    mkdirSync(otherDir, { recursive: true })
+    writeFileSync(
+      join(otherDir, 'project.json'),
+      JSON.stringify({
+        targets: {
+          'prepare-for-release': { executor: '@nx-devkit/prepare-for-release:publish-placeholder' },
+        },
+      }),
+    )
+
+    const result = createNodesV2[1](
+      ['tools/project.json', 'packages/bootstrap/project.json'],
+      { toolsProject: 'packages/bootstrap' },
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    const roots = (
+      result as Array<readonly [string, { projects: Record<string, unknown> }]>
+    ).flatMap(([_file, body]) => Object.keys(body.projects))
+    expect(roots).toEqual(['packages/bootstrap'])
+  })
 })
