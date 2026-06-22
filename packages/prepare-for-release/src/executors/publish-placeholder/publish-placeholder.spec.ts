@@ -16,7 +16,9 @@ vi.mock('node:child_process', () => ({
     state.calls.push({ args, command })
     const key = `${command} ${args.join(' ')}`
     for (const [pattern, response] of state.responses.entries()) {
-      if (key.includes(pattern)) {return response}
+      if (key.includes(pattern)) {
+        return response
+      }
     }
     return { status: 0, stderr: '', stdout: '' }
   },

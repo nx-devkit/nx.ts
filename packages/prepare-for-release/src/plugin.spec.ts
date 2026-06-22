@@ -75,9 +75,9 @@ describe('createNodesV2', () => {
       { nxJsonConfiguration: {}, workspaceRoot: workspace },
     )
 
-    const roots = (
-      result as (readonly [string, { projects: Record<string, unknown> }])[]
-    ).flatMap(([_file, body]) => Object.keys(body.projects))
+    const roots = (result as (readonly [string, { projects: Record<string, unknown> }])[]).flatMap(
+      ([_file, body]) => Object.keys(body.projects),
+    )
     expect(roots).toContain('tools')
     expect(roots).not.toContain('packages/lib')
   })
@@ -101,7 +101,10 @@ describe('createNodesV2', () => {
     )
 
     const projects = (
-      result as (readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }])[]
+      result as (readonly [
+        string,
+        { projects: Record<string, { targets?: Record<string, unknown> }> },
+      ])[]
     ).map(([_file, body]) => body.projects)[0]
     expect(Object.keys(projects.tools.targets ?? {})).toEqual(['release-bootstrap'])
   })
@@ -134,9 +137,9 @@ describe('createNodesV2', () => {
       { nxJsonConfiguration: {}, workspaceRoot: workspace },
     )
 
-    const roots = (
-      result as (readonly [string, { projects: Record<string, unknown> }])[]
-    ).flatMap(([_file, body]) => Object.keys(body.projects))
+    const roots = (result as (readonly [string, { projects: Record<string, unknown> }])[]).flatMap(
+      ([_file, body]) => Object.keys(body.projects),
+    )
     expect(roots).toEqual(['packages/bootstrap'])
   })
 })

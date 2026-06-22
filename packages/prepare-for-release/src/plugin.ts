@@ -25,7 +25,9 @@ export function isReleaseBootstrapProject(
   const configDir = dirname(configFile)
   const projectRoot = isAbsolute(configDir) ? configDir : join(workspaceRoot, configDir)
   const projectJsonPath = join(projectRoot, 'project.json')
-  if (!existsSync(projectJsonPath)) {return false}
+  if (!existsSync(projectJsonPath)) {
+    return false
+  }
   try {
     const raw = JSON.parse(readFileSync(projectJsonPath, 'utf8')) as Record<string, unknown>
     const targets = (raw.targets ?? {}) as Record<string, Record<string, unknown>>
@@ -41,16 +43,23 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
   '**/project.json',
   (configFiles, options = {}, context) => {
     const targetName = options.targetName ?? 'prepare-for-release'
-    const toolsProjectRoot = options.toolsProject?.replace(/\\/g, '/').replace(/^\.\//, '')
+    const toolsProjectRoot = options.toolsProject
+      ?.replace(/\\/g, '/')
+      .replace(/^\.\//, '')
+      .replace(/\/+$/, '')
     const results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
     for (const configFile of configFiles) {
       const normalized = configFile.replace(/\\/g, '/')
-      if (!isReleaseBootstrapProject(normalized, context.workspaceRoot)) {continue}
-      const projectRoot = dirname(normalized)
+      if (!isReleaseBootstrapProject(normalized, context.workspaceRoot)) {
+        continue
+      }
+      const projectRoot = dirname(normalized).replace(/\/+$/, '')
       if (projectRoot === '' || projectRoot === '.' || projectRoot === context.workspaceRoot) {
         continue
       }
-      if (toolsProjectRoot && projectRoot !== toolsProjectRoot) {continue}
+      if (toolsProjectRoot && projectRoot !== toolsProjectRoot) {
+        continue
+      }
       results.push([
         configFile,
         {

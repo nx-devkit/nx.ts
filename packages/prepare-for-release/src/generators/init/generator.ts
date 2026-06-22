@@ -10,7 +10,9 @@ const DEFAULT_PROJECT_NAME = 'tools'
 const DEFAULT_PLUGIN_PATH = '@nx-devkit/prepare-for-release'
 
 function readJson(tree: Tree, path: string): Record<string, unknown> | null {
-  if (!tree.exists(path)) {return null}
+  if (!tree.exists(path)) {
+    return null
+  }
   try {
     return JSON.parse(tree.read(path, 'utf8') ?? '{}') as Record<string, unknown>
   } catch {
@@ -24,7 +26,22 @@ function writeJson(tree: Tree, path: string, value: unknown): void {
 
 function ensureToolsProject(tree: Tree, projectName: string, pluginPath: string): void {
   const projectJsonPath = joinPathFragments(projectName, 'project.json')
-  if (tree.exists(projectJsonPath)) {return}
+
+  if (tree.exists(projectJsonPath)) {
+    const existing = readJson(tree, projectJsonPath)
+    if (existing) {
+      const targets = (existing.targets ?? {}) as Record<string, Record<string, unknown>>
+      if (!targets['prepare-for-release']) {
+        targets['prepare-for-release'] = {
+          executor: `${pluginPath}:publish-placeholder`,
+          options: {},
+        }
+        existing.targets = targets
+        writeJson(tree, projectJsonPath, existing)
+      }
+    }
+    return
+  }
 
   const project = {
     $schema: '../../node_modules/nx/schemas/project-schema.json',
@@ -52,7 +69,9 @@ function registerPlugin(tree: Tree, pluginPath: string): void {
         entry !== null &&
         (entry as { plugin?: string }).plugin === pluginPath),
   )
-  if (alreadyRegistered) {return}
+  if (alreadyRegistered) {
+    return
+  }
 
   plugins.push({ options: {}, plugin: pluginPath })
   nxJson.plugins = plugins
@@ -73,7 +92,7 @@ export async function initGenerator(
     '1. Install the plugin in the consuming workspace:',
     '   bun add -D @nx-devkit/prepare-for-release',
     '2. Run the bootstrap target to publish 0.0.0 placeholders:',
-    '   npx nx run tools:prepare-for-release',
+    `   npx nx run ${projectName}:prepare-for-release`,
     '3. For each published placeholder, run the corresponding `npm trust github` command printed by the executor (requires MFA).',
     '4. Wire OIDC trusted publishing in .github/workflows/release.yml (see the template shipped with this plugin).',
     '5. From then on, releases are automated via `npx nx release`.',

@@ -90,8 +90,8 @@ function viewArgs(pkgName: string, registry: string): string[] {
   return ['view', pkgName, 'version', '--registry', registry, '--json']
 }
 
-function packArgs(pkgRoot: string, packCwd: string): string[] {
-  return ['pack', '--pack-destination', packCwd, '--cwd', pkgRoot]
+function packArgs(packDestination: string): string[] {
+  return ['pack', '--pack-destination', packDestination]
 }
 
 function publishArgs(tarball: string, registry: string, tag: string): string[] {
@@ -139,7 +139,9 @@ function readPackageJsonSafe(pkgJsonPath: string): Record<string, unknown> | nul
 }
 
 function matchesScope(name: string, scope: string[] | undefined): boolean {
-  if (!scope || scope.length === 0) {return true}
+  if (!scope || scope.length === 0) {
+    return true
+  }
   return scope.some((s) => name.startsWith(s))
 }
 
@@ -184,8 +186,8 @@ async function buildPlaceholderTarball(
     await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf8')
 
     const npmCmd = resolveNpmCommand()
-    const packResult = spawnWithTimeout(npmCmd, packArgs(stagedPkgRoot, tempDir), {
-      cwd: tempDir,
+    const packResult = spawnWithTimeout(npmCmd, packArgs(tempDir), {
+      cwd: stagedPkgRoot,
       encoding: 'utf8',
     })
 
@@ -227,10 +229,14 @@ function isPublished(pkgName: string, registry: string): boolean {
     )
   }
   const stdout = (result.stdout ?? '').toString().trim()
-  if (!stdout) {return false}
+  if (!stdout) {
+    return false
+  }
   try {
     const parsed = JSON.parse(stdout) as unknown
-    if (typeof parsed === 'string') {return parsed.length > 0}
+    if (typeof parsed === 'string') {
+      return parsed.length > 0
+    }
     if (parsed && typeof parsed === 'object' && 'version' in (parsed as Record<string, unknown>)) {
       return Boolean((parsed as { version?: unknown }).version)
     }
@@ -286,10 +292,16 @@ async function processPackage(
   acc: PackageAccumulators,
 ): Promise<PackageOutcome> {
   const parsed = readPackageJsonSafe(pkgJsonPath)
-  if (!parsed) {return 'ignored'}
+  if (!parsed) {
+    return 'ignored'
+  }
   const name = typeof parsed.name === 'string' ? parsed.name : null
-  if (!name) {return 'ignored'}
-  if (!matchesScope(name, resolved.scope)) {return 'ignored'}
+  if (!name) {
+    return 'ignored'
+  }
+  if (!matchesScope(name, resolved.scope)) {
+    return 'ignored'
+  }
 
   if (isPublished(name, resolved.registry)) {
     acc.skipped.push(name)
