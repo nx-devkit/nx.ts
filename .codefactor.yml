@@ -6,9 +6,11 @@
 # Most findings are stylistic rules that conflict with our codebase conventions.
 # File-level exclusions below suppress noisy findings. CodeFactor's YAML config
 # does not support per-file rule overrides, so we exclude entire files instead.
+#
+# NOTE: CodeFactor reads this config on each analysis pass. If this file is
+# added in a PR, the initial scan may run before the config exists. A follow-up
+# push triggers a fresh scan that applies these exclusions.
 
-# Exclude test files — test code legitimately uses Node.js modules, magic numbers,
-# function declarations, and other patterns flagged by CodeFactor.
 exclude:
   - "**/*.spec.ts"
   - "**/*.test.ts"
@@ -17,4 +19,4 @@ exclude:
   - "**/coverage/**"
   - "**/.nx/**"
   - "**/.nx-cache/**"
-  - "packages/prepare-for-release/**"
+  - "**/packages/prepare-for-release/**"
