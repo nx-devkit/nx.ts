@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import type { CreateNodesV2, ProjectConfiguration } from '@nx/devkit'
 
 export interface NxPrepareForReleasePluginOptions {
@@ -22,7 +22,8 @@ export function isReleaseBootstrapProject(
   workspaceRoot: string,
   executor = `${PLUGIN_NAME}:publish-placeholder`,
 ): boolean {
-  const projectRoot = join(workspaceRoot, configFile.replace(/\/project\.json$/, ''))
+  const configDir = dirname(configFile)
+  const projectRoot = isAbsolute(configDir) ? configDir : join(workspaceRoot, configDir)
   const projectJsonPath = join(projectRoot, 'project.json')
   if (!existsSync(projectJsonPath)) return false
   try {
@@ -43,8 +44,10 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
     for (const configFile of configFiles) {
       const normalized = configFile.replace(/\\/g, '/')
       if (!isReleaseBootstrapProject(normalized, context.workspaceRoot)) continue
-      const projectRoot = normalized.replace(/\/project\.json$/, '')
-      if (projectRoot === '' || projectRoot === '.') continue
+      const projectRoot = dirname(normalized)
+      if (projectRoot === '' || projectRoot === '.' || projectRoot === context.workspaceRoot) {
+        continue
+      }
       results.push([
         configFile,
         {

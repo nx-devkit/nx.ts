@@ -33,6 +33,14 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: Publish packages via nx release (OIDC)
     runs-on: ubuntu-latest
+    # https://docs.npmjs.com/trusted-publishers-with-npm-cli-and-github-actions
+    # OIDC trusted publishing requires:
+    #   1. npm >= 11.5 (installed by `npm install -g npm@latest` below)
+    #   2. `registry-url` on actions/setup-node (already configured)
+    #   3. `NPM_CONFIG_PROVENANCE=true` (set on the publish step)
+    #   4. `id-token: write` permission (declared at job level)
+    # No NODE_AUTH_TOKEN / NPM_TOKEN is needed; npm exchanges the GHA OIDC
+    # token for a short-lived npm registry token automatically.
     steps:
       - uses: actions/checkout@v6
         with:
@@ -71,8 +79,13 @@ jobs:
         with:
           fetch-depth: 0
       - name: Open draft PR on upstream
+        # Cross-repo PR creation requires a PAT with repo scope on the
+        # upstream org. The default GITHUB_TOKEN is scoped to this repo
+        # only and will be rejected by the upstream API. Set the
+        # UPSTREAM_GITHUB_TOKEN secret in repo settings (Settings →
+        # Secrets and variables → Actions) before this job will succeed.
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.UPSTREAM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           if gh pr view --repo nx-devkit/nx.ts --head ThePlenkov:main > /dev/null 2>&1; then
             echo "Upstream PR already exists, skipping."

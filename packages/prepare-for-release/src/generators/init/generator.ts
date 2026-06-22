@@ -1,5 +1,5 @@
 import type { GeneratorCallback, Tree } from '@nx/devkit'
-import { join } from 'node:path'
+import { joinPathFragments } from '@nx/devkit'
 
 export interface NxPrepareForReleaseInitOptions {
   projectName?: string
@@ -23,7 +23,7 @@ function writeJson(tree: Tree, path: string, value: unknown): void {
 }
 
 function ensureToolsProject(tree: Tree, projectName: string, pluginPath: string): void {
-  const projectJsonPath = join(projectName, 'project.json')
+  const projectJsonPath = joinPathFragments(projectName, 'project.json')
   if (tree.exists(projectJsonPath)) return
 
   const project = {
@@ -39,7 +39,7 @@ function ensureToolsProject(tree: Tree, projectName: string, pluginPath: string)
   }
 
   writeJson(tree, projectJsonPath, project)
-  tree.write(join(projectName, '.gitkeep'), '')
+  tree.write(joinPathFragments(projectName, '.gitkeep'), '')
 }
 
 function registerPlugin(tree: Tree, pluginPath: string): void {

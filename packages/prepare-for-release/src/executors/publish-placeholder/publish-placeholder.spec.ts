@@ -48,10 +48,13 @@ function readJson(path: string): Record<string, unknown> {
 describe('publishPlaceholderExecutor', () => {
   let workspace: string
   let originalCwd: string
+  let originalTrustRepo: string | undefined
 
   beforeEach(() => {
     workspace = makeWorkspace()
     originalCwd = process.cwd()
+    originalTrustRepo = process.env.NPM_TRUST_REPO
+    process.env.NPM_TRUST_REPO = 'ThePlenkov/nx.ts'
     process.chdir(workspace)
     state.calls.length = 0
     state.responses.clear()
@@ -60,6 +63,11 @@ describe('publishPlaceholderExecutor', () => {
   afterEach(() => {
     process.chdir(originalCwd)
     rmSync(workspace, { recursive: true, force: true })
+    if (originalTrustRepo === undefined) {
+      delete process.env.NPM_TRUST_REPO
+    } else {
+      process.env.NPM_TRUST_REPO = originalTrustRepo
+    }
   })
 
   it('publishes a placeholder tarball when package is not yet on the registry', async () => {
@@ -178,5 +186,50 @@ describe('publishPlaceholderExecutor', () => {
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
     const afterBytes = readFileSync(join(pkgRoot, 'package.json'))
     expect(Buffer.compare(originalBytes, afterBytes)).toBe(0)
+  })
+
+  it('uses a custom trustRepo option when provided', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+      stderr: '',
+    })
+    state.responses.set('npm publish', { status: 0, stdout: 'ok', stderr: '' })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
+
+    const result = await publishPlaceholderExecutor({
+      workspaceRoot: workspace,
+      options: { trustRepo: 'my-org/my-repo' },
+    })
+
+    expect(result.trustCommands[0]).toContain('--repo my-org/my-repo')
+    expect(result.trustCommands[0]).not.toContain('ThePlenkov/nx.ts')
+  })
+
+  it('rejects an invalid trustRepo slug', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', { status: 1, stdout: '', stderr: 'E404' })
+
+    await expect(
+      publishPlaceholderExecutor({
+        workspaceRoot: workspace,
+        options: { trustRepo: 'not a slug' },
+      }),
+    ).rejects.toThrow(/Invalid trustRepo/)
+  })
+
+  it('skips a package.json that contains invalid JSON', async () => {
+    const pkgRoot = makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    writeFileSync(join(pkgRoot, 'package.json'), '{ this is not valid json')
+
+    const result = await publishPlaceholderExecutor({
+      workspaceRoot: workspace,
+      options: {},
+    })
+
+    expect(result.published).toEqual([])
+    expect(result.skipped).toEqual([])
   })
 })
