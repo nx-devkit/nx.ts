@@ -71,9 +71,9 @@ Skipped:   @nx-devkit/biome
 
 Run these locally (requires MFA) to enable GitHub OIDC trusted publishing:
 
-  npm trust github --file .github/workflows/release.yml --owner ThePlenkov --repo nx.ts @nx-devkit/tsdown
-  npm trust github --file .github/workflows/release.yml --owner ThePlenkov --repo nx.ts @nx-devkit/oxlint
-  npm trust github --file .github/workflows/release.yml --owner ThePlenkov --repo nx.ts @nx-devkit/typescript
+  npm trust github @nx-devkit/tsdown --file release.yml --repo ThePlenkov/nx.ts --allow-publish
+  npm trust github @nx-devkit/oxlint --file release.yml --repo ThePlenkov/nx.ts --allow-publish
+  npm trust github @nx-devkit/typescript --file release.yml --repo ThePlenkov/nx.ts --allow-publish
 ```
 
 ## Why npm, not bun, for the placeholder publish

@@ -137,9 +137,9 @@ describe('publishPlaceholderExecutor', () => {
 
     expect(result.trustCommands.length).toBeGreaterThanOrEqual(1)
     expect(result.trustCommands[0]).toContain('npm trust github')
-    expect(result.trustCommands[0]).toContain('--file .github/workflows/release.yml')
-    expect(result.trustCommands[0]).toContain('--owner ThePlenkov')
-    expect(result.trustCommands[0]).toContain('--repo nx.ts')
+    expect(result.trustCommands[0]).toContain('--file release.yml')
+    expect(result.trustCommands[0]).toContain('--repo ThePlenkov/nx.ts')
+    expect(result.trustCommands[0]).toContain('--allow-publish')
   })
 
   it('dryRun: true does not call npm publish or npm pack', async () => {

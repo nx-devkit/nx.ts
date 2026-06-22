@@ -129,7 +129,7 @@ function isPublished(pkgName: string, registry: string): boolean {
 }
 
 function trustCommandFor(pkgName: string): string {
-  return `npm trust github --file .github/workflows/release.yml --owner ThePlenkov --repo nx.ts ${pkgName}`
+  return `npm trust github ${pkgName} --file release.yml --repo ThePlenkov/nx.ts --allow-publish`
 }
 
 export async function publishPlaceholderExecutor(
