@@ -94,3 +94,43 @@ This repo uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-drive
 - Inconsistent option schemas across siblings
 
 Exits non-zero on conflict. Wire this into CI.
+## Review-thread workflow (for AI coding agents in IDEs)
+
+This section applies when an AI coding agent (Claude Code, GitHub Copilot, Cursor, or similar) working in a developer's IDE is asked to address review comments, reply to review threads, or resolve open threads on a GitHub PR. It does not apply to opening a new PR, implementing a new feature, or pushing a new branch.
+
+### Pre-flight (mandatory)
+
+Run these commands before touching anything. If the PR is already merged or closed, stop — there is no work to do.
+
+```bash
+OWNER_REPO=$(git remote get-url origin | sed -E 's#.*github.com[:/](.+/.+)\.git#\1#')
+gh pr view <N> --json state,mergeable,reviewDecision,url
+gh api graphql -f query="query { repository(owner:\"${OWNER_REPO%/*}\", name:\"${OWNER_REPO#*/}\") { pullRequest(number:<N>) { reviewThreads(first:30) { nodes { id isResolved isOutdated comments(first:1) { nodes { author { login } body path line } } } } } } }"
+```
+
+### For each unresolved thread
+
+1. Read the comment body and the cited file:line.
+2. Open the file, read the cited code, form an opinion.
+3. Decide: (a) reviewer is right, fix it; (b) reviewer is partially right, fix part; (c) reviewer is wrong, push back politely with file:line evidence.
+4. If you fix: commit on the existing PR branch (do NOT create a new branch), push to the PR's head remote, post a reply to the thread explaining what you did and the commit SHA, then resolve the thread.
+5. If you push back: post a reply explaining your reasoning, then resolve the thread.
+
+### Resolve command
+
+```bash
+gh api graphql -f threadId="<THREAD_ID>" -f query='mutation($threadId: ID!) { resolveReviewThread(input:{threadId:$threadId}) { thread { isResolved } } }'
+```
+
+### Forbidden actions
+
+- Do NOT create a new branch.
+- Do NOT open a new PR.
+- Do NOT mark a thread resolved without replying first.
+- Do NOT skip threads — even outdated ones deserve a one-line confirmation reply.
+- Do NOT make code changes outside files cited in the threads.
+
+### Done criteria
+
+- Re-run the GraphQL query and confirm every thread shows `isResolved: true`.
+- Report to the user: which threads you fixed (with commit SHAs) and which you pushed back on (with reasoning).
