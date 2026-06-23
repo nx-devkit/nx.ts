@@ -69,23 +69,23 @@ After any modification, verify with `tail`, `head`, or `git diff --stat` before 
 
 ## Cross-fork workflow
 
-This rig uses a fork architecture. Your worktree's `origin` points to the **upstream** repo (`ThePlenkov/nx.ts`). You MUST push to a separate `fork` remote (`nx-devkit/nx.ts`). Add it if missing:
+You work in a fork-architecture rig. Your worktree's `origin` points to the **upstream** repo. You MUST push to a separate `fork` remote. Add it if missing:
 
 ```bash
 git remote add fork https://x-access-token:$(gh auth token)@github.com/nx-devkit/nx.ts.git 2>/dev/null || true
 git push fork <branch-name>    # NEVER `git push origin`
-gh pr create --repo nx-devkit/nx.ts --draft --head nx-devkit:<branch-name> --base main ...
+gh pr create --repo nx.ts --draft --head nx-devkit:<branch-name> --base main ...
 ```
 
 Do NOT open an upstream PR. The mayor handles the cross-fork upstream PR after the fork draft is reviewed.
 
 ## Verification before declaring done
 
-Run `bun run lint` and any other checks specified in the bead body. All must exit 0.
+Run the rig's standard checks (`bun run lint`, `bun test`, `bun run build`, `bun run check:spec` — whatever the rig uses). All must exit 0. Do not skip this step; failing checks mean the bead is not done.
 
 ## When stuck
 
-If a tool call hangs for more than 2 minutes, the mayor will reset you. To avoid this:
+If a tool call hangs for more than 2 minutes (the dispatcher will show `status=working` with `last_activity_at` not updating), the mayor will reset you. To avoid this:
 
 - Use `bash` for everything file-related.
 - Use `gh` for GitHub interactions (not the GitHub MCP server, which can also hang).
