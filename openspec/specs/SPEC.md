@@ -8,7 +8,7 @@ The repo is a fork of [ThePlenkov/nx.ts](https://github.com/ThePlenkov/nx.ts), w
 
 ## Architecture
 
-Four workspace packages under `packages/`:
+Five workspace packages under `packages/`:
 
 | Package | Scope | Role |
 |---|---|---|
@@ -16,6 +16,7 @@ Four workspace packages under `packages/`:
 | `packages/oxlint` | `@nx-devkit/oxlint` | Tool plugin. Owns `lint` target inference. |
 | `packages/biome` | `@nx-devkit/biome` | Tool plugin. Owns `format`, `format-check`, `lint` inference. |
 | `packages/typescript-preset` | `@nx-devkit/typescript` | Preset plugin. Owns `typecheck`, `test`, `test:watch`, `test:coverage`. Exports reusable helpers. |
+| `packages/prepare-for-release` | `@nx-devkit/prepare-for-release` | Tool plugin. Owns the `prepare-for-release` executor + `init` generator that bootstraps a workspace of packages onto npm. |
 
 Per-tool plugins (tsdown, oxlint, biome) consume the preset via workspace dependency so they do not duplicate typecheck/test inference.
 
@@ -69,6 +70,37 @@ Each `SKILL.md` has YAML frontmatter (`name`, `description`) per the skills.sh s
 
 Every plugin bead follows this order: tests first, implementation second, README third.
 
+## Release flow
+
+Releases are bootstrapped and then automated by `@nx-devkit/prepare-for-release` + the CI release workflow.
+
+**1. One-time bootstrap (manual, MFA).** From a fresh clone of any Nx workspace that has this plugin family installed:
+
+```bash
+bunx nx run tools:prepare-for-release
+```
+
+The executor scans `packages/*`, calls `npm view <name> version` for each, and — for any package that returns 404 — builds a minimal placeholder tarball in a temp dir via `npm pack` and publishes it with `npm publish <tarball> --access public --tag placeholder`. The source `package.json` is never modified.
+
+The executor returns `{ published, skipped, trustCommands }`. The `trustCommands` array is printed so the user can run them locally with MFA:
+
+```bash
+npm trust github @nx-devkit/<name> --file release.yml --repo ThePlenkov/nx.ts --allow-publish
+```
+
+**2. Ongoing releases (CI).** Once the placeholders are published and trusted, `.github/workflows/release.yml` (triggered by push to `main`) runs:
+
+- `bun install`
+- `bun run lint` + `bun run check:spec`
+- `bun run build` + `bun test`
+- `bash scripts/e2e.sh`
+- `npx nx release --skip-publish --dry-run` (confirm versioning intent)
+- `npx nx release publish` (OIDC trusted publishing — no `--token`)
+
+CI uses `npx` (npm CLI), not bun, because `bun publish` does not yet support npm OIDC trusted publishing. Install/build/test still use bun.
+
+**3. Idempotency.** The executor is safe to re-run. Already-published packages are silently skipped.
+
 ## Two-PR strategy
 
 Two open UNMERGED pull requests are opened from the same convoy feature branch `convoy/nx-ts-5-plugins-demo-skills-2-prs-opensp/e06d06b1/head`:
@@ -86,4 +118,5 @@ The branch is pushed to both remotes; both PRs reference `openspec/specs/SPEC.md
 - `bun test` green.
 - `bun run spec:check` no duplicate target/inference definitions.
 - `bunx openspec validate` no errors.
+- `bun run check:spec` no plugin-target / package-name / option-schema conflicts.
 - `bash scripts/e2e.sh` exit 0.

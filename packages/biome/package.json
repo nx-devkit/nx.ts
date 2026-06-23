@@ -1,15 +1,16 @@
 {
   "name": "@nx-devkit/biome",
   "version": "0.0.1",
-  "private": true,
+  "license": "MIT",
+  "private": false,
   "type": "module",
-  "main": "./dist/plugin.mjs",
-  "module": "./dist/plugin.mjs",
-  "types": "./dist/plugin.d.ts",
+  "main": "./src/plugin.ts",
+  "module": "./src/plugin.ts",
+  "types": "./src/plugin.ts",
   "exports": {
     ".": {
-      "types": "./dist/plugin.d.ts",
-      "default": "./dist/plugin.mjs"
+      "types": "./src/plugin.ts",
+      "default": "./src/plugin.ts"
     }
   },
   "files": [

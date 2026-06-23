@@ -2,6 +2,10 @@
 
 Nx plugin that infers `format`, `format-check`, and `lint` targets from a project's `biome.json` or `biome.jsonc`. Zero `project.json` required.
 
+## What it does
+
+Scans the workspace for any `biome.json` or `biome.jsonc`. For each match (outside the workspace root), it injects three targets: `format` (uncached — has side effects), `format-check` (cached), and `lint` (cached).
+
 ## Install
 
 ```bash

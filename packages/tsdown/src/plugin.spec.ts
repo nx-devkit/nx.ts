@@ -1,7 +1,7 @@
 import { vol } from 'memfs'
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNodesV2 } from './plugin.js'
+import { createNodesV2 } from './plugin.ts'
 
 vi.mock('fs', async () => {
   const memfs = await import('memfs')
@@ -54,25 +54,25 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
     process.argv = process.argv.filter((a) => a !== '--verbose')
   })
 
-  it('infers a build target for a project with tsdown.config.ts', () => {
+  it('infers a build target for a project with tsdown.config.ts', async () => {
     const [pattern, fn] = createNodesV2
     expect(pattern).toBe('**/tsdown.config.ts')
 
-    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext())
+    const results = await fn(['project-a/tsdown.config.ts'], {}, makeContext())
 
     expect(results).toHaveLength(1)
     const [configFile, project] = results[0]!
     expect(configFile).toBe('project-a/tsdown.config.ts')
     const projects = project.projects
     expect(projects).toHaveProperty('project-a')
-    const targets = projects['project-a']!.targets!
+    const targets = projects!['project-a']!.targets!
     expect(targets).toHaveProperty('build')
   })
 
-  it('build target uses nx:run-commands with cwd, outputs, cache, dependsOn', () => {
+  it('build target uses nx:run-commands with cwd, outputs, cache, dependsOn', async () => {
     const [, fn] = createNodesV2
-    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext())
-    const build = results[0]![1].projects['project-a']!.targets!.build!
+    const results = await fn(['project-a/tsdown.config.ts'], {}, makeContext())
+    const build = results[0]![1].projects!['project-a']!.targets!.build!
 
     expect(build.executor).toBe('nx:run-commands')
     expect(build.options).toEqual({
@@ -84,10 +84,10 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
     expect(build.dependsOn).toEqual(['^build'])
   })
 
-  it('build inputs include src/**/*.ts, tsdown.config.ts, tsconfig.lib.json, package.json', () => {
+  it('build inputs include src/**/*.ts, tsdown.config.ts, tsconfig.lib.json, package.json', async () => {
     const [, fn] = createNodesV2
-    const results = fn(['project-a/tsdown.config.ts'], {}, makeContext())
-    const inputs = results[0]![1].projects['project-a']!.targets!.build!.inputs
+    const results = await fn(['project-a/tsdown.config.ts'], {}, makeContext())
+    const inputs = results[0]![1].projects!['project-a']!.targets!.build!.inputs
 
     expect(inputs).toEqual(
       expect.arrayContaining([
@@ -99,21 +99,21 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
     )
   })
 
-  it('skips the workspace root (configFile at ./)', () => {
+  it('skips the workspace root (configFile at ./)', async () => {
     const [, fn] = createNodesV2
-    const results = fn(['tsdown.config.ts'], {}, makeContext())
+    const results = await fn(['tsdown.config.ts'], {}, makeContext())
     expect(results).toHaveLength(0)
   })
 
-  it('infers a build target for each non-root project', () => {
+  it('infers a build target for each non-root project', async () => {
     const [, fn] = createNodesV2
-    const results = fn(
+    const results = await fn(
       ['project-a/tsdown.config.ts', 'project-b/tsdown.config.ts', 'tsdown.config.ts'],
       {},
       makeContext(),
     )
     expect(results).toHaveLength(2)
-    const roots = results.flatMap((r) => Object.keys(r[1].projects))
+    const roots = results.flatMap((r) => Object.keys(r[1].projects!))
     expect(roots).toEqual(expect.arrayContaining(['project-a', 'project-b']))
   })
 
@@ -129,7 +129,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
       vi.doMock('@nx/devkit', () => ({ logger, workspaceRoot: '/workspace' }))
       process.argv.push('--verbose')
 
-      const { createNodesV2: cn } = await import('./plugin.js')
+      const { createNodesV2: cn } = await import('./plugin.ts')
       const [, fn] = cn
       fn(['project-a/tsdown.config.ts'], {}, makeContext())
       expect(logger.info).toHaveBeenCalled()
@@ -146,7 +146,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
       vi.doMock('@nx/devkit', () => ({ logger, workspaceRoot: '/workspace' }))
       process.env.NX_VERBOSE_LOGGING = 'true'
 
-      const { createNodesV2: cn } = await import('./plugin.js')
+      const { createNodesV2: cn } = await import('./plugin.ts')
       const [, fn] = cn
       fn(['project-a/tsdown.config.ts'], {}, makeContext())
       expect(logger.info).toHaveBeenCalled()
@@ -164,7 +164,7 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
       delete process.env.NX_VERBOSE_LOGGING
       process.argv = process.argv.filter((a) => a !== '--verbose')
 
-      const { createNodesV2: cn } = await import('./plugin.js')
+      const { createNodesV2: cn } = await import('./plugin.ts')
       const [, fn] = cn
       fn(['project-a/tsdown.config.ts'], {}, makeContext())
       expect(logger.info).not.toHaveBeenCalled()

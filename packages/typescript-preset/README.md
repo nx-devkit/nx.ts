@@ -2,6 +2,10 @@
 
 A preset Nx plugin that infers `typecheck` and `test` targets for any project that has a `tsconfig.json`, without requiring a `project.json`.
 
+## What it does
+
+For every `tsconfig.json` (outside the workspace root) the plugin infers a `typecheck` target. If a `vitest.config.*` is also present, it additionally infers `test`, `test:watch`, and `test:coverage` targets.
+
 ## Why a "preset" plugin?
 
 Per-tool plugins (`@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome`, …) only own the target logic for the tool they wrap. Type-checking and test-running are cross-cutting concerns that almost every TypeScript project needs. Instead of each per-tool plugin re-implementing the same `typecheck` / `test` inference, they delegate to this single preset.
@@ -33,7 +37,7 @@ The plugin needs no other setup. By default it scans every `tsconfig.json` in th
   "typecheck": {
     "executor": "nx:run-commands",
     "options": {
-      "command": "npx tsgo --build tsconfig.json",
+      "command": "tsgo --build tsconfig.json",
       "cwd": "{projectRoot}"
     },
     "cache": true,

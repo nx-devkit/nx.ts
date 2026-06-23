@@ -1,6 +1,6 @@
 import type { CreateNodesContextV2 } from 'nx/src/project-graph/plugins/public-api'
 import { describe, expect, it } from 'vitest'
-import { createNodesV2 } from './plugin.js'
+import { createNodesV2 } from './plugin.ts'
 
 function makeContext(workspaceRoot: string): CreateNodesContextV2 {
   return {
@@ -91,7 +91,7 @@ describe('@nx-devkit/biome createNodesV2', () => {
   })
 
   it('plugin name is exposed for nx registration', async () => {
-    const mod = await import('./plugin.js')
+    const mod = await import('./plugin.ts')
     expect(typeof mod.createNodesV2).toBe('object')
   })
 })

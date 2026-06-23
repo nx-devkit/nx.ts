@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createNodesV2 } from './plugin.js'
+import { createNodesV2 } from './plugin.ts'
 
 let tmp: string
 
@@ -104,7 +104,6 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
   })
 
   it('skips the workspace root', () => {
-    writeFileSync(join(tmp, '.oxlintrc.json'), '{}')
     const result = callWith(join(tmp, '.oxlintrc.json'))
     expect(result).toEqual([])
   })
@@ -132,5 +131,90 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
         '{projectRoot}/package.json',
       ]),
     )
+  })
+
+  describe('workspace-root fallback', () => {
+    it('creates lint targets for projects without local .oxlintrc.* when root config exists', () => {
+      writeFileSync(join(tmp, '.oxlintrc.json'), '{}')
+      mkdirSync(join(tmp, 'packages', 'noconfig', 'src'), { recursive: true })
+      writeFileSync(join(tmp, 'packages', 'noconfig', 'package.json'), '{"name":"noconfig"}')
+      writeFileSync(join(tmp, 'packages', 'noconfig', 'src', 'index.ts'), 'export const x = 1;\n')
+
+      const result = callWith(join(tmp, '.oxlintrc.json'))
+      const allProjects = (
+        result as Array<readonly [string, { projects: Record<string, unknown> }]>
+      ).flatMap(([, { projects }]) => Object.keys(projects))
+      expect(allProjects).toContain(join('packages', 'noconfig'))
+    })
+
+    it('does not duplicate lint target for project that has its own .oxlintrc.json', () => {
+      writeFileSync(join(tmp, '.oxlintrc.json'), '{}')
+      makeProject('hasconfig', '.oxlintrc.json')
+
+      const result = callWith(join(tmp, '.oxlintrc.json'))
+      const allProjects = (
+        result as Array<readonly [string, { projects: Record<string, unknown> }]>
+      ).flatMap(([, { projects }]) => Object.keys(projects))
+      const hasConfigCount = allProjects.filter((r) => r === join('packages', 'hasconfig')).length
+      expect(hasConfigCount).toBe(1)
+    })
+
+    it('creates lint targets for multiple projects without local config', () => {
+      writeFileSync(join(tmp, '.oxlintrc.json'), '{}')
+      for (const name of ['alpha', 'beta', 'gamma']) {
+        mkdirSync(join(tmp, 'packages', name, 'src'), { recursive: true })
+        writeFileSync(join(tmp, 'packages', name, 'package.json'), `{"name":"${name}"}`)
+        writeFileSync(join(tmp, 'packages', name, 'src', 'index.ts'), 'export const x = 1;\n')
+      }
+
+      const result = callWith(join(tmp, '.oxlintrc.json'))
+      const allProjects = (
+        result as Array<readonly [string, { projects: Record<string, unknown> }]>
+      ).flatMap(([, { projects }]) => Object.keys(projects))
+      expect(allProjects).toContain(join('packages', 'alpha'))
+      expect(allProjects).toContain(join('packages', 'beta'))
+      expect(allProjects).toContain(join('packages', 'gamma'))
+    })
+
+    it('does not create fallback targets when root .oxlintrc.json is missing', () => {
+      const rootConfig = join(tmp, '.oxlintrc.json')
+      if (existsSync(rootConfig)) rmSync(rootConfig)
+
+      mkdirSync(join(tmp, 'packages', 'noroot', 'src'), { recursive: true })
+      writeFileSync(join(tmp, 'packages', 'noroot', 'package.json'), '{"name":"noroot"}')
+      writeFileSync(join(tmp, 'packages', 'noroot', 'src', 'index.ts'), 'export const x = 1;\n')
+
+      const result = callWith(rootConfig)
+      const allProjects = (
+        result as Array<readonly [string, { projects: Record<string, unknown> }]>
+      ).flatMap(([, { projects }]) => Object.keys(projects))
+      expect(allProjects).not.toContain(join('packages', 'noroot'))
+    })
+
+    it('fallback lint target uses npx oxlint . with cwd = projectRoot', () => {
+      writeFileSync(join(tmp, '.oxlintrc.json'), '{}')
+      mkdirSync(join(tmp, 'packages', 'fallback', 'src'), { recursive: true })
+      writeFileSync(join(tmp, 'packages', 'fallback', 'package.json'), '{"name":"fallback"}')
+      writeFileSync(join(tmp, 'packages', 'fallback', 'src', 'index.ts'), 'export const x = 1;\n')
+
+      const result = callWith(join(tmp, '.oxlintrc.json'))
+      const fallbackEntry = (
+        result as Array<
+          readonly [
+            string,
+            {
+              projects: Record<
+                string,
+                { targets: Record<string, { options: { command: string; cwd: string } }> }
+              >
+            },
+          ]
+        >
+      ).find(([, { projects }]) => projects[join('packages', 'fallback')])
+      expect(fallbackEntry).toBeDefined()
+      const lint = fallbackEntry![1].projects[join('packages', 'fallback')]!.targets['lint']!
+      expect(lint.options.command).toBe('npx oxlint .')
+      expect(lint.options.cwd).toBe(join('packages', 'fallback'))
+    })
   })
 })

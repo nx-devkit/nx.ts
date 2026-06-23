@@ -12,10 +12,12 @@
   "scripts": {
     "build": "bun run --filter='./packages/*' build",
     "test": "bun run --filter='./packages/*' test",
-    "lint": "biome lint .",
+    "lint": "biome lint . && oxlint .",
+    "lint:oxlint": "oxlint .",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "spec:check": "bun run scripts/spec-check.ts",
+    "check:spec": "bun run scripts/spec-check.ts",
     "spec:validate": "openspec validate",
     "prepare": "husky"
   },
@@ -28,6 +30,7 @@
     "nx": "22.7.1",
     "oxlint": "^1.70.0",
     "tsdown": "^0.22.3",
+    "@typescript/native-preview": "^7.0.0-dev.20260622.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },

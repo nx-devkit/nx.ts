@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "publish-placeholder executor",
+  "description": "Publishes a 0.0.0 placeholder tarball to the npm registry for every workspace package that is not yet published. Idempotent.",
+  "type": "object",
+  "properties": {
+    "scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Package scope prefixes to check. Default: every package in packages/*."
+    },
+    "placeholderTag": {
+      "type": "string",
+      "description": "npm dist-tag applied to the placeholder publish.",
+      "default": "placeholder"
+    },
+    "placeholderVersion": {
+      "type": "string",
+      "description": "Version written into the temporary placeholder package.json.",
+      "default": "0.0.0"
+    },
+    "registry": {
+      "type": "string",
+      "description": "npm registry URL.",
+      "default": "https://registry.npmjs.org/"
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "If true, do not actually publish or pack; just report what would happen.",
+      "default": false
+    },
+    "trustRepo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "`owner/repo` slug used to build the `npm trust github` command. Falls back to NPM_TRUST_REPO or GITHUB_REPOSITORY env vars."
+    }
+  },
+  "additionalProperties": false
+}

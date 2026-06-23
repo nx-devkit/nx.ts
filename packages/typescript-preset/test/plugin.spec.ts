@@ -110,7 +110,7 @@ describe('inferTypecheckTarget', () => {
   it('builds a tsgo --build command by default', () => {
     const t = inferTypecheckTarget('/w/packages/foo', opts)
     expect(t.executor).toBe('nx:run-commands')
-    expect(t.options.command).toBe('npx tsgo --build tsconfig.json')
+    expect(t.options.command).toBe('tsgo --build tsconfig.json')
     expect(t.options.cwd).toBe('/w/packages/foo')
     expect(t.cache).toBe(true)
   })
@@ -143,7 +143,7 @@ describe('inferTypecheckTarget', () => {
       clean: true,
     })
     expect(t.options.command).toBe(
-      'npx tsgo --build --clean tsconfig.json && npx tsgo --build tsconfig.json',
+      'tsgo --build --clean tsconfig.json && tsgo --build tsconfig.json',
     )
   })
 
@@ -153,7 +153,7 @@ describe('inferTypecheckTarget', () => {
       configFile: 'tsconfig.lib.json',
       clean: false,
     })
-    expect(t.options.command).toBe('npx tsgo --build tsconfig.lib.json')
+    expect(t.options.command).toBe('tsgo --build tsconfig.lib.json')
     expect(t.inputs).toContain('{projectRoot}/tsconfig.lib.json')
   })
 

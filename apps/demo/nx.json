@@ -28,11 +28,11 @@
   },
   "plugins": [
     {
-      "plugin": "../../packages/typescript-preset/dist/plugin.mjs",
+      "plugin": "../../packages/typescript-preset/src/plugin.ts",
       "options": { "tsgo": false }
     },
-    "../../packages/tsdown/dist/plugin.mjs",
-    "../../packages/oxlint/dist/plugin.mjs",
-    "../../packages/biome/dist/plugin.mjs"
+    "../../packages/tsdown/src/index.ts",
+    "../../packages/oxlint/src/plugin.ts",
+    "../../packages/biome/src/plugin.ts"
   ]
 }

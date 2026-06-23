@@ -100,7 +100,7 @@ export function inferTypecheckTarget(
   cache: true
   inputs: (string | { externalDependencies: string[] })[]
 } {
-  const executorCommand = options.tsgo ? 'npx tsgo' : 'npx tsc'
+  const executorCommand = options.tsgo ? 'tsgo' : 'npx tsc'
   const externalDependency = options.tsgo ? '@typescript/native-preview' : 'typescript'
 
   const buildCommand = `${executorCommand} --build ${options.configFile}`
