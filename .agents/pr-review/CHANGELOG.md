@@ -106,7 +106,7 @@ CodeFactor uses Oxlint 1.69.0 for JS/TS analysis. The 152 findings break down in
 
 | Decision | Count | Files affected |
 |----------|-------|----------------|
-| fix in code | 8 | generator.ts, plugin.ts, tsdown.config.ts x2 |
+| fix in code | 5 | generator.ts, plugin.ts, tsdown.config.ts x2 |
 | excluded via .codefactor.yml | 65 | *.spec.ts, *.test.ts (3 spec files) |
 | suppressed via CodeFactor dashboard | 79 | executor.ts, plugin.ts, generator.ts, index.ts |
 
