@@ -1,6 +1,6 @@
 # AGENTS.md — nx-devkit master handbook
 
-This document is the master agent handbook for the `nx-devkit-plugins` workspace. Every polecat and humans-as-agent reads it first. For human-contributor rules (fork, branch naming, PR flow) see [`CONTRIBUTING.md`](./CONTRIBUTING.md). For npm-consumer usage see each `packages/*/README.md`.
+This document is the master agent handbook for the `nx-devkit-plugins` workspace. Every polecat and humans-as-agent reads it first. For human-contributor rules (fork, branch naming, PR flow) see [`CONTRIBUTING.md`](CONTRIBUTING.md). For npm-consumer usage see each `packages/*/README.md`.
 
 ## What this repo is
 
@@ -28,7 +28,7 @@ Per-package options interfaces, file layout, and TDD workflow are in each `packa
 
 ## TDD workflow (canonical)
 
-This is the agent-execution checklist. The human-readable summary is in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+This is the agent-execution checklist. The human-readable summary is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 1. Write a failing `*.spec.ts` (vitest) using `@nx/devkit` testing helpers + `memfs` / tmp dirs / `vi.mock` for child_process.
 2. `bun test` → RED.

@@ -49,7 +49,7 @@ The `apps/demo/` workspace is a working example that wires all five plugins.
 | Audience | File |
 |---|---|
 | npm consumer — per-package usage | [`packages/*/README.md`](./packages) |
-| Human contributor — fork, branch, PR flow | [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
+| Human contributor — fork, branch, PR flow | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | AI coding agent — scope, TDD, escalation | [`AGENTS.md`](./AGENTS.md) |
 | AI code reviewer — review rules | [`REVIEW.md`](./REVIEW.md) |
 | Working example | [`apps/demo/`](./apps/demo) |
