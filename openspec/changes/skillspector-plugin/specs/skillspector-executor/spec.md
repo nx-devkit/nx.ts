@@ -42,12 +42,12 @@ The executor MUST emit `::error file=<path>,line=<n>::<rule_id>: <message>` work
 - **WHEN** a finding is in `references/guide.md`
 - **THEN** no annotation is emitted for this finding
 
-### Requirement: Annotations written to shared file
-The executor MUST write annotations to a shared file (default: `/tmp/nx-skillspector-annotations.log`) rather than stdout, because Nx prefixes stdout with ANSI-colored project names that break GitHub workflow command parsing.
+### Requirement: Annotations written to per-project file
+The executor MUST write annotations to a **per-project** file (`annotations-<projectName>.txt` in the workspace root) rather than stdout, because Nx prefixes stdout with ANSI-colored project names that break GitHub workflow command parsing. Per-project files prevent concurrent Nx runs from interleaving writes. The CI workflow concatenates all `annotations-*.txt` files after the Nx run.
 
 #### Scenario: Annotations file path
-- **WHEN** the executor runs with annotations enabled
-- **THEN** annotations are appended to the file specified by `ANNOTATIONS_FILE` env var or `/tmp/nx-skillspector-annotations.log`
+- **WHEN** the executor runs with annotations enabled for project `skills-code--review-act`
+- **THEN** annotations are written to `annotations-skills-code--review-act.txt`
 
 ### Requirement: Fail-on-error policy
 When `failOnError: true` (default), the executor MUST return `{ success: false }` if any HIGH or CRITICAL severity finding exists. Otherwise it returns `{ success: true }`.
