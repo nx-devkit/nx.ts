@@ -3,15 +3,15 @@
 ## ADDED Requirements
 
 ### Requirement: SKILL.md triggers project inference
-The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with a collision-resistant name derived from the full relative path (slashes replaced with `-`) and the skill directory as project root.
+The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with an injective, collision-resistant name derived from the full relative path (each path segment's `-` characters doubled, then segments joined with `-`) and the skill directory as project root.
 
 #### Scenario: Skill discovered
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
 - **THEN** a project named `skills-code-review-act` is inferred with root `skills/code-review/act`
 
-#### Scenario: Same basename does not collide
-- **WHEN** a workspace contains both `skills/a/act/SKILL.md` and `skills/b/act/SKILL.md`
-- **THEN** two distinct projects are inferred: `skills-a-act` and `skills-b-act`
+#### Scenario: Injective naming — dash in directory name
+- **WHEN** a workspace contains both `skills/my-skill/SKILL.md` and `skills/my/skill/SKILL.md`
+- **THEN** two distinct projects are inferred: `skills-my--skill` and `skills-my-skill`
 
 ### Requirement: Build target inferred
 The plugin MUST infer a `build` target for each skill project using the `@nx-devkit/skill:build` executor with `target: "skills-sh"` and `outDir: ".build/skills/{projectName}"` defaults.

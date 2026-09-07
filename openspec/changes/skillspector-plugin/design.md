@@ -39,12 +39,18 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
         const skillDir = dirname(skillFile);
         const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
           .replace(/\\/g, '/');
-        const projectName = projectRoot.replace(/\//g, '-');
+        // Injective, collision-resistant project name (same algorithm as
+        // @nx-devkit/skill): double dashes per segment, join with single dash.
+        const projectName = projectRoot
+          .split('/')
+          .map((s) => s.replace(/-/g, '--'))
+          .join('-');
 
         if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
 
         // Derive a unique per-skill SARIF path so concurrent scans don't overwrite
         // each other's reports.
+        const annotationsEnabled = opts.annotations ?? true;
         const sarifPath = opts.sarif
           ? opts.sarif.replace(/\.sarif$/, '') + `-${projectName}.sarif`
           : undefined;
@@ -52,12 +58,15 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
         const targets: Record<string, TargetConfiguration> = {
           [opts.scanTargetName]: {
             executor: '@nx-devkit/skillspector:scan',
-            cache: true,
+            // Disable caching when annotations are enabled: the executor appends
+            // to a shared annotations file that Nx cannot restore on a cache hit.
+            // When annotations are disabled, caching is safe (SARIF is a declared
+            // output in that case).
+            cache: !annotationsEnabled,
+            ...(annotationsEnabled ? {} : { outputs: sarifPath ? [`{workspaceRoot}/${sarifPath}`] : [] }),
             inputs: [
-              '{projectRoot}/SKILL.md',
-              '{projectRoot}/scripts/**/*',
-              '{projectRoot}/references/**/*',
-              '{projectRoot}/assets/**/*',
+              '{projectRoot}/**/*',
+              ...(opts.baseline ? [`{workspaceRoot}/${opts.baseline}`] : []),
               '^production',
             ],
             options: {
@@ -83,7 +92,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
 
 The executor runs SkillSpector on a single skill directory:
 
-1. **Spawn** `skillspector scan <path> --no-llm --format json` (configurable via options)
+1. **Spawn** `skillspector scan <path> --format json` (add `--no-llm` only when `noLlm: true`, which is the default; omit it when `noLlm: false`)
 2. **Parse** JSON output → `SkillspectorDoc` (issues array)
 3. **Rewrite** issue.location.file to workspace-relative paths
 4. **Filter** issues into code findings (`.ts/.js/.py/.sh/.yml/.json`) and doc findings (`.md`)

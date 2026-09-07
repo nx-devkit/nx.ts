@@ -27,6 +27,15 @@ packages/skill/
 
 ## Plugin: createNodesV2
 
+> **Security note:** The `command` strings below are illustrative. The
+> implementation MUST NOT interpolate `projectRoot` into a shell-evaluated
+> string — a malicious path like `skills/$(touch /tmp/pwned)/act/SKILL.md`
+> would allow command injection. Instead, the implementation must pass
+> `projectRoot` as a non-shell argument (e.g., `execa(file, [args])` with
+> an args array, or a thin custom executor that calls `child_process.execFile`
+> without `shell: true`). The `{projectRoot}` Nx macro in `inputs` is safe
+> because Nx expands it, not the shell.
+
 ```ts
 export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
   '**/SKILL.md',
@@ -37,9 +46,14 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
         const skillDir = dirname(skillFile);
         const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
           .replace(/\\/g, '/');
-        // Derive a collision-resistant project name from the full relative path
-        // so skills/code-review/act and skills/other/act don't both become "act".
-        const projectName = projectRoot.replace(/\//g, '-');
+        // Injective, collision-resistant project name: each path segment has its
+        // dashes doubled, then segments are joined with single dash. This ensures
+        // skills/my-skill → skills-my--skill and skills/my/skill → skills-my-skill
+        // remain distinct (no two different paths produce the same name).
+        const projectName = projectRoot
+          .split('/')
+          .map((s) => s.replace(/-/g, '--'))
+          .join('-');
 
         if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
 
@@ -119,8 +133,12 @@ export default async function buildExecutor(
   context: ExecutorContext,
 ): Promise<{ success: boolean }> {
   // options.path is forwarded by the inferred target (the skill's projectRoot).
-  // Fall back to context.projectName only when invoked directly without a path.
-  const skillPath = path.resolve(context.root, options.path ?? context.projectName ?? '');
+  // It is required — the project name is a dashed encoding of the full path and
+  // cannot be resolved back to a filesystem path, so there is no safe fallback.
+  if (!options.path) {
+    throw new Error('build executor requires options.path (the skill projectRoot)');
+  }
+  const skillPath = path.resolve(context.root, options.path);
   const outDir = path.resolve(context.root, options.outDir);
   const result = await compileSkill({
     skillPath,
@@ -142,13 +160,14 @@ export default async function buildExecutor(
 
 - **Compiler dependency**: the build executor needs the skills compiler. Either publish `@theplenkov/skills-compiler` to npm or inline the compiler call. Decision: publish compiler separately, executor depends on it.
 - **Validate/os-check scripts**: these reference scripts in the consumer repo (`scripts/validate-skill.ts` etc.). The plugin infers the target but the script must exist in the consumer. Document this as a consumer responsibility.
-- **Project name collisions**: two skills with the same directory name in different categories. Mitigation: project name is derived from the full relative path (e.g. `skills/code-review/act` → `skills-code-review-act`), so sibling directories with the same basename no longer collide.
+- **Project name collisions**: two skills with the same directory name in different categories. Mitigation: project name uses an injective encoding of the full relative path (each segment's dashes doubled, segments joined with `-`), so `skills/my-skill` → `skills-my--skill` and `skills/my/skill` → `skills-my-skill` remain distinct.
 
 ## TDD plan
 
 1. Write failing test: workspace with `skills/code-review/act/SKILL.md` → expect project `skills-code-review-act` with `build`, `lint`, `validate`, `os-check`, `size-check` targets.
 2. Write failing test: workspace root `SKILL.md` is skipped.
 3. Write failing test: `node_modules/` SKILL.md is skipped.
-4. Write failing test: two skills with the same basename (`skills/a/act/SKILL.md` and `skills/b/act/SKILL.md`) → distinct project names `skills-a-act` and `skills-b-act`.
+4. Write failing test: injective naming — `skills/my-skill/SKILL.md` → `skills-my--skill` and `skills/my/skill/SKILL.md` → `skills-my-skill` (distinct names).
 5. Write failing test: build executor compiles a skill to skills-sh format.
-6. Implement, refactor, verify.
+6. Write failing test: build executor throws when `options.path` is omitted.
+7. Implement, refactor, verify.

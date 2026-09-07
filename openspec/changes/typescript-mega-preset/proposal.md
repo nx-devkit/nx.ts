@@ -32,7 +32,7 @@ export interface NxDevkitTypescriptOptions {
 
   // NEW: native Node test runner
   nativeTest?: boolean;        // default: true — infer node --test targets when no vitest config
-  testGlob?: string;           // default: '**/*.{test,spec}.{ts,js,mts,mjs}'
+  testGlob?: string;           // default: '{src,test}/**/*.{test,spec}.{ts,js,mts,mjs}'
   tap?: boolean;               // default: false — use TAP reporter instead of spec
   coverage?: boolean;          // default: false — enable --experimental-test-coverage
 

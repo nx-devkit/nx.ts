@@ -7,7 +7,7 @@ The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `S
 
 #### Scenario: Scan target inferred
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
-- **THEN** a `scan` target is inferred for project `act` with executor `@nx-devkit/skillspector:scan`
+- **THEN** a `scan` target is inferred for project `skills-code-review-act` with executor `@nx-devkit/skillspector:scan`
 
 ### Requirement: Scan executor runs SkillSpector CLI
 The executor MUST spawn `skillspector scan <path>` with `--no-llm` by default and `--format json` to capture findings.
@@ -32,7 +32,7 @@ The executor MUST produce a SARIF 2.1.0 report when `sarif` option is set, prese
 - **THEN** a SARIF 2.1.0 file is written with one run containing all findings as results
 
 ### Requirement: GitHub Actions annotations for code findings
-The executor MUST emit `::error file=<path>,line=<n>::<rule_id>: <message>` workflow commands for findings in code files (`.ts`, `.js`, `.py`, `.sh`, `.yml`, `.json`). Findings in documentation files (`.md`, `.txt`) MUST NOT be emitted as annotations.
+The executor MUST emit `::error file=<path>,line=<n>::<rule_id>: <message>` workflow commands for findings in code files (`.ts`, `.js`, `.py`, `.sh`, `.yml`, `.json`). Findings in documentation files (`.md`, `.txt`) MUST NOT be emitted as annotations. The executor MUST escape scanner-controlled values (file paths, rule IDs, messages) before constructing each annotation: encode `%` as `%25`, newlines and carriage returns as literal `\\n`/`\\r`, and remove or encode any other workflow-command delimiters to prevent annotation injection or corruption.
 
 #### Scenario: Code finding annotated
 - **WHEN** a finding is in `scripts/foo.ts` at line 42

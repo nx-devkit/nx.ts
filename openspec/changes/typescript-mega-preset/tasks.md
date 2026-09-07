@@ -5,10 +5,12 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 ## 1. Native Node test runner inference
 
 - [ ] Add `inferNativeTestTargets()` to `packages/typescript-preset/src/plugin.ts`
-- [ ] Add test-file discovery: when no `vitest.config.*` is found, glob `configFiles` (the `createNodesV2` input) for `*.test.{ts,js,mts,mjs}` / `*.spec.{ts,js,mts,mjs}` matches under `src/` and `test/`; only infer native targets when at least one test file is present
+- [ ] Add test-file discovery: when no `vitest.config.*` is found, use `readdirSync` (recursive) to scan `src/` and `test/` for `*.test.{ts,js,mts,mjs}` / `*.spec.{ts,js,mts,mjs}` matches; only infer native targets when at least one test file is present (note: `configFiles` from `createNodesV2` contains only `tsconfig*.json` paths, NOT test files)
 - [ ] Add `test` target: `node --test --test-reporter spec "<testGlob>"`
 - [ ] Add `test:tap` target when `tap: true`: `node --test --test-reporter tap "<testGlob>" > test-results.tap` (outputs: `{projectRoot}/test-results.tap`)
 - [ ] Add `test:coverage` target when `coverage: true`: `node --test --experimental-test-coverage "<testGlob>"`
+- [ ] Derive target `inputs` from `testGlob` (e.g. `{projectRoot}/{testGlob}`) so the cache hashes exactly the executed files
+- [ ] Document Node >= 22.18.0 requirement for native TypeScript tests (or >= 22.6.0 with `--experimental-strip-types`)
 - [ ] Write tests: project with test files, no vitest config → native targets inferred
 - [ ] Write tests: project with vitest config → vitest targets, NOT native
 - [ ] Write tests: project with no test files → no test targets

@@ -24,7 +24,7 @@ tsconfig.json found
 
 ### Discovery
 
-Scan `src/` and `test/` directories for files matching `testGlob` (default: `**/*.{test,spec}.{ts,js,mts,mjs}`). Use `readdirSync` with recursive option (Node 18.17+). Skip `node_modules/`, `dist/`, `coverage/`.
+Scan `src/` and `test/` directories for files matching `testGlob` (default: `{src,test}/**/*.{test,spec}.{ts,js,mts,mjs}`). Use `readdirSync` with recursive option. Skip `node_modules/`, `dist/`, `coverage/`. The `configFiles` argument from `createNodesV2` contains only `tsconfig*.json` paths (the plugin's trigger), so test-file discovery is done via `readdirSync`, NOT by filtering `configFiles`.
 
 ### Targets
 
@@ -34,16 +34,19 @@ export function inferNativeTestTargets(projectRoot: string, options: {
   tap: boolean;
   coverage: boolean;
 }): Record<string, TargetConfiguration> {
+  // Inputs are derived from testGlob so the cache hashes exactly the files
+  // that node --test will execute. The default testGlob is scoped to src/ and
+  // test/ to avoid matching files in dist/, e2e/, etc.
+  const testInputs = [
+    `{projectRoot}/${options.testGlob}`,
+    '{projectRoot}/package.json',
+    '{projectRoot}/tsconfig.json',
+  ];
   const targets: Record<string, TargetConfiguration> = {
     test: {
       executor: 'nx:run-commands',
       cache: true,
-      inputs: [
-        `{projectRoot}/src/**/*.{test,spec}.{ts,js,mts,mjs}`,
-        `{projectRoot}/test/**/*.{test,spec}.{ts,js,mts,mjs}`,
-        '{projectRoot}/package.json',
-        '{projectRoot}/tsconfig.json',
-      ],
+      inputs: testInputs,
       options: {
         command: `node --test --test-reporter spec "${options.testGlob}"`,
         cwd: projectRoot,
@@ -55,7 +58,7 @@ export function inferNativeTestTargets(projectRoot: string, options: {
     targets['test:tap'] = {
       executor: 'nx:run-commands',
       cache: true,
-      inputs: targets.test.inputs,
+      inputs: testInputs,
       options: {
         command: `node --test --test-reporter tap "${options.testGlob}" > test-results.tap`,
         cwd: projectRoot,
@@ -68,7 +71,7 @@ export function inferNativeTestTargets(projectRoot: string, options: {
     targets['test:coverage'] = {
       executor: 'nx:run-commands',
       cache: true,
-      inputs: targets.test.inputs,
+      inputs: testInputs,
       options: {
         command: `node --test --experimental-test-coverage "${options.testGlob}"`,
         cwd: projectRoot,
@@ -82,7 +85,7 @@ export function inferNativeTestTargets(projectRoot: string, options: {
 
 ### Native Node TypeScript limitation
 
-`node --test` executes TypeScript via Node's native type-stripping loader, which only supports **erasable syntax** (types, interfaces, type-only imports). Non-erasable constructs — `enum`, `namespace`, parameter properties, and `tsconfig` path mappings — can fail at runtime. Consumers using those features should either compile tests first (`tsc` then `node --test dist/**/*.test.js`) or keep using vitest. This limitation MUST be documented in the README.
+`node --test` executes TypeScript via Node's native type-stripping loader. Type stripping was introduced in **Node 22.6.0** (`--experimental-strip-types`) and became enabled by default (no flag) in **Node 22.18.0**. Node 18.x and 20.x do NOT support running `.ts` files directly. The plugin MUST require Node >= 22.18.0 for native TypeScript tests (or >= 22.6.0 with `--experimental-strip-types`), and MUST document this version requirement in the README. The type stripper only supports **erasable syntax** (types, interfaces, type-only imports). Non-erasable constructs — `enum`, `namespace`, parameter properties, and `tsconfig` path mappings — require `--experimental-transform-types` (Node 22.7+) or compilation to JavaScript first. Consumers using those features should compile tests first (`tsc` then `node --test dist/**/*.test.js`) or keep using vitest.
 
 ### Priority: vitest > native
 
