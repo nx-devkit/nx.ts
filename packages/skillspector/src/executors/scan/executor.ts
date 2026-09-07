@@ -1,0 +1,267 @@
+import { execFile } from 'node:child_process'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+import { createHash } from 'node:crypto'
+
+export interface ScanExecutorOptions {
+  /** Path to the skill directory to scan (relative to workspace root). */
+  path: string
+  /** Disable LLM-based analysis. Default: true. */
+  noLlm?: boolean
+  /** Emit GitHub workflow annotations for code findings. Default: true. */
+  annotations?: boolean
+  /** Fail the target on HIGH/CRITICAL findings. Default: true. */
+  failOnError?: boolean
+  /** Binary to invoke for skillspector. Default: "skillspector". */
+  skillspectorBin?: string
+  /** SARIF output file path. */
+  sarif?: string
+  /** Baseline file path for suppressing known findings. */
+  baseline?: string
+}
+
+export interface ScanExecutorContext {
+  workspaceRoot: string
+  options: ScanExecutorOptions
+}
+
+export interface ScanExecutorResult {
+  success: boolean
+}
+
+interface SkillIssue {
+  id: string
+  severity: string
+  category?: string
+  confidence?: string
+  explanation?: string
+  remediation?: string
+  code_snippet?: string
+  intent?: string
+  tags?: string[]
+  location: {
+    file: string
+    start_line: number
+  }
+}
+
+const CODE_FILE_EXTENSIONS = ['.ts', '.js', '.py', '.sh', '.yml', '.json']
+const DOC_FILE_EXTENSIONS = ['.md', '.txt']
+
+function isCodeFile(filePath: string): boolean {
+  return CODE_FILE_EXTENSIONS.some((ext) => filePath.endsWith(ext))
+}
+
+function isDocFile(filePath: string): boolean {
+  return DOC_FILE_EXTENSIONS.some((ext) => filePath.endsWith(ext))
+}
+
+/**
+ * Escape annotation values for GitHub workflow commands.
+ * - Encode `%` as `%25` (must be first to avoid double-encoding)
+ * - Encode newlines as literal `\n` / `\r`
+ * - Remove `::` and other workflow-command delimiters from values
+ */
+function escapeAnnotationValue(value: string): string {
+  let escaped = value
+  // Encode % first to avoid double-encoding
+  escaped = escaped.replaceAll('%', '%25')
+  // Encode newlines as literal \n / \r
+  escaped = escaped.replaceAll('\r\n', '\\r\\n')
+  escaped = escaped.replaceAll('\n', '\\n')
+  escaped = escaped.replaceAll('\r', '\\r')
+  // Remove workflow-command delimiters
+  escaped = escaped.replaceAll('::', '')
+  return escaped
+}
+
+function severityToSarifLevel(severity: string): 'error' | 'warning' | 'note' {
+  const upper = severity.toUpperCase()
+  if (upper === 'HIGH' || upper === 'CRITICAL') return 'error'
+  if (upper === 'MEDIUM' || upper === 'WARNING') return 'warning'
+  return 'note'
+}
+
+function isFailingSeverity(severity: string): boolean {
+  const upper = severity.toUpperCase()
+  return upper === 'HIGH' || upper === 'CRITICAL'
+}
+
+function buildSarifReport(
+  issues: SkillIssue[],
+  workspaceRoot: string,
+): Record<string, unknown> {
+  const results = issues.map((issue) => {
+    const relFile = issue.location.file.replace(/\\/g, '/')
+    const properties: Record<string, unknown> = {}
+    if (issue.category !== undefined) properties.category = issue.category
+    if (issue.confidence !== undefined) properties.confidence = issue.confidence
+    if (issue.remediation !== undefined) properties.remediation = issue.remediation
+    if (issue.code_snippet !== undefined) properties.code_snippet = issue.code_snippet
+    if (issue.intent !== undefined) properties.intent = issue.intent
+    if (issue.tags !== undefined) properties.tags = issue.tags
+
+    return {
+      ruleId: issue.id,
+      level: severityToSarifLevel(issue.severity),
+      message: {
+        text: issue.explanation ?? issue.id,
+      },
+      locations: [
+        {
+          physicalLocation: {
+            artifactLocation: {
+              uri: relFile.replace(/\\/g, '/'),
+            },
+            region: {
+              startLine: issue.location.start_line,
+            },
+          },
+        },
+      ],
+      properties,
+    }
+  })
+
+  return {
+    $schema:
+      'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json',
+    version: '2.1.0',
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: 'SkillSpector',
+            informationUri: 'https://github.com/nx-devkit/skillspector',
+          },
+        },
+        results,
+      },
+    ],
+  }
+}
+
+function buildAnnotations(
+  issues: SkillIssue[],
+  projectName: string,
+): string[] {
+  const lines: string[] = []
+  for (const issue of issues) {
+    if (!isCodeFile(issue.location.file)) continue
+    if (isDocFile(issue.location.file)) continue
+    const file = issue.location.file.replace(/\\/g, '/')
+    const line = issue.location.start_line
+    const ruleId = escapeAnnotationValue(issue.id)
+    const message = escapeAnnotationValue(issue.explanation ?? issue.id)
+    lines.push(`::error file=${file},line=${line}::${ruleId}: ${message}`)
+  }
+  return lines
+}
+
+function computeProjectName(projectRoot: string): string {
+  const slug = projectRoot.replace(/\//g, '-')
+  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+  return `${slug}-${hash}`
+}
+
+function spawnSkillspector(
+  bin: string,
+  args: string[],
+  cwd: string,
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      bin,
+      args,
+      {
+        cwd,
+        maxBuffer: 10 * 1024 * 1024,
+        encoding: 'utf8',
+        // Explicitly NOT using shell: true for security
+        shell: false,
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve({ stdout: stdout ?? '', stderr: stderr ?? '' })
+      },
+    )
+  })
+}
+
+export async function scanExecutor(
+  ctx: ScanExecutorContext,
+): Promise<ScanExecutorResult> {
+  const opts = ctx.options
+  const noLlm = opts.noLlm ?? true
+  const annotations = opts.annotations ?? true
+  const failOnError = opts.failOnError ?? true
+  const skillspectorBin = opts.skillspectorBin ?? 'skillspector'
+
+  const args: string[] = ['scan', opts.path, '--format', 'json']
+  if (noLlm) {
+    args.push('--no-llm')
+  }
+  if (opts.baseline) {
+    args.push('--baseline', opts.baseline)
+  }
+
+  let stdout: string
+  try {
+    const result = await spawnSkillspector(skillspectorBin, args, ctx.workspaceRoot)
+    stdout = result.stdout
+  } catch (error) {
+    // If skillspector exits non-zero, treat as failure
+    console.error(
+      `skillspector scan failed: ${(error as Error).message}`,
+    )
+    return { success: false }
+  }
+
+  let issues: SkillIssue[] = []
+  try {
+    const parsed = JSON.parse(stdout) as unknown
+    if (Array.isArray(parsed)) {
+      issues = parsed as SkillIssue[]
+    } else if (parsed && typeof parsed === 'object' && 'findings' in parsed) {
+      issues = (parsed as { findings: SkillIssue[] }).findings
+    }
+  } catch {
+    // No valid JSON output — no findings
+    issues = []
+  }
+
+  // Write SARIF report if option is set
+  if (opts.sarif) {
+    const sarifPath = join(ctx.workspaceRoot, opts.sarif)
+    const sarifDir = dirname(sarifPath)
+    await mkdir(sarifDir, { recursive: true })
+    const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
+    await writeFile(sarifPath, JSON.stringify(sarifReport, null, 2), 'utf8')
+  }
+
+  // Write annotations if enabled
+  if (annotations) {
+    const projectName = computeProjectName(opts.path)
+    const annotationsFileName = `annotations-${projectName}.txt`
+    const annotationsPath = join(ctx.workspaceRoot, annotationsFileName)
+    const annotationLines = buildAnnotations(issues, projectName)
+    if (annotationLines.length > 0) {
+      await writeFile(annotationsPath, annotationLines.join('\n') + '\n', 'utf8')
+    }
+  }
+
+  // Check failOnError
+  if (failOnError) {
+    const hasFailing = issues.some((issue) => isFailingSeverity(issue.severity))
+    if (hasFailing) {
+      return { success: false }
+    }
+  }
+
+  return { success: true }
+}
+
+export default scanExecutor

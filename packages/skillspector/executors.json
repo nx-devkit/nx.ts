@@ -1,0 +1,1 @@
+{ "executors": { "scan": { "implementation": "./src/executors/scan/executor", "schema": "./src/executors/scan/schema.json", "description": "Run SkillSpector security scan on a skill" } } }
