@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "title": "Skill Build Executor",
+  "description": "Compile a skill to a distribution target using the skills-compiler.",
+  "type": "object",
+  "properties": {
+    "target": {
+      "type": "string",
+      "enum": ["skills-sh", "claude", "codex", "agents", "obsidian"],
+      "default": "skills-sh",
+      "description": "The distribution target to compile the skill for."
+    },
+    "outDir": {
+      "type": "string",
+      "description": "Output directory for the compiled skill.",
+      "x-prompt": "Where should the compiled skill be written?"
+    },
+    "path": {
+      "type": "string",
+      "description": "Relative path (from workspace root) to the skill directory.",
+      "x-prompt": "What is the path to the skill directory?"
+    }
+  },
+  "required": ["outDir", "path"],
+  "additionalProperties": false
+}

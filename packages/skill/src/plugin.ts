@@ -1,0 +1,192 @@
+import { createHash } from 'node:crypto'
+import { dirname, relative, resolve } from 'node:path'
+import {
+  type CreateNodesResult,
+  type CreateNodesV2,
+  logger,
+  workspaceRoot as defaultWorkspaceRoot,
+} from '@nx/devkit'
+
+export interface NxDevkitSkillOptions {
+  /** Override the build target name. Default: "build". */
+  buildTargetName?: string
+  /** Override the lint target name. Default: "lint". */
+  lintTargetName?: string
+  /** Override the validate target name. Default: "validate". */
+  validateTargetName?: string
+  /** Override the os-check target name. Default: "os-check". */
+  osCheckTargetName?: string
+  /** Override the size-check target name. Default: "size-check". */
+  sizeCheckTargetName?: string
+  /** Additional input globs appended to the build target inputs. */
+  skillInputs?: string[]
+}
+
+const PLUGIN_SCOPE = 'nx-devkit/skill'
+
+/**
+ * Returns true when a project root should be skipped:
+ * - the workspace root itself
+ * - paths that traverse outside the workspace (..)
+ * - paths inside node_modules
+ */
+export function shouldSkipPath(
+  projectRoot: string,
+  workspaceRoot: string = defaultWorkspaceRoot,
+): boolean {
+  const absProjectRoot = resolve(workspaceRoot, projectRoot)
+  if (absProjectRoot === workspaceRoot) {
+    return true
+  }
+
+  const rel = relative(workspaceRoot, absProjectRoot)
+  if (!rel || rel.startsWith('..')) {
+    return true
+  }
+
+  if (rel.includes('node_modules')) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Compute an injective project name from a project root.
+ *
+ * The slug replaces `/` with `-` and appends the first 8 hex chars of a
+ * SHA-256 hash of the original (forward-slash) project root. This guarantees
+ * that `skills/a-b` and `skills/a/b` — which would both slug to `skills-a-b`
+ * — receive distinct project names.
+ */
+export function computeProjectName(projectRoot: string): string {
+  const slug = projectRoot.replace(/\//g, '-')
+  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+  return `${slug}-${hash}`
+}
+
+function inferBuildTarget(
+  projectRoot: string,
+  projectName: string,
+  additionalInputs: string[],
+) {
+  return {
+    executor: '@nx-devkit/skill:build',
+    cache: true,
+    outputs: [`{workspaceRoot}/.build/skills/${projectName}`],
+    options: {
+      target: 'skills-sh',
+      outDir: `.build/skills/${projectName}`,
+      path: projectRoot,
+    },
+    inputs: [
+      `{projectRoot}/**/*.md`,
+      `{projectRoot}/SKILL.md`,
+      `{projectRoot}/agents/**/*`,
+      ...additionalInputs,
+      '^production',
+    ],
+  }
+}
+
+function inferLintTarget() {
+  return {
+    executor: 'nx:run-commands',
+    cache: true,
+    options: {
+      command: `npx markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`,
+      cwd: '{workspaceRoot}',
+    },
+    inputs: ['{projectRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json'],
+  }
+}
+
+function inferValidateTarget() {
+  return {
+    executor: 'nx:run-commands',
+    cache: true,
+    options: {
+      command: 'npx tsx scripts/validate-skill.ts --skill {projectRoot}',
+      cwd: '{workspaceRoot}',
+    },
+    inputs: ['{projectRoot}/SKILL.md', '{projectRoot}/agents/openai.yaml'],
+  }
+}
+
+function inferOsCheckTarget() {
+  return {
+    executor: 'nx:run-commands',
+    cache: true,
+    options: {
+      command: 'npx tsx scripts/check-os-independence.ts --skill {projectRoot}',
+      cwd: '{workspaceRoot}',
+    },
+    inputs: ['{projectRoot}/**/*'],
+  }
+}
+
+function inferSizeCheckTarget() {
+  return {
+    executor: 'nx:run-commands',
+    cache: true,
+    options: {
+      command: 'npx tsx scripts/check-skill-size.ts --skill {projectRoot}',
+      cwd: '{workspaceRoot}',
+    },
+    inputs: ['{projectRoot}/**/*'],
+  }
+}
+
+export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
+  '**/SKILL.md',
+  (configFiles, options = {}, context) => {
+    const workspaceRoot = context.workspaceRoot
+    const buildTargetName = options.buildTargetName ?? 'build'
+    const lintTargetName = options.lintTargetName ?? 'lint'
+    const validateTargetName = options.validateTargetName ?? 'validate'
+    const osCheckTargetName = options.osCheckTargetName ?? 'os-check'
+    const sizeCheckTargetName = options.sizeCheckTargetName ?? 'size-check'
+    const additionalInputs = options.skillInputs ?? []
+
+    return configFiles
+      .map((configFile) => {
+        const dir = dirname(configFile)
+        const dirAbs = resolve(workspaceRoot, dir)
+
+        if (shouldSkipPath(dir, workspaceRoot)) {
+          logger.info(`[${PLUGIN_SCOPE}] Skipping ${dir}`)
+          return null
+        }
+
+        const projectRoot = relative(workspaceRoot, dirAbs).replace(/\\/g, '/')
+        const projectName = computeProjectName(projectRoot)
+
+        logger.info(`[${PLUGIN_SCOPE}] Registering targets for ${projectRoot}`)
+
+        const targets: Record<string, unknown> = {
+          [buildTargetName]: inferBuildTarget(
+            projectRoot,
+            projectName,
+            additionalInputs,
+          ),
+          [lintTargetName]: inferLintTarget(),
+          [validateTargetName]: inferValidateTarget(),
+          [osCheckTargetName]: inferOsCheckTarget(),
+          [sizeCheckTargetName]: inferSizeCheckTarget(),
+        }
+
+        const result: [string, CreateNodesResult] = [
+          configFile,
+          {
+            projects: {
+              [projectName]: {
+                targets,
+              },
+            },
+          },
+        ]
+        return result
+      })
+      .filter((result): result is [string, CreateNodesResult] => result !== null)
+  },
+]
