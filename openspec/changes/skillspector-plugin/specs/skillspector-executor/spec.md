@@ -32,7 +32,7 @@ The executor MUST produce a SARIF 2.1.0 report when `sarif` option is set, prese
 - **THEN** a SARIF 2.1.0 file is written with one run containing all findings as results
 
 ### Requirement: GitHub Actions annotations for code findings
-The executor MUST emit `::error file=<path>,line=<n>::<message>` workflow commands for findings in code files (`.ts`, `.js`, `.py`, `.sh`, `.yml`, `.json`). Findings in documentation files (`.md`, `.txt`) MUST NOT be emitted as annotations.
+The executor MUST emit `::error file=<path>,line=<n>::<rule_id>: <message>` workflow commands for findings in code files (`.ts`, `.js`, `.py`, `.sh`, `.yml`, `.json`). Findings in documentation files (`.md`, `.txt`) MUST NOT be emitted as annotations.
 
 #### Scenario: Code finding annotated
 - **WHEN** a finding is in `scripts/foo.ts` at line 42

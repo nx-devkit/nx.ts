@@ -35,27 +35,37 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
     return configFiles
       .map((skillFile) => {
         const skillDir = dirname(skillFile);
-        const projectName = basename(skillDir);
         const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
           .replace(/\\/g, '/');
+        // Derive a collision-resistant project name from the full relative path
+        // so skills/code-review/act and skills/other/act don't both become "act".
+        const projectName = projectRoot.replace(/\//g, '-');
 
         if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
+
+        const skillInputs = [
+          '{projectRoot}/SKILL.md',
+          '{projectRoot}/scripts/**/*',
+          '{projectRoot}/references/**/*',
+          '{projectRoot}/assets/**/*',
+          ...(opts.skillInputs ?? []),
+        ];
 
         const targets: Record<string, TargetConfiguration> = {
           [opts.buildTargetName]: {
             executor: '@nx-devkit/skill:build',
             outputs: [`{workspaceRoot}/.build/skills/${projectName}`],
-            options: { target: 'skills-sh', outDir: `.build/skills/${projectName}` },
+            options: { target: 'skills-sh', outDir: `.build/skills/${projectName}`, path: projectRoot },
             cache: true,
-            inputs: ['skill', '^production'],
+            inputs: [...skillInputs, '^production'],
           },
           [opts.lintTargetName]: {
             executor: 'nx:run-commands',
             cache: true,
             inputs: ['{projectRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json'],
             options: {
-              command: `npx markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`,
-              cwd: projectRoot,
+              command: `npx markdownlint-cli2 '{projectRoot}/**/*.md' --config {workspaceRoot}/.markdownlint.json`,
+              cwd: '{workspaceRoot}',
             },
           },
           [opts.validateTargetName]: {
@@ -68,7 +78,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
               '{workspaceRoot}/.github/openai-metadata-schema.json',
             ],
             options: {
-              command: `npx tsx scripts/validate-skill.ts ${projectRoot}`,
+              command: `npx tsx scripts/validate-skill.ts "${projectRoot}"`,
               cwd: '{workspaceRoot}',
             },
           },
@@ -77,7 +87,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
             cache: true,
             inputs: ['{projectRoot}/**/*'],
             options: {
-              command: `npx tsx scripts/check-os-independence.ts --skill ${projectRoot}`,
+              command: `npx tsx scripts/check-os-independence.ts --skill "${projectRoot}"`,
               cwd: '{workspaceRoot}',
             },
           },
@@ -86,7 +96,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
             cache: true,
             inputs: ['{projectRoot}/**/*'],
             options: {
-              command: `npx tsx scripts/check-skill-size.ts --skill ${projectRoot}`,
+              command: `npx tsx scripts/check-skill-size.ts --skill "${projectRoot}"`,
               cwd: '{workspaceRoot}',
             },
           },
@@ -108,7 +118,9 @@ export default async function buildExecutor(
   options: BuildExecutorOptions,
   context: ExecutorContext,
 ): Promise<{ success: boolean }> {
-  const skillPath = path.resolve(context.root, options.path ?? context.projectName);
+  // options.path is forwarded by the inferred target (the skill's projectRoot).
+  // Fall back to context.projectName only when invoked directly without a path.
+  const skillPath = path.resolve(context.root, options.path ?? context.projectName ?? '');
   const outDir = path.resolve(context.root, options.outDir);
   const result = await compileSkill({
     skillPath,
@@ -130,12 +142,13 @@ export default async function buildExecutor(
 
 - **Compiler dependency**: the build executor needs the skills compiler. Either publish `@theplenkov/skills-compiler` to npm or inline the compiler call. Decision: publish compiler separately, executor depends on it.
 - **Validate/os-check scripts**: these reference scripts in the consumer repo (`scripts/validate-skill.ts` etc.). The plugin infers the target but the script must exist in the consumer. Document this as a consumer responsibility.
-- **Project name collisions**: two skills with the same directory name in different categories. Mitigation: use full relative path as project name (e.g. `code-review-act` instead of `act`).
+- **Project name collisions**: two skills with the same directory name in different categories. Mitigation: project name is derived from the full relative path (e.g. `skills/code-review/act` → `skills-code-review-act`), so sibling directories with the same basename no longer collide.
 
 ## TDD plan
 
-1. Write failing test: workspace with `skills/code-review/act/SKILL.md` → expect project `act` with `build`, `lint`, `validate`, `os-check`, `size-check` targets.
+1. Write failing test: workspace with `skills/code-review/act/SKILL.md` → expect project `skills-code-review-act` with `build`, `lint`, `validate`, `os-check`, `size-check` targets.
 2. Write failing test: workspace root `SKILL.md` is skipped.
 3. Write failing test: `node_modules/` SKILL.md is skipped.
-4. Write failing test: build executor compiles a skill to skills-sh format.
-5. Implement, refactor, verify.
+4. Write failing test: two skills with the same basename (`skills/a/act/SKILL.md` and `skills/b/act/SKILL.md`) → distinct project names `skills-a-act` and `skills-b-act`.
+5. Write failing test: build executor compiles a skill to skills-sh format.
+6. Implement, refactor, verify.

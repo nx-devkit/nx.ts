@@ -10,7 +10,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 - [ ] Create `packages/skill/executors.json`
 - [ ] Create `packages/skill/AGENTS.md`
 - [ ] Create `packages/skill/README.md`
-- [ ] Add `packages/skill` to root `package.json` workspaces
+- [ ] Verify `packages/skill` is covered by the `packages/*` workspace glob
 - [ ] `bun install` succeeds
 
 ## 2. Plugin: createNodesV2
@@ -34,7 +34,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 
 ## 4. Wire-up + publish
 
-- [ ] Register `@nx-devkit/skill` in root `nx.json` pluginsConfig
+- [ ] Register `@nx-devkit/skill` in root `nx.json` plugins
 - [ ] Run `bunx nx show project .` — no errors
 - [ ] `bun run check:spec` — no conflicts with other plugins
 - [ ] Publish placeholder via `@nx-devkit/prepare-for-release:publish-placeholder`

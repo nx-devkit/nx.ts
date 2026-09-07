@@ -43,15 +43,17 @@ export interface NxDevkitTypescriptOptions {
 }
 ```
 
+Each opt-out flag gates its inference path: `nativeTest: false` skips native test targets, `oxlint: false` skips the oxlint `lint` target, `biome: false` skips biome targets, and `tsdown: false` skips the build target. The design threads every flag into its corresponding inference branch.
+
 ### Priority rules
 
 When multiple test configs exist:
 1. `vitest.config.*` → vitest targets (test, test:watch, test:coverage)
-2. No vitest config + test files present → native node targets (test, test:tap if tap:true)
+2. No vitest config + test files present → native node targets (test, test:tap if tap:true, test:coverage if coverage:true)
 3. No test files → no test targets
 
 When multiple lint configs exist:
-1. `.oxlintrc.*` → `lint` target via oxlint
+1. `.oxlintrc.*` → `lint` target via oxlint (oxlint wins; biome only adds `format`/`format-check`)
 2. `biome.json` + no oxlint → `lint` target via biome
 
 When multiple format configs exist:

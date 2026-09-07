@@ -3,11 +3,15 @@
 ## ADDED Requirements
 
 ### Requirement: SKILL.md triggers project inference
-The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with the directory name as project name and the directory as project root.
+The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with a collision-resistant name derived from the full relative path (slashes replaced with `-`) and the skill directory as project root.
 
 #### Scenario: Skill discovered
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
-- **THEN** a project named `act` is inferred with root `skills/code-review/act`
+- **THEN** a project named `skills-code-review-act` is inferred with root `skills/code-review/act`
+
+#### Scenario: Same basename does not collide
+- **WHEN** a workspace contains both `skills/a/act/SKILL.md` and `skills/b/act/SKILL.md`
+- **THEN** two distinct projects are inferred: `skills-a-act` and `skills-b-act`
 
 ### Requirement: Build target inferred
 The plugin MUST infer a `build` target for each skill project using the `@nx-devkit/skill:build` executor with `target: "skills-sh"` and `outDir: ".build/skills/{projectName}"` defaults.
@@ -64,8 +68,6 @@ The plugin MUST accept options to override default target names (`buildTargetNam
 #### Scenario: Custom build target name
 - **WHEN** `buildTargetName: "compile"` is set
 - **THEN** the build target is named `compile` instead of `build`
-
-## ADDED Requirements (build executor)
 
 ### Requirement: Build executor compiles skills
 The `@nx-devkit/skill:build` executor MUST compile a skill directory to a specified distribution target (skills-sh, claude, codex, agents, obsidian).

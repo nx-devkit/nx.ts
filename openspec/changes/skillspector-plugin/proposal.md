@@ -36,15 +36,13 @@ Executor source moves from `theplenkov-ai/skills/actions/skillspector/nx-skillsp
 
 ```ts
 export interface NxDevkitSkillspectorOptions {
-  /** Marker filename. Default: "SKILL.md" */
-  skillMarker?: string;
   /** Target name for scan. Default: "scan" */
   scanTargetName?: string;
   /** Pass --no-llm to skillspector. Default: true */
   noLlm?: boolean;
   /** Baseline file for suppression. Default: "" (none) */
   baseline?: string;
-  /** SARIF output path. Default: "" (no SARIF) */
+  /** SARIF output path template. Default: "" (no SARIF). A per-skill suffix is appended. */
   sarif?: string;
   /** Emit GitHub Actions annotations. Default: true */
   annotations?: boolean;
@@ -54,6 +52,8 @@ export interface NxDevkitSkillspectorOptions {
   skillspectorBin?: string;
 }
 ```
+
+The trigger file is fixed at `**/SKILL.md` (same as `@nx-devkit/skill`) — `createNodesV2` requires a static pattern, so the marker is not configurable.
 
 ### Named inputs
 

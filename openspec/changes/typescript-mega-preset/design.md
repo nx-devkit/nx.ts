@@ -29,12 +29,11 @@ Scan `src/` and `test/` directories for files matching `testGlob` (default: `**/
 ### Targets
 
 ```ts
-function inferNativeTestTargets(projectRoot: string, options: {
+export function inferNativeTestTargets(projectRoot: string, options: {
   testGlob: string;
   tap: boolean;
   coverage: boolean;
 }): Record<string, TargetConfiguration> {
-  const reporter = options.tap ? 'tap' : 'spec';
   const targets: Record<string, TargetConfiguration> = {
     test: {
       executor: 'nx:run-commands',
@@ -46,7 +45,7 @@ function inferNativeTestTargets(projectRoot: string, options: {
         '{projectRoot}/tsconfig.json',
       ],
       options: {
-        command: `node --test --test-reporter ${reporter}`,
+        command: `node --test --test-reporter spec "${options.testGlob}"`,
         cwd: projectRoot,
       },
     },
@@ -58,7 +57,7 @@ function inferNativeTestTargets(projectRoot: string, options: {
       cache: true,
       inputs: targets.test.inputs,
       options: {
-        command: 'node --test --test-reporter tap | tee test-results.tap',
+        command: `node --test --test-reporter tap "${options.testGlob}" > test-results.tap`,
         cwd: projectRoot,
       },
       outputs: ['{projectRoot}/test-results.tap'],
@@ -71,7 +70,7 @@ function inferNativeTestTargets(projectRoot: string, options: {
       cache: true,
       inputs: targets.test.inputs,
       options: {
-        command: 'node --test --experimental-test-coverage',
+        command: `node --test --experimental-test-coverage "${options.testGlob}"`,
         cwd: projectRoot,
       },
     };
@@ -80,6 +79,10 @@ function inferNativeTestTargets(projectRoot: string, options: {
   return targets;
 }
 ```
+
+### Native Node TypeScript limitation
+
+`node --test` executes TypeScript via Node's native type-stripping loader, which only supports **erasable syntax** (types, interfaces, type-only imports). Non-erasable constructs — `enum`, `namespace`, parameter properties, and `tsconfig` path mappings — can fail at runtime. Consumers using those features should either compile tests first (`tsc` then `node --test dist/**/*.test.js`) or keep using vitest. This limitation MUST be documented in the README.
 
 ### Priority: vitest > native
 
@@ -100,12 +103,12 @@ Consumers who want the standalone plugins can still install them — the mega-pr
 { executor: 'nx:run-commands', cache: true, outputs: ['{projectRoot}/dist'],
   options: { command: 'npx tsdown', cwd: projectRoot },
   dependsOn: ['^build'],
-  inputs: ['{projectRoot}/tsdown.config.ts', '{projectRoot}/src/**/*', '{projectRoot}/package.json'] }
+  inputs: ['{projectRoot}/tsdown.config.ts', '{projectRoot}/src/**/*', '{projectRoot}/tsconfig.json', '{projectRoot}/package.json'] }
 
-// oxlint
+// oxlint — inputs match the full lint scope (`.`), not just src
 { executor: 'nx:run-commands', cache: true,
   options: { command: 'npx oxlint .', cwd: projectRoot },
-  inputs: ['{projectRoot}/src/**/*', '{projectRoot}/.oxlintrc.*', '{projectRoot}/package.json'] }
+  inputs: ['{projectRoot}/**/*', '{projectRoot}/.oxlintrc.*', '{projectRoot}/package.json'] }
 
 // biome format
 { executor: 'nx:run-commands', cache: false,

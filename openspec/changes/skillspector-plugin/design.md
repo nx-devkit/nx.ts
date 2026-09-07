@@ -37,20 +37,36 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
     return configFiles
       .map((skillFile) => {
         const skillDir = dirname(skillFile);
-        const projectName = basename(skillDir);
         const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
           .replace(/\\/g, '/');
+        const projectName = projectRoot.replace(/\//g, '-');
 
         if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
+
+        // Derive a unique per-skill SARIF path so concurrent scans don't overwrite
+        // each other's reports.
+        const sarifPath = opts.sarif
+          ? opts.sarif.replace(/\.sarif$/, '') + `-${projectName}.sarif`
+          : undefined;
 
         const targets: Record<string, TargetConfiguration> = {
           [opts.scanTargetName]: {
             executor: '@nx-devkit/skillspector:scan',
             cache: true,
-            inputs: ['skill', '^production'],
+            inputs: [
+              '{projectRoot}/SKILL.md',
+              '{projectRoot}/scripts/**/*',
+              '{projectRoot}/references/**/*',
+              '{projectRoot}/assets/**/*',
+              '^production',
+            ],
             options: {
               path: projectRoot,
-              ...(opts.sarif ? { sarif: opts.sarif } : {}),
+              noLlm: opts.noLlm ?? true,
+              annotations: opts.annotations ?? true,
+              failOnError: opts.failOnError ?? true,
+              skillspectorBin: opts.skillspectorBin ?? 'skillspector',
+              ...(sarifPath ? { sarif: sarifPath } : {}),
               ...(opts.baseline ? { baseline: opts.baseline } : {}),
             },
           },
@@ -117,8 +133,8 @@ targets:
 ## Risks
 
 - **SkillSpector not installed**: the executor calls `skillspector` CLI. If not installed, it fails with a clear error. CI workflows must install it via `pip install git+https://github.com/NVIDIA/SkillSpector`. Document in README.
-- **Nx stdout prefixing**: Nx prefixes worker output with ANSI-colored project names, breaking GitHub workflow commands. Mitigation: executor writes annotations to a shared file (`/tmp/nx-skillspector-annotations.log`), outer workflow step cats the file.
-- **SARIF multi-run merge**: GitHub code-scanning rejects SARIF with multiple runs sharing a category. Mitigation: per-skill SARIF files are merged into one run by the workflow step (not the executor).
+- **Nx stdout prefixing**: Nx prefixes worker output with ANSI-colored project names, breaking GitHub workflow commands. Mitigation: executor appends annotations to a shared file (`/tmp/nx-skillspector-annotations.log`). The CI workflow step MUST truncate (or remove) this file before invoking `nx affected -t scan` so a re-run does not re-emit stale annotations, and the `cat` step MUST tolerate a missing file (`cat /tmp/nx-skillspector-annotations.log 2>/dev/null || true`) for runs that select no affected projects.
+- **SARIF multi-run merge**: GitHub code-scanning rejects SARIF with multiple runs sharing a category. Mitigation: per-skill SARIF files (path derived from project name, e.g. `report-skills-code-review-act.sarif`) are merged into one run by the workflow step (not the executor).
 
 ## TDD plan
 

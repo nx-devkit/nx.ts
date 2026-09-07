@@ -5,10 +5,10 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 ## 1. Native Node test runner inference
 
 - [ ] Add `inferNativeTestTargets()` to `packages/typescript-preset/src/plugin.ts`
-- [ ] Add test-file discovery: scan `configFiles` for `*.test.{ts,js,mts,mjs}` / `*.spec.{ts,js,mts,mjs}` when no `vitest.config.*` is found
-- [ ] Add `test` target: `node --test --test-reporter spec`
-- [ ] Add `test:tap` target when `tap: true`: `node --test --test-reporter tap`
-- [ ] Add `test:coverage` target when `coverage: true`: `node --test --experimental-test-coverage`
+- [ ] Add test-file discovery: when no `vitest.config.*` is found, glob `configFiles` (the `createNodesV2` input) for `*.test.{ts,js,mts,mjs}` / `*.spec.{ts,js,mts,mjs}` matches under `src/` and `test/`; only infer native targets when at least one test file is present
+- [ ] Add `test` target: `node --test --test-reporter spec "<testGlob>"`
+- [ ] Add `test:tap` target when `tap: true`: `node --test --test-reporter tap "<testGlob>" > test-results.tap` (outputs: `{projectRoot}/test-results.tap`)
+- [ ] Add `test:coverage` target when `coverage: true`: `node --test --experimental-test-coverage "<testGlob>"`
 - [ ] Write tests: project with test files, no vitest config → native targets inferred
 - [ ] Write tests: project with vitest config → vitest targets, NOT native
 - [ ] Write tests: project with no test files → no test targets

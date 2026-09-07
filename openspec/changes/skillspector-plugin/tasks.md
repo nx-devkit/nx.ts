@@ -40,7 +40,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 
 ## 5. Scan executor — annotations
 
-- [ ] Write failing test: code findings (.ts/.js/.py) → `::error file=...` annotations
+- [ ] Write failing test: code findings (.ts/.js/.py/.sh/.yml/.json) → `::error file=...` annotations
 - [ ] Write failing test: doc findings (.md) → NOT emitted as annotations
 - [ ] Write failing test: annotations written to shared file (not stdout)
 - [ ] Implement `src/lib/annotations.ts`
@@ -57,7 +57,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 
 ## 7. Wire-up + publish
 
-- [ ] Register `@nx-devkit/skillspector` in root `nx.json` pluginsConfig
+- [ ] Register `@nx-devkit/skillspector` in root `nx.json` plugins
 - [ ] Run `bunx nx show project .` — no errors
 - [ ] `bun run check:spec` — no conflicts with `@nx-devkit/skill` (both trigger on SKILL.md, different targets)
 - [ ] Publish placeholder via `@nx-devkit/prepare-for-release:publish-placeholder`

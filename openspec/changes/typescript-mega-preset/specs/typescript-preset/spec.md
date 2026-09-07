@@ -32,18 +32,22 @@ When `coverage: true` option is set and native test targets are inferred, the pl
 - **THEN** the plugin infers a `test:coverage` target
 
 ### Requirement: Oxlint target delegation
-When `oxlint: true` (default) and a project has `.oxlintrc.*`, the plugin MUST infer a `lint` target using `npx oxlint .`.
+When `oxlint: true` (default) and a project has `.oxlintrc.*`, the plugin MUST infer a `lint` target using `npx oxlint .`. Oxlint takes precedence over biome for the `lint` target.
 
 #### Scenario: Oxlint target inferred
 - **WHEN** a project has `tsconfig.json` and `.oxlintrc.json`
 - **THEN** the plugin infers a `lint` target with command `npx oxlint .`
 
 ### Requirement: Biome format and lint targets
-When `biome: true` (default) and a project has `biome.json` or `biome.jsonc`, the plugin MUST infer `format`, `format-check`, and `lint` targets using `npx biome`.
+When `biome: true` (default) and a project has `biome.json` or `biome.jsonc`, the plugin MUST infer `format` and `format-check` targets using `npx biome`. A `lint` target via biome is inferred ONLY when no `.oxlintrc.*` is present (oxlint wins `lint`).
 
 #### Scenario: Biome format targets inferred
-- **WHEN** a project has `tsconfig.json` and `biome.json`
+- **WHEN** a project has `tsconfig.json` and `biome.json` (no `.oxlintrc.*`)
 - **THEN** the plugin infers `format` (cache: false), `format-check` (cache: true), and `lint` (cache: true) targets
+
+#### Scenario: Biome with oxlint — no biome lint
+- **WHEN** a project has both `biome.json` and `.oxlintrc.json`
+- **THEN** the plugin infers `format` and `format-check` from biome, and `lint` from oxlint (no biome `lint` target)
 
 ### Requirement: Tsdown build target
 When `tsdown: true` (default) and a project has `tsdown.config.ts`, the plugin MUST infer a `build` target using `npx tsdown`.

@@ -25,14 +25,12 @@ Publishing as `@nx-devkit/skill` makes it available to any repo that contains `S
 
 ### Custom executor: `build`
 
-The `build` executor wraps the skills compiler (from `theplenkov-ai/skills` `tools/compiler`). It takes `target` (skills-sh, claude, codex, agents, obsidian) and `outDir` options. The executor source moves from `theplenkov-ai/skills/tools/nx-skill/src/executors/build/executor.ts` into `packages/skill/src/executors/build/executor.ts`.
+The `build` executor wraps the skills compiler, imported as `@theplenkov/skills-compiler` (published separately from `theplenkov-ai/skills/tools/compiler`). It takes `target` (skills-sh, claude, codex, agents, obsidian) and `outDir` options. The executor source moves from `theplenkov-ai/skills/tools/nx-skill/src/executors/build/executor.ts` into `packages/skill/src/executors/build/executor.ts`.
 
 ### Plugin options
 
 ```ts
 export interface NxDevkitSkillOptions {
-  /** Marker filename that identifies a skill directory. Default: "SKILL.md" */
-  skillMarker?: string;
   /** Target name for build. Default: "build" */
   buildTargetName?: string;
   /** Target name for lint. Default: "lint" */
@@ -43,10 +41,12 @@ export interface NxDevkitSkillOptions {
   osCheckTargetName?: string;
   /** Target name for size-check. Default: "size-check" */
   sizeCheckTargetName?: string;
-  /** Additional named inputs for skill content. */
+  /** Additional named inputs appended to the default skill inputs. */
   skillInputs?: string[];
 }
 ```
+
+The trigger file is fixed at `**/SKILL.md` (not configurable) — `createNodesV2` requires a static pattern.
 
 ### Named inputs
 
@@ -89,6 +89,7 @@ export interface NxDevkitSkillOptions {
 ## Impact
 
 - **New package**: `packages/skill/` with `src/plugin.ts`, `src/executors/build/`, `executors.json`, `package.json`, `tsdown.config.ts`, `vitest.config.ts`, `README.md`, `AGENTS.md`.
+- **Compiler publish**: `@theplenkov/skills-compiler` is published separately from `theplenkov-ai/skills/tools/compiler`; the build executor depends on it.
 - **Source migration**: build executor source moves from `theplenkov-ai/skills/tools/nx-skill/` to `packages/skill/src/executors/build/`.
 - **npm publish**: `@nx-devkit/skill` published via the existing `prepare-for-release` + OIDC pipeline.
 - **Consumer migration**: `theplenkov-ai/skills` and `ThePlenkov/skills` switch from `file:` dep to npm.
