@@ -3,13 +3,13 @@
 ## ADDED Requirements
 
 ### Requirement: SKILL.md triggers project inference
-The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with an injective, collision-resistant name derived from the full relative path (slashes replaced with dashes, plus a short SHA-256 hash suffix of the full path) and the skill directory as project root.
+The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with a collision-resistant name derived from the full relative path (slashes replaced with dashes, plus the first 8 hex chars of SHA-256 of the full path as a suffix) and the skill directory as project root.
 
 #### Scenario: Skill discovered
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
 - **THEN** a project named `skills-code-review-act-<hash>` is inferred with root `skills/code-review/act`, where `<hash>` is the first 8 hex chars of SHA-256 of `skills/code-review/act`
 
-#### Scenario: Injective naming — same dashed form, different paths
+#### Scenario: Collision-resistant naming — same dashed form, different paths
 - **WHEN** a workspace contains both `skills/a-b/SKILL.md` and `skills/a/b/SKILL.md`
 - **THEN** two distinct projects are inferred with names `skills-a-b-<hash1>` and `skills-a-b-<hash2>` (same dashed prefix, different hash suffixes)
 

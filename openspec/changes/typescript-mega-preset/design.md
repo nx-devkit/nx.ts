@@ -28,14 +28,16 @@ Scan `src/` and `test/` directories for files matching `testGlob` (default: `{sr
 
 ### Graph invalidation for test-file changes
 
-The `createNodesV2` matcher is `**/tsconfig*.json`, so the Nx daemon only re-invokes the callback when tsconfig files change — NOT when test files are added or removed. To ensure the graph stays current, the plugin MUST register a second `createNodesV2` entry with matcher `**/*.{test,spec}.{ts,js,mts,mjs}` that returns an empty target set but forces graph recomputation when test files change. This is a standard Nx pattern for non-config triggers:
+The `createNodesV2` matcher is `**/tsconfig*.json`, so the Nx daemon only re-invokes the callback when tsconfig files change — NOT when test files are added or removed. To ensure the graph stays current, the plugin MUST use a single matcher that matches BOTH tsconfig and test files, so the primary callback (which does readdirSync discovery) is re-run when either changes:
 
 ```ts
 export const createNodesV2 = [
-  ['**/tsconfig*.json', createNodes],
-  ['**/*.{test,spec}.{ts,js,mts,mjs}', async () => ({ projects: {} })],
+  '**/{tsconfig*.json,*.{test,spec}.{ts,js,mts,mjs}}',
+  createNodes,
 ];
 ```
+
+This ensures the callback that emits `test`/`test:tap`/`test:coverage` targets is re-invoked when test files are added or removed, not just when tsconfig changes. The TDD tests MUST assert the `test` target itself updates (not merely that the daemon wakes up).
 
 ### Targets
 
@@ -145,7 +147,7 @@ Consumers who want the standalone plugins can still install them — the mega-pr
 
 - **Target conflicts**: if both mega-preset and standalone plugins are registered, duplicate targets may appear. Mitigation: document that consumers should pick one approach (mega-preset OR standalone plugins, not both).
 - **Native test runner maturity**: `node --test` is stable in Node 22+ but coverage is still experimental. Mitigation: `coverage: true` is opt-in.
-- **File discovery cost**: scanning for `*.test.ts` on every graph build could be slow in large repos. Mitigation: `readdirSync` is scoped to `src/` and `test/` only (not the whole project), and the Nx daemon caches the graph between runs. A second `createNodesV2` matcher on `**/*.{test,spec}.*` forces graph recomputation when test files are added or removed (see "Graph invalidation" section above). `configFiles` from `createNodesV2` cannot be used for test discovery because it only contains `tsconfig*.json` paths from the primary trigger.
+- **File discovery cost**: scanning for `*.test.ts` on every graph build could be slow in large repos. Mitigation: `readdirSync` is scoped to `src/` and `test/` only (not the whole project), and the Nx daemon caches the graph between runs. The `createNodesV2` matcher includes both `tsconfig*.json` and `*.{test,spec}.*` so the primary callback re-runs when test files are added or removed (see "Graph invalidation" section above). `configFiles` from `createNodesV2` contains both tsconfig and test file paths, so the callback filters for tsconfig to identify projects and uses `readdirSync` for test discovery within each project.
 
 ## TDD plan
 
@@ -154,6 +156,6 @@ Consumers who want the standalone plugins can still install them — the mega-pr
 3. Write failing test: project with `tsconfig.json` + `.oxlintrc.json` → expect `lint` target.
 4. Write failing test: project with `tsconfig.json` + `biome.json` → expect `format`, `format-check`, `lint` targets.
 5. Write failing test: project with `tsconfig.json` + `tsdown.config.ts` → expect `build` target.
-6. Write failing test: incremental graph — adding `src/new.test.ts` triggers graph recomputation (second createNodesV2 matcher).
-7. Write failing test: incremental graph — removing `src/foo.test.ts` triggers graph recomputation.
+6. Write failing test: incremental graph — adding `src/new.test.ts` triggers graph recomputation AND the `test` target is updated (not merely daemon wakeup).
+7. Write failing test: incremental graph — removing `src/foo.test.ts` triggers graph recomputation AND the `test` target is removed.
 8. Implement, refactor, verify.

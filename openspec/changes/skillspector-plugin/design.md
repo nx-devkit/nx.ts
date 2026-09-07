@@ -41,8 +41,9 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
         const skillDir = dirname(skillFile);
         const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
           .replace(/\\/g, '/');
-        // Injective, collision-resistant project name (same algorithm as
-        // @nx-devkit/skill): full path with slashes→dashes + short SHA-256 hash.
+        // Collision-resistant project name (same algorithm as
+        // @nx-devkit/skill): full path with slashes→dashes + first 8 hex
+        // chars of SHA-256.
         const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8);
         const projectName = `${projectRoot.replace(/\//g, '-')}-${pathHash}`;
 
