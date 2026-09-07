@@ -5,7 +5,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 ## 1. Native Node test runner inference
 
 - [ ] Add `inferNativeTestTargets()` to `packages/typescript-preset/src/plugin.ts`
-- [ ] Add test-file discovery: when no `vitest.config.*` is found, use `readdirSync` (recursive) to scan `src/` and `test/` for `*.test.{ts,js,mts,mjs}` / `*.spec.{ts,js,mts,mjs}` matches; only infer native targets when at least one test file is present (note: `configFiles` from `createNodesV2` contains only `tsconfig*.json` paths, NOT test files)
+- [ ] Add test-file discovery: when no `vitest.config.*` is found, filter `configFiles` for tsconfig paths to identify projects, then use `readdirSync` (recursive) to scan `src/` and `test/` for `*.test.{ts,js,mts,mjs}` / `*.spec.{ts,js,mts,mjs}` matches; only infer native targets when at least one test file is present (note: `configFiles` from `createNodesV2` contains both tsconfig and test file paths due to the combined matcher)
 - [ ] Add `test` target: `node --test --test-reporter spec "<testGlob>"`
 - [ ] Add `test:tap` target when `tap: true`: `node --test --test-reporter tap "<testGlob>" > test-results.tap` (outputs: `{projectRoot}/test-results.tap`)
 - [ ] Add `test:coverage` target when `coverage: true`: `node --test --experimental-test-coverage "<testGlob>"`

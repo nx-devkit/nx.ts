@@ -24,7 +24,7 @@ tsconfig.json found
 
 ### Discovery
 
-Scan `src/` and `test/` directories for files matching `testGlob` (default: `{src,test}/**/*.{test,spec}.{ts,js,mts,mjs}`). Use `readdirSync` with recursive option. Skip `node_modules/`, `dist/`, `coverage/`. The `configFiles` argument from `createNodesV2` contains only `tsconfig*.json` paths (the plugin's trigger), so test-file discovery is done via `readdirSync`, NOT by filtering `configFiles`.
+Scan `src/` and `test/` directories for files matching `testGlob` (default: `{src,test}/**/*.{test,spec}.{ts,js,mts,mjs}`). Use `readdirSync` with recursive option. Skip `node_modules/`, `dist/`, `coverage/`. The `createNodesV2` matcher matches both `tsconfig*.json` and `*.{test,spec}.*` files (see "Graph invalidation" section), so `configFiles` contains a mix of tsconfig and test file paths. The callback filters `configFiles` for tsconfig paths to identify projects, then uses `readdirSync` within each project's `src/` and `test/` directories for test-file discovery.
 
 ### Graph invalidation for test-file changes
 

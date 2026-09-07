@@ -51,7 +51,8 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
         // Collision-resistant project name: the full relative path with
         // slashes replaced by dashes, plus a short SHA-256 hash suffix (first
         // 8 hex chars / 32 bits). The hash makes collisions negligibly
-        // unlikely (birthday bound at ~65K projects) for edge cases like
+        // unlikely below a few thousand projects (a 32-bit suffix reaches a
+        // ~50% collision chance only near ~65K projects) for edge cases like
         // skills/a-/b vs skills/a/-b (both map to skills-a-b without the hash).
         // e.g. skills/code-review/act → skills-code-review-act-a1b2c3d4
         const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8);
@@ -177,7 +178,7 @@ The plugin itself does NOT declare named inputs — it uses explicit file globs 
 
 - **Compiler dependency**: the build executor needs the skills compiler. Either publish `@theplenkov/skills-compiler` to npm or inline the compiler call. Decision: publish compiler separately, executor depends on it.
 - **Validate/os-check scripts**: these reference scripts in the consumer repo (`scripts/validate-skill.ts` etc.). The plugin infers the target but the script must exist in the consumer. Document this as a consumer responsibility.
-- **Project name collisions**: two skills with paths that map to the same dashed name (e.g. `skills/a-b` and `skills/a/b`). Mitigation: project name includes a short SHA-256 hash (first 8 hex chars) of the full relative path, making collisions negligibly unlikely (birthday bound at ~65K projects). `skills/a-b` → `skills-a-b-<hash1>`, `skills/a/b` → `skills-a-b-<hash2>` (different hashes).
+- **Project name collisions**: two skills with paths that map to the same dashed name (e.g. `skills/a-b` and `skills/a/b`). Mitigation: project name includes a short SHA-256 hash (first 8 hex chars) of the full relative path, making collisions negligibly unlikely below a few thousand projects (32-bit suffix reaches ~50% collision chance near ~65K projects). `skills/a-b` → `skills-a-b-<hash1>`, `skills/a/b` → `skills-a-b-<hash2>` (different hashes).
 
 ## TDD plan
 
