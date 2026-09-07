@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import {
   type CreateNodesResult,
@@ -11,6 +11,20 @@ export interface NxDevkitTypescriptOptions {
   tsgo?: boolean
   configFile?: string
   clean?: boolean
+  /** Infer `test:tap` target using the TAP reporter. Default: false. */
+  tap?: boolean
+  /** Infer `test:coverage` target for the native Node test runner. Default: false. */
+  coverage?: boolean
+  /** Infer `lint` target from `.oxlintrc.*`. Default: true. */
+  oxlint?: boolean
+  /** Infer `format`/`format-check`/`lint` from `biome.json`. Default: true. */
+  biome?: boolean
+  /** Infer `build` target from `tsdown.config.ts`. Default: true. */
+  tsdown?: boolean
+  /** Glob for native test files. Default: double-star-slash-star.test.ts-js-mts-mjs. */
+  testGlob?: string
+  /** Glob for spec files. Default: double-star-slash-star.spec.ts-js-mts-mjs. */
+  specGlob?: string
 }
 
 const VITEST_CONFIG_NAMES = [
@@ -217,12 +231,350 @@ function findVitestConfig(projectRoot: string, workspaceRoot: string): string | 
   return null
 }
 
+const OXLINTRC_NAMES = [
+  '.oxlintrc.json',
+  '.oxlintrc.jsonc',
+  '.oxlintrc.js',
+  '.oxlintrc.mjs',
+  '.oxlintrc.cjs',
+  '.oxlintrc.ts',
+  '.oxlintrc.mts',
+  '.oxlintrc.cts',
+]
+
+const BIOME_CONFIG_NAMES = ['biome.json', 'biome.jsonc']
+
+const TSDOWN_CONFIG_NAMES = ['tsdown.config.ts', 'tsdown.config.js', 'tsdown.config.mts', 'tsdown.config.mjs', 'tsdown.config.cts', 'tsdown.config.cjs']
+
+function findConfigFile(
+  projectRoot: string,
+  workspaceRoot: string,
+  candidates: string[],
+): string | null {
+  const absProjectRoot = resolve(workspaceRoot, projectRoot)
+  for (const name of candidates) {
+    const candidate = join(absProjectRoot, name)
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+  return null
+}
+
+/**
+ * Recursively walk a directory and test every file path against a glob-like
+ * pattern. The pattern supports `**` (any depth) and `*` (single segment) plus
+ * brace expansion `{a,b}`.
+ */
+function globMatch(rootDir: string, pattern: string): boolean {
+  const regex = globToRegExp(pattern)
+  function walk(dir: string): boolean {
+    let entries: string[]
+    try {
+      entries = readdirSync(dir)
+    } catch {
+      return false
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry)
+      let isDir = false
+      try {
+        isDir = statSync(full).isDirectory()
+      } catch {
+        // ignore
+      }
+      if (isDir) {
+        if (walk(full)) return true
+      } else {
+        if (regex.test(full.replace(/\\/g, '/'))) return true
+      }
+    }
+    return false
+  }
+  return walk(rootDir)
+}
+
+function globToRegExp(pattern: string): RegExp {
+  // Build a regex from a glob that supports **, *, and {a,b} brace expansion.
+  const expanded = expandBraces(pattern)
+  const sources = expanded.map((p) => '^' + globSegmentToRegex(p) + '$')
+  return new RegExp(sources.join('|'))
+}
+
+function expandBraces(pattern: string): string[] {
+  const match = pattern.match(/\{([^}]+)\}/)
+  if (!match) return [pattern]
+  const options = match[1].split(',')
+  const prefix = pattern.slice(0, match.index)
+  const suffix = pattern.slice((match.index ?? 0) + match[0].length)
+  const results: string[] = []
+  for (const opt of options) {
+    results.push(...expandBraces(prefix + opt + suffix))
+  }
+  return results
+}
+
+function globSegmentToRegex(pattern: string): string {
+  let result = ''
+  let i = 0
+  while (i < pattern.length) {
+    const char = pattern[i]
+    if (char === '*') {
+      if (pattern[i + 1] === '*') {
+        // ** — match anything including path separators
+        result += '.*'
+        i += 2
+        if (pattern[i] === '/') i++
+      } else {
+        // * — match anything except path separator
+        result += '[^/]*'
+        i++
+      }
+    } else if (char === '?') {
+      result += '[^/]'
+      i++
+    } else if (char === '.') {
+      result += '\\.'
+      i++
+    } else if ('+()^$|'.includes(char)) {
+      result += '\\' + char
+      i++
+    } else {
+      result += char
+      i++
+    }
+  }
+  return result
+}
+
+export function inferNativeTestTargets(
+  projectRoot: string,
+  options: {
+    tap: boolean
+    coverage: boolean
+    testGlob: string
+    specGlob: string
+  },
+): {
+  test: {
+    executor: 'nx:run-commands'
+    options: { command: string; cwd: string }
+    cache: true
+    inputs: string[]
+  }
+  'test:tap'?: {
+    executor: 'nx:run-commands'
+    options: { command: string; cwd: string }
+    cache: true
+    inputs: string[]
+  }
+  'test:coverage'?: {
+    executor: 'nx:run-commands'
+    options: { command: string; cwd: string }
+    cache: true
+    inputs: string[]
+  }
+} {
+  const testFilePatterns = `{${options.testGlob},${options.specGlob}}`
+  const testInputs = [
+    `{projectRoot}/${options.testGlob}`,
+    `{projectRoot}/${options.specGlob}`,
+    '{projectRoot}/package.json',
+  ]
+
+  const result: {
+    test: {
+      executor: 'nx:run-commands'
+      options: { command: string; cwd: string }
+      cache: true
+      inputs: string[]
+    }
+    'test:tap'?: {
+      executor: 'nx:run-commands'
+      options: { command: string; cwd: string }
+      cache: true
+      inputs: string[]
+    }
+    'test:coverage'?: {
+      executor: 'nx:run-commands'
+      options: { command: string; cwd: string }
+      cache: true
+      inputs: string[]
+    }
+  } = {
+    test: {
+      executor: 'nx:run-commands',
+      options: {
+        command: `node --test --test-reporter spec "{projectRoot}/${testFilePatterns}"`,
+        cwd: projectRoot,
+      },
+      cache: true,
+      inputs: testInputs,
+    },
+  }
+
+  if (options.tap) {
+    result['test:tap'] = {
+      executor: 'nx:run-commands',
+      options: {
+        command: `node --test --test-reporter tap "{projectRoot}/${testFilePatterns}" > test-results.tap`,
+        cwd: projectRoot,
+      },
+      cache: true,
+      inputs: testInputs,
+    }
+  }
+
+  if (options.coverage) {
+    result['test:coverage'] = {
+      executor: 'nx:run-commands',
+      options: {
+        command: `node --test --experimental-test-coverage "{projectRoot}/${testFilePatterns}"`,
+        cwd: projectRoot,
+      },
+      cache: true,
+      inputs: testInputs,
+    }
+  }
+
+  return result
+}
+
+export function inferOxlintTarget(
+  projectRoot: string,
+): {
+  executor: 'nx:run-commands'
+  options: { command: string; cwd: string }
+  cache: true
+  inputs: string[]
+} {
+  return {
+    executor: 'nx:run-commands',
+    options: {
+      command: 'npx oxlint .',
+      cwd: projectRoot,
+    },
+    cache: true,
+    inputs: [
+      '{projectRoot}/src/**/*',
+      '{projectRoot}/.oxlintrc.*',
+      '{projectRoot}/package.json',
+    ],
+  }
+}
+
+export function inferBiomeTargets(
+  projectRoot: string,
+  includeLint: boolean,
+): Record<
+  string,
+  {
+    executor: 'nx:run-commands'
+    options: { command: string; cwd: string }
+    cache: boolean
+    inputs: string[]
+  }
+> {
+  const targets: Record<
+    string,
+    {
+      executor: 'nx:run-commands'
+      options: { command: string; cwd: string }
+      cache: boolean
+      inputs: string[]
+    }
+  > = {
+    format: {
+      executor: 'nx:run-commands',
+      options: {
+        command: 'npx biome format --write .',
+        cwd: projectRoot,
+      },
+      cache: false,
+      inputs: [
+        '{projectRoot}/src/**/*',
+        '{projectRoot}/biome.json',
+        '{projectRoot}/biome.jsonc',
+        '{projectRoot}/package.json',
+      ],
+    },
+    'format-check': {
+      executor: 'nx:run-commands',
+      options: {
+        command: 'npx biome format .',
+        cwd: projectRoot,
+      },
+      cache: true,
+      inputs: [
+        '{projectRoot}/src/**/*',
+        '{projectRoot}/biome.json',
+        '{projectRoot}/biome.jsonc',
+        '{projectRoot}/package.json',
+      ],
+    },
+  }
+
+  if (includeLint) {
+    targets.lint = {
+      executor: 'nx:run-commands',
+      options: {
+        command: 'npx biome lint .',
+        cwd: projectRoot,
+      },
+      cache: true,
+      inputs: [
+        '{projectRoot}/src/**/*',
+        '{projectRoot}/biome.json',
+        '{projectRoot}/biome.jsonc',
+        '{projectRoot}/package.json',
+      ],
+    }
+  }
+
+  return targets
+}
+
+export function inferTsdownBuildTarget(
+  projectRoot: string,
+): {
+  executor: 'nx:run-commands'
+  options: { command: string; cwd: string }
+  outputs: string[]
+  cache: true
+  inputs: string[]
+  dependsOn: string[]
+} {
+  return {
+    executor: 'nx:run-commands',
+    options: {
+      command: 'npx tsdown',
+      cwd: projectRoot,
+    },
+    outputs: ['{projectRoot}/dist'],
+    cache: true,
+    inputs: [
+      '{projectRoot}/src/**/*',
+      '{projectRoot}/tsdown.config.ts',
+      '{projectRoot}/tsconfig.json',
+      '{projectRoot}/package.json',
+    ],
+    dependsOn: ['^build'],
+  }
+}
+
 export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
   '**/tsconfig*.json',
   (configFiles, options = {}, context) => {
     const configFileName = options.configFile ?? 'tsconfig.json'
     const tsgo = options.tsgo ?? true
     const clean = options.clean ?? false
+    const tap = options.tap ?? false
+    const coverage = options.coverage ?? false
+    const oxlint = options.oxlint ?? true
+    const biome = options.biome ?? true
+    const tsdown = options.tsdown ?? true
+    const testGlob = options.testGlob ?? '**/*.test.{ts,js,mts,mjs}'
+    const specGlob = options.specGlob ?? '**/*.spec.{ts,js,mts,mjs}'
     const workspaceRoot = context.workspaceRoot
 
     const filteredConfigFiles = configFiles.filter(
@@ -246,7 +598,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
 
         logDebug(PLUGIN_SCOPE, `Registering targets for ${projectKey}`)
 
-        const typecheckTarget = inferTypecheckTarget(projectRoot, {
+        // Use the relative project root as cwd so targets are portable.
+        const relProjectRoot = projectKey
+
+        const typecheckTarget = inferTypecheckTarget(relProjectRoot, {
           tsgo,
           configFile: configFileName,
           clean,
@@ -258,7 +613,43 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
 
         const vitestConfigPath = findVitestConfig(projectRoot, workspaceRoot)
         if (vitestConfigPath) {
-          Object.assign(targets, inferVitestTargets(projectRoot, vitestConfigPath))
+          Object.assign(targets, inferVitestTargets(relProjectRoot, vitestConfigPath))
+        } else {
+          // Native Node test runner — only when no vitest config is present.
+          const absProjectRoot = resolve(workspaceRoot, projectRoot)
+          const hasTestFiles =
+            globMatch(absProjectRoot, testGlob) || globMatch(absProjectRoot, specGlob)
+          if (hasTestFiles) {
+            Object.assign(
+              targets,
+              inferNativeTestTargets(relProjectRoot, { tap, coverage, testGlob, specGlob }),
+            )
+          }
+        }
+
+        // Oxlint lint delegation
+        const oxlintrcPath = findConfigFile(projectRoot, workspaceRoot, OXLINTRC_NAMES)
+        const oxlintOwnsLint = oxlint && oxlintrcPath !== null
+        if (oxlintOwnsLint) {
+          targets.lint = inferOxlintTarget(relProjectRoot)
+        }
+
+        // Biome format/lint delegation
+        if (biome) {
+          const biomeConfigPath = findConfigFile(projectRoot, workspaceRoot, BIOME_CONFIG_NAMES)
+          if (biomeConfigPath) {
+            // Biome provides lint only when oxlint is not owning it.
+            const biomeProvidesLint = !oxlintOwnsLint
+            Object.assign(targets, inferBiomeTargets(relProjectRoot, biomeProvidesLint))
+          }
+        }
+
+        // Tsdown build delegation
+        if (tsdown) {
+          const tsdownConfigPath = findConfigFile(projectRoot, workspaceRoot, TSDOWN_CONFIG_NAMES)
+          if (tsdownConfigPath) {
+            targets.build = inferTsdownBuildTarget(relProjectRoot)
+          }
         }
 
         const result: [string, CreateNodesResult] = [
