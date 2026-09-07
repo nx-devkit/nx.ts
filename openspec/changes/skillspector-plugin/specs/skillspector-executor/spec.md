@@ -7,7 +7,7 @@ The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `S
 
 #### Scenario: Scan target inferred
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
-- **THEN** a `scan` target is inferred for project `skills-code--review-act` with executor `@nx-devkit/skillspector:scan`
+- **THEN** a `scan` target is inferred for project `skills-code-review-act-<hash>` with executor `@nx-devkit/skillspector:scan`
 
 ### Requirement: Scan executor runs SkillSpector CLI
 The executor MUST spawn `skillspector scan <path>` with `--no-llm` by default and `--format json` to capture findings.
@@ -35,8 +35,8 @@ The executor MUST produce a SARIF 2.1.0 report when `sarif` option is set, prese
 The executor MUST emit `::error file=<path>,line=<n>::<rule_id>: <message>` workflow commands for findings in code files (`.ts`, `.js`, `.py`, `.sh`, `.yml`, `.json`). Findings in documentation files (`.md`, `.txt`) MUST NOT be emitted as annotations. The executor MUST escape scanner-controlled values (file paths, rule IDs, messages) before constructing each annotation: encode `%` as `%25`, newlines and carriage returns as literal `\\n`/`\\r`, and remove or encode any other workflow-command delimiters to prevent annotation injection or corruption.
 
 #### Scenario: Code finding annotated
-- **WHEN** a finding is in `scripts/foo.ts` at line 42
-- **THEN** an annotation `::error file=scripts/foo.ts,line=42::SQP-1: <message>` is written to the shared annotations file
+- **WHEN** a finding is in `scripts/foo.ts` at line 42 for project `skills-code-review-act-<hash>`
+- **THEN** an annotation `::error file=scripts/foo.ts,line=42::SQP-1: <message>` is written to `annotations-skills-code-review-act-<hash>.txt`
 
 #### Scenario: Doc finding not annotated
 - **WHEN** a finding is in `references/guide.md`
@@ -46,8 +46,8 @@ The executor MUST emit `::error file=<path>,line=<n>::<rule_id>: <message>` work
 The executor MUST write annotations to a **per-project** file (`annotations-<projectName>.txt` in the workspace root) rather than stdout, because Nx prefixes stdout with ANSI-colored project names that break GitHub workflow command parsing. Per-project files prevent concurrent Nx runs from interleaving writes. The CI workflow concatenates all `annotations-*.txt` files after the Nx run.
 
 #### Scenario: Annotations file path
-- **WHEN** the executor runs with annotations enabled for project `skills-code--review-act`
-- **THEN** annotations are written to `annotations-skills-code--review-act.txt`
+- **WHEN** the executor runs with annotations enabled for project `skills-code-review-act-<hash>`
+- **THEN** annotations are written to `annotations-skills-code-review-act-<hash>.txt`
 
 ### Requirement: Fail-on-error policy
 When `failOnError: true` (default), the executor MUST return `{ success: false }` if any HIGH or CRITICAL severity finding exists. Otherwise it returns `{ success: true }`.

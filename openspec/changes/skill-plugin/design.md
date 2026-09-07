@@ -37,6 +37,8 @@ packages/skill/
 > because Nx expands it, not the shell.
 
 ```ts
+import { createHash } from 'node:crypto';
+
 export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
   '**/SKILL.md',
   (configFiles, options = {}, context) => {
@@ -46,14 +48,13 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
         const skillDir = dirname(skillFile);
         const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
           .replace(/\\/g, '/');
-        // Injective, collision-resistant project name: each path segment has its
-        // dashes doubled, then segments are joined with single dash. This ensures
-        // skills/my-skill → skills-my--skill and skills/my/skill → skills-my-skill
-        // remain distinct (no two different paths produce the same name).
-        const projectName = projectRoot
-          .split('/')
-          .map((s) => s.replace(/-/g, '--'))
-          .join('-');
+        // Injective, collision-resistant project name: the full relative path
+        // with slashes replaced by dashes, plus a short deterministic hash of
+        // the full path to guarantee injectivity. The hash disambiguates edge
+        // cases like skills/a-/b vs skills/a/-b (both map to skills-a-b without
+        // the hash). e.g. skills/code-review/act → skills-code-review-act-a1b2c3d4
+        const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8);
+        const projectName = `${projectRoot.replace(/\//g, '-')}-${pathHash}`;
 
         if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
 
@@ -160,14 +161,14 @@ export default async function buildExecutor(
 
 - **Compiler dependency**: the build executor needs the skills compiler. Either publish `@theplenkov/skills-compiler` to npm or inline the compiler call. Decision: publish compiler separately, executor depends on it.
 - **Validate/os-check scripts**: these reference scripts in the consumer repo (`scripts/validate-skill.ts` etc.). The plugin infers the target but the script must exist in the consumer. Document this as a consumer responsibility.
-- **Project name collisions**: two skills with the same directory name in different categories. Mitigation: project name uses an injective encoding of the full relative path (each segment's dashes doubled, segments joined with `-`), so `skills/my-skill` → `skills-my--skill` and `skills/my/skill` → `skills-my-skill` remain distinct.
+- **Project name collisions**: two skills with paths that map to the same dashed name (e.g. `skills/a-b` and `skills/a/b`). Mitigation: project name includes a short SHA-256 hash of the full relative path, guaranteeing injectivity. `skills/a-b` → `skills-a-b-<hash1>`, `skills/a/b` → `skills-a-b-<hash2>` (distinct hashes).
 
 ## TDD plan
 
-1. Write failing test: workspace with `skills/code-review/act/SKILL.md` → expect project `skills-code--review-act` with `build`, `lint`, `validate`, `os-check`, `size-check` targets.
+1. Write failing test: workspace with `skills/code-review/act/SKILL.md` → expect project `skills-code-review-act-<hash>` with `build`, `lint`, `validate`, `os-check`, `size-check` targets.
 2. Write failing test: workspace root `SKILL.md` is skipped.
 3. Write failing test: `node_modules/` SKILL.md is skipped.
-4. Write failing test: injective naming — `skills/my-skill/SKILL.md` → `skills-my--skill` and `skills/my/skill/SKILL.md` → `skills-my-skill` (distinct names).
+4. Write failing test: injective naming — `skills/a-b/SKILL.md` and `skills/a/b/SKILL.md` → distinct project names (different hash suffixes).
 5. Write failing test: build executor compiles a skill to skills-sh format.
 6. Write failing test: build executor throws when `options.path` is omitted.
 7. Implement, refactor, verify.

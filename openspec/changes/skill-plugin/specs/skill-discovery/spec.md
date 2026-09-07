@@ -3,15 +3,15 @@
 ## ADDED Requirements
 
 ### Requirement: SKILL.md triggers project inference
-The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with an injective, collision-resistant name derived from the full relative path (each path segment's `-` characters doubled, then segments joined with `-`) and the skill directory as project root.
+The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with an injective, collision-resistant name derived from the full relative path (slashes replaced with dashes, plus a short SHA-256 hash suffix of the full path) and the skill directory as project root.
 
 #### Scenario: Skill discovered
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
-- **THEN** a project named `skills-code--review-act` is inferred with root `skills/code-review/act` (the dash in `code-review` is doubled per the injective algorithm)
+- **THEN** a project named `skills-code-review-act-<hash>` is inferred with root `skills/code-review/act`, where `<hash>` is the first 8 hex chars of SHA-256 of `skills/code-review/act`
 
-#### Scenario: Injective naming — dash in directory name
-- **WHEN** a workspace contains both `skills/my-skill/SKILL.md` and `skills/my/skill/SKILL.md`
-- **THEN** two distinct projects are inferred: `skills-my--skill` and `skills-my-skill`
+#### Scenario: Injective naming — same dashed form, different paths
+- **WHEN** a workspace contains both `skills/a-b/SKILL.md` and `skills/a/b/SKILL.md`
+- **THEN** two distinct projects are inferred with names `skills-a-b-<hash1>` and `skills-a-b-<hash2>` (same dashed prefix, different hash suffixes)
 
 ### Requirement: Build target inferred
 The plugin MUST infer a `build` target for each skill project using the `@nx-devkit/skill:build` executor with `target: "skills-sh"` and `outDir: ".build/skills/{projectName}"` defaults.

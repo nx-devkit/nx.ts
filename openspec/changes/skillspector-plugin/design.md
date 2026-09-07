@@ -30,6 +30,8 @@ packages/skillspector/
 ## Plugin: createNodesV2
 
 ```ts
+import { createHash } from 'node:crypto';
+
 export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
   '**/SKILL.md',
   (configFiles, options = {}, context) => {
@@ -40,11 +42,9 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
         const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
           .replace(/\\/g, '/');
         // Injective, collision-resistant project name (same algorithm as
-        // @nx-devkit/skill): double dashes per segment, join with single dash.
-        const projectName = projectRoot
-          .split('/')
-          .map((s) => s.replace(/-/g, '--'))
-          .join('-');
+        // @nx-devkit/skill): full path with slashes→dashes + short SHA-256 hash.
+        const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8);
+        const projectName = `${projectRoot.replace(/\//g, '-')}-${pathHash}`;
 
         if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
 
@@ -69,7 +69,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
             cache: !annotationsEnabled && noLlm,
             ...(annotationsEnabled
               ? {}
-              : { outputs: sarifPath ? [`{workspaceRoot}/${sarifPath}`] : [] }),
+              : { outputs: [
+                  ...(sarifPath ? [`{workspaceRoot}/${sarifPath}`] : []),
+                  `{workspaceRoot}/findings-${projectName}.json`,
+                ] }),
             inputs: [
               '{projectRoot}/**/*',
               ...(opts.baseline ? [`{workspaceRoot}/${opts.baseline}`] : []),
@@ -126,7 +129,7 @@ Code findings become `::error file=<path>,line=<n>::<rule_id>: <message>` workfl
 Both plugins trigger on `**/SKILL.md`. Nx merges targets from multiple plugins for the same project. Result:
 
 ```
-project: act
+project: skills-code-review-act-<hash>
 targets:
   build:       @nx-devkit/skill:build
   lint:        nx:run-commands (markdownlint)
@@ -149,7 +152,7 @@ targets:
 
 - **SkillSpector not installed**: the executor calls `skillspector` CLI. If not installed, it fails with a clear error. CI workflows must install it via `pip install git+https://github.com/NVIDIA/SkillSpector`. Document in README.
 - **Nx stdout prefixing**: Nx prefixes worker output with ANSI-colored project names, breaking GitHub workflow commands. Mitigation: each executor writes annotations to a **per-project** file (`annotations-<projectName>.txt`) so concurrent Nx runs don't interleave writes. The CI workflow step MUST remove all `annotations-*.txt` files before invoking `nx affected -t scan` so a re-run does not re-emit stale annotations, and the concatenation step MUST tolerate no matching files (`cat annotations-*.txt 2>/dev/null || true`) for runs that select no affected projects.
-- **SARIF multi-run merge**: GitHub code-scanning rejects SARIF with multiple runs sharing a category. Mitigation: per-skill SARIF files (path derived from project name, e.g. `report-skills-code--review-act.sarif`) are merged into one run by the workflow step (not the executor).
+- **SARIF multi-run merge**: GitHub code-scanning rejects SARIF with multiple runs sharing a category. Mitigation: per-skill SARIF files (path derived from project name, e.g. `report-skills-code-review-act-<hash>.sarif`) are merged into one run by the workflow step (not the executor).
 - **Non-deterministic LLM scans**: when `noLlm: false`, SkillSpector may invoke an LLM and produce non-deterministic output. Caching is disabled in this case to prevent serving stale SARIF.
 
 ## TDD plan
