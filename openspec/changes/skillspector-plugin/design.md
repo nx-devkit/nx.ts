@@ -148,6 +148,21 @@ targets:
 3. `ThePlenkov/skills` PR: add `@nx-devkit/skillspector` devDependency.
 4. Both repos: `nx affected -t scan` works.
 
+### Required `nx.json` named inputs
+
+The scan target uses `^production` (standard Nx named input for dependent project production inputs). Consumers MUST declare `namedInputs` in their `nx.json`:
+
+```json
+{
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*"],
+    "production": ["default"]
+  }
+}
+```
+
+If the consumer doesn't define `production`, Nx logs a warning and treats `^production` as empty (no dependent inputs), which is safe but may miss cache invalidation for cross-project dependencies.
+
 ## Risks
 
 - **SkillSpector not installed**: the executor calls `skillspector` CLI. If not installed, it fails with a clear error. CI workflows must install it via `pip install git+https://github.com/NVIDIA/SkillSpector`. Document in README.

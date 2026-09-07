@@ -157,6 +157,21 @@ export default async function buildExecutor(
 3. `ThePlenkov/skills` PR: add `@nx-devkit/skill` devDependency, add `nx.json` with plugin.
 4. Both repos: `nx affected -t build lint validate os-check size-check` works.
 
+### Required `nx.json` named inputs
+
+The build target uses `^production` (standard Nx named input for dependent project production inputs). Consumers MUST declare `namedInputs` in their `nx.json`:
+
+```json
+{
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*"],
+    "production": ["default"]
+  }
+}
+```
+
+The plugin itself does NOT declare named inputs — it uses explicit file globs (`skillInputs` array) for the `skill` content and `^production` for dependent project inputs. The `^production` reference is resolved by Nx against the consumer's `namedInputs.production` definition. If the consumer doesn't define `production`, Nx logs a warning and treats `^production` as empty (no dependent inputs), which is safe but may miss cache invalidation for cross-project dependencies.
+
 ## Risks
 
 - **Compiler dependency**: the build executor needs the skills compiler. Either publish `@theplenkov/skills-compiler` to npm or inline the compiler call. Decision: publish compiler separately, executor depends on it.
