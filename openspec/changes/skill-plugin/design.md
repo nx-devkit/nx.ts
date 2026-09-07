@@ -164,7 +164,7 @@ export default async function buildExecutor(
 
 ## TDD plan
 
-1. Write failing test: workspace with `skills/code-review/act/SKILL.md` → expect project `skills-code-review-act` with `build`, `lint`, `validate`, `os-check`, `size-check` targets.
+1. Write failing test: workspace with `skills/code-review/act/SKILL.md` → expect project `skills-code--review-act` with `build`, `lint`, `validate`, `os-check`, `size-check` targets.
 2. Write failing test: workspace root `SKILL.md` is skipped.
 3. Write failing test: `node_modules/` SKILL.md is skipped.
 4. Write failing test: injective naming — `skills/my-skill/SKILL.md` → `skills-my--skill` and `skills/my/skill/SKILL.md` → `skills-my-skill` (distinct names).

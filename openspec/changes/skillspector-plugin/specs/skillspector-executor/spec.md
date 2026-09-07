@@ -7,7 +7,7 @@ The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `S
 
 #### Scenario: Scan target inferred
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
-- **THEN** a `scan` target is inferred for project `skills-code-review-act` with executor `@nx-devkit/skillspector:scan`
+- **THEN** a `scan` target is inferred for project `skills-code--review-act` with executor `@nx-devkit/skillspector:scan`
 
 ### Requirement: Scan executor runs SkillSpector CLI
 The executor MUST spawn `skillspector scan <path>` with `--no-llm` by default and `--format json` to capture findings.

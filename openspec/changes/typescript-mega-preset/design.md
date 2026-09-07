@@ -130,7 +130,7 @@ Consumers who want the standalone plugins can still install them — the mega-pr
 
 - **Target conflicts**: if both mega-preset and standalone plugins are registered, duplicate targets may appear. Mitigation: document that consumers should pick one approach (mega-preset OR standalone plugins, not both).
 - **Native test runner maturity**: `node --test` is stable in Node 22+ but coverage is still experimental. Mitigation: `coverage: true` is opt-in.
-- **File discovery cost**: scanning for `*.test.ts` on every graph build could be slow in large repos. Mitigation: use Nx's `configFiles` parameter (already globbed by the daemon) rather than manual `readdirSync`.
+- **File discovery cost**: scanning for `*.test.ts` on every graph build could be slow in large repos. Mitigation: `readdirSync` is scoped to `src/` and `test/` only (not the whole project), and the Nx daemon caches the graph between runs. `configFiles` from `createNodesV2` cannot be used here because it only contains `tsconfig*.json` paths (the plugin's trigger), not test files.
 
 ## TDD plan
 

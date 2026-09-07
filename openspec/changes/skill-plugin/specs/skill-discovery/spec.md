@@ -7,7 +7,7 @@ The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `S
 
 #### Scenario: Skill discovered
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
-- **THEN** a project named `skills-code-review-act` is inferred with root `skills/code-review/act`
+- **THEN** a project named `skills-code--review-act` is inferred with root `skills/code-review/act` (the dash in `code-review` is doubled per the injective algorithm)
 
 #### Scenario: Injective naming — dash in directory name
 - **WHEN** a workspace contains both `skills/my-skill/SKILL.md` and `skills/my/skill/SKILL.md`

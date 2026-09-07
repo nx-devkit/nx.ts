@@ -51,19 +51,25 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
         // Derive a unique per-skill SARIF path so concurrent scans don't overwrite
         // each other's reports.
         const annotationsEnabled = opts.annotations ?? true;
+        const noLlm = opts.noLlm ?? true;
         const sarifPath = opts.sarif
           ? opts.sarif.replace(/\.sarif$/, '') + `-${projectName}.sarif`
           : undefined;
+        // Per-project annotations file (keyed like SARIF) so concurrent Nx
+        // runs don't interleave writes to a shared file. The CI step
+        // concatenates all per-project files.
+        const annotationsPath = `annotations-${projectName}.txt`;
 
         const targets: Record<string, TargetConfiguration> = {
           [opts.scanTargetName]: {
             executor: '@nx-devkit/skillspector:scan',
-            // Disable caching when annotations are enabled: the executor appends
-            // to a shared annotations file that Nx cannot restore on a cache hit.
-            // When annotations are disabled, caching is safe (SARIF is a declared
-            // output in that case).
-            cache: !annotationsEnabled,
-            ...(annotationsEnabled ? {} : { outputs: sarifPath ? [`{workspaceRoot}/${sarifPath}`] : [] }),
+            // Cache only when both (a) annotations are disabled (no shared
+            // side-effect file) and (b) the LLM is off (deterministic output).
+            // LLM-backed scans are non-deterministic and must not be cached.
+            cache: !annotationsEnabled && noLlm,
+            ...(annotationsEnabled
+              ? {}
+              : { outputs: sarifPath ? [`{workspaceRoot}/${sarifPath}`] : [] }),
             inputs: [
               '{projectRoot}/**/*',
               ...(opts.baseline ? [`{workspaceRoot}/${opts.baseline}`] : []),
@@ -96,7 +102,7 @@ The executor runs SkillSpector on a single skill directory:
 2. **Parse** JSON output → `SkillspectorDoc` (issues array)
 3. **Rewrite** issue.location.file to workspace-relative paths
 4. **Filter** issues into code findings (`.ts/.js/.py/.sh/.yml/.json`) and doc findings (`.md`)
-5. **Emit** GitHub Actions annotations for code findings (via shared file to avoid Nx stdout prefixing)
+5. **Emit** GitHub Actions annotations for code findings to a **per-project** file (`annotations-<projectName>.txt`) to avoid concurrent-write corruption when Nx runs multiple skills in parallel. The CI workflow concatenates all `annotations-*.txt` files after the Nx run.
 6. **Build** SARIF 2.1.0 report preserving category, confidence, remediation, code_snippet
 7. **Write** per-skill findings JSON for step summary aggregation
 8. **Return** `{ success: boolean }` based on fail-on-error policy
@@ -142,8 +148,9 @@ targets:
 ## Risks
 
 - **SkillSpector not installed**: the executor calls `skillspector` CLI. If not installed, it fails with a clear error. CI workflows must install it via `pip install git+https://github.com/NVIDIA/SkillSpector`. Document in README.
-- **Nx stdout prefixing**: Nx prefixes worker output with ANSI-colored project names, breaking GitHub workflow commands. Mitigation: executor appends annotations to a shared file (`/tmp/nx-skillspector-annotations.log`). The CI workflow step MUST truncate (or remove) this file before invoking `nx affected -t scan` so a re-run does not re-emit stale annotations, and the `cat` step MUST tolerate a missing file (`cat /tmp/nx-skillspector-annotations.log 2>/dev/null || true`) for runs that select no affected projects.
-- **SARIF multi-run merge**: GitHub code-scanning rejects SARIF with multiple runs sharing a category. Mitigation: per-skill SARIF files (path derived from project name, e.g. `report-skills-code-review-act.sarif`) are merged into one run by the workflow step (not the executor).
+- **Nx stdout prefixing**: Nx prefixes worker output with ANSI-colored project names, breaking GitHub workflow commands. Mitigation: each executor writes annotations to a **per-project** file (`/tmp/nx-skillspector-annotations-<projectName>.log`) so concurrent Nx runs don't interleave writes. The CI workflow step MUST remove all `annotations-*.log` files before invoking `nx affected -t scan` so a re-run does not re-emit stale annotations, and the concatenation step MUST tolerate no matching files (`cat /tmp/nx-skillspector-annotations-*.log 2>/dev/null || true`) for runs that select no affected projects.
+- **SARIF multi-run merge**: GitHub code-scanning rejects SARIF with multiple runs sharing a category. Mitigation: per-skill SARIF files (path derived from project name, e.g. `report-skills-code--review-act.sarif`) are merged into one run by the workflow step (not the executor).
+- **Non-deterministic LLM scans**: when `noLlm: false`, SkillSpector may invoke an LLM and produce non-deterministic output. Caching is disabled in this case to prevent serving stale SARIF.
 
 ## TDD plan
 
