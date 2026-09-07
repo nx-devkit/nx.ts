@@ -79,6 +79,12 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
               ...(opts.baseline ? [`{workspaceRoot}/${opts.baseline}`] : []),
               '^production',
             ],
+            // Note: ^production requires the consumer to define a `production`
+            // named input in nx.json. If absent, ^production contributes no
+            // dependent-project files and dependency changes won't invalidate
+            // the cache. The plugin SHOULD validate for this named input at
+            // registration time and log a warning if missing; caching is
+            // disabled when the named input is absent to prevent stale results.
             options: {
               path: projectRoot,
               noLlm: opts.noLlm ?? true,
@@ -108,7 +114,7 @@ The executor runs SkillSpector on a single skill directory:
 4. **Filter** issues into code findings (`.ts/.js/.py/.sh/.yml/.json`) and doc findings (`.md`)
 5. **Emit** GitHub Actions annotations for code findings to a **per-project** file (`annotations-<projectName>.txt`) to avoid concurrent-write corruption when Nx runs multiple skills in parallel. The CI workflow concatenates all `annotations-*.txt` files after the Nx run.
 6. **Build** SARIF 2.1.0 report preserving category, confidence, remediation, code_snippet
-7. **Write** per-skill findings JSON for step summary aggregation
+7. **Write** per-skill findings JSON to `{workspaceRoot}/findings-${projectName}.json` (same path declared in the target's `outputs`) for step summary aggregation
 8. **Return** `{ success: boolean }` based on fail-on-error policy
 
 ### SARIF mapping

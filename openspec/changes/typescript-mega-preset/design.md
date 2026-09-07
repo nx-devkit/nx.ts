@@ -39,6 +39,8 @@ export const createNodesV2 = [
 
 This ensures the callback that emits `test`/`test:tap`/`test:coverage` targets is re-invoked when test files are added or removed, not just when tsconfig changes. The TDD tests MUST assert the `test` target itself updates (not merely that the daemon wakes up).
 
+**Custom `testGlob` limitation:** The matcher covers `*.{test,spec}.{ts,js,mts,mjs}` files. If a consumer sets a custom `testGlob` that matches files with different extensions or naming conventions (e.g. `src/**/*.unit.ts`), those files will NOT trigger graph recomputation when added or removed. The plugin MUST validate that `testGlob` matches files covered by the matcher pattern, or document that custom globs outside the matcher scope require a manual `nx reset` to update the graph.
+
 ### Targets
 
 ```ts
