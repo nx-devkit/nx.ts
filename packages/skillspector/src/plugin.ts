@@ -26,7 +26,7 @@ const SKILL_MD_GLOB = '**/SKILL.md'
 function shouldSkipPath(projectRoot: string): boolean {
   if (projectRoot === '' || projectRoot === '.') return true
   if (projectRoot === 'node_modules' || projectRoot.startsWith('node_modules/')) return true
-  if (projectRoot.includes('..')) return true
+  if (projectRoot.split('/').includes('..')) return true
   return false
 }
 

@@ -181,6 +181,7 @@ function spawnSkillspector(
         cwd,
         maxBuffer: 10 * 1024 * 1024,
         encoding: 'utf8',
+        timeout: 300_000,
         // Explicitly NOT using shell: true for security
         shell: false,
       },
