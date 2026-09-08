@@ -3,6 +3,7 @@ import { dirname, relative, resolve } from 'node:path'
 import {
   type CreateNodesResult,
   type CreateNodesV2,
+  type TargetConfiguration,
   logger,
   workspaceRoot as defaultWorkspaceRoot,
 } from '@nx/devkit'
@@ -184,7 +185,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
 
         logger.info(`[${PLUGIN_SCOPE}] Registering targets for ${projectRoot}`)
 
-        const targets: Record<string, unknown> = {
+        const targets: Record<string, TargetConfiguration> = {
           [buildTargetName]: inferBuildTarget(
             projectRoot,
             projectName,
