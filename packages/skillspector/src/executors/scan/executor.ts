@@ -190,7 +190,7 @@ function spawnSkillspector(
           reject(error instanceof Error ? error : new Error(String(error)))
           return
         }
-        resolve({ stdout: stdout ?? '', stderr: stderr ?? '' })
+        resolve({ stdout: stdout || '', stderr: stderr || '' })
       },
     )
   })
@@ -249,8 +249,10 @@ export async function scanExecutor(
       return { success: false }
     }
     const sarifDir = dirname(sarifPath)
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is derived from the trusted workspaceRoot, validated above
     await mkdir(sarifDir, { recursive: true })
     const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is derived from the trusted workspaceRoot, validated above
     await writeFile(sarifPath, JSON.stringify(sarifReport, null, 2), 'utf8')
   }
 
@@ -261,6 +263,7 @@ export async function scanExecutor(
     const annotationsPath = join(ctx.workspaceRoot, annotationsFileName)
     const annotationLines = buildAnnotations(issues, projectName)
     if (annotationLines.length > 0) {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- annotationsPath is derived from the trusted workspaceRoot
       await writeFile(annotationsPath, `${annotationLines.join('\n')}\n`, 'utf8')
     }
   }
