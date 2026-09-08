@@ -98,7 +98,7 @@ function inferScanTarget(
 
 export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
   SKILL_MD_GLOB,
-  async (configFiles, opts = {}, context) => {
+  async (configFiles, opts = {}, _context) => {
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> = []
 
     for (const configFile of configFiles) {

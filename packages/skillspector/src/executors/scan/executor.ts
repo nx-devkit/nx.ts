@@ -93,7 +93,7 @@ function isFailingSeverity(severity: string): boolean {
 
 function buildSarifReport(
   issues: SkillIssue[],
-  workspaceRoot: string,
+  _workspaceRoot: string,
 ): Record<string, unknown> {
   const results = issues.map((issue) => {
     const relFile = issue.location.file.replace(/\\/g, '/')
@@ -147,7 +147,7 @@ function buildSarifReport(
 
 function buildAnnotations(
   issues: SkillIssue[],
-  projectName: string,
+  _projectName: string,
 ): string[] {
   const lines: string[] = []
   for (const issue of issues) {
@@ -228,7 +228,7 @@ export async function scanExecutor(
   let issues: SkillIssue[] = []
   try {
     // SkillSpector may emit log lines before JSON; find the first JSON delimiter
-    const jsonStart = stdout.search(/[\[{]/)
+    const jsonStart = stdout.search(/[[{]/)
     const jsonStr = jsonStart >= 0 ? stdout.slice(jsonStart) : stdout
     const parsed = JSON.parse(jsonStr) as unknown
     if (Array.isArray(parsed)) {
@@ -257,7 +257,7 @@ export async function scanExecutor(
     const annotationsPath = join(ctx.workspaceRoot, annotationsFileName)
     const annotationLines = buildAnnotations(issues, projectName)
     if (annotationLines.length > 0) {
-      await writeFile(annotationsPath, annotationLines.join('\n') + '\n', 'utf8')
+      await writeFile(annotationsPath, `${annotationLines.join('\n')}\n`, 'utf8')
     }
   }
 

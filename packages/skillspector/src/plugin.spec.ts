@@ -27,7 +27,7 @@ function makeSkill(relPath: string, content = '# Skill'): string {
   const skillFile = join(dir, 'SKILL.md')
   writeFileSync(skillFile, content)
   // Return relative path
-  return relPath + '/SKILL.md'
+  return `${relPath}/SKILL.md`
 }
 
 function expectedProjectName(projectRoot: string): string {
@@ -76,7 +76,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
   it('produces distinct hash suffixes for skills/a-b and skills/a/b (injective naming)', async () => {
     const file1 = makeSkill('skills/a-b')
     const file2 = makeSkill('skills/a/b')
-    const results = await callWith(file1 + ',' + file2)
+    const _results = await callWith(`${file1},${file2}`)
     // callWith takes a single file, so call twice
     const results1 = await callWith(file1)
     const results2 = await callWith(file2)

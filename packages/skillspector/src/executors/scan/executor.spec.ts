@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -31,7 +31,6 @@ vi.mock('node:child_process', () => ({
 }))
 
 const { scanExecutor } = await import('./executor.ts')
-import type { ScanExecutorOptions } from './executor.ts'
 
 function makeWorkspace(): string {
   return mkdtempSync(join(tmpdir(), 'nx-skillspector-'))
@@ -131,7 +130,7 @@ describe('scanExecutor', () => {
 
     const sarifContent = readFileSync(sarifAbsPath, 'utf8')
     const sarif = JSON.parse(sarifContent) as Record<string, unknown>
-    expect(sarif['$schema']).toBe(
+    expect(sarif.$schema).toBe(
       'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json',
     )
     expect(sarif.version).toBe('2.1.0')
@@ -186,7 +185,7 @@ describe('scanExecutor', () => {
       workspaceRoot: workspace,
     })
 
-    const annotationsPath = join(workspace, 'annotations-code-review-act.txt')
+    const _annotationsPath = join(workspace, 'annotations-code-review-act.txt')
     // The annotations file name includes the projectName hash; check it exists
     // by scanning the workspace for any annotations-*.txt file
     const { readdirSync } = await import('node:fs')
@@ -298,7 +297,7 @@ describe('scanExecutor', () => {
 
   it('handles non-JSON stdout (log lines before JSON)', async () => {
     execFileResponse.stdout =
-      'INFO: Starting scan...\nWARNING: Using default config\n' + makeFindings()
+      `INFO: Starting scan...\nWARNING: Using default config\n${makeFindings()}`
 
     // Should not crash; should parse the JSON portion
     // With failOnError false and a HIGH finding, success should be true
@@ -311,7 +310,7 @@ describe('scanExecutor', () => {
 
   it('handles non-JSON stdout with object wrapper (findings key)', async () => {
     execFileResponse.stdout =
-      'LOG: scanning\n' + JSON.stringify({ findings: JSON.parse(makeFindings()) })
+      `LOG: scanning\n${JSON.stringify({ findings: JSON.parse(makeFindings()) })}`
 
     const result = await scanExecutor({
       options: { path: 'skills/code-review/act', annotations: false, failOnError: true },
