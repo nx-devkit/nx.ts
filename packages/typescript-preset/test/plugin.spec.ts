@@ -6,6 +6,7 @@ import type { NxDevkitTypescriptOptions } from '../src/plugin.js'
 import {
   createNodesV2,
   expandBraces,
+  globToRegExp,
   inferTypecheckTarget,
   inferVitestTargets,
   isVerbose,
@@ -466,10 +467,7 @@ describe('expandBraces ReDoS protection', () => {
 
 describe('globSegmentToRegex metacharacter escaping', () => {
   it('escapes [ ] \\ { } to prevent regex injection', () => {
-    // Import the internal function indirectly by testing globToRegExp via
-    // expandBraces + the regex it produces. A pattern with metacharacters
-    // should match literally, not as regex syntax.
-    const { globToRegExp } = require('../src/plugin.js') as typeof import('../src/plugin.js')
+    // A pattern with metacharacters should match literally, not as regex syntax.
     const regex = globToRegExp('foo[bar].ts')
     // Should match the literal string "foo[bar].ts", not "foo" + char class
     expect(regex.test('foo[bar].ts')).toBe(true)
@@ -477,7 +475,6 @@ describe('globSegmentToRegex metacharacter escaping', () => {
   })
 
   it('escapes backslash to prevent regex injection', () => {
-    const { globToRegExp } = require('../src/plugin.js') as typeof import('../src/plugin.js')
     const regex = globToRegExp('foo\\bar')
     expect(regex.test('foo\\bar')).toBe(true)
     expect(regex.test('foobar')).toBe(false)
