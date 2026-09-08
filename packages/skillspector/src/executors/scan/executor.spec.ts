@@ -182,8 +182,11 @@ describe('scanExecutor', () => {
         remediation: 'Fix style',
         code_snippet: 'const x = 1',
         intent: 'style',
-        file: 'skills/code-review/act/agent.ts',
-        line: 1,
+        tags: ['style'],
+        location: {
+          file: 'skills/code-review/act/agent.ts',
+          start_line: 1,
+        },
       },
     ])
     // Create a symlink inside workspace pointing outside

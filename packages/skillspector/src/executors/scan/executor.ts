@@ -265,6 +265,13 @@ export async function scanExecutor(
     if (realRel === '..' || realRel.startsWith(`..${sep}`) || isAbsolute(realRel)) {
       return { success: false }
     }
+    // Also check if the SARIF file itself is an existing symlink pointing outside
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is validated above
+    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath)
+    const realFileRel = relative(realWorkspaceRoot, realSarifPath)
+    if (realFileRel === '..' || realFileRel.startsWith(`..${sep}`) || isAbsolute(realFileRel)) {
+      return { success: false }
+    }
     const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is contained within workspaceRoot, validated via relative() + realpath()
     await writeFile(sarifPath, JSON.stringify(sarifReport, null, 2), 'utf8')
