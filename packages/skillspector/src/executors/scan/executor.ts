@@ -187,7 +187,7 @@ function spawnSkillspector(
       },
       (error, stdout, stderr) => {
         if (error) {
-          reject(error)
+          reject(error instanceof Error ? error : new Error(String(error)))
           return
         }
         resolve({ stdout: stdout ?? '', stderr: stderr ?? '' })
@@ -245,6 +245,9 @@ export async function scanExecutor(
   // Write SARIF report if option is set
   if (opts.sarif) {
     const sarifPath = join(ctx.workspaceRoot, opts.sarif)
+    if (!sarifPath.startsWith(ctx.workspaceRoot)) {
+      return { success: false }
+    }
     const sarifDir = dirname(sarifPath)
     await mkdir(sarifDir, { recursive: true })
     const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
