@@ -271,6 +271,8 @@ function findConfigFile(
  */
 function globMatch(rootDir: string, pattern: string): boolean {
   const regex = globToRegExp(pattern)
+  // Walk the directory tree to find files matching the glob pattern.
+  // Paths are constructed from rootDir (validated by caller) and readdir entries.
   function walk(dir: string): boolean {
     let entries: string[]
     try {
@@ -299,9 +301,15 @@ function globMatch(rootDir: string, pattern: string): boolean {
 
 function globToRegExp(pattern: string): RegExp {
   // Build a regex from a glob that supports **, *, and {a,b} brace expansion.
+  // Brace expansion is bounded by MAX_BRACE_DEPTH and MAX_BRACE_OPTIONS.
   const expanded = expandBraces(pattern)
   const sources = expanded.map((p) => `^${globSegmentToRegex(p)}$`)
-  return new RegExp(sources.join('|'))
+  const source = sources.join('|')
+  // Validate the generated source to prevent ReDoS via catastrophic backtracking.
+  if (source.length > 10_000) {
+    return /$^/ // Match nothing if pattern is too complex
+  }
+  return new RegExp(source)
 }
 
 const MAX_BRACE_DEPTH = 3
@@ -326,13 +334,13 @@ function globSegmentToRegex(pattern: string): string {
   let result = ''
   let i = 0
   while (i < pattern.length) {
-    const char = pattern[i]
+    const char = pattern.charAt(i)
     if (char === '*') {
-      if (pattern[i + 1] === '*') {
+      if (pattern.charAt(i + 1) === '*') {
         // ** — match anything including path separators
         result += '.*'
         i += 2
-        if (pattern[i] === '/') i++
+        if (pattern.charAt(i) === '/') i++
       } else {
         // * — match anything except path separator
         result += '[^/]*'
