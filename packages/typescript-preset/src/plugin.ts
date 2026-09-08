@@ -3,6 +3,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import {
   type CreateNodesResult,
   type CreateNodesV2,
+  type TargetConfiguration,
   workspaceRoot as defaultWorkspaceRoot,
   logger,
 } from '@nx/devkit'
@@ -617,7 +618,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           clean,
         })
 
-        const targets: Record<string, unknown> = {
+        const targets: Record<string, TargetConfiguration> = {
           typecheck: typecheckTarget,
         }
 
