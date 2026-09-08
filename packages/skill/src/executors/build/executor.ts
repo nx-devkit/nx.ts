@@ -13,6 +13,8 @@ export interface BuildExecutorResult {
   success: boolean
 }
 
+const VALID_TARGETS = ['skills-sh', 'claude', 'codex', 'agents', 'obsidian']
+
 /**
  * Build executor for `@nx-devkit/skill:build`.
  *
@@ -24,6 +26,9 @@ export async function buildExecutor(
   options: BuildExecutorOptions,
 ): Promise<BuildExecutorResult> {
   const target = options.target ?? 'skills-sh'
+  if (!VALID_TARGETS.includes(target)) {
+    return { success: false }
+  }
   const outDir = options.outDir
   const skillPath = options.path
 

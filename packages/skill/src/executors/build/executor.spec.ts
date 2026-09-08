@@ -125,4 +125,15 @@ describe('@nx-devkit/skill build executor', () => {
     expect(opts).not.toHaveProperty('shell', true)
     expect(opts?.shell).not.toBe(true)
   })
+
+  it('returns { success: false } for invalid target', async () => {
+    const result = await buildExecutor({
+      target: 'invalid',
+      outDir: './dist',
+      path: 'skills/foo',
+    })
+
+    expect(result.success).toBe(false)
+    expect(mockExecFile).not.toHaveBeenCalled()
+  })
 })

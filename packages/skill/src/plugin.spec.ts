@@ -31,7 +31,7 @@ function makeContext(): CreateNodesContextV2 {
 
 function expectedProjectName(projectRoot: string): string {
   const slug = projectRoot.replace(/\//g, '-')
-  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
   return `${slug}-${hash}`
 }
 
@@ -145,8 +145,11 @@ describe('@nx-devkit/skill createNodesV2', () => {
 
     expect(build.inputs).toEqual(
       expect.arrayContaining([
-        `{projectRoot}/**/*.md`,
         `{projectRoot}/SKILL.md`,
+        `{projectRoot}/**/*.md`,
+        `{projectRoot}/scripts/**/*`,
+        `{projectRoot}/references/**/*`,
+        `{projectRoot}/assets/**/*`,
         `{projectRoot}/agents/**/*`,
         '^production',
       ]),
@@ -263,5 +266,25 @@ describe('@nx-devkit/skill createNodesV2', () => {
     expect(build.inputs).toEqual(
       expect.arrayContaining(['{projectRoot}/custom/**/*']),
     )
+  })
+
+  it('skips project when duplicate target names are provided', async () => {
+    const [, fn] = createNodesV2
+    const results = await fn(
+      ['skills/foo/SKILL.md'],
+      { buildTargetName: 'lint', lintTargetName: 'lint' },
+      makeContext(),
+    )
+    expect(results).toHaveLength(0)
+  })
+
+  it('skips project when a target name is empty', async () => {
+    const [, fn] = createNodesV2
+    const results = await fn(
+      ['skills/foo/SKILL.md'],
+      { buildTargetName: '', lintTargetName: 'lint' },
+      makeContext(),
+    )
+    expect(results).toHaveLength(0)
   })
 })

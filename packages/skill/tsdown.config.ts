@@ -1,7 +1,11 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/plugin.ts'],
+  entry: {
+    index: 'src/index.ts',
+    plugin: 'src/plugin.ts',
+    'executors/build/executor': 'src/executors/build/executor.ts',
+  },
   format: ['esm'],
   dts: true,
   clean: true,

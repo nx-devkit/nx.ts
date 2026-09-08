@@ -54,14 +54,14 @@ export function shouldSkipPath(
 /**
  * Compute an injective project name from a project root.
  *
- * The slug replaces `/` with `-` and appends the first 8 hex chars of a
+ * The slug replaces `/` with `-` and appends the first 12 hex chars of a
  * SHA-256 hash of the original (forward-slash) project root. This guarantees
  * that `skills/a-b` and `skills/a/b` — which would both slug to `skills-a-b`
  * — receive distinct project names.
  */
 export function computeProjectName(projectRoot: string): string {
   const slug = projectRoot.replace(/\//g, '-')
-  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
   return `${slug}-${hash}`
 }
 
@@ -80,8 +80,11 @@ function inferBuildTarget(
       path: projectRoot,
     },
     inputs: [
-      `{projectRoot}/**/*.md`,
       `{projectRoot}/SKILL.md`,
+      `{projectRoot}/**/*.md`,
+      `{projectRoot}/scripts/**/*`,
+      `{projectRoot}/references/**/*`,
+      `{projectRoot}/assets/**/*`,
       `{projectRoot}/agents/**/*`,
       ...additionalInputs,
       '^production',
@@ -160,6 +163,24 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
 
         const projectRoot = relative(workspaceRoot, dirAbs).replace(/\\/g, '/')
         const projectName = computeProjectName(projectRoot)
+
+        const targetNames = [
+          buildTargetName,
+          lintTargetName,
+          validateTargetName,
+          osCheckTargetName,
+          sizeCheckTargetName,
+        ]
+        const emptyName = targetNames.find((n) => !n || n.trim() === '')
+        if (emptyName !== undefined) {
+          logger.warn(`[${PLUGIN_SCOPE}] Skipping ${projectRoot}: empty target name`)
+          return null
+        }
+        const uniqueNames = new Set(targetNames)
+        if (uniqueNames.size !== targetNames.length) {
+          logger.warn(`[${PLUGIN_SCOPE}] Skipping ${projectRoot}: duplicate target names`)
+          return null
+        }
 
         logger.info(`[${PLUGIN_SCOPE}] Registering targets for ${projectRoot}`)
 
