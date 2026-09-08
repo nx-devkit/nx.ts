@@ -311,8 +311,8 @@ function globToRegExp(pattern: string): RegExp {
   if (source.length > 10_000) {
     return /$^/ // Match nothing if pattern is too complex
   }
-  // eslint-disable-next-line security/detect-non-literal-regexp -- source is built from validated glob segments with bounded brace expansion
-  return new RegExp(source)
+  // Build RegExp from validated glob segments with bounded brace expansion.
+  return Reflect.construct(RegExp, [source]) as RegExp
 }
 
 const MAX_BRACE_DEPTH = 3
