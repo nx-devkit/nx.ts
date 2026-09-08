@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -450,7 +450,7 @@ describe('expandBraces ReDoS protection', () => {
   it('caps the number of options per brace group', () => {
     // A single brace group with 25 options — exceeds MAX_BRACE_OPTIONS (20),
     // so the function should return the original pattern unexpanded.
-    const many = '{' + Array.from({ length: 25 }, (_, i) => `opt${i}`).join(',') + '}'
+    const many = `{${Array.from({ length: 25 }, (_, i) => `opt${i}`).join(',')}}`
     const result = expandBraces(many)
     expect(result).toEqual([many])
   })

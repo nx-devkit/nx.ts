@@ -300,7 +300,7 @@ function globMatch(rootDir: string, pattern: string): boolean {
 function globToRegExp(pattern: string): RegExp {
   // Build a regex from a glob that supports **, *, and {a,b} brace expansion.
   const expanded = expandBraces(pattern)
-  const sources = expanded.map((p) => '^' + globSegmentToRegex(p) + '$')
+  const sources = expanded.map((p) => `^${globSegmentToRegex(p)}$`)
   return new RegExp(sources.join('|'))
 }
 
@@ -345,7 +345,7 @@ function globSegmentToRegex(pattern: string): string {
       result += '\\.'
       i++
     } else if ('+()^$|'.includes(char)) {
-      result += '\\' + char
+      result += `\\${char}`
       i++
     } else {
       result += char
