@@ -250,18 +250,21 @@ export async function scanExecutor(
     if (relSarif === '..' || relSarif.startsWith(`..${sep}`) || isAbsolute(relSarif)) {
       return { success: false }
     }
-    // Resolve symlinks to prevent CWE-59 escapes via symlinked directories
+    // Resolve symlinks on the workspace root to prevent CWE-59 escapes.
+    // The SARIF file itself doesn't exist yet, so we validate the parent
+    // directory after mkdir resolves all symlinks in the path.
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- workspaceRoot is the trusted Nx workspace root
     const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot)
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is validated above via relative()
-    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath)
-    const realRel = relative(realWorkspaceRoot, realSarifPath)
+    const sarifDir = dirname(sarifPath)
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is contained within workspaceRoot, validated via relative()
+    await mkdir(sarifDir, { recursive: true })
+    // After mkdir, resolve the real path of the directory to catch symlinks
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is validated above
+    const realSarifDir = await realpath(sarifDir).catch(() => sarifDir)
+    const realRel = relative(realWorkspaceRoot, realSarifDir)
     if (realRel === '..' || realRel.startsWith(`..${sep}`) || isAbsolute(realRel)) {
       return { success: false }
     }
-    const sarifDir = dirname(sarifPath)
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is contained within workspaceRoot, validated via relative() + realpath()
-    await mkdir(sarifDir, { recursive: true })
     const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is contained within workspaceRoot, validated via relative() + realpath()
     await writeFile(sarifPath, JSON.stringify(sarifReport, null, 2), 'utf8')

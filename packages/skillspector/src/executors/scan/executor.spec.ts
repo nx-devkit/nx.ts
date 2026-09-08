@@ -161,6 +161,7 @@ describe('scanExecutor', () => {
         path: 'skills/code-review/act',
         sarif: escapePath,
         annotations: false,
+        failOnError: false,
       },
       workspaceRoot: workspace,
     })
@@ -169,7 +170,22 @@ describe('scanExecutor', () => {
   })
 
   it('rejects SARIF path that escapes via symlink (CWE-59)', async () => {
-    execFileResponse.stdout = makeFindings()
+    // Use a LOW finding + failOnError:false so the executor reaches the
+    // SARIF write step rather than failing early on the finding severity.
+    execFileResponse.stdout = JSON.stringify([
+      {
+        id: 'SKILL-LOW',
+        severity: 'LOW',
+        category: 'style',
+        confidence: 'medium',
+        explanation: 'Minor style issue',
+        remediation: 'Fix style',
+        code_snippet: 'const x = 1',
+        intent: 'style',
+        file: 'skills/code-review/act/agent.ts',
+        line: 1,
+      },
+    ])
     // Create a symlink inside workspace pointing outside
     const outsideDir = mkdtempSync(join(tmpdir(), 'outside-'))
     const linkDir = join(workspace, 'link')
@@ -180,6 +196,7 @@ describe('scanExecutor', () => {
         path: 'skills/code-review/act',
         sarif: 'link/report.sarif',
         annotations: false,
+        failOnError: false,
       },
       workspaceRoot: workspace,
     })
