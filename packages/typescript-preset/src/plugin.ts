@@ -272,7 +272,8 @@ function findConfigFile(
 function globMatch(rootDir: string, pattern: string): boolean {
   const regex = globToRegExp(pattern)
   // Walk the directory tree to find files matching the glob pattern.
-  // Paths are constructed from rootDir (validated by caller) and readdir entries.
+  // Test project-relative paths, not absolute paths, so that glob patterns
+  // like "tests/*.test.ts" match correctly.
   function walk(dir: string): boolean {
     let entries: string[]
     try {
@@ -293,7 +294,8 @@ function globMatch(rootDir: string, pattern: string): boolean {
       if (isDir) {
         if (walk(full)) return true
       } else {
-        if (regex.test(full.replace(/\\/g, '/'))) return true
+        const relPath = relative(rootDir, full).replace(/\\/g, '/')
+        if (regex.test(relPath)) return true
       }
     }
     return false
@@ -584,7 +586,7 @@ export function inferTsdownBuildTarget(
     cache: true,
     inputs: [
       '{projectRoot}/src/**/*',
-      '{projectRoot}/tsdown.config.ts',
+      '{projectRoot}/tsdown.config.*',
       '{projectRoot}/tsconfig.json',
       '{projectRoot}/package.json',
     ],
