@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, resolve as resolvePath, isAbsolute, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 
 export interface ScanExecutorOptions {
@@ -244,15 +244,17 @@ export async function scanExecutor(
 
   // Write SARIF report if option is set
   if (opts.sarif) {
-    const sarifPath = join(ctx.workspaceRoot, opts.sarif)
-    if (!sarifPath.startsWith(ctx.workspaceRoot)) {
+    const workspaceRoot = resolvePath(ctx.workspaceRoot)
+    const sarifPath = resolvePath(workspaceRoot, opts.sarif)
+    const relSarif = relative(workspaceRoot, sarifPath)
+    if (relSarif === '..' || relSarif.startsWith(`..${sep}`) || isAbsolute(relSarif)) {
       return { success: false }
     }
     const sarifDir = dirname(sarifPath)
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is derived from the trusted workspaceRoot, validated above
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is contained within workspaceRoot, validated above via relative()
     await mkdir(sarifDir, { recursive: true })
     const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is derived from the trusted workspaceRoot, validated above
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is contained within workspaceRoot, validated above via relative()
     await writeFile(sarifPath, JSON.stringify(sarifReport, null, 2), 'utf8')
   }
 

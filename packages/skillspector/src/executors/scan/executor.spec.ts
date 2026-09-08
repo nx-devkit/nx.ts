@@ -152,6 +152,22 @@ describe('scanExecutor', () => {
     expect(physLoc.region.startLine).toBe(42)
   })
 
+  it('rejects SARIF path that escapes workspace via sibling prefix', async () => {
+    execFileResponse.stdout = makeFindings()
+    const escapePath = '../workspace-evil/report.sarif'
+
+    const result = await scanExecutor({
+      options: {
+        path: 'skills/code-review/act',
+        sarif: escapePath,
+        annotations: false,
+      },
+      workspaceRoot: workspace,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('annotates code findings (.ts) but not doc findings (.md)', async () => {
     execFileResponse.stdout = JSON.stringify([
       {
