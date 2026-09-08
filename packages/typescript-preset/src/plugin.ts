@@ -276,6 +276,7 @@ function globMatch(rootDir: string, pattern: string): boolean {
   function walk(dir: string): boolean {
     let entries: string[]
     try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- dir is derived from rootDir, validated by caller
       entries = readdirSync(dir)
     } catch {
       return false
@@ -284,6 +285,7 @@ function globMatch(rootDir: string, pattern: string): boolean {
       const full = join(dir, entry)
       let isDir = false
       try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- full is joined from dir + entry under the trusted workspaceRoot
         isDir = statSync(full).isDirectory()
       } catch {
         // ignore
@@ -309,6 +311,7 @@ function globToRegExp(pattern: string): RegExp {
   if (source.length > 10_000) {
     return /$^/ // Match nothing if pattern is too complex
   }
+  // eslint-disable-next-line security/detect-non-literal-regexp -- source is built from validated glob segments with bounded brace expansion
   return new RegExp(source)
 }
 
