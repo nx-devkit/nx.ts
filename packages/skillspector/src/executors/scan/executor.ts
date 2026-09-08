@@ -251,7 +251,9 @@ export async function scanExecutor(
       return { success: false }
     }
     // Resolve symlinks to prevent CWE-59 escapes via symlinked directories
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- workspaceRoot is the trusted Nx workspace root
     const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot)
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is validated above via relative()
     const realSarifPath = await realpath(sarifPath).catch(() => sarifPath)
     const realRel = relative(realWorkspaceRoot, realSarifPath)
     if (realRel === '..' || realRel.startsWith(`..${sep}`) || isAbsolute(realRel)) {
