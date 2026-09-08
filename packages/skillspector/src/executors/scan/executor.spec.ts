@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -166,6 +166,26 @@ describe('scanExecutor', () => {
     })
 
     expect(result.success).toBe(false)
+  })
+
+  it('rejects SARIF path that escapes via symlink (CWE-59)', async () => {
+    execFileResponse.stdout = makeFindings()
+    // Create a symlink inside workspace pointing outside
+    const outsideDir = mkdtempSync(join(tmpdir(), 'outside-'))
+    const linkDir = join(workspace, 'link')
+    symlinkSync(outsideDir, linkDir, 'dir')
+
+    const result = await scanExecutor({
+      options: {
+        path: 'skills/code-review/act',
+        sarif: 'link/report.sarif',
+        annotations: false,
+      },
+      workspaceRoot: workspace,
+    })
+
+    expect(result.success).toBe(false)
+    rmSync(outsideDir, { recursive: true, force: true })
   })
 
   it('annotates code findings (.ts) but not doc findings (.md)', async () => {
