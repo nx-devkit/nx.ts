@@ -32,7 +32,7 @@ function makeSkill(relPath: string, content = '# Skill'): string {
 
 function expectedProjectName(projectRoot: string): string {
   const slug = projectRoot.replace(/\//g, '-')
-  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
   return `${slug}-${hash}`
 }
 

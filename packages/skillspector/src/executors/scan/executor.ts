@@ -46,14 +46,18 @@ interface SkillIssue {
 }
 
 const CODE_FILE_EXTENSIONS = ['.ts', '.js', '.py', '.sh', '.yml', '.json']
-const DOC_FILE_EXTENSIONS = ['.md', '.txt']
 
 function isCodeFile(filePath: string): boolean {
   return CODE_FILE_EXTENSIONS.some((ext) => filePath.endsWith(ext))
 }
 
-function isDocFile(filePath: string): boolean {
-  return DOC_FILE_EXTENSIONS.some((ext) => filePath.endsWith(ext))
+/**
+ * Parse a bin string (e.g. "npx skillspector") into command + args
+ * for use with execFile (which does not use a shell).
+ */
+function parseBin(bin: string): { cmd: string; args: string[] } {
+  const parts = bin.split(/\s+/).filter((p) => p.length > 0)
+  return { cmd: parts[0] ?? 'skillspector', args: parts.slice(1) }
 }
 
 /**
@@ -147,9 +151,9 @@ function buildAnnotations(
 ): string[] {
   const lines: string[] = []
   for (const issue of issues) {
+    // Only annotate code findings, not doc findings
     if (!isCodeFile(issue.location.file)) continue
-    if (isDocFile(issue.location.file)) continue
-    const file = issue.location.file.replace(/\\/g, '/')
+    const file = escapeAnnotationValue(issue.location.file.replace(/\\/g, '/'))
     const line = issue.location.start_line
     const ruleId = escapeAnnotationValue(issue.id)
     const message = escapeAnnotationValue(issue.explanation ?? issue.id)
@@ -160,7 +164,7 @@ function buildAnnotations(
 
 function computeProjectName(projectRoot: string): string {
   const slug = projectRoot.replace(/\//g, '-')
-  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
   return `${slug}-${hash}`
 }
 
@@ -199,8 +203,9 @@ export async function scanExecutor(
   const annotations = opts.annotations ?? true
   const failOnError = opts.failOnError ?? true
   const skillspectorBin = opts.skillspectorBin ?? 'skillspector'
+  const { cmd: binCmd, args: binArgs } = parseBin(skillspectorBin)
 
-  const args: string[] = ['scan', opts.path, '--format', 'json']
+  const args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
   if (noLlm) {
     args.push('--no-llm')
   }
@@ -210,7 +215,7 @@ export async function scanExecutor(
 
   let stdout: string
   try {
-    const result = await spawnSkillspector(skillspectorBin, args, ctx.workspaceRoot)
+    const result = await spawnSkillspector(binCmd, args, ctx.workspaceRoot)
     stdout = result.stdout
   } catch (error) {
     // If skillspector exits non-zero, treat as failure
@@ -222,7 +227,10 @@ export async function scanExecutor(
 
   let issues: SkillIssue[] = []
   try {
-    const parsed = JSON.parse(stdout) as unknown
+    // SkillSpector may emit log lines before JSON; find the first JSON delimiter
+    const jsonStart = stdout.search(/[\[{]/)
+    const jsonStr = jsonStart >= 0 ? stdout.slice(jsonStart) : stdout
+    const parsed = JSON.parse(jsonStr) as unknown
     if (Array.isArray(parsed)) {
       issues = parsed as SkillIssue[]
     } else if (parsed && typeof parsed === 'object' && 'findings' in parsed) {

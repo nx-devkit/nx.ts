@@ -31,13 +31,13 @@ function shouldSkipPath(projectRoot: string): boolean {
 }
 
 /**
- * Compute injective project name: `${slug}-${hash8}` where slug is the
- * projectRoot with `/` replaced by `-`, and hash8 is the first 8 hex chars
+ * Compute injective project name: `${slug}-${hash12}` where slug is the
+ * projectRoot with `/` replaced by `-`, and hash12 is the first 12 hex chars
  * of sha256(projectRoot). Same algorithm as @nx-devkit/skill.
  */
 function computeProjectName(projectRoot: string): string {
   const slug = projectRoot.replace(/\//g, '-')
-  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
   return `${slug}-${hash}`
 }
 

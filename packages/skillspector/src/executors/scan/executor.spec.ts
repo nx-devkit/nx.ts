@@ -234,6 +234,94 @@ describe('scanExecutor', () => {
     expect(content).not.toContain('100% exceeded\n')
   })
 
+  it('escapes file path in annotations', async () => {
+    execFileResponse.stdout = JSON.stringify([
+      {
+        id: 'SKILL-PATH',
+        severity: 'LOW',
+        category: 'style',
+        confidence: 'medium',
+        explanation: 'Some finding',
+        remediation: 'Fix it',
+        code_snippet: '',
+        intent: 'test',
+        tags: ['test'],
+        location: { file: 'skills/code-review/act/agent.ts', start_line: 5 },
+      },
+    ])
+
+    await scanExecutor({
+      options: { path: 'skills/code-review/act', annotations: true },
+      workspaceRoot: workspace,
+    })
+
+    const { readdirSync } = await import('node:fs')
+    const files = readdirSync(workspace)
+    const annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
+    expect(annotationsFile).toBeDefined()
+    const content = readFileSync(join(workspace, annotationsFile!), 'utf8')
+    // file= value should be escaped (no raw :: or % unescaped)
+    // The path itself has no special chars, but verify the format is correct
+    expect(content).toContain('file=skills/code-review/act/agent.ts')
+  })
+
+  it('escapes % in file path in annotations', async () => {
+    execFileResponse.stdout = JSON.stringify([
+      {
+        id: 'SKILL-PATH',
+        severity: 'LOW',
+        category: 'style',
+        confidence: 'medium',
+        explanation: 'Some finding',
+        remediation: 'Fix it',
+        code_snippet: '',
+        intent: 'test',
+        tags: ['test'],
+        location: { file: 'skills/100%/agent.ts', start_line: 5 },
+      },
+    ])
+
+    await scanExecutor({
+      options: { path: 'skills/100%', annotations: true },
+      workspaceRoot: workspace,
+    })
+
+    const { readdirSync } = await import('node:fs')
+    const files = readdirSync(workspace)
+    const annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
+    expect(annotationsFile).toBeDefined()
+    const content = readFileSync(join(workspace, annotationsFile!), 'utf8')
+    // % in file path should be encoded as %25
+    expect(content).toContain('file=skills/100%25/agent.ts')
+    expect(content).not.toContain('file=skills/100%/agent.ts')
+  })
+
+  it('handles non-JSON stdout (log lines before JSON)', async () => {
+    execFileResponse.stdout =
+      'INFO: Starting scan...\nWARNING: Using default config\n' + makeFindings()
+
+    // Should not crash; should parse the JSON portion
+    // With failOnError false and a HIGH finding, success should be true
+    const result = await scanExecutor({
+      options: { path: 'skills/code-review/act', annotations: false, failOnError: false },
+      workspaceRoot: workspace,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('handles non-JSON stdout with object wrapper (findings key)', async () => {
+    execFileResponse.stdout =
+      'LOG: scanning\n' + JSON.stringify({ findings: JSON.parse(makeFindings()) })
+
+    const result = await scanExecutor({
+      options: { path: 'skills/code-review/act', annotations: false, failOnError: true },
+      workspaceRoot: workspace,
+    })
+
+    // HIGH finding should cause failure
+    expect(result.success).toBe(false)
+  })
+
   it('HIGH finding fails with failOnError', async () => {
     execFileResponse.stdout = makeFindings([{ severity: 'HIGH' }])
 
@@ -267,7 +355,7 @@ describe('scanExecutor', () => {
     expect(result.success).toBe(true)
   })
 
-  it('uses custom skillspectorBin', async () => {
+  it('splits custom skillspectorBin into cmd and args', async () => {
     execFileResponse.stdout = makeFindings()
 
     await scanExecutor({
@@ -276,7 +364,23 @@ describe('scanExecutor', () => {
     })
 
     const call = execFileCalls[0]!
-    expect(call.command).toBe('npx skillspector')
+    expect(call.command).toBe('npx')
+    expect(call.args).toContain('skillspector')
+    expect(call.args).toContain('scan')
+    expect(call.args).toContain('skills/code-review/act')
+  })
+
+  it('handles skillspectorBin with extra whitespace', async () => {
+    execFileResponse.stdout = makeFindings()
+
+    await scanExecutor({
+      options: { path: 'skills/code-review/act', skillspectorBin: '  npx   skillspector  ' },
+      workspaceRoot: workspace,
+    })
+
+    const call = execFileCalls[0]!
+    expect(call.command).toBe('npx')
+    expect(call.args).toContain('skillspector')
   })
 
   it('does not use shell: true when spawning', async () => {
