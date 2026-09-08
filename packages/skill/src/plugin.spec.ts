@@ -95,7 +95,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     )
 
     expect(results).toHaveLength(2)
-    const names = results.map((r) => Object.keys(r[1].projects!)).flat()
+    const names = results.flatMap((r) => Object.keys(r[1].projects!))
     const name1 = expectedProjectName('skills/a-b')
     const name2 = expectedProjectName('skills/a/b')
     expect(names).toContain(name1)
