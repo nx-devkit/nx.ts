@@ -301,7 +301,7 @@ function globMatch(rootDir: string, pattern: string): boolean {
   return walk(rootDir)
 }
 
-function globToRegExp(pattern: string): RegExp {
+export function globToRegExp(pattern: string): RegExp {
   // Build a regex from a glob that supports **, *, and {a,b} brace expansion.
   // Brace expansion is bounded by MAX_BRACE_DEPTH and MAX_BRACE_OPTIONS.
   const expanded = expandBraces(pattern)
@@ -311,8 +311,8 @@ function globToRegExp(pattern: string): RegExp {
   if (source.length > 10_000) {
     return /$^/ // Match nothing if pattern is too complex
   }
-  // Build RegExp from validated glob segments with bounded brace expansion.
-  return Reflect.construct(RegExp, [source]) as RegExp
+  // eslint-disable-next-line security/detect-non-literal-regexp -- source is built from validated glob segments with bounded brace expansion and all metacharacters escaped
+  return new RegExp(source)
 }
 
 const MAX_BRACE_DEPTH = 3
@@ -355,7 +355,8 @@ function globSegmentToRegex(pattern: string): string {
     } else if (char === '.') {
       result += '\\.'
       i++
-    } else if ('+()^$|'.includes(char)) {
+    } else if ('+()^$|[]\\{}'.includes(char)) {
+      // Escape all remaining regex metacharacters to prevent injection
       result += `\\${char}`
       i++
     } else {
