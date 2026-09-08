@@ -234,6 +234,8 @@ function findVitestConfig(projectRoot: string, workspaceRoot: string): string | 
 const OXLINTRC_NAMES = [
   '.oxlintrc.json',
   '.oxlintrc.jsonc',
+  '.oxlintrc.yaml',
+  '.oxlintrc.yml',
   '.oxlintrc.js',
   '.oxlintrc.mjs',
   '.oxlintrc.cjs',
@@ -301,15 +303,20 @@ function globToRegExp(pattern: string): RegExp {
   return new RegExp(sources.join('|'))
 }
 
-function expandBraces(pattern: string): string[] {
+const MAX_BRACE_DEPTH = 3
+const MAX_BRACE_OPTIONS = 20
+
+export function expandBraces(pattern: string, depth = 0): string[] {
+  if (depth >= MAX_BRACE_DEPTH) return [pattern]
   const match = pattern.match(/\{([^}]+)\}/)
   if (!match) return [pattern]
   const options = match[1].split(',')
+  if (options.length > MAX_BRACE_OPTIONS) return [pattern]
   const prefix = pattern.slice(0, match.index)
   const suffix = pattern.slice((match.index ?? 0) + match[0].length)
   const results: string[] = []
   for (const opt of options) {
-    results.push(...expandBraces(prefix + opt + suffix))
+    results.push(...expandBraces(prefix + opt + suffix, depth + 1))
   }
   return results
 }
@@ -365,6 +372,7 @@ export function inferNativeTestTargets(
   'test:tap'?: {
     executor: 'nx:run-commands'
     options: { command: string; cwd: string }
+    outputs: string[]
     cache: true
     inputs: string[]
   }
@@ -392,6 +400,7 @@ export function inferNativeTestTargets(
     'test:tap'?: {
       executor: 'nx:run-commands'
       options: { command: string; cwd: string }
+      outputs: string[]
       cache: true
       inputs: string[]
     }
@@ -405,7 +414,7 @@ export function inferNativeTestTargets(
     test: {
       executor: 'nx:run-commands',
       options: {
-        command: `node --test --test-reporter spec "{projectRoot}/${testFilePatterns}"`,
+        command: `node --test --test-reporter spec "${testFilePatterns}"`,
         cwd: projectRoot,
       },
       cache: true,
@@ -417,9 +426,10 @@ export function inferNativeTestTargets(
     result['test:tap'] = {
       executor: 'nx:run-commands',
       options: {
-        command: `node --test --test-reporter tap "{projectRoot}/${testFilePatterns}" > test-results.tap`,
+        command: `node --test --test-reporter tap "${testFilePatterns}" > test-results.tap`,
         cwd: projectRoot,
       },
+      outputs: ['{projectRoot}/test-results.tap'],
       cache: true,
       inputs: testInputs,
     }
@@ -429,7 +439,7 @@ export function inferNativeTestTargets(
     result['test:coverage'] = {
       executor: 'nx:run-commands',
       options: {
-        command: `node --test --experimental-test-coverage "{projectRoot}/${testFilePatterns}"`,
+        command: `node --test --experimental-test-coverage "${testFilePatterns}"`,
         cwd: projectRoot,
       },
       cache: true,

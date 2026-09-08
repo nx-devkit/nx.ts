@@ -92,7 +92,7 @@ When no `vitest.config.*` is present but files matching `testGlob` or `specGlob`
   "test": {
     "executor": "nx:run-commands",
     "options": {
-      "command": "node --test --test-reporter spec \"{projectRoot}/**/*.test.{ts,js,mts,mjs}\"",
+      "command": "node --test --test-reporter spec \"**/*.test.{ts,js,mts,mjs}\"",
       "cwd": "{projectRoot}"
     },
     "cache": true,
@@ -112,9 +112,10 @@ When `tap: true`, a `test:tap` target is also inferred:
   "test:tap": {
     "executor": "nx:run-commands",
     "options": {
-      "command": "node --test --test-reporter tap \"{projectRoot}/**/*.test.{ts,js,mts,mjs}\" > test-results.tap",
+      "command": "node --test --test-reporter tap \"**/*.test.{ts,js,mts,mjs}\" > test-results.tap",
       "cwd": "{projectRoot}"
     },
+    "outputs": ["{projectRoot}/test-results.tap"],
     "cache": true,
     "inputs": [
       "{projectRoot}/**/*.test.{ts,js,mts,mjs}",
@@ -125,7 +126,7 @@ When `tap: true`, a `test:tap` target is also inferred:
 }
 ```
 
-> The `test:tap` command uses `>` (not `| tee`) to preserve the exit status of the test runner.
+> The `test:tap` command uses `>` (not `| tee`) to preserve the exit status of the test runner. The TAP output file (`test-results.tap`) is declared in `outputs` so Nx can cache it correctly.
 
 When `coverage: true`, a `test:coverage` target is also inferred:
 
@@ -134,7 +135,7 @@ When `coverage: true`, a `test:coverage` target is also inferred:
   "test:coverage": {
     "executor": "nx:run-commands",
     "options": {
-      "command": "node --test --experimental-test-coverage \"{projectRoot}/**/*.test.{ts,js,mts,mjs}\"",
+      "command": "node --test --experimental-test-coverage \"**/*.test.{ts,js,mts,mjs}\"",
       "cwd": "{projectRoot}"
     },
     "cache": true,

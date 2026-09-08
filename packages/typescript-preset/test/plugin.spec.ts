@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { NxDevkitTypescriptOptions } from '../src/plugin.js'
 import {
   createNodesV2,
+  expandBraces,
   inferTypecheckTarget,
   inferVitestTargets,
   isVerbose,
@@ -334,6 +335,7 @@ describe('native Node test runner inference', () => {
       const opts = test.options as Record<string, unknown>
       expect(opts.command).toContain('node --test')
       expect(opts.command).toContain('--test-reporter spec')
+      expect(opts.command).not.toContain('{projectRoot}/')
       expect(opts.cwd).toBe('packages/foo')
       expect(test.cache).toBe(true)
     } finally {
@@ -385,6 +387,9 @@ describe('native Node test runner inference', () => {
       expect(opts.command).toContain('--test-reporter tap')
       expect(opts.command).toContain('> test-results.tap')
       expect(opts.command).not.toContain('| tee')
+      expect(opts.command).not.toContain('{projectRoot}/')
+      expect(tap.outputs).toEqual(['{projectRoot}/test-results.tap'])
+      expect(tap.cache).toBe(true)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -401,6 +406,7 @@ describe('native Node test runner inference', () => {
       const cov = proj.targets?.['test:coverage'] as Record<string, unknown>
       const opts = cov.options as Record<string, unknown>
       expect(opts.command).toContain('--experimental-test-coverage')
+      expect(opts.command).not.toContain('{projectRoot}/')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -417,6 +423,40 @@ describe('native Node test runner inference', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: brace expansion ReDoS protection
+// ---------------------------------------------------------------------------
+
+describe('expandBraces ReDoS protection', () => {
+  it('expands simple brace patterns', () => {
+    const result = expandBraces('**/*.test.{ts,js}')
+    expect(result).toEqual(
+      expect.arrayContaining(['**/*.test.ts', '**/*.test.js']),
+    )
+  })
+
+  it('caps nested brace depth to prevent exponential blowup', () => {
+    // 5 levels of nesting — each level has 4 options = 4^5 = 1024 if uncapped.
+    // With MAX_BRACE_DEPTH=3 the expansion should bail out and return a
+    // small number of results rather than 1024.
+    const deep = '{a,b,c,d}{a,b,c,d}{a,b,c,d}{a,b,c,d}{a,b,c,d}'
+    const result = expandBraces(deep)
+    expect(result.length).toBeLessThan(100)
+  })
+
+  it('caps the number of options per brace group', () => {
+    // A single brace group with 25 options — exceeds MAX_BRACE_OPTIONS (20),
+    // so the function should return the original pattern unexpanded.
+    const many = '{' + Array.from({ length: 25 }, (_, i) => `opt${i}`).join(',') + '}'
+    const result = expandBraces(many)
+    expect(result).toEqual([many])
+  })
+
+  it('returns the pattern unchanged when no braces present', () => {
+    expect(expandBraces('**/*.test.ts')).toEqual(['**/*.test.ts'])
   })
 })
 
@@ -452,6 +492,35 @@ describe('oxlint lint delegation', () => {
       const result = callCreateNodes([ts], { oxlint: false }, root)
       const proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.lint).toBeUndefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers lint target when .oxlintrc.yaml exists', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.yaml')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeDefined()
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('oxlint')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers lint target when .oxlintrc.yml exists', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.yml')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeDefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -553,6 +622,23 @@ describe('tsdown build delegation', () => {
       const result = callCreateNodes([ts], { tsdown: false }, root)
       const proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeUndefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers build target from tsdown.config.js', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/tsdown.config.js')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.build).toBeDefined()
+      const build = proj.targets?.build as Record<string, unknown>
+      expect(build.executor).toBe('nx:run-commands')
+      const opts = build.options as Record<string, unknown>
+      expect(opts.command).toContain('tsdown')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
