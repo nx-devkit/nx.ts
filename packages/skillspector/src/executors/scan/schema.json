@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "scan executor",
+  "description": "Run SkillSpector security scan on a skill directory.",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Path to the skill directory to scan (relative to workspace root)."
+    },
+    "noLlm": {
+      "type": "boolean",
+      "description": "Disable LLM-based analysis. Default: true.",
+      "default": true
+    },
+    "annotations": {
+      "type": "boolean",
+      "description": "Emit GitHub workflow annotations for code findings. Default: true.",
+      "default": true
+    },
+    "failOnError": {
+      "type": "boolean",
+      "description": "Fail the target when HIGH or CRITICAL findings are present. Default: true.",
+      "default": true
+    },
+    "skillspectorBin": {
+      "type": "string",
+      "description": "Binary to invoke for skillspector. Default: \"skillspector\".",
+      "default": "skillspector"
+    },
+    "sarif": {
+      "type": "string",
+      "description": "SARIF output file path. When set, a SARIF 2.1.0 report is written."
+    },
+    "baseline": {
+      "type": "string",
+      "description": "Baseline file path for suppressing known findings."
+    }
+  },
+  "required": ["path"],
+  "additionalProperties": false
+}

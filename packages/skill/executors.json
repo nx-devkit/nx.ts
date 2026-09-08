@@ -1,0 +1,9 @@
+{
+  "executors": {
+    "build": {
+      "implementation": "./dist/executors/build/executor",
+      "schema": "./src/executors/build/schema.json",
+      "description": "Compile a skill to a distribution target"
+    }
+  }
+}

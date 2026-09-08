@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { NxDevkitTypescriptOptions } from '../src/plugin.js'
 import {
   createNodesV2,
+  expandBraces,
+  globToRegExp,
   inferTypecheckTarget,
   inferVitestTargets,
   isVerbose,
@@ -209,21 +211,21 @@ describe('inferVitestTargets', () => {
   })
 })
 
-describe('createNodesV2 integration', () => {
-  function firstProject(
-    result: CreateNodesResult,
-    projectKey: string,
-  ): { targets?: Record<string, unknown> } {
-    expect(result).toHaveLength(1)
-    const entry = result[0]
-    if (!entry) throw new Error('expected a result entry')
-    const projects = entry[1].projects
-    if (!projects) throw new Error('expected projects')
-    const proj = projects[projectKey]
-    if (!proj) throw new Error(`expected project ${projectKey}`)
-    return proj
-  }
+function firstProject(
+  result: CreateNodesResult,
+  projectKey: string,
+): { targets?: Record<string, unknown> } {
+  expect(result).toHaveLength(1)
+  const entry = result[0]
+  if (!entry) throw new Error('expected a result entry')
+  const projects = entry[1].projects
+  if (!projects) throw new Error('expected projects')
+  const proj = projects[projectKey]
+  if (!proj) throw new Error(`expected project ${projectKey}`)
+  return proj
+}
 
+describe('createNodesV2 integration', () => {
   it('returns an empty array when no config files match', () => {
     const result = callCreateNodes([], {}, '/workspace')
     expect(result).toEqual([])
@@ -310,6 +312,400 @@ describe('createNodesV2 integration', () => {
       const cfg = touch(root, 'packages/foo/node_modules/bar/tsconfig.json')
       const result = callCreateNodes([cfg], {}, root)
       expect(result).toEqual([])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: native Node test runner
+// ---------------------------------------------------------------------------
+
+describe('native Node test runner inference', () => {
+  it('infers test target when test files exist but no vitest config', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/src/foo.test.ts')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.test).toBeDefined()
+      const test = proj.targets?.test as Record<string, unknown>
+      expect(test.executor).toBe('nx:run-commands')
+      const opts = test.options as Record<string, unknown>
+      expect(opts.command).toContain('node --test')
+      expect(opts.command).toContain('--test-reporter spec')
+      expect(opts.command).not.toContain('{projectRoot}/')
+      expect(opts.cwd).toBe('packages/foo')
+      expect(test.cache).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('vitest takes priority over native test runner', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/vitest.config.ts')
+      touch(root, 'packages/foo/src/foo.test.ts')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      const test = proj.targets?.test as Record<string, unknown>
+      const opts = test.options as Record<string, unknown>
+      expect(opts.command).toBe('npx vitest run')
+      expect(proj.targets?.['test:tap']).toBeUndefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('no test files and no vitest config = no test targets', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.test).toBeUndefined()
+      expect(proj.targets?.['test:tap']).toBeUndefined()
+      expect(proj.targets?.['test:coverage']).toBeUndefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers test:tap target when tap:true', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/src/foo.test.ts')
+      const result = callCreateNodes([ts], { tap: true }, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.['test:tap']).toBeDefined()
+      const tap = proj.targets?.['test:tap'] as Record<string, unknown>
+      const opts = tap.options as Record<string, unknown>
+      expect(opts.command).toContain('--test-reporter tap')
+      expect(opts.command).toContain('> test-results.tap')
+      expect(opts.command).not.toContain('| tee')
+      expect(opts.command).not.toContain('{projectRoot}/')
+      expect(tap.outputs).toEqual(['{projectRoot}/test-results.tap'])
+      expect(tap.cache).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers test:coverage target when coverage:true', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/src/foo.test.ts')
+      const result = callCreateNodes([ts], { coverage: true }, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.['test:coverage']).toBeDefined()
+      const cov = proj.targets?.['test:coverage'] as Record<string, unknown>
+      const opts = cov.options as Record<string, unknown>
+      expect(opts.command).toContain('--experimental-test-coverage')
+      expect(opts.command).not.toContain('{projectRoot}/')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('uses specGlob to detect spec files', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/src/foo.spec.ts')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.test).toBeDefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: brace expansion ReDoS protection
+// ---------------------------------------------------------------------------
+
+describe('expandBraces ReDoS protection', () => {
+  it('expands simple brace patterns', () => {
+    const result = expandBraces('**/*.test.{ts,js}')
+    expect(result).toEqual(
+      expect.arrayContaining(['**/*.test.ts', '**/*.test.js']),
+    )
+  })
+
+  it('caps nested brace depth to prevent exponential blowup', () => {
+    // 5 levels of nesting — each level has 4 options = 4^5 = 1024 if uncapped.
+    // With MAX_BRACE_DEPTH=3 the expansion should bail out and return a
+    // small number of results rather than 1024.
+    const deep = '{a,b,c,d}{a,b,c,d}{a,b,c,d}{a,b,c,d}{a,b,c,d}'
+    const result = expandBraces(deep)
+    expect(result.length).toBeLessThan(100)
+  })
+
+  it('caps the number of options per brace group', () => {
+    // A single brace group with 25 options — exceeds MAX_BRACE_OPTIONS (20),
+    // so the function should return the original pattern unexpanded.
+    const many = `{${Array.from({ length: 25 }, (_, i) => `opt${i}`).join(',')}}`
+    const result = expandBraces(many)
+    expect(result).toEqual([many])
+  })
+
+  it('returns the pattern unchanged when no braces present', () => {
+    expect(expandBraces('**/*.test.ts')).toEqual(['**/*.test.ts'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: globSegmentToRegex metacharacter escaping
+// ---------------------------------------------------------------------------
+
+describe('globSegmentToRegex metacharacter escaping', () => {
+  it('escapes [ ] \\ { } to prevent regex injection', () => {
+    // A pattern with metacharacters should match literally, not as regex syntax.
+    const regex = globToRegExp('foo[bar].ts')
+    // Should match the literal string "foo[bar].ts", not "foo" + char class
+    expect(regex.test('foo[bar].ts')).toBe(true)
+    expect(regex.test('fooa.ts')).toBe(false)
+  })
+
+  it('escapes backslash to prevent regex injection', () => {
+    const regex = globToRegExp('foo\\bar')
+    expect(regex.test('foo\\bar')).toBe(true)
+    expect(regex.test('foobar')).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: Oxlint lint delegation
+// ---------------------------------------------------------------------------
+
+describe('oxlint lint delegation', () => {
+  it('infers lint target when .oxlintrc.json exists', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.json')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeDefined()
+      const lint = proj.targets?.lint as Record<string, unknown>
+      expect(lint.executor).toBe('nx:run-commands')
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('oxlint')
+      expect(opts.cwd).toBe('packages/foo')
+      expect(lint.cache).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not infer oxlint lint when oxlint:false', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.json')
+      const result = callCreateNodes([ts], { oxlint: false }, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeUndefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers lint target when .oxlintrc.yaml exists', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.yaml')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeDefined()
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('oxlint')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers lint target when .oxlintrc.yml exists', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.yml')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeDefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: Biome format/lint delegation
+// ---------------------------------------------------------------------------
+
+describe('biome format/lint delegation', () => {
+  it('infers format and format-check from biome.json', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/biome.json')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.format).toBeDefined()
+      expect(proj.targets?.['format-check']).toBeDefined()
+      const fmt = proj.targets?.format as Record<string, unknown>
+      const fmtOpts = fmt.options as Record<string, unknown>
+      expect(fmtOpts.command).toContain('biome format --write')
+      expect(fmt.cache).toBe(false)
+      const fmtCheck = proj.targets?.['format-check'] as Record<string, unknown>
+      const fcOpts = fmtCheck.options as Record<string, unknown>
+      expect(fcOpts.command).toContain('biome format')
+      expect(fcOpts.command).not.toContain('--write')
+      expect(fmtCheck.cache).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('biome with oxlintrc = no biome lint (oxlint wins)', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.json')
+      touch(root, 'packages/foo/biome.json')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('oxlint')
+      expect(opts.command).not.toContain('biome lint')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('oxlint disabled, biome provides lint', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/biome.json')
+      const result = callCreateNodes([ts], { oxlint: false }, root)
+      const proj = firstProject(result, 'packages/foo')
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('biome lint')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: Tsdown build delegation
+// ---------------------------------------------------------------------------
+
+describe('tsdown build delegation', () => {
+  it('infers build target from tsdown.config.ts', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/tsdown.config.ts')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.build).toBeDefined()
+      const build = proj.targets?.build as Record<string, unknown>
+      expect(build.executor).toBe('nx:run-commands')
+      const opts = build.options as Record<string, unknown>
+      expect(opts.command).toContain('tsdown')
+      expect(opts.cwd).toBe('packages/foo')
+      expect(build.cache).toBe(true)
+      expect(build.outputs).toEqual(['{projectRoot}/dist'])
+      expect(build.dependsOn).toEqual(['^build'])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not infer build when tsdown:false', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/tsdown.config.ts')
+      const result = callCreateNodes([ts], { tsdown: false }, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.build).toBeUndefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('infers build target from tsdown.config.js', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/tsdown.config.js')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.build).toBeDefined()
+      const build = proj.targets?.build as Record<string, unknown>
+      expect(build.executor).toBe('nx:run-commands')
+      const opts = build.options as Record<string, unknown>
+      expect(opts.command).toContain('tsdown')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mega-preset: all targets from one plugin
+// ---------------------------------------------------------------------------
+
+describe('mega scenario — all targets from one plugin', () => {
+  it('infers typecheck + native test + oxlint + biome format + tsdown build', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/src/foo.test.ts')
+      touch(root, 'packages/foo/.oxlintrc.json')
+      touch(root, 'packages/foo/biome.json')
+      touch(root, 'packages/foo/tsdown.config.ts')
+      const result = callCreateNodes(
+        [ts],
+        { tap: true, coverage: true },
+        root,
+      )
+      const proj = firstProject(result, 'packages/foo')
+      const targets = Object.keys(proj.targets ?? {}).sort()
+      expect(targets).toEqual(
+        expect.arrayContaining([
+          'typecheck',
+          'test',
+          'test:tap',
+          'test:coverage',
+          'lint',
+          'format',
+          'format-check',
+          'build',
+        ]),
+      )
+      // oxlint owns lint
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const lintOpts = lint.options as Record<string, unknown>
+      expect(lintOpts.command).toContain('oxlint')
+      // native test runner (no vitest)
+      const test = proj.targets?.test as Record<string, unknown>
+      const testOpts = test.options as Record<string, unknown>
+      expect(testOpts.command).toContain('node --test')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

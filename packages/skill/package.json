@@ -1,0 +1,26 @@
+{
+  "name": "@nx-devkit/skill",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./plugin": { "types": "./src/plugin.ts", "default": "./src/plugin.ts" }
+  },
+  "executors": "./executors.json",
+  "files": ["dist", "executors.json", "README.md"],
+  "scripts": { "build": "tsdown", "test": "vitest run" },
+  "peerDependencies": { "@nx/devkit": "^22.0.0 || ^23.0.0" },
+  "devDependencies": {
+    "@nx/devkit": "22.7.1",
+    "@types/node": "^26.0.0",
+    "memfs": "^4.50.0",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}
