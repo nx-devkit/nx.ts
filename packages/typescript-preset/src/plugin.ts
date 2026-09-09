@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import {
   type CreateNodesResult,
@@ -300,8 +301,8 @@ function checkNativePreview(projectRoot: string, workspaceRoot: string): boolean
   const absProjectRoot = resolve(workspaceRoot, projectRoot)
   const pkgPath = join(absProjectRoot, 'package.json')
   try {
-    // nosemgrep: path is constructed from trusted Nx context, not user input
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+    const require = createRequire(import.meta.url)
+    const pkg = require(pkgPath) as Record<string, unknown>
     const allDeps = {
       ...(pkg.dependencies as Record<string, string> | undefined),
       ...(pkg.devDependencies as Record<string, string> | undefined),
