@@ -286,6 +286,7 @@ Pass options via the inline plugin tuple in `nx.json`:
         "tap": false,
         "coverage": false,
         "oxlint": true,
+        "eslint": true,
         "biome": true,
         "tsdown": true,
         "testGlob": "**/*.test.{ts,js,mts,mjs}",
