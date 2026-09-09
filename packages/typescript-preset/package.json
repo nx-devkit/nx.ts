@@ -12,10 +12,18 @@
     ".": {
       "types": "./src/plugin.ts",
       "default": "./src/plugin.ts"
+    },
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
     }
   },
+  "generators": [
+    "./generators.json"
+  ],
   "files": [
     "dist",
+    "generators.json",
     "README.md"
   ],
   "scripts": {
