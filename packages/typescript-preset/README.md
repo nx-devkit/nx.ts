@@ -9,6 +9,7 @@ For every `tsconfig.json` (outside the workspace root) the plugin infers a `type
 - **Vitest test targets** (`test`, `test:watch`, `test:coverage`) when a `vitest.config.*` exists
 - **Native Node test runner targets** (`test`, optionally `test:tap` and `test:coverage`) when test/spec files exist but no vitest config
 - **Oxlint lint** target when `.oxlintrc.*` exists
+- **ESLint lint** target when `eslint.config.*` exists (fallback when no oxlint config)
 - **Biome format/format-check/lint** targets when `biome.json` or `biome.jsonc` exists
 - **Tsdown build** target when `tsdown.config.ts` exists
 
@@ -230,9 +231,13 @@ When `biome.json` exists but oxlint is NOT providing the `lint` target (either `
 
 ### Lint precedence
 
-When both `.oxlintrc.*` and `biome.json` exist:
-- If `oxlint: true` (default): **oxlint owns `lint`**, biome only provides `format`/`format-check`
-- If `oxlint: false`: **biome owns `lint`**
+When multiple lint configs exist, the precedence is:
+
+1. **oxlint** (`.oxlintrc.*` + `oxlint: true`) — highest priority
+2. **ESLint** (`eslint.config.*` + `eslint: true`) — fallback when no oxlint config
+3. **Biome** (`biome.json` + `biome: true`) — fallback when neither oxlint nor eslint owns lint
+
+Biome always provides `format`/`format-check` when `biome.json` exists, regardless of lint ownership.
 
 ### `build` — Tsdown delegation (when `tsdown.config.ts` exists)
 

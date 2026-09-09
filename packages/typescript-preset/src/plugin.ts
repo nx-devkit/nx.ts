@@ -18,6 +18,8 @@ export interface NxDevkitTypescriptOptions {
   coverage?: boolean
   /** Infer `lint` target from `.oxlintrc.*`. Default: true. */
   oxlint?: boolean
+  /** Infer `lint` target from `eslint.config.*`. Default: true. */
+  eslint?: boolean
   /** Infer `format`/`format-check`/`lint` from `biome.json`. Default: true. */
   biome?: boolean
   /** Infer `build` target from `tsdown.config.ts`. Default: true. */
@@ -243,6 +245,15 @@ const OXLINTRC_NAMES = [
   '.oxlintrc.ts',
   '.oxlintrc.mts',
   '.oxlintrc.cts',
+]
+
+const ESLINT_CONFIG_NAMES = [
+  'eslint.config.js',
+  'eslint.config.mjs',
+  'eslint.config.cjs',
+  'eslint.config.ts',
+  'eslint.config.mts',
+  'eslint.config.cts',
 ]
 
 const BIOME_CONFIG_NAMES = ['biome.json', 'biome.jsonc']
@@ -496,6 +507,27 @@ export function inferOxlintTarget(projectRoot: string): {
   }
 }
 
+export function inferEslintTarget(projectRoot: string): {
+  executor: 'nx:run-commands'
+  options: { command: string; cwd: string }
+  cache: true
+  inputs: string[]
+} {
+  return {
+    executor: 'nx:run-commands',
+    options: {
+      command: 'npx eslint .',
+      cwd: projectRoot,
+    },
+    cache: true,
+    inputs: [
+      '{projectRoot}/src/**/*',
+      '{projectRoot}/eslint.config.*',
+      '{projectRoot}/package.json',
+    ],
+  }
+}
+
 export function inferBiomeTargets(
   projectRoot: string,
   includeLint: boolean,
@@ -602,6 +634,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
     const tap = options.tap ?? false
     const coverage = options.coverage ?? false
     const oxlint = options.oxlint ?? true
+    const eslint = options.eslint ?? true
     const biome = options.biome ?? true
     const tsdown = options.tsdown ?? true
     const testGlob = options.testGlob ?? '**/*.test.{ts,js,mts,mjs}'
@@ -665,12 +698,20 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           targets.lint = inferOxlintTarget(relProjectRoot)
         }
 
+        // ESLint lint delegation (fallback when oxlint is not owning lint)
+        if (!oxlintOwnsLint && eslint) {
+          const eslintConfigPath = findConfigFile(projectRoot, workspaceRoot, ESLINT_CONFIG_NAMES)
+          if (eslintConfigPath) {
+            targets.lint = inferEslintTarget(relProjectRoot)
+          }
+        }
+
         // Biome format/lint delegation
         if (biome) {
           const biomeConfigPath = findConfigFile(projectRoot, workspaceRoot, BIOME_CONFIG_NAMES)
           if (biomeConfigPath) {
-            // Biome provides lint only when oxlint is not owning it.
-            const biomeProvidesLint = !oxlintOwnsLint
+            // Biome provides lint only when neither oxlint nor eslint owns it.
+            const biomeProvidesLint = !oxlintOwnsLint && !('lint' in targets && targets.lint)
             Object.assign(targets, inferBiomeTargets(relProjectRoot, biomeProvidesLint))
           }
         }
