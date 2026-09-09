@@ -111,6 +111,7 @@ export function shouldSkipPath(
 export function inferTypecheckTarget(
   projectRoot: string,
   options: Required<Pick<NxDevkitTypescriptOptions, 'tsgo' | 'configFile' | 'clean'>>,
+  hasNativePreview = true,
 ): {
   executor: 'nx:run-commands'
   options: { command: string; cwd: string }
@@ -125,6 +126,19 @@ export function inferTypecheckTarget(
     ? `${executorCommand} --build --clean ${options.configFile} && ${buildCommand}`
     : buildCommand
 
+  const inputs: (string | { externalDependencies: string[] })[] = [
+    `{projectRoot}/src/**/*.ts`,
+    `{projectRoot}/${options.configFile}`,
+    `{projectRoot}/package.json`,
+    `{workspaceRoot}/tsconfig.base.json`,
+  ]
+  // Only declare external dependency if the package is actually installed
+  // in the project's package.json (or workspace root). Otherwise Nx will
+  // fail to hash the target.
+  if (options.tsgo ? hasNativePreview : true) {
+    inputs.push({ externalDependencies: [externalDependency] })
+  }
+
   return {
     executor: 'nx:run-commands',
     options: {
@@ -132,13 +146,7 @@ export function inferTypecheckTarget(
       cwd: projectRoot,
     },
     cache: true,
-    inputs: [
-      `{projectRoot}/src/**/*.ts`,
-      `{projectRoot}/${options.configFile}`,
-      `{projectRoot}/package.json`,
-      `{workspaceRoot}/tsconfig.base.json`,
-      { externalDependencies: [externalDependency] },
-    ],
+    inputs,
   }
 }
 
@@ -280,6 +288,29 @@ function findConfigFile(
     }
   }
   return null
+}
+
+/**
+ * Check if @typescript/native-preview is listed in the project's package.json.
+ * Nx resolves externalDependencies from the project's own package.json, not
+ * the workspace root. If the package isn't declared there, Nx will fail to
+ * hash the target.
+ */
+function checkNativePreview(projectRoot: string, workspaceRoot: string): boolean {
+  const absProjectRoot = resolve(workspaceRoot, projectRoot)
+  const pkgPath = join(absProjectRoot, 'package.json')
+  if (!existsSync(pkgPath)) return false
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+    const allDeps = {
+      ...(pkg.dependencies as Record<string, string> | undefined),
+      ...(pkg.devDependencies as Record<string, string> | undefined),
+      ...(pkg.peerDependencies as Record<string, string> | undefined),
+    }
+    return '@typescript/native-preview' in allDeps
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -665,11 +696,20 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         // Use the relative project root as cwd so targets are portable.
         const relProjectRoot = projectKey
 
-        const typecheckTarget = inferTypecheckTarget(relProjectRoot, {
-          tsgo,
-          configFile: configFileName,
-          clean,
-        })
+        // Check if @typescript/native-preview is available in the project's
+        // package.json or the workspace root package.json. If not, skip the
+        // external dependency declaration to avoid Nx hashing failures.
+        const hasNativePreview = checkNativePreview(projectRoot, workspaceRoot)
+
+        const typecheckTarget = inferTypecheckTarget(
+          relProjectRoot,
+          {
+            tsgo,
+            configFile: configFileName,
+            clean,
+          },
+          hasNativePreview,
+        )
 
         const targets: Record<string, TargetConfiguration> = {
           typecheck: typecheckTarget,
