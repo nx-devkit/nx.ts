@@ -299,9 +299,14 @@ function findConfigFile(
 function checkNativePreview(projectRoot: string, workspaceRoot: string): boolean {
   const absProjectRoot = resolve(workspaceRoot, projectRoot)
   const pkgPath = join(absProjectRoot, 'package.json')
-  if (!existsSync(pkgPath)) return false
+  let raw: string
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+    raw = readFileSync(pkgPath, 'utf8')
+  } catch {
+    return false
+  }
+  try {
+    const pkg = JSON.parse(raw) as Record<string, unknown>
     const allDeps = {
       ...(pkg.dependencies as Record<string, string> | undefined),
       ...(pkg.devDependencies as Record<string, string> | undefined),
