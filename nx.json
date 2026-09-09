@@ -2,6 +2,9 @@
   "name": "nx-devkit-plugins",
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "packageManager": "bun@1.3.14",
+  "cli": {
+    "packageManager": "npm"
+  },
   "version": 2,
   "plugins": [
     "./packages/tsdown/src/index.ts",
