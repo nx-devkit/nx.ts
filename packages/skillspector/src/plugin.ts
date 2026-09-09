@@ -70,8 +70,9 @@ function inferScanTarget(
   }
   inputs.push('^production')
 
-  const outputs: string[] | undefined =
-    !annotations ? [sarifPath ?? `{projectRoot}/scan-${projectName}.sarif`, `findings-${projectName}.json`] : undefined
+  const outputs: string[] | undefined = !annotations
+    ? [sarifPath ?? `{projectRoot}/scan-${projectName}.sarif`, `findings-${projectName}.json`]
+    : undefined
 
   const options: Record<string, unknown> = {
     path: projectRoot,

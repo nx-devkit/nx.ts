@@ -434,9 +434,7 @@ describe('native Node test runner inference', () => {
 describe('expandBraces ReDoS protection', () => {
   it('expands simple brace patterns', () => {
     const result = expandBraces('**/*.test.{ts,js}')
-    expect(result).toEqual(
-      expect.arrayContaining(['**/*.test.ts', '**/*.test.js']),
-    )
+    expect(result).toEqual(expect.arrayContaining(['**/*.test.ts', '**/*.test.js']))
   })
 
   it('caps nested brace depth to prevent exponential blowup', () => {
@@ -679,11 +677,7 @@ describe('mega scenario — all targets from one plugin', () => {
       touch(root, 'packages/foo/.oxlintrc.json')
       touch(root, 'packages/foo/biome.json')
       touch(root, 'packages/foo/tsdown.config.ts')
-      const result = callCreateNodes(
-        [ts],
-        { tap: true, coverage: true },
-        root,
-      )
+      const result = callCreateNodes([ts], { tap: true, coverage: true }, root)
       const proj = firstProject(result, 'packages/foo')
       const targets = Object.keys(proj.targets ?? {}).sort()
       expect(targets).toEqual(

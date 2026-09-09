@@ -88,11 +88,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
 
   it('produces distinct hash suffixes for skills/a-b and skills/a/b', async () => {
     const [, fn] = createNodesV2
-    const results = await fn(
-      ['skills/a-b/SKILL.md', 'skills/a/b/SKILL.md'],
-      {},
-      makeContext(),
-    )
+    const results = await fn(['skills/a-b/SKILL.md', 'skills/a/b/SKILL.md'], {}, makeContext())
 
     expect(results).toHaveLength(2)
     const names = results.flatMap((r) => Object.keys(r[1].projects!))
@@ -126,9 +122,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
 
     expect(build.executor).toBe('@nx-devkit/skill:build')
     expect(build.cache).toBe(true)
-    expect(build.outputs).toEqual([
-      `{workspaceRoot}/.build/skills/${expectedName}`,
-    ])
+    expect(build.outputs).toEqual([`{workspaceRoot}/.build/skills/${expectedName}`])
     expect(build.options).toEqual({
       target: 'skills-sh',
       outDir: `.build/skills/${expectedName}`,
@@ -169,10 +163,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
       `npx markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`,
     )
     expect(lint.options!.cwd).toBe('{workspaceRoot}')
-    expect(lint.inputs).toEqual([
-      '{projectRoot}/**/*.md',
-      '{workspaceRoot}/.markdownlint.json',
-    ])
+    expect(lint.inputs).toEqual(['{projectRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json'])
   })
 
   it('validate target uses nx:run-commands with validate-skill.ts', async () => {
@@ -188,10 +179,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
       `npx tsx scripts/validate-skill.ts --skill {projectRoot}`,
     )
     expect(validate.options!.cwd).toBe('{workspaceRoot}')
-    expect(validate.inputs).toEqual([
-      '{projectRoot}/SKILL.md',
-      '{projectRoot}/agents/openai.yaml',
-    ])
+    expect(validate.inputs).toEqual(['{projectRoot}/SKILL.md', '{projectRoot}/agents/openai.yaml'])
   })
 
   it('os-check target uses nx:run-commands with check-os-independence.ts', async () => {
@@ -263,9 +251,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const expectedName = expectedProjectName(projectRoot)
     const build = results[0]![1].projects![expectedName]!.targets!.build!
 
-    expect(build.inputs).toEqual(
-      expect.arrayContaining(['{projectRoot}/custom/**/*']),
-    )
+    expect(build.inputs).toEqual(expect.arrayContaining(['{projectRoot}/custom/**/*']))
   })
 
   it('skips project when duplicate target names are provided', async () => {

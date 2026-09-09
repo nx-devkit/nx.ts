@@ -91,10 +91,7 @@ function isFailingSeverity(severity: string): boolean {
   return upper === 'HIGH' || upper === 'CRITICAL'
 }
 
-function buildSarifReport(
-  issues: SkillIssue[],
-  _workspaceRoot: string,
-): Record<string, unknown> {
+function buildSarifReport(issues: SkillIssue[], _workspaceRoot: string): Record<string, unknown> {
   const results = issues.map((issue) => {
     const relFile = issue.location.file.replace(/\\/g, '/')
     const properties: Record<string, unknown> = {}
@@ -145,10 +142,7 @@ function buildSarifReport(
   }
 }
 
-function buildAnnotations(
-  issues: SkillIssue[],
-  _projectName: string,
-): string[] {
+function buildAnnotations(issues: SkillIssue[], _projectName: string): string[] {
   const lines: string[] = []
   for (const issue of issues) {
     // Only annotate code findings, not doc findings
@@ -196,9 +190,7 @@ function spawnSkillspector(
   })
 }
 
-export async function scanExecutor(
-  ctx: ScanExecutorContext,
-): Promise<ScanExecutorResult> {
+export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecutorResult> {
   const opts = ctx.options
   const noLlm = opts.noLlm ?? true
   const annotations = opts.annotations ?? true
@@ -220,9 +212,7 @@ export async function scanExecutor(
     stdout = result.stdout
   } catch (error) {
     // If skillspector exits non-zero, treat as failure
-    console.error(
-      `skillspector scan failed: ${(error as Error).message}`,
-    )
+    console.error(`skillspector scan failed: ${(error as Error).message}`)
     return { success: false }
   }
 

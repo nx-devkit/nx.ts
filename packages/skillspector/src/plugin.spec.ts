@@ -186,11 +186,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     const scan = results[0]![1].projects![expectedName]!.targets!.scan!
 
     expect(scan.inputs).toEqual(
-      expect.arrayContaining([
-        '{projectRoot}/**/*',
-        'baselines/skills.json',
-        '^production',
-      ]),
+      expect.arrayContaining(['{projectRoot}/**/*', 'baselines/skills.json', '^production']),
     )
   })
 })

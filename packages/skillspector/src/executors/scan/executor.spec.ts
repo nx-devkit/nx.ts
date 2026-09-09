@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -352,8 +352,7 @@ describe('scanExecutor', () => {
   })
 
   it('handles non-JSON stdout (log lines before JSON)', async () => {
-    execFileResponse.stdout =
-      `INFO: Starting scan...\nWARNING: Using default config\n${makeFindings()}`
+    execFileResponse.stdout = `INFO: Starting scan...\nWARNING: Using default config\n${makeFindings()}`
 
     // Should not crash; should parse the JSON portion
     // With failOnError false and a HIGH finding, success should be true
@@ -365,8 +364,7 @@ describe('scanExecutor', () => {
   })
 
   it('handles non-JSON stdout with object wrapper (findings key)', async () => {
-    execFileResponse.stdout =
-      `LOG: scanning\n${JSON.stringify({ findings: JSON.parse(makeFindings()) })}`
+    execFileResponse.stdout = `LOG: scanning\n${JSON.stringify({ findings: JSON.parse(makeFindings()) })}`
 
     const result = await scanExecutor({
       options: { path: 'skills/code-review/act', annotations: false, failOnError: true },
