@@ -174,7 +174,7 @@ describe('publishPlaceholderExecutor', () => {
     expect(result.trustCommands[0]).toContain('--allow-publish')
   })
 
-  it('trust: true runs npm trust github for each published package with stdio: inherit', async () => {
+  it('trust: true runs npm trust github for each published package', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
     state.responses.set('npm pack', {
@@ -183,7 +183,7 @@ describe('publishPlaceholderExecutor', () => {
       stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
     })
     state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
-    state.responses.set('npm trust', { status: 0, stderr: '', stdout: 'ok' })
+    state.responses.set('npm trust', { status: 0, stderr: '', stdout: '{"id":"abc123"}' })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
 
     const result = await publishPlaceholderExecutor({ trust: true }, { root: workspace })
@@ -197,6 +197,7 @@ describe('publishPlaceholderExecutor', () => {
     expect(trustCall?.args).toContain('--repo')
     expect(trustCall?.args).toContain('nx-devkit/nx.ts')
     expect(trustCall?.args).toContain('--allow-publish')
+    expect(trustCall?.args).toContain('--json')
   })
 
   it('trust: true does not run npm trust github in dryRun mode', async () => {
@@ -213,7 +214,7 @@ describe('publishPlaceholderExecutor', () => {
   it('trust: true runs npm trust github for already-published (skipped) packages too', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', { status: 0, stderr: '', stdout: '0.0.0' })
-    state.responses.set('npm trust', { status: 0, stderr: '', stdout: 'ok' })
+    state.responses.set('npm trust', { status: 0, stderr: '', stdout: '{"id":"abc456"}' })
 
     const result = await publishPlaceholderExecutor({ trust: true }, { root: workspace })
 

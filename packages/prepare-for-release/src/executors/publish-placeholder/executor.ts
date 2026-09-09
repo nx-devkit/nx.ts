@@ -246,17 +246,22 @@ function isPublished(pkgName: string, registry: string): boolean {
   return false
 }
 
-function trustCommandFor(pkgName: string, trustRepo: string): string {
-  return `npm trust github ${pkgName} --file release.yml --repo ${trustRepo} --allow-publish --yes`
+function trustCommandFor(pkgName: string, trustRepo: string, registry?: string): string {
+  const base = `npm trust github ${pkgName} --file release.yml --repo ${trustRepo} --allow-publish --yes`
+  return registry && registry !== DEFAULT_REGISTRY ? `${base} --registry ${registry}` : base
 }
 
-function trustArgs(pkgName: string, trustRepo: string): string[] {
-  return ['trust', 'github', pkgName, '--file', 'release.yml', '--repo', trustRepo, '--allow-publish', '--yes', '--json']
+function trustArgs(pkgName: string, trustRepo: string, registry?: string): string[] {
+  const args = ['trust', 'github', pkgName, '--file', 'release.yml', '--repo', trustRepo, '--allow-publish', '--yes', '--json']
+  if (registry && registry !== DEFAULT_REGISTRY) {
+    args.push('--registry', registry)
+  }
+  return args
 }
 
-function runTrustFor(pkgName: string, trustRepo: string): void {
+function runTrustFor(pkgName: string, trustRepo: string, registry?: string): void {
   const npmCmd = resolveNpmCommand()
-  const result = spawnWithTimeout(npmCmd, trustArgs(pkgName, trustRepo), {
+  const result = spawnWithTimeout(npmCmd, trustArgs(pkgName, trustRepo, registry), {
     encoding: 'utf8',
   })
   if (result.status !== 0) {
@@ -264,6 +269,10 @@ function runTrustFor(pkgName: string, trustRepo: string): void {
     throw new Error(
       `npm trust github failed for ${pkgName} (exit ${result.status})`,
     )
+  }
+  if (!result.stdout) {
+    console.log(`  ✓ ${pkgName}`)
+    return
   }
   try {
     const parsed = JSON.parse(result.stdout) as { id?: string }
@@ -293,7 +302,7 @@ async function publishOnePackage(
     )
     if (publishResult.status !== 0) {
       throw new Error(
-        `npm publish failed for ${name} (exit ${publishResult.status}): ${publishResult.stderr ?? ''}`,
+        `npm publish failed for ${name} (exit ${publishResult.status})`,
       )
     }
   } finally {
@@ -377,7 +386,15 @@ export async function publishPlaceholderExecutor(
       const trustTargets = [...acc.published, ...acc.skipped]
       console.log(`\nConfiguring GitHub OIDC trusted publishing for ${trustTargets.length} package(s) (requires MFA)...\n`)
       for (const pkgName of trustTargets) {
-        runTrustFor(pkgName, resolved.trustRepo)
+        try {
+          runTrustFor(pkgName, resolved.trustRepo, resolved.registry)
+        } catch (err) {
+          if (err instanceof Error && /already.*trust|conflict|exists/i.test(err.message)) {
+            console.log(`  ⊙ ${pkgName} (trust already configured)`)
+            continue
+          }
+          throw err
+        }
       }
     } else {
       console.log('\nRun these locally (requires MFA) to enable GitHub OIDC trusted publishing:\n')
@@ -385,7 +402,7 @@ export async function publishPlaceholderExecutor(
         console.log(`  ${cmd}`)
       }
       for (const pkgName of acc.skipped) {
-        console.log(`  ${trustCommandFor(pkgName, resolved.trustRepo)}`)
+        console.log(`  ${trustCommandFor(pkgName, resolved.trustRepo, resolved.registry)}`)
       }
     }
   }

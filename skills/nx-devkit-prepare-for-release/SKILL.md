@@ -55,7 +55,7 @@ export interface NxPrepareForReleaseOptions {
   registry?: string;            // default: "https://registry.npmjs.org/"
   dryRun?: boolean;             // default: false
   trust?: boolean;              // default: false — run `npm trust github` for each published package (requires MFA)
-  trustRepo?: string;           // default: process.env.NPM_TRUST_REPO or "nx-devkit/nx.ts"
+  trustRepo?: string;           // default: process.env.NPM_TRUST_REPO or process.env.GITHUB_REPOSITORY or "nx-devkit/nx.ts"
 }
 ```
 
@@ -73,9 +73,10 @@ Skipped:   @nx-devkit/biome
 
 Run these locally (requires MFA) to enable GitHub OIDC trusted publishing:
 
-  npm trust github @nx-devkit/tsdown --file release.yml --repo nx-devkit/nx.ts --allow-publish
-  npm trust github @nx-devkit/oxlint --file release.yml --repo nx-devkit/nx.ts --allow-publish
-  npm trust github @nx-devkit/typescript --file release.yml --repo nx-devkit/nx.ts --allow-publish
+  npm trust github @nx-devkit/tsdown --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
+  npm trust github @nx-devkit/oxlint --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
+  npm trust github @nx-devkit/typescript --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
+  npm trust github @nx-devkit/biome --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
 ```
 
 ## Why npm, not bun, for the placeholder publish
@@ -87,7 +88,7 @@ Run these locally (requires MFA) to enable GitHub OIDC trusted publishing:
 - **Idempotent**: `npm view <name> version` is consulted before any pack/publish. A package already on the registry is silently skipped.
 - **Source package.json untouched**: bytes are read before, then again after — must be identical.
 - **Temp dir cleanup**: the placeholder tarball directory is removed in `finally`.
-- **MFA-aware**: the user must run `npm trust github` themselves; the executor prints the exact commands to run.
+- **MFA-aware**: when `trust` is true, the executor runs `npm trust github`; otherwise, it prints the exact commands to run.
 
 ## How it works
 
