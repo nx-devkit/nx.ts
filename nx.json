@@ -16,7 +16,9 @@
       "packages/oxlint",
       "packages/biome",
       "packages/typescript-preset",
-      "packages/prepare-for-release"
+      "packages/prepare-for-release",
+      "packages/skill",
+      "packages/skillspector"
     ],
     "version": {
       "generatorOptions": {
@@ -38,7 +40,9 @@
   "targetDefaults": {
     "build": {
       "cache": true,
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "typecheck": {
       "cache": true
@@ -49,5 +53,6 @@
     "test": {
       "cache": true
     }
-  }
+  },
+  "analytics": true
 }

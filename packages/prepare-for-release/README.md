@@ -49,7 +49,8 @@ export interface NxPrepareForReleaseOptions {
   placeholderVersion?: string;  // default: "0.0.0"
   registry?: string;            // default: "https://registry.npmjs.org/"
   dryRun?: boolean;             // default: false
-  trustRepo?: string;           // default: "ThePlenkov/nx.ts" (override with NPM_TRUST_REPO env var)
+  trust?: boolean;              // default: false — run `npm trust github` for each published package (requires MFA)
+  trustRepo?: string;           // default: "nx-devkit/nx.ts" (override with NPM_TRUST_REPO env var)
 }
 ```
 

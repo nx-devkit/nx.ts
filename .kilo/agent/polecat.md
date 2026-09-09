@@ -1,6 +1,6 @@
 ---
 name: polecat
-description: Use this agent for headless Gastown polecats that edit files in a git worktree and open PRs. Disables the `edit` and `write` tools (they hang in headless mode requiring UI confirmation) and routes all file modifications through `bash` with heredoc, sed, or `git apply`. Permissions are tuned for the cross-fork workflow in fork-architecture rigs.
+description: Use this agent for headless Gastown polecats that edit files in a git worktree and open PRs. Disables the `edit` and `write` tools (they hang in headless mode requiring UI confirmation) and routes all file modifications through `bash` with heredoc, sed, or `git apply`. Permissions are tuned for the git workflow in this rig.
 mode: subagent
 model: anthropic/claude-sonnet
 permission:
@@ -67,17 +67,16 @@ EOF
 
 After any modification, verify with `tail`, `head`, or `git diff --stat` before committing.
 
-## Cross-fork workflow
+## Git workflow
 
-This rig uses a fork architecture. Your worktree's `origin` points to the **upstream** repo (`ThePlenkov/nx.ts`). You MUST push to a separate `fork` remote (`nx-devkit/nx.ts`). Add it if missing:
+This rig pushes directly to `origin` (`nx-devkit/nx.ts`). Push your branch and open a draft PR against `main`:
 
 ```bash
-git remote add fork https://x-access-token:$(gh auth token)@github.com/nx-devkit/nx.ts.git 2>/dev/null || true
-git push fork <branch-name>    # NEVER `git push origin`
-gh pr create --repo nx-devkit/nx.ts --draft --head nx-devkit:<branch-name> --base main ...
+git push origin <branch-name>
+gh pr create --repo nx-devkit/nx.ts --draft --head <branch-name> --base main ...
 ```
 
-Do NOT open an upstream PR. The mayor handles the cross-fork upstream PR after the fork draft is reviewed.
+Do NOT open an upstream PR. The user handles any cross-repo PR after draft review.
 
 ## Verification before declaring done
 

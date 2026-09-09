@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state: {
-  calls: { command: string; args: string[] }[]
+  calls: { command: string; args: string[]; options?: unknown }[]
   responses: Map<string, { status: number; stdout: string; stderr: string }>
 } = {
   calls: [],
@@ -12,8 +12,8 @@ const state: {
 }
 
 vi.mock('node:child_process', () => ({
-  spawnSync: (command: string, args: string[] = [], _options?: unknown) => {
-    state.calls.push({ args, command })
+  spawnSync: (command: string, args: string[] = [], options?: unknown) => {
+    state.calls.push({ args, command, options })
     const key = `${command} ${args.join(' ')}`
     for (const [pattern, response] of state.responses.entries()) {
       if (key.includes(pattern)) {
@@ -56,7 +56,7 @@ describe('publishPlaceholderExecutor', () => {
     workspace = makeWorkspace()
     originalCwd = process.cwd()
     originalTrustRepo = process.env.NPM_TRUST_REPO
-    process.env.NPM_TRUST_REPO = 'ThePlenkov/nx.ts'
+    process.env.NPM_TRUST_REPO = 'nx-devkit/nx.ts'
     process.chdir(workspace)
     state.calls.length = 0
     state.responses.clear()
@@ -91,7 +91,7 @@ describe('publishPlaceholderExecutor', () => {
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
 
     const options: NxPrepareForReleaseOptions = { dryRun: false }
-    const result = await publishPlaceholderExecutor({ options, workspaceRoot: workspace })
+    const result = await publishPlaceholderExecutor(options, { root: workspace })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
     expect(result.skipped).toEqual([])
@@ -117,11 +117,33 @@ describe('publishPlaceholderExecutor', () => {
     expect(afterParsed.publishConfig).toBeUndefined()
   })
 
+  it('uses stdio: inherit for npm publish so OTP/MFA prompts reach the terminal', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    })
+    state.responses.set('npm publish', {
+      status: 0,
+      stderr: '',
+      stdout: '+ @nx-devkit/prepare-for-release@0.0.0',
+    })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
+
+    await publishPlaceholderExecutor({ dryRun: false }, { root: workspace })
+
+    const publishCall = state.calls.find((c) => c.args[0] === 'publish')
+    expect(publishCall).toBeDefined()
+    expect(publishCall?.options).toMatchObject({ stdio: 'inherit' })
+  })
+
   it('skips a package that is already published on the registry', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', { status: 0, stderr: '', stdout: '0.5.0' })
 
-    const result = await publishPlaceholderExecutor({ options: {}, workspaceRoot: workspace })
+    const result = await publishPlaceholderExecutor({}, { root: workspace })
 
     expect(result.published).toEqual([])
     expect(result.skipped).toEqual(['@nx-devkit/prepare-for-release'])
@@ -143,23 +165,73 @@ describe('publishPlaceholderExecutor', () => {
     state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
 
-    const result = await publishPlaceholderExecutor({ options: {}, workspaceRoot: workspace })
+    const result = await publishPlaceholderExecutor({}, { root: workspace })
 
     expect(result.trustCommands.length).toBeGreaterThanOrEqual(1)
     expect(result.trustCommands[0]).toContain('npm trust github')
     expect(result.trustCommands[0]).toContain('--file release.yml')
-    expect(result.trustCommands[0]).toContain('--repo ThePlenkov/nx.ts')
+    expect(result.trustCommands[0]).toContain('--repo nx-devkit/nx.ts')
     expect(result.trustCommands[0]).toContain('--allow-publish')
+  })
+
+  it('trust: true runs npm trust github for each published package with stdio: inherit', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    })
+    state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
+    state.responses.set('npm trust', { status: 0, stderr: '', stdout: 'ok' })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
+
+    const result = await publishPlaceholderExecutor({ trust: true }, { root: workspace })
+
+    expect(result.success).toBe(true)
+    const trustCall = state.calls.find((c) => c.args[0] === 'trust')
+    expect(trustCall).toBeDefined()
+    expect(trustCall?.args).toContain('@nx-devkit/prepare-for-release')
+    expect(trustCall?.args).toContain('--file')
+    expect(trustCall?.args).toContain('release.yml')
+    expect(trustCall?.args).toContain('--repo')
+    expect(trustCall?.args).toContain('nx-devkit/nx.ts')
+    expect(trustCall?.args).toContain('--allow-publish')
+  })
+
+  it('trust: true does not run npm trust github in dryRun mode', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+
+    const result = await publishPlaceholderExecutor({ trust: true, dryRun: true }, { root: workspace })
+
+    expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
+    const trustCall = state.calls.find((c) => c.args[0] === 'trust')
+    expect(trustCall).toBeUndefined()
+  })
+
+  it('trust: true runs npm trust github for already-published (skipped) packages too', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    state.responses.set('npm view', { status: 0, stderr: '', stdout: '0.0.0' })
+    state.responses.set('npm trust', { status: 0, stderr: '', stdout: 'ok' })
+
+    const result = await publishPlaceholderExecutor({ trust: true }, { root: workspace })
+
+    expect(result.skipped).toEqual(['@nx-devkit/prepare-for-release'])
+    expect(result.success).toBe(true)
+    const trustCall = state.calls.find((c) => c.args[0] === 'trust')
+    expect(trustCall).toBeDefined()
+    expect(trustCall?.args).toContain('@nx-devkit/prepare-for-release')
+    expect(trustCall?.args).toContain('--repo')
+    expect(trustCall?.args).toContain('nx-devkit/nx.ts')
+    expect(trustCall?.args).toContain('--allow-publish')
   })
 
   it('dryRun: true does not call npm publish or npm pack', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
 
-    const result = await publishPlaceholderExecutor({
-      options: { dryRun: true },
-      workspaceRoot: workspace,
-    })
+    const result = await publishPlaceholderExecutor({ dryRun: true }, { root: workspace })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
     const publishCall = state.calls.find((c) => c.args[0] === 'publish')
@@ -180,10 +252,7 @@ describe('publishPlaceholderExecutor', () => {
     state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-1.2.3.tgz'), 'fake-tarball-bytes')
 
-    const result = await publishPlaceholderExecutor({
-      options: { placeholderTag: 'alpha', placeholderVersion: '0.0.1' },
-      workspaceRoot: workspace,
-    })
+    const result = await publishPlaceholderExecutor({ placeholderTag: 'alpha', placeholderVersion: '0.0.1' }, { root: workspace })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
     const publishCall = state.calls.find((c) => c.args[0] === 'publish')
@@ -205,13 +274,11 @@ describe('publishPlaceholderExecutor', () => {
     state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
 
-    const result = await publishPlaceholderExecutor({
-      options: { trustRepo: 'my-org/my-repo' },
-      workspaceRoot: workspace,
-    })
+    const result = await publishPlaceholderExecutor({ trustRepo: 'my-org/my-repo' }, { root: workspace })
 
     expect(result.trustCommands[0]).toContain('--repo my-org/my-repo')
     expect(result.trustCommands[0]).not.toContain('ThePlenkov/nx.ts')
+    expect(result.trustCommands[0]).not.toContain('nx-devkit/nx.ts')
   })
 
   it('rejects an invalid trustRepo slug', async () => {
@@ -219,10 +286,7 @@ describe('publishPlaceholderExecutor', () => {
     state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
 
     await expect(
-      publishPlaceholderExecutor({
-        options: { trustRepo: 'not a slug' },
-        workspaceRoot: workspace,
-      }),
+      publishPlaceholderExecutor({ trustRepo: 'not a slug' }, { root: workspace }),
     ).rejects.toThrow(/Invalid trustRepo/)
   })
 
@@ -230,10 +294,7 @@ describe('publishPlaceholderExecutor', () => {
     const pkgRoot = makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     writeFileSync(join(pkgRoot, 'package.json'), '{ this is not valid json')
 
-    const result = await publishPlaceholderExecutor({
-      options: {},
-      workspaceRoot: workspace,
-    })
+    const result = await publishPlaceholderExecutor({}, { root: workspace })
 
     expect(result.published).toEqual([])
     expect(result.skipped).toEqual([])
@@ -248,10 +309,7 @@ describe('publishPlaceholderExecutor', () => {
       stdout: '',
     })
 
-    const result = await publishPlaceholderExecutor({
-      options: { dryRun: true },
-      workspaceRoot: workspace,
-    })
+    const result = await publishPlaceholderExecutor({ dryRun: true }, { root: workspace })
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
     expect(result.skipped).toEqual([])
@@ -266,10 +324,7 @@ describe('publishPlaceholderExecutor', () => {
     })
 
     await expect(
-      publishPlaceholderExecutor({
-        options: { dryRun: true },
-        workspaceRoot: workspace,
-      }),
+      publishPlaceholderExecutor({ dryRun: true }, { root: workspace }),
     ).rejects.toThrow(/npm view failed for @nx-devkit\/prepare-for-release/)
   })
 })
