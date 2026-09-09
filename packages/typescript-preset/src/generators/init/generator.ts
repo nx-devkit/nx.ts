@@ -17,7 +17,7 @@ function readJson(tree: Tree, path: string): Record<string, unknown> | null {
   try {
     return JSON.parse(raw) as Record<string, unknown>
   } catch (error) {
-    throw new Error(`Failed to parse ${path}: ${(error as Error).message}`)
+    throw new Error(`Failed to parse ${path}`, { cause: error })
   }
 }
 
