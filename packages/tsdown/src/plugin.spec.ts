@@ -1,3 +1,4 @@
+import { logger } from '@nx/devkit'
 import { vol } from 'memfs'
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -119,55 +120,34 @@ describe('@nx-devkit/tsdown createNodesV2', () => {
 
   describe('verbose logging', () => {
     it('logs when --verbose flag is set', async () => {
-      const logger = {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        debug: vi.fn(),
-      }
-      vi.resetModules()
-      vi.doMock('@nx/devkit', () => ({ logger, workspaceRoot: '/workspace' }))
+      const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
       process.argv.push('--verbose')
 
-      const { createNodesV2: cn } = await import('./plugin.ts')
-      const [, fn] = cn
-      fn(['project-a/tsdown.config.ts'], {}, makeContext())
-      expect(logger.info).toHaveBeenCalled()
+      await createNodesV2[1](['project-a/tsdown.config.ts'], {}, makeContext())
+      expect(infoSpy).toHaveBeenCalled()
+
+      infoSpy.mockRestore()
     })
 
     it('logs when NX_VERBOSE_LOGGING=true', async () => {
-      const logger = {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        debug: vi.fn(),
-      }
-      vi.resetModules()
-      vi.doMock('@nx/devkit', () => ({ logger, workspaceRoot: '/workspace' }))
+      const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
       process.env.NX_VERBOSE_LOGGING = 'true'
 
-      const { createNodesV2: cn } = await import('./plugin.ts')
-      const [, fn] = cn
-      fn(['project-a/tsdown.config.ts'], {}, makeContext())
-      expect(logger.info).toHaveBeenCalled()
+      await createNodesV2[1](['project-a/tsdown.config.ts'], {}, makeContext())
+      expect(infoSpy).toHaveBeenCalled()
+
+      infoSpy.mockRestore()
     })
 
     it('does not log when neither flag nor env var is set', async () => {
-      const logger = {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        debug: vi.fn(),
-      }
-      vi.resetModules()
-      vi.doMock('@nx/devkit', () => ({ logger, workspaceRoot: '/workspace' }))
+      const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
       delete process.env.NX_VERBOSE_LOGGING
       process.argv = process.argv.filter((a) => a !== '--verbose')
 
-      const { createNodesV2: cn } = await import('./plugin.ts')
-      const [, fn] = cn
-      fn(['project-a/tsdown.config.ts'], {}, makeContext())
-      expect(logger.info).not.toHaveBeenCalled()
+      await createNodesV2[1](['project-a/tsdown.config.ts'], {}, makeContext())
+      expect(infoSpy).not.toHaveBeenCalled()
+
+      infoSpy.mockRestore()
     })
   })
 })
