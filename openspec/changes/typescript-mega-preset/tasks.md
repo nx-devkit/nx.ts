@@ -25,7 +25,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 
 - [x] Add `biome.json` / `biome.jsonc` detection
 - [x] Add `format` target: `npx biome format --write .` (cache: false)
-- [x] Add `format-check` target: `npx biome format --check .` (cache: true)
+- [x] Add `format-check` target: `npx biome format .` (cache: true)
 - [x] Add `lint` target: `npx biome lint .` (cache: true) — only when no oxlint config
 - [x] Write tests: project with `biome.json` → format targets inferred
 
