@@ -737,6 +737,25 @@ describe('tsdown build delegation', () => {
     }
   })
 
+  it('infers build:watch target from tsdown.config.ts', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/tsdown.config.ts')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.['build:watch']).toBeDefined()
+      const watch = proj.targets?.['build:watch'] as Record<string, unknown>
+      expect(watch.executor).toBe('nx:run-commands')
+      const opts = watch.options as Record<string, unknown>
+      expect(opts.command).toBe('npx tsdown --watch')
+      expect(opts.cwd).toBe('packages/foo')
+      expect(watch.cache).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('does not infer build when tsdown:false', () => {
     const root = makeWorkspace()
     try {
@@ -745,6 +764,7 @@ describe('tsdown build delegation', () => {
       const result = callCreateNodes([ts], { tsdown: false }, root)
       const proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeUndefined()
+      expect(proj.targets?.['build:watch']).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

@@ -262,6 +262,28 @@ Biome always provides `format`/`format-check` when `biome.json` exists, regardle
 }
 ```
 
+### `build:watch` — Tsdown watch mode (when `tsdown.config.ts` exists)
+
+```jsonc
+{
+  "build:watch": {
+    "executor": "nx:run-commands",
+    "options": {
+      "command": "npx tsdown --watch",
+      "cwd": "{projectRoot}"
+    },
+    "cache": false,
+    "inputs": [
+      "{projectRoot}/src/**/*",
+      "{projectRoot}/tsdown.config.ts",
+      "{projectRoot}/tsconfig.json",
+      "{projectRoot}/package.json"
+    ],
+    "dependsOn": ["^build"]
+  }
+}
+```
+
 For a project at `packages/foo/` with a `tsconfig.json`:
 
 ```bash

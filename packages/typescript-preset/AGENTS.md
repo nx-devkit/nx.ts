@@ -63,6 +63,7 @@ export interface NxDevkitTypescriptOptions {
 | `lint` | `biome.json` + oxlint AND eslint NOT providing lint | `npx biome lint .`. Only when oxlint disabled or no `.oxlintrc.*`, and eslint disabled or no `eslint.config.*`. |
 | `format` / `format-check` | `biome.json` + `biome: true` | `format` writes files (cache false), `format-check` is cached. |
 | `build` | `tsdown.config.ts` + `tsdown: true` | `npx tsdown`, outputs `{projectRoot}/dist`, `dependsOn: ['^build']`. |
+| `build:watch` | `tsdown.config.ts` + `tsdown: true` | `npx tsdown --watch`, cache disabled. |
 
 ### Lint precedence
 

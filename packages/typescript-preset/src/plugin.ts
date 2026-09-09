@@ -630,28 +630,54 @@ export function inferBiomeTargets(
 }
 
 export function inferTsdownBuildTarget(projectRoot: string): {
-  executor: 'nx:run-commands'
-  options: { command: string; cwd: string }
-  outputs: string[]
-  cache: true
-  inputs: string[]
-  dependsOn: string[]
+  build: {
+    executor: 'nx:run-commands'
+    options: { command: string; cwd: string }
+    outputs: string[]
+    cache: true
+    inputs: string[]
+    dependsOn: string[]
+  }
+  'build:watch': {
+    executor: 'nx:run-commands'
+    options: { command: string; cwd: string }
+    cache: false
+    inputs: string[]
+    dependsOn: string[]
+  }
 } {
   return {
-    executor: 'nx:run-commands',
-    options: {
-      command: 'npx tsdown',
-      cwd: projectRoot,
+    build: {
+      executor: 'nx:run-commands',
+      options: {
+        command: 'npx tsdown',
+        cwd: projectRoot,
+      },
+      outputs: ['{projectRoot}/dist'],
+      cache: true,
+      inputs: [
+        '{projectRoot}/src/**/*',
+        '{projectRoot}/tsdown.config.*',
+        '{projectRoot}/tsconfig.json',
+        '{projectRoot}/package.json',
+      ],
+      dependsOn: ['^build'],
     },
-    outputs: ['{projectRoot}/dist'],
-    cache: true,
-    inputs: [
-      '{projectRoot}/src/**/*',
-      '{projectRoot}/tsdown.config.*',
-      '{projectRoot}/tsconfig.json',
-      '{projectRoot}/package.json',
-    ],
-    dependsOn: ['^build'],
+    'build:watch': {
+      executor: 'nx:run-commands',
+      options: {
+        command: 'npx tsdown --watch',
+        cwd: projectRoot,
+      },
+      cache: false,
+      inputs: [
+        '{projectRoot}/src/**/*',
+        '{projectRoot}/tsdown.config.*',
+        '{projectRoot}/tsconfig.json',
+        '{projectRoot}/package.json',
+      ],
+      dependsOn: ['^build'],
+    },
   }
 }
 
@@ -759,7 +785,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         if (tsdown) {
           const tsdownConfigPath = findConfigFile(projectRoot, workspaceRoot, TSDOWN_CONFIG_NAMES)
           if (tsdownConfigPath) {
-            targets.build = inferTsdownBuildTarget(relProjectRoot)
+            Object.assign(targets, inferTsdownBuildTarget(relProjectRoot))
           }
         }
 
