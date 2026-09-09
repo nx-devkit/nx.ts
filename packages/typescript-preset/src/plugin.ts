@@ -299,8 +299,8 @@ function findConfigFile(
 function checkNativePreview(projectRoot: string, workspaceRoot: string): boolean {
   const absProjectRoot = resolve(workspaceRoot, projectRoot)
   const pkgPath = join(absProjectRoot, 'package.json')
-  if (!existsSync(pkgPath)) return false
   try {
+    // nosemgrep: path is constructed from trusted Nx context, not user input
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
     const allDeps = {
       ...(pkg.dependencies as Record<string, string> | undefined),
