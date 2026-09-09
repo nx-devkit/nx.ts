@@ -206,9 +206,9 @@ When `coverage: true`, a `test:coverage` target is also inferred:
 
 `format` is non-cached because it writes files. `format-check` is cached.
 
-### `lint` — Biome delegation (when oxlint is disabled or no `.oxlintrc.*`)
+### `lint` — Biome delegation (when neither oxlint nor ESLint owns lint)
 
-When `biome.json` exists but oxlint is NOT providing the `lint` target (either `oxlint: false` or no `.oxlintrc.*` file), biome provides `lint`:
+When `biome.json` exists but neither oxlint nor ESLint is providing the `lint` target (either `oxlint: false` or no `.oxlintrc.*`, AND `eslint: false` or no `eslint.config.*`), biome provides `lint`:
 
 ```jsonc
 {
@@ -304,7 +304,8 @@ Pass options via the inline plugin tuple in `nx.json`:
 | `tap` | `boolean` | `false` | When `true`, infers a `test:tap` target using the native Node test runner with TAP reporter. |
 | `coverage` | `boolean` | `false` | When `true`, infers a `test:coverage` target using the native Node test runner with `--experimental-test-coverage`. |
 | `oxlint` | `boolean` | `true` | When `true` and `.oxlintrc.*` exists, infers a `lint` target via `npx oxlint .`. |
-| `biome` | `boolean` | `true` | When `true` and `biome.json`/`biome.jsonc` exists, infers `format`/`format-check` (and `lint` when oxlint is not providing it). |
+| `eslint` | `boolean` | `true` | When `true` and `eslint.config.*` exists (and oxlint is not owning lint), infers a `lint` target via `npx eslint .`. |
+| `biome` | `boolean` | `true` | When `true` and `biome.json`/`biome.jsonc` exists, infers `format`/`format-check` (and `lint` when neither oxlint nor ESLint is providing it). |
 | `tsdown` | `boolean` | `true` | When `true` and `tsdown.config.ts` exists, infers a `build` target via `npx tsdown`. |
 | `testGlob` | `string` | `"**/*.test.{ts,js,mts,mjs}"` | Glob pattern for detecting native test files. |
 | `specGlob` | `string` | `"**/*.spec.{ts,js,mts,mjs}"` | Glob pattern for detecting spec files. |

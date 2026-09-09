@@ -521,7 +521,7 @@ export function inferEslintTarget(projectRoot: string): {
     },
     cache: true,
     inputs: [
-      '{projectRoot}/src/**/*',
+      '{projectRoot}/**/*',
       '{projectRoot}/eslint.config.*',
       '{projectRoot}/package.json',
     ],

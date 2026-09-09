@@ -560,7 +560,7 @@ describe('eslint lint delegation', () => {
     expect(t.cache).toBe(true)
     expect(t.inputs).toEqual(
       expect.arrayContaining([
-        '{projectRoot}/src/**/*',
+        '{projectRoot}/**/*',
         '{projectRoot}/eslint.config.*',
         '{projectRoot}/package.json',
       ]),
