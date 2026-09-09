@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { initGenerator } from '../src/generators/init/generator.js'
 
-interface MockFile {
-  path: string
-  content: string
-}
-
 function createTree(files: Record<string, string> = {}): {
   tree: import('@nx/devkit').Tree
   files: Map<string, string>
@@ -81,5 +76,13 @@ describe('@nx-devkit/typescript init generator', () => {
       options: {},
       plugin: '@nx-devkit/typescript',
     })
+  })
+
+  it('throws on malformed nx.json instead of overwriting', async () => {
+    const { tree } = createTree({
+      'nx.json': '{ invalid json !!!',
+    })
+
+    await expect(initGenerator(tree, {})).rejects.toThrow(/Failed to parse nx\.json/)
   })
 })

@@ -18,12 +18,11 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "generators": [
-    "./generators.json"
-  ],
+  "generators": "./generators.json",
   "files": [
     "dist",
     "generators.json",
+    "src/generators/init/schema.json",
     "README.md"
   ],
   "scripts": {

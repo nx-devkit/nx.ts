@@ -10,10 +10,14 @@ function readJson(tree: Tree, path: string): Record<string, unknown> | null {
   if (!tree.exists(path)) {
     return null
   }
-  try {
-    return JSON.parse(tree.read(path, 'utf8') ?? '{}') as Record<string, unknown>
-  } catch {
+  const raw = tree.read(path, 'utf8')
+  if (raw === null || raw === undefined) {
     return null
+  }
+  try {
+    return JSON.parse(raw) as Record<string, unknown>
+  } catch (error) {
+    throw new Error(`Failed to parse ${path}: ${(error as Error).message}`)
   }
 }
 
@@ -48,12 +52,20 @@ export async function initGenerator(
 
   registerPlugin(tree, pluginPath)
 
+  const isLocalPath = pluginPath.startsWith('.') || pluginPath.startsWith('/')
+  const installStep = isLocalPath
+    ? `1. The plugin is registered from a local path: ${pluginPath}`
+    : '1. Install the plugin in the consuming workspace:\n' +
+      `   bun add -D ${pluginPath}`
+
   const checklist = [
-    '1. Install the plugin in the consuming workspace:',
-    '   bun add -D @nx-devkit/typescript',
+    installStep,
     '2. The plugin auto-detects tsconfig.json files and infers:',
     '   - typecheck (tsgo --build)',
     '   - test (vitest or native Node test runner)',
+    '   - test:watch (vitest only, when vitest.config.* exists)',
+    '   - test:coverage (vitest or native, when coverage:true or vitest config exists)',
+    '   - test:tap (native only, when tap:true)',
     '   - lint (oxlint > eslint > biome)',
     '   - format / format-check (biome)',
     '   - build / build:watch (tsdown)',
