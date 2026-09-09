@@ -11,9 +11,6 @@ function readJson(tree: Tree, path: string): Record<string, unknown> | null {
     return null
   }
   const raw = tree.read(path, 'utf8')
-  if (raw === null || raw === undefined) {
-    return null
-  }
   try {
     return JSON.parse(raw) as Record<string, unknown>
   } catch (error) {
