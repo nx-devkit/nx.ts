@@ -334,14 +334,14 @@ async function processPackage(
 
   if (resolved.dryRun) {
     acc.published.push(name)
-    acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo))
+    acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry))
     return 'published'
   }
 
   const pkgRoot = dirname(pkgJsonPath)
   await publishOnePackage(pkgRoot, name, resolved)
   acc.published.push(name)
-  acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo))
+  acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry))
   return 'published'
 }
 
