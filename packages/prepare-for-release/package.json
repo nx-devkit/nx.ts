@@ -17,8 +17,10 @@
       "default": "./src/plugin.ts"
     }
   },
+  "executors": "./executors.json",
   "files": [
     "dist",
+    "executors.json",
     "README.md"
   ],
   "scripts": {
@@ -30,8 +32,7 @@
   },
   "dependencies": {
     "@nx/devkit": "22.7.1",
-    "tinyglobby": "^0.2.0",
-    "which": "^5.0.0"
+    "tinyglobby": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

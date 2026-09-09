@@ -30,6 +30,11 @@
       "description": "If true, do not actually publish or pack; just report what would happen.",
       "default": false
     },
+    "trust": {
+      "type": "boolean",
+      "description": "If true, run `npm trust github` for each published package (requires MFA).",
+      "default": false
+    },
     "trustRepo": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",

@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { glob } from 'tinyglobby'
-import { sync as whichSync } from 'which'
 
 export interface NxPrepareForReleaseOptions {
   /** Package scopes to check. Default: derived from packages/* names in the workspace. */
@@ -17,6 +16,8 @@ export interface NxPrepareForReleaseOptions {
   registry?: string
   /** If true, do not actually publish or pack; just report what would happen. Default: false. */
   dryRun?: boolean
+  /** If true, run `npm trust github` for all packages including already-published (requires MFA). Default: false. */
+  trust?: boolean
   /**
    * `owner/repo` slug used to build the `npm trust github` command.
    * Falls back to `NPM_TRUST_REPO` env var, then `GITHUB_REPOSITORY` env var.
@@ -26,14 +27,10 @@ export interface NxPrepareForReleaseOptions {
 }
 
 export interface PublishPlaceholderResult {
+  success: boolean
   published: string[]
   skipped: string[]
   trustCommands: string[]
-}
-
-export interface PublishPlaceholderContext {
-  workspaceRoot: string
-  options: NxPrepareForReleaseOptions
 }
 
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org/'
@@ -47,6 +44,7 @@ interface ResolvedOptions {
   placeholderTag: string
   placeholderVersion: string
   dryRun: boolean
+  trust: boolean
   trustRepo: string
   scope: string[] | undefined
 }
@@ -58,21 +56,21 @@ function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
     placeholderVersion: options.placeholderVersion ?? DEFAULT_VERSION,
     registry: options.registry ?? DEFAULT_REGISTRY,
     scope: options.scope,
+    trust: options.trust ?? false,
     trustRepo: resolveTrustRepo(options.trustRepo),
   }
 }
 
 function resolveNpmCommand(): string {
-  const found = whichSync('npm', { nothrow: true })
-  return found ?? 'npm'
+  return 'npm'
 }
 
 function resolveTrustRepo(option: string | undefined): string {
   const raw =
-    option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY ?? 'ThePlenkov/nx.ts'
+    option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY ?? 'nx-devkit/nx.ts'
   if (!TRUST_REPO_RE.test(raw)) {
     throw new Error(
-      `Invalid trustRepo "${raw}": expected "owner/repo" slug (e.g. ThePlenkov/nx.ts). ` +
+      `Invalid trustRepo "${raw}": expected "owner/repo" slug (e.g. nx-devkit/nx.ts). ` +
         `Override via options.trustRepo or NPM_TRUST_REPO env var.`,
     )
   }
@@ -98,7 +96,7 @@ function publishArgs(tarball: string, registry: string, tag: string): string[] {
 function spawnWithTimeout(
   command: string,
   args: string[],
-  options: { cwd?: string; encoding: BufferEncoding },
+  options: { cwd?: string; encoding: BufferEncoding; stdio?: 'pipe' | 'inherit' },
 ): ReturnType<typeof spawnSync> {
   return spawnSync(command, args, {
     ...options,
@@ -243,8 +241,39 @@ function isPublished(pkgName: string, registry: string): boolean {
   return false
 }
 
-function trustCommandFor(pkgName: string, trustRepo: string): string {
-  return `npm trust github ${pkgName} --file release.yml --repo ${trustRepo} --allow-publish`
+function trustCommandFor(pkgName: string, trustRepo: string, registry?: string): string {
+  const base = `npm trust github ${pkgName} --file release.yml --repo ${trustRepo} --allow-publish --yes`
+  return registry && registry !== DEFAULT_REGISTRY ? `${base} --registry ${registry}` : base
+}
+
+function trustArgs(pkgName: string, trustRepo: string, registry?: string): string[] {
+  const args = [
+    'trust',
+    'github',
+    pkgName,
+    '--file',
+    'release.yml',
+    '--repo',
+    trustRepo,
+    '--allow-publish',
+    '--yes',
+  ]
+  if (registry && registry !== DEFAULT_REGISTRY) {
+    args.push('--registry', registry)
+  }
+  return args
+}
+
+function runTrustFor(pkgName: string, trustRepo: string, registry?: string): void {
+  const npmCmd = resolveNpmCommand()
+  const result = spawnWithTimeout(npmCmd, trustArgs(pkgName, trustRepo, registry), {
+    encoding: 'utf8',
+    stdio: 'inherit',
+  })
+  if (result.status !== 0) {
+    throw new Error(`npm trust github failed for ${pkgName} (exit ${result.status})`)
+  }
+  console.log(`  ✓ ${pkgName}`)
 }
 
 async function publishOnePackage(
@@ -263,12 +292,10 @@ async function publishOnePackage(
     const publishResult = spawnWithTimeout(
       npmCmd,
       publishArgs(tarballPath, resolved.registry, resolved.placeholderTag),
-      { encoding: 'utf8' },
+      { encoding: 'utf8', stdio: 'inherit' },
     )
     if (publishResult.status !== 0) {
-      throw new Error(
-        `npm publish failed for ${name} (exit ${publishResult.status}): ${publishResult.stderr ?? ''}`,
-      )
+      throw new Error(`npm publish failed for ${name} (exit ${publishResult.status})`)
     }
   } finally {
     await rm(tempDir, { force: true, recursive: true }).catch(() => undefined)
@@ -307,26 +334,27 @@ async function processPackage(
 
   if (resolved.dryRun) {
     acc.published.push(name)
-    acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo))
+    acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry))
     return 'published'
   }
 
   const pkgRoot = dirname(pkgJsonPath)
   await publishOnePackage(pkgRoot, name, resolved)
   acc.published.push(name)
-  acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo))
+  acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry))
   return 'published'
 }
 
 export async function publishPlaceholderExecutor(
-  ctx: PublishPlaceholderContext,
+  options: NxPrepareForReleaseOptions,
+  context: { root: string },
 ): Promise<PublishPlaceholderResult> {
-  const resolved = resolveOptions(ctx.options)
+  const resolved = resolveOptions(options)
   detectPackageManager()
 
   const pkgDirs = await glob(['packages/*/package.json'], {
     absolute: true,
-    cwd: ctx.workspaceRoot,
+    cwd: context.root,
     onlyFiles: true,
   })
 
@@ -335,11 +363,45 @@ export async function publishPlaceholderExecutor(
     await processPackage(pkgJsonPath, resolved, acc)
   }
 
-  if (existsSync(join(ctx.workspaceRoot, 'scripts/trust-github.sh'))) {
+  if (existsSync(join(context.root, 'scripts/trust-github.sh'))) {
     // Trust commands are also captured in scripts/trust-github.sh when present.
   }
 
-  return acc
+  if (acc.published.length > 0) {
+    console.log(`\nPublished: ${acc.published.join(', ')}`)
+  }
+  if (acc.skipped.length > 0) {
+    console.log(`Skipped:   ${acc.skipped.join(', ')}`)
+  }
+  if (acc.trustCommands.length > 0 || (resolved.trust && acc.skipped.length > 0)) {
+    if (resolved.trust && !resolved.dryRun) {
+      const trustTargets = [...acc.published, ...acc.skipped]
+      console.log(
+        `\nConfiguring GitHub OIDC trusted publishing for ${trustTargets.length} package(s) (requires MFA)...\n`,
+      )
+      for (const pkgName of trustTargets) {
+        try {
+          runTrustFor(pkgName, resolved.trustRepo, resolved.registry)
+        } catch (err) {
+          if (err instanceof Error && /already.*trust|conflict|exists/i.test(err.message)) {
+            console.log(`  ⊙ ${pkgName} (trust already configured)`)
+            continue
+          }
+          throw err
+        }
+      }
+    } else {
+      console.log('\nRun these locally (requires MFA) to enable GitHub OIDC trusted publishing:\n')
+      for (const cmd of acc.trustCommands) {
+        console.log(`  ${cmd}`)
+      }
+      for (const pkgName of acc.skipped) {
+        console.log(`  ${trustCommandFor(pkgName, resolved.trustRepo, resolved.registry)}`)
+      }
+    }
+  }
+
+  return { success: true, ...acc }
 }
 
 export default publishPlaceholderExecutor

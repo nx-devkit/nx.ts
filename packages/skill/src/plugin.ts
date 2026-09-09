@@ -66,11 +66,7 @@ export function computeProjectName(projectRoot: string): string {
   return `${slug}-${hash}`
 }
 
-function inferBuildTarget(
-  projectRoot: string,
-  projectName: string,
-  additionalInputs: string[],
-) {
+function inferBuildTarget(projectRoot: string, projectName: string, additionalInputs: string[]) {
   return {
     executor: '@nx-devkit/skill:build',
     cache: true,
@@ -186,11 +182,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
         logger.info(`[${PLUGIN_SCOPE}] Registering targets for ${projectRoot}`)
 
         const targets: Record<string, TargetConfiguration> = {
-          [buildTargetName]: inferBuildTarget(
-            projectRoot,
-            projectName,
-            additionalInputs,
-          ),
+          [buildTargetName]: inferBuildTarget(projectRoot, projectName, additionalInputs),
           [lintTargetName]: inferLintTarget(),
           [validateTargetName]: inferValidateTarget(),
           [osCheckTargetName]: inferOsCheckTarget(),

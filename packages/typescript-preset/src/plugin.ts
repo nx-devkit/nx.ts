@@ -247,7 +247,14 @@ const OXLINTRC_NAMES = [
 
 const BIOME_CONFIG_NAMES = ['biome.json', 'biome.jsonc']
 
-const TSDOWN_CONFIG_NAMES = ['tsdown.config.ts', 'tsdown.config.js', 'tsdown.config.mts', 'tsdown.config.mjs', 'tsdown.config.cts', 'tsdown.config.cjs']
+const TSDOWN_CONFIG_NAMES = [
+  'tsdown.config.ts',
+  'tsdown.config.js',
+  'tsdown.config.mts',
+  'tsdown.config.mjs',
+  'tsdown.config.cts',
+  'tsdown.config.cjs',
+]
 
 function findConfigFile(
   projectRoot: string,
@@ -472,9 +479,7 @@ export function inferNativeTestTargets(
   return result
 }
 
-export function inferOxlintTarget(
-  projectRoot: string,
-): {
+export function inferOxlintTarget(projectRoot: string): {
   executor: 'nx:run-commands'
   options: { command: string; cwd: string }
   cache: true
@@ -487,11 +492,7 @@ export function inferOxlintTarget(
       cwd: projectRoot,
     },
     cache: true,
-    inputs: [
-      '{projectRoot}/src/**/*',
-      '{projectRoot}/.oxlintrc.*',
-      '{projectRoot}/package.json',
-    ],
+    inputs: ['{projectRoot}/src/**/*', '{projectRoot}/.oxlintrc.*', '{projectRoot}/package.json'],
   }
 }
 
@@ -566,9 +567,7 @@ export function inferBiomeTargets(
   return targets
 }
 
-export function inferTsdownBuildTarget(
-  projectRoot: string,
-): {
+export function inferTsdownBuildTarget(projectRoot: string): {
   executor: 'nx:run-commands'
   options: { command: string; cwd: string }
   outputs: string[]

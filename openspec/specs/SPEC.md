@@ -4,8 +4,6 @@
 
 This repository extends Nx with a minimal, **config-file-inference-only** plugin family. Each plugin inspects a single config file already present in a TypeScript project and auto-injects the matching Nx target via `createNodesV2`. Consumers do not write `project.json`; targets are derived from files they already keep (`tsdown.config.ts`, `tsconfig.json`, `.oxlintrc.json`, `biome.json`, `vitest.config.ts`).
 
-The repo is a fork of [ThePlenkov/nx.ts](https://github.com/ThePlenkov/nx.ts), which itself forks [nx-devkit/nx.ts](https://github.com/nx-devkit/nx.ts). The two-PR strategy below opens concurrent PRs to both forks.
-
 ## Architecture
 
 Five workspace packages under `packages/`:
@@ -85,7 +83,7 @@ The executor scans `packages/*`, calls `npm view <name> version` for each, and �
 The executor returns `{ published, skipped, trustCommands }`. The `trustCommands` array is printed so the user can run them locally with MFA:
 
 ```bash
-npm trust github @nx-devkit/<name> --file release.yml --repo ThePlenkov/nx.ts --allow-publish
+npm trust github @nx-devkit/<name> --file release.yml --repo nx-devkit/nx.ts --allow-publish
 ```
 
 **2. Ongoing releases (CI).** Once the placeholders are published and trusted, `.github/workflows/release.yml` (triggered by push to `main`) runs:
@@ -100,15 +98,6 @@ npm trust github @nx-devkit/<name> --file release.yml --repo ThePlenkov/nx.ts --
 CI uses `npx` (npm CLI), not bun, because `bun publish` does not yet support npm OIDC trusted publishing. Install/build/test still use bun.
 
 **3. Idempotency.** The executor is safe to re-run. Already-published packages are silently skipped.
-
-## Two-PR strategy
-
-Two open UNMERGED pull requests are opened from the same convoy feature branch `convoy/nx-ts-5-plugins-demo-skills-2-prs-opensp/e06d06b1/head`:
-
-1. **Fork PR** → [ThePlenkov/nx.ts](https://github.com/ThePlenkov/nx.ts) (origin). Targets `main`.
-2. **Upstream PR** → [nx-devkit/nx.ts](https://github.com/nx-devkit/nx.ts). Targets `main`.
-
-The branch is pushed to both remotes; both PRs reference `openspec/specs/SPEC.md` and the bead convoy. No merges performed by the polecat. Refinery reviews.
 
 ## Quality gates
 

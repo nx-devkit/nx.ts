@@ -16,7 +16,9 @@
       "packages/oxlint",
       "packages/biome",
       "packages/typescript-preset",
-      "packages/prepare-for-release"
+      "packages/prepare-for-release",
+      "packages/skill",
+      "packages/skillspector"
     ],
     "version": {
       "generatorOptions": {

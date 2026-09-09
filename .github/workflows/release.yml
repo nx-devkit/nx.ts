@@ -75,37 +75,3 @@ jobs:
         run: npx nx release publish
         env:
           NPM_CONFIG_PROVENANCE: 'true'
-
-  upstream-pr:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    name: Open draft PR upstream on nx-devkit/nx.ts
-    runs-on: ubuntu-latest
-    needs: release
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Open draft PR on upstream
-        # Cross-repo PR creation requires a PAT with repo scope on the
-        # upstream org. The default GITHUB_TOKEN is scoped to this repo
-        # only and will be rejected by the upstream API. Set the
-        # UPSTREAM_GITHUB_TOKEN secret in repo settings (Settings →
-        # Secrets and variables → Actions) before this job will succeed.
-        env:
-          GH_TOKEN: ${{ secrets.UPSTREAM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          if gh pr view --repo nx-devkit/nx.ts --head ThePlenkov:main > /dev/null 2>&1; then
-            echo "Upstream PR already exists, skipping."
-            exit 0
-          fi
-          gh pr create \
-            --repo nx-devkit/nx.ts \
-            --base main \
-            --head ThePlenkov:main \
-            --draft \
-            --title "feat(upstream): docs + skills + @nx-devkit/prepare-for-release + CI release pipeline" \
-            --body "Sync of ThePlenkov/nx.ts main into upstream nx-devkit/nx.ts. See fork PR for full context."

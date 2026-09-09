@@ -22,9 +22,7 @@ const VALID_TARGETS = ['skills-sh', 'claude', 'codex', 'agents', 'obsidian']
  * this invokes `npx skills-compiler` via `execFile` (no shell) so the command
  * is not vulnerable to shell injection.
  */
-export async function buildExecutor(
-  options: BuildExecutorOptions,
-): Promise<BuildExecutorResult> {
+export async function buildExecutor(options: BuildExecutorOptions): Promise<BuildExecutorResult> {
   const target = options.target ?? 'skills-sh'
   if (!VALID_TARGETS.includes(target)) {
     return { success: false }
@@ -35,15 +33,7 @@ export async function buildExecutor(
   return new Promise((resolvePromise) => {
     execFile(
       'npx',
-      [
-        'skills-compiler',
-        '--target',
-        target,
-        '--out',
-        outDir,
-        '--skill',
-        skillPath,
-      ],
+      ['skills-compiler', '--target', target, '--out', outDir, '--skill', skillPath],
       { shell: false },
       (err, _stdout, _stderr) => {
         if (err) {
