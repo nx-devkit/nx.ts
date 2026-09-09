@@ -239,7 +239,7 @@ When multiple lint configs exist, the precedence is:
 
 Biome always provides `format`/`format-check` when `biome.json` exists, regardless of lint ownership.
 
-### `build` — Tsdown delegation (when `tsdown.config.ts` exists)
+### `build` — Tsdown delegation (when `tsdown.config.*` exists)
 
 ```jsonc
 {
@@ -262,7 +262,7 @@ Biome always provides `format`/`format-check` when `biome.json` exists, regardle
 }
 ```
 
-### `build:watch` — Tsdown watch mode (when `tsdown.config.ts` exists)
+### `build:watch` — Tsdown watch mode (when `tsdown.config.*` exists)
 
 ```jsonc
 {
