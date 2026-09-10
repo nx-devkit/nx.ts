@@ -5,7 +5,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 ## 1. Native Node test runner inference
 
 - [x] Add `inferNativeTestTargets()` to `packages/typescript-preset/src/plugin.ts`
-- [x] Add test-file discovery: when no `vitest.config.*` is found, filter `configFiles` for tsconfig paths to identify projects, then use `readdirSync` (recursive) to scan `src/` and `test/` for `*.test.{ts,js,mts,mjs}` / `*.spec.{ts,js,mts,mjs}` matches; only infer native targets when at least one test file is present (note: `configFiles` from `createNodesV2` contains both tsconfig and test file paths due to the combined matcher)
+- [x] Add test-file discovery: when no `vitest.config.*` is found, filter `configFiles` for tsconfig paths to identify projects, then use `globMatch` (recursive `readdirSync` from project root) with configured `testGlob`/`specGlob` patterns; only infer native targets when at least one test file is present (note: `createNodesV2` receives `configFiles` matched by `**/tsconfig*.json` only — test files are discovered via `globMatch`, not from `configFiles`)
 - [x] Add `test` target: `node --test --test-reporter spec "<testGlob>"`
 - [x] Add `test:tap` target when `tap: true`: `node --test --test-reporter tap "<testGlob>" > test-results.tap` (outputs: `{projectRoot}/test-results.tap`)
 - [x] Add `test:coverage` target when `coverage: true`: `node --test --experimental-test-coverage "<testGlob>"`
@@ -26,7 +26,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 - [x] Add `biome.json` / `biome.jsonc` detection
 - [x] Add `format` target: `npx biome format --write .` (cache: false)
 - [x] Add `format-check` target: `npx biome format .` (cache: true)
-- [x] Add `lint` target: `npx biome lint .` (cache: true) — only when no oxlint config
+- [x] Add `lint` target: `npx biome lint .` (cache: true) — only when neither oxlint nor ESLint owns lint
 - [x] Write tests: project with `biome.json` → format targets inferred
 
 ## 4. Mega-preset delegation — tsdown
