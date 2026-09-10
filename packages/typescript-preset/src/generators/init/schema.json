@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "init generator",
+  "description": "Registers @nx-devkit/typescript in nx.json plugins and prints a post-setup checklist.",
+  "type": "object",
+  "properties": {
+    "pluginPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Module specifier for the plugin in nx.json plugins[]. Use a relative path or package name.",
+      "default": "@nx-devkit/typescript"
+    }
+  },
+  "additionalProperties": false
+}

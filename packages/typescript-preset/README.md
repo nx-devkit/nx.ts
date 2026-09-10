@@ -9,6 +9,7 @@ For every `tsconfig.json` (outside the workspace root) the plugin infers a `type
 - **Vitest test targets** (`test`, `test:watch`, `test:coverage`) when a `vitest.config.*` exists
 - **Native Node test runner targets** (`test`, optionally `test:tap` and `test:coverage`) when test/spec files exist but no vitest config
 - **Oxlint lint** target when `.oxlintrc.*` exists
+- **ESLint lint** target when `eslint.config.*` exists (fallback when no oxlint config)
 - **Biome format/format-check/lint** targets when `biome.json` or `biome.jsonc` exists
 - **Tsdown build** target when `tsdown.config.ts` exists
 
@@ -205,9 +206,9 @@ When `coverage: true`, a `test:coverage` target is also inferred:
 
 `format` is non-cached because it writes files. `format-check` is cached.
 
-### `lint` — Biome delegation (when oxlint is disabled or no `.oxlintrc.*`)
+### `lint` — Biome delegation (when neither oxlint nor ESLint owns lint)
 
-When `biome.json` exists but oxlint is NOT providing the `lint` target (either `oxlint: false` or no `.oxlintrc.*` file), biome provides `lint`:
+When `biome.json` exists but neither oxlint nor ESLint is providing the `lint` target (either `oxlint: false` or no `.oxlintrc.*`, AND `eslint: false` or no `eslint.config.*`), biome provides `lint`:
 
 ```jsonc
 {
@@ -230,11 +231,15 @@ When `biome.json` exists but oxlint is NOT providing the `lint` target (either `
 
 ### Lint precedence
 
-When both `.oxlintrc.*` and `biome.json` exist:
-- If `oxlint: true` (default): **oxlint owns `lint`**, biome only provides `format`/`format-check`
-- If `oxlint: false`: **biome owns `lint`**
+When multiple lint configs exist, the precedence is:
 
-### `build` — Tsdown delegation (when `tsdown.config.ts` exists)
+1. **oxlint** (`.oxlintrc.*` + `oxlint: true`) — highest priority
+2. **ESLint** (`eslint.config.*` + `eslint: true`) — fallback when no oxlint config
+3. **Biome** (`biome.json` + `biome: true`) — fallback when neither oxlint nor eslint owns lint
+
+Biome always provides `format`/`format-check` when `biome.json` exists, regardless of lint ownership.
+
+### `build` — Tsdown delegation (when `tsdown.config.*` exists)
 
 ```jsonc
 {
@@ -246,6 +251,28 @@ When both `.oxlintrc.*` and `biome.json` exist:
     },
     "outputs": ["{projectRoot}/dist"],
     "cache": true,
+    "inputs": [
+      "{projectRoot}/src/**/*",
+      "{projectRoot}/tsdown.config.ts",
+      "{projectRoot}/tsconfig.json",
+      "{projectRoot}/package.json"
+    ],
+    "dependsOn": ["^build"]
+  }
+}
+```
+
+### `build:watch` — Tsdown watch mode (when `tsdown.config.*` exists)
+
+```jsonc
+{
+  "build:watch": {
+    "executor": "nx:run-commands",
+    "options": {
+      "command": "npx tsdown --watch",
+      "cwd": "{projectRoot}"
+    },
+    "cache": false,
     "inputs": [
       "{projectRoot}/src/**/*",
       "{projectRoot}/tsdown.config.ts",
@@ -281,6 +308,7 @@ Pass options via the inline plugin tuple in `nx.json`:
         "tap": false,
         "coverage": false,
         "oxlint": true,
+        "eslint": true,
         "biome": true,
         "tsdown": true,
         "testGlob": "**/*.test.{ts,js,mts,mjs}",
@@ -299,7 +327,8 @@ Pass options via the inline plugin tuple in `nx.json`:
 | `tap` | `boolean` | `false` | When `true`, infers a `test:tap` target using the native Node test runner with TAP reporter. |
 | `coverage` | `boolean` | `false` | When `true`, infers a `test:coverage` target using the native Node test runner with `--experimental-test-coverage`. |
 | `oxlint` | `boolean` | `true` | When `true` and `.oxlintrc.*` exists, infers a `lint` target via `npx oxlint .`. |
-| `biome` | `boolean` | `true` | When `true` and `biome.json`/`biome.jsonc` exists, infers `format`/`format-check` (and `lint` when oxlint is not providing it). |
+| `eslint` | `boolean` | `true` | When `true` and `eslint.config.*` exists (and oxlint is not owning lint), infers a `lint` target via `npx eslint .`. |
+| `biome` | `boolean` | `true` | When `true` and `biome.json`/`biome.jsonc` exists, infers `format`/`format-check` (and `lint` when neither oxlint nor ESLint is providing it). |
 | `tsdown` | `boolean` | `true` | When `true` and `tsdown.config.ts` exists, infers a `build` target via `npx tsdown`. |
 | `testGlob` | `string` | `"**/*.test.{ts,js,mts,mjs}"` | Glob pattern for detecting native test files. |
 | `specGlob` | `string` | `"**/*.spec.{ts,js,mts,mjs}"` | Glob pattern for detecting spec files. |

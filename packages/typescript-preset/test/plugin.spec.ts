@@ -7,6 +7,7 @@ import {
   createNodesV2,
   expandBraces,
   globToRegExp,
+  inferEslintTarget,
   inferTypecheckTarget,
   inferVitestTargets,
   isVerbose,
@@ -547,6 +548,109 @@ describe('oxlint lint delegation', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Mega-preset: ESLint lint delegation
+// ---------------------------------------------------------------------------
+
+describe('eslint lint delegation', () => {
+  it('inferEslintTarget produces a cached lint target', () => {
+    const t = inferEslintTarget('/w/packages/foo')
+    expect(t.executor).toBe('nx:run-commands')
+    expect(t.options.command).toBe('npx eslint .')
+    expect(t.options.cwd).toBe('/w/packages/foo')
+    expect(t.cache).toBe(true)
+    expect(t.inputs).toEqual(
+      expect.arrayContaining([
+        '{projectRoot}/**/*',
+        '{projectRoot}/eslint.config.*',
+        '{projectRoot}/package.json',
+      ]),
+    )
+  })
+
+  it('infers lint target when eslint.config.mjs exists (no oxlint)', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/eslint.config.mjs')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeDefined()
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('eslint')
+      expect(opts.command).not.toContain('oxlint')
+      expect(opts.command).not.toContain('biome')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('oxlint wins over eslint when both configs exist', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/.oxlintrc.json')
+      touch(root, 'packages/foo/eslint.config.mjs')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('oxlint')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not infer eslint lint when eslint:false', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/eslint.config.mjs')
+      const result = callCreateNodes([ts], { eslint: false }, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.lint).toBeUndefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('eslint wins over biome for lint when both exist', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/eslint.config.mjs')
+      touch(root, 'packages/foo/biome.json')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('eslint')
+      expect(opts.command).not.toContain('biome lint')
+      // biome still provides format targets
+      expect(proj.targets?.format).toBeDefined()
+      expect(proj.targets?.['format-check']).toBeDefined()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('biome provides lint when neither oxlint nor eslint config exists', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/biome.json')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      const lint = proj.targets?.lint as Record<string, unknown>
+      const opts = lint.options as Record<string, unknown>
+      expect(opts.command).toContain('biome lint')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Mega-preset: Biome format/lint delegation
 // ---------------------------------------------------------------------------
 
@@ -633,6 +737,25 @@ describe('tsdown build delegation', () => {
     }
   })
 
+  it('infers build:watch target from tsdown.config.ts', () => {
+    const root = makeWorkspace()
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json')
+      touch(root, 'packages/foo/tsdown.config.ts')
+      const result = callCreateNodes([ts], {}, root)
+      const proj = firstProject(result, 'packages/foo')
+      expect(proj.targets?.['build:watch']).toBeDefined()
+      const watch = proj.targets?.['build:watch'] as Record<string, unknown>
+      expect(watch.executor).toBe('nx:run-commands')
+      const opts = watch.options as Record<string, unknown>
+      expect(opts.command).toBe('npx tsdown --watch')
+      expect(opts.cwd).toBe('packages/foo')
+      expect(watch.cache).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('does not infer build when tsdown:false', () => {
     const root = makeWorkspace()
     try {
@@ -641,6 +764,7 @@ describe('tsdown build delegation', () => {
       const result = callCreateNodes([ts], { tsdown: false }, root)
       const proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeUndefined()
+      expect(proj.targets?.['build:watch']).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

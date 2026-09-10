@@ -36,6 +36,8 @@ export interface NxDevkitTypescriptOptions {
   coverage?: boolean;
   /** Infer `lint` target from `.oxlintrc.*`. Default: true. */
   oxlint?: boolean;
+  /** Infer `lint` target from `eslint.config.*`. Default: true. */
+  eslint?: boolean;
   /** Infer `format`/`format-check`/`lint` from `biome.json`. Default: true. */
   biome?: boolean;
   /** Infer `build` target from `tsdown.config.ts`. Default: true. */
@@ -56,16 +58,19 @@ export interface NxDevkitTypescriptOptions {
 | `test` | test/spec files (no vitest config) | Native Node test runner: `node --test --test-reporter spec`. |
 | `test:tap` | test/spec files + `tap: true` | Native Node test runner with TAP reporter. Uses `>` not `\| tee`. |
 | `test:coverage` | test/spec files + `coverage: true` | Native Node test runner with `--experimental-test-coverage`. |
-| `lint` | `.oxlintrc.*` + `oxlint: true` | `npx oxlint .`. Oxlint wins over biome for `lint`. |
-| `lint` | `biome.json` + oxlint NOT providing lint | `npx biome lint .`. Only when oxlint disabled or no `.oxlintrc.*`. |
+| `lint` | `.oxlintrc.*` + `oxlint: true` | `npx oxlint .`. Oxlint wins over eslint and biome for `lint`. |
+| `lint` | `eslint.config.*` + `eslint: true` | `npx eslint .`. ESLint wins over biome for `lint`. Only when oxlint is not owning it. |
+| `lint` | `biome.json` + oxlint AND eslint NOT providing lint | `npx biome lint .`. Only when oxlint disabled or no `.oxlintrc.*`, and eslint disabled or no `eslint.config.*`. |
 | `format` / `format-check` | `biome.json` + `biome: true` | `format` writes files (cache false), `format-check` is cached. |
 | `build` | `tsdown.config.ts` + `tsdown: true` | `npx tsdown`, outputs `{projectRoot}/dist`, `dependsOn: ['^build']`. |
+| `build:watch` | `tsdown.config.ts` + `tsdown: true` | `npx tsdown --watch`, cache disabled. |
 
 ### Lint precedence
 
 When both `.oxlintrc.*` and `biome.json` exist:
 - `oxlint: true` (default) → oxlint owns `lint`, biome only provides `format`/`format-check`
-- `oxlint: false` → biome owns `lint`
+- `oxlint: false` → eslint owns `lint` if `eslint.config.*` exists and `eslint: true`
+- `oxlint: false` + `eslint: false` → biome owns `lint`
 
 ## Scope rules
 

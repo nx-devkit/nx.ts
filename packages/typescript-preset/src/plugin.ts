@@ -18,6 +18,8 @@ export interface NxDevkitTypescriptOptions {
   coverage?: boolean
   /** Infer `lint` target from `.oxlintrc.*`. Default: true. */
   oxlint?: boolean
+  /** Infer `lint` target from `eslint.config.*`. Default: true. */
+  eslint?: boolean
   /** Infer `format`/`format-check`/`lint` from `biome.json`. Default: true. */
   biome?: boolean
   /** Infer `build` target from `tsdown.config.ts`. Default: true. */
@@ -109,6 +111,7 @@ export function shouldSkipPath(
 export function inferTypecheckTarget(
   projectRoot: string,
   options: Required<Pick<NxDevkitTypescriptOptions, 'tsgo' | 'configFile' | 'clean'>>,
+  hasNativePreview = true,
 ): {
   executor: 'nx:run-commands'
   options: { command: string; cwd: string }
@@ -123,6 +126,19 @@ export function inferTypecheckTarget(
     ? `${executorCommand} --build --clean ${options.configFile} && ${buildCommand}`
     : buildCommand
 
+  const inputs: (string | { externalDependencies: string[] })[] = [
+    `{projectRoot}/src/**/*.ts`,
+    `{projectRoot}/${options.configFile}`,
+    `{projectRoot}/package.json`,
+    `{workspaceRoot}/tsconfig.base.json`,
+  ]
+  // Only declare external dependency if the package is actually installed
+  // in the project's package.json (or workspace root). Otherwise Nx will
+  // fail to hash the target.
+  if (options.tsgo ? hasNativePreview : true) {
+    inputs.push({ externalDependencies: [externalDependency] })
+  }
+
   return {
     executor: 'nx:run-commands',
     options: {
@@ -130,13 +146,7 @@ export function inferTypecheckTarget(
       cwd: projectRoot,
     },
     cache: true,
-    inputs: [
-      `{projectRoot}/src/**/*.ts`,
-      `{projectRoot}/${options.configFile}`,
-      `{projectRoot}/package.json`,
-      `{workspaceRoot}/tsconfig.base.json`,
-      { externalDependencies: [externalDependency] },
-    ],
+    inputs,
   }
 }
 
@@ -245,6 +255,15 @@ const OXLINTRC_NAMES = [
   '.oxlintrc.cts',
 ]
 
+const ESLINT_CONFIG_NAMES = [
+  'eslint.config.js',
+  'eslint.config.mjs',
+  'eslint.config.cjs',
+  'eslint.config.ts',
+  'eslint.config.mts',
+  'eslint.config.cts',
+]
+
 const BIOME_CONFIG_NAMES = ['biome.json', 'biome.jsonc']
 
 const TSDOWN_CONFIG_NAMES = [
@@ -269,6 +288,28 @@ function findConfigFile(
     }
   }
   return null
+}
+
+/**
+ * Check if @typescript/native-preview is listed in the project's package.json.
+ * Nx resolves externalDependencies from the project's own package.json, not
+ * the workspace root. If the package isn't declared there, Nx will fail to
+ * hash the target.
+ */
+function checkNativePreview(projectRoot: string, workspaceRoot: string): boolean {
+  const absProjectRoot = resolve(workspaceRoot, projectRoot)
+  const pkgPath = join(absProjectRoot, 'package.json')
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+    const allDeps = {
+      ...(pkg.dependencies as Record<string, string> | undefined),
+      ...(pkg.devDependencies as Record<string, string> | undefined),
+      ...(pkg.peerDependencies as Record<string, string> | undefined),
+    }
+    return '@typescript/native-preview' in allDeps
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -496,6 +537,27 @@ export function inferOxlintTarget(projectRoot: string): {
   }
 }
 
+export function inferEslintTarget(projectRoot: string): {
+  executor: 'nx:run-commands'
+  options: { command: string; cwd: string }
+  cache: true
+  inputs: string[]
+} {
+  return {
+    executor: 'nx:run-commands',
+    options: {
+      command: 'npx eslint .',
+      cwd: projectRoot,
+    },
+    cache: true,
+    inputs: [
+      '{projectRoot}/**/*',
+      '{projectRoot}/eslint.config.*',
+      '{projectRoot}/package.json',
+    ],
+  }
+}
+
 export function inferBiomeTargets(
   projectRoot: string,
   includeLint: boolean,
@@ -593,6 +655,30 @@ export function inferTsdownBuildTarget(projectRoot: string): {
   }
 }
 
+export function inferTsdownWatchTarget(projectRoot: string): {
+  executor: 'nx:run-commands'
+  options: { command: string; cwd: string }
+  cache: false
+  inputs: string[]
+  dependsOn: string[]
+} {
+  return {
+    executor: 'nx:run-commands',
+    options: {
+      command: 'npx tsdown --watch',
+      cwd: projectRoot,
+    },
+    cache: false,
+    inputs: [
+      '{projectRoot}/src/**/*',
+      '{projectRoot}/tsdown.config.*',
+      '{projectRoot}/tsconfig.json',
+      '{projectRoot}/package.json',
+    ],
+    dependsOn: ['^build'],
+  }
+}
+
 export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
   '**/tsconfig*.json',
   (configFiles, options = {}, context) => {
@@ -602,6 +688,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
     const tap = options.tap ?? false
     const coverage = options.coverage ?? false
     const oxlint = options.oxlint ?? true
+    const eslint = options.eslint ?? true
     const biome = options.biome ?? true
     const tsdown = options.tsdown ?? true
     const testGlob = options.testGlob ?? '**/*.test.{ts,js,mts,mjs}'
@@ -632,11 +719,20 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         // Use the relative project root as cwd so targets are portable.
         const relProjectRoot = projectKey
 
-        const typecheckTarget = inferTypecheckTarget(relProjectRoot, {
-          tsgo,
-          configFile: configFileName,
-          clean,
-        })
+        // Check if @typescript/native-preview is available in the project's
+        // package.json or the workspace root package.json. If not, skip the
+        // external dependency declaration to avoid Nx hashing failures.
+        const hasNativePreview = checkNativePreview(projectRoot, workspaceRoot)
+
+        const typecheckTarget = inferTypecheckTarget(
+          relProjectRoot,
+          {
+            tsgo,
+            configFile: configFileName,
+            clean,
+          },
+          hasNativePreview,
+        )
 
         const targets: Record<string, TargetConfiguration> = {
           typecheck: typecheckTarget,
@@ -665,12 +761,20 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           targets.lint = inferOxlintTarget(relProjectRoot)
         }
 
+        // ESLint lint delegation (fallback when oxlint is not owning lint)
+        if (!oxlintOwnsLint && eslint) {
+          const eslintConfigPath = findConfigFile(projectRoot, workspaceRoot, ESLINT_CONFIG_NAMES)
+          if (eslintConfigPath) {
+            targets.lint = inferEslintTarget(relProjectRoot)
+          }
+        }
+
         // Biome format/lint delegation
         if (biome) {
           const biomeConfigPath = findConfigFile(projectRoot, workspaceRoot, BIOME_CONFIG_NAMES)
           if (biomeConfigPath) {
-            // Biome provides lint only when oxlint is not owning it.
-            const biomeProvidesLint = !oxlintOwnsLint
+            // Biome provides lint only when neither oxlint nor eslint owns it.
+            const biomeProvidesLint = !oxlintOwnsLint && !('lint' in targets && targets.lint)
             Object.assign(targets, inferBiomeTargets(relProjectRoot, biomeProvidesLint))
           }
         }
@@ -680,6 +784,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           const tsdownConfigPath = findConfigFile(projectRoot, workspaceRoot, TSDOWN_CONFIG_NAMES)
           if (tsdownConfigPath) {
             targets.build = inferTsdownBuildTarget(relProjectRoot)
+            targets['build:watch'] = inferTsdownWatchTarget(relProjectRoot)
           }
         }
 
