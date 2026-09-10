@@ -7,3 +7,7 @@ exclude_paths:
   - "**/coverage/**"
   - "**/.nx/**"
   - "**/.nx-cache/**"
+engines:
+  eslint-8:
+    exclude_paths:
+      - "packages/typescript-preset/src/plugin.ts"
