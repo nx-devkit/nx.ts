@@ -46,6 +46,10 @@
         "@nx/devkit": "22.7.1",
       },
     },
+    "packages/internal": {
+      "name": "@nx-devkit/internal",
+      "version": "0.0.0",
+    },
     "packages/oxlint": {
       "name": "@nx-devkit/oxlint",
       "version": "0.0.1",
@@ -63,7 +67,7 @@
     },
     "packages/prepare-for-release": {
       "name": "@nx-devkit/prepare-for-release",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@nx/devkit": "22.7.1",
         "tinyglobby": "^0.2.0",
@@ -81,8 +85,9 @@
     },
     "packages/skill": {
       "name": "@nx-devkit/skill",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "devDependencies": {
+        "@nx-devkit/internal": "workspace:*",
         "@nx/devkit": "22.7.1",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
@@ -96,8 +101,9 @@
     },
     "packages/skillspector": {
       "name": "@nx-devkit/skillspector",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "devDependencies": {
+        "@nx-devkit/internal": "workspace:*",
         "@nx/devkit": "22.7.1",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
@@ -111,11 +117,12 @@
     },
     "packages/tsdown": {
       "name": "@nx-devkit/tsdown",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "tsdown": "^0.22.3",
       },
       "devDependencies": {
+        "@nx-devkit/internal": "workspace:*",
         "@nx/devkit": "^22.7.1",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
@@ -128,7 +135,7 @@
     },
     "packages/typescript-preset": {
       "name": "@nx-devkit/typescript",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "devDependencies": {
         "tsdown": "^0.22.3",
         "vitest": "^4.1.9",
@@ -444,6 +451,8 @@
     "@nx-devkit/biome": ["@nx-devkit/biome@workspace:packages/biome"],
 
     "@nx-devkit/demo-workspace": ["@nx-devkit/demo-workspace@workspace:apps/demo"],
+
+    "@nx-devkit/internal": ["@nx-devkit/internal@workspace:packages/internal"],
 
     "@nx-devkit/oxlint": ["@nx-devkit/oxlint@workspace:packages/oxlint"],
 
