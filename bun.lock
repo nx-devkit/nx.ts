@@ -62,7 +62,7 @@
       },
       "peerDependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
-        "nx": "22.7.1",
+        "nx": "^22.0.0 || ^23.0.0",
       },
     },
     "packages/prepare-for-release": {
