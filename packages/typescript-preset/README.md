@@ -2,6 +2,38 @@
 
 A preset Nx plugin that infers `typecheck`, `test`, `lint`, `format`, and `build` targets for any project that has a `tsconfig.json`, without requiring a `project.json`.
 
+## One-command bootstrap
+
+```bash
+npx @nx-devkit/typescript init
+```
+
+This single command:
+1. Registers `@nx-devkit/typescript` as the **sole plugin** in `nx.json` (removes any existing `@nx-devkit/*` standalone entries)
+2. Detects config files in your workspace (`tsconfig.json`, `vitest.config.*`, `.oxlintrc.*`, `biome.json`, `tsdown.config.*`)
+3. Installs missing peer dependencies (`tsdown`, `oxlint`, `@biomejs/biome`, `vitest`, `typescript`)
+4. Prints a summary of detected projects and inferred targets
+
+If your project doesn't have Nx yet, the bootstrap installs `nx` + `@nx/devkit` automatically.
+
+### Manual setup (without the bootstrap command)
+
+```bash
+bun add -D @nx-devkit/typescript
+```
+
+Then add to `nx.json`:
+
+```jsonc
+{
+  "plugins": ["@nx-devkit/typescript"]
+}
+```
+
+That's it — one plugin entry. The preset auto-detects everything else.
+
+Peer dependency: `@nx/devkit` >= 22.
+
 ## What it does
 
 For every `tsconfig.json` (outside the workspace root) the plugin infers a `typecheck` target. Depending on which configuration files are present in the project, it also infers:
@@ -13,25 +45,7 @@ For every `tsconfig.json` (outside the workspace root) the plugin infers a `type
 - **Biome format/format-check/lint** targets when `biome.json` or `biome.jsonc` exists
 - **Tsdown build** target when `tsdown.config.ts` exists
 
-This is a "mega-preset" plugin: it owns the cross-cutting `typecheck`, `test`, `lint`, `format`, and `build` logic that most TypeScript projects need, so per-tool plugins don't have to re-implement it.
-
-## Install
-
-```bash
-bun add -D @nx-devkit/typescript
-```
-
-Peer dependency: `@nx/devkit` >= 22.
-
-## Register in nx.json
-
-```jsonc
-{
-  "plugins": ["@nx-devkit/typescript"]
-}
-```
-
-The plugin needs no other setup. By default it scans every `tsconfig.json` in the workspace.
+This is a "mega-preset" plugin: it owns the cross-cutting `typecheck`, `test`, `lint`, `format`, and `build` logic that most TypeScript projects need, so per-tool plugins don't have to re-implement it. Standalone plugins (`@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome`) remain available for consumers who want only one tool.
 
 ## Targets generated
 
