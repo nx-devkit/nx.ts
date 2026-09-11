@@ -1,13 +1,15 @@
-import { globSync } from 'node:fs'
+import { glob } from 'node:fs/promises'
 
 /**
  * Check if any file in `rootDir` matches the given glob pattern.
- * Uses Node.js built-in `fs.globSync` (Node 22+).
+ * Uses Node.js built-in `fs.glob` (Node 22+) with async I/O.
  */
-export function globMatch(rootDir: string, pattern: string): boolean {
+export async function globMatch(rootDir: string, pattern: string): Promise<boolean> {
   try {
-    const matches = globSync(pattern, { cwd: rootDir })
-    return matches.length > 0
+    for await (const _ of glob(pattern, { cwd: rootDir })) {
+      return true
+    }
+    return false
   } catch {
     return false
   }

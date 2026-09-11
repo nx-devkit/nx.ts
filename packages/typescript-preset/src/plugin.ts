@@ -35,7 +35,7 @@ const PLUGIN_SCOPE = 'nx-typescript'
 
 export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
   '**/tsconfig*.json',
-  (configFiles, options = {}, context) => {
+  async (configFiles, options = {}, context) => {
     const configFileName = options.configFile ?? 'tsconfig.json'
     const tsgo = options.tsgo ?? true
     const clean = options.clean ?? false
@@ -55,8 +55,8 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
 
     logDebug(PLUGIN_SCOPE, `Detected ${filteredConfigFiles.length} ${configFileName} files`)
 
-    return filteredConfigFiles
-      .map((configFile) => {
+    const results = await Promise.all(
+      filteredConfigFiles.map(async (configFile) => {
         const projectRoot = dirname(configFile)
 
         if (shouldSkipPath(projectRoot, workspaceRoot)) {
@@ -72,7 +72,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
 
         const relProjectRoot = projectKey
 
-        const hasNativePreview = checkNativePreview(projectRoot, workspaceRoot)
+        const hasNativePreview = await checkNativePreview(projectRoot, workspaceRoot)
 
         const typecheckTarget = inferTypecheckTarget(
           relProjectRoot,
@@ -88,13 +88,14 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           typecheck: typecheckTarget,
         }
 
-        const vitestConfigPath = findVitestConfig(projectRoot, workspaceRoot)
+        const vitestConfigPath = await findVitestConfig(projectRoot, workspaceRoot)
         if (vitestConfigPath) {
           Object.assign(targets, inferVitestTargets(relProjectRoot, vitestConfigPath))
         } else {
           const absProjectRoot = resolve(workspaceRoot, projectRoot)
           const hasTestFiles =
-            globMatch(absProjectRoot, testGlob) || globMatch(absProjectRoot, specGlob)
+            (await globMatch(absProjectRoot, testGlob)) ||
+            (await globMatch(absProjectRoot, specGlob))
           if (hasTestFiles) {
             Object.assign(
               targets,
@@ -103,21 +104,29 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           }
         }
 
-        const oxlintrcPath = findConfigFile(projectRoot, workspaceRoot, OXLINTRC_NAMES)
+        const oxlintrcPath = await findConfigFile(projectRoot, workspaceRoot, OXLINTRC_NAMES)
         const oxlintOwnsLint = oxlint && oxlintrcPath !== null
         if (oxlintOwnsLint) {
           targets.lint = inferOxlintTarget(relProjectRoot)
         }
 
         if (!oxlintOwnsLint && eslint) {
-          const eslintConfigPath = findConfigFile(projectRoot, workspaceRoot, ESLINT_CONFIG_NAMES)
+          const eslintConfigPath = await findConfigFile(
+            projectRoot,
+            workspaceRoot,
+            ESLINT_CONFIG_NAMES,
+          )
           if (eslintConfigPath) {
             targets.lint = inferEslintTarget(relProjectRoot)
           }
         }
 
         if (biome) {
-          const biomeConfigPath = findConfigFile(projectRoot, workspaceRoot, BIOME_CONFIG_NAMES)
+          const biomeConfigPath = await findConfigFile(
+            projectRoot,
+            workspaceRoot,
+            BIOME_CONFIG_NAMES,
+          )
           if (biomeConfigPath) {
             const biomeProvidesLint = !oxlintOwnsLint && !('lint' in targets && targets.lint)
             Object.assign(targets, inferBiomeTargets(relProjectRoot, biomeProvidesLint))
@@ -125,7 +134,11 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         }
 
         if (tsdown) {
-          const tsdownConfigPath = findConfigFile(projectRoot, workspaceRoot, TSDOWN_CONFIG_NAMES)
+          const tsdownConfigPath = await findConfigFile(
+            projectRoot,
+            workspaceRoot,
+            TSDOWN_CONFIG_NAMES,
+          )
           if (tsdownConfigPath) {
             targets.build = inferTsdownBuildTarget(relProjectRoot)
             targets['build:watch'] = inferTsdownWatchTarget(relProjectRoot)
@@ -143,7 +156,9 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           },
         ]
         return result
-      })
-      .filter((result): result is [string, CreateNodesResult] => result !== null)
+      }),
+    )
+
+    return results.filter((r): r is [string, CreateNodesResult] => r !== null)
   },
 ]
