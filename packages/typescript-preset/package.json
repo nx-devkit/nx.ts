@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@nx/devkit": "^22.0.0"
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
   },
   "devDependencies": {
     "@nx-devkit/internal": "workspace:*",
