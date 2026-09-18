@@ -319,7 +319,13 @@ function runTrustFor(pkgName: string, trustRepo: string, registry?: string): Pro
  * are never returned — sending one to the wrong host would leak it.
  */
 function readNpmAuthToken(registry: string, cwd: string): string | null {
-  const host = new URL(registry).host
+  const url = new URL(registry)
+  // Npmrc keys mirror the registry origin+path: //host/path/:_authToken.
+  // A bare host has pathname "/", yielding "//host".
+  const registryKey = `//${url.host}${url.pathname.replace(/\/+$/, '')}`
+  const keyRe = new RegExp(
+    `${registryKey.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/:_authToken=(\\S+)`,
+  )
   const candidates = [join(cwd, '.npmrc'), join(homedir(), '.npmrc')]
   for (const rcPath of candidates) {
     let text: string
@@ -328,9 +334,7 @@ function readNpmAuthToken(registry: string, cwd: string): string | null {
     } catch {
       continue
     }
-    const hostMatch = text.match(
-      new RegExp(`//${host.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/:_authToken=(\\S+)`),
-    )
+    const hostMatch = text.match(keyRe)
     const unscopedMatch = text.match(/^\s*_authToken\s*=\s*(\S+)/m)
     const match = hostMatch ?? unscopedMatch
     if (match) return match[1]

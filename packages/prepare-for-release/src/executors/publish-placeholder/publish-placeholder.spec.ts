@@ -532,6 +532,7 @@ describe('publishPlaceholderExecutor', () => {
       globalThis.fetch = originalFetch
       if (originalHome === undefined) delete process.env.HOME
       else process.env.HOME = originalHome
+      rmSync(home, { recursive: true, force: true })
     }
   })
 
@@ -582,6 +583,7 @@ describe('publishPlaceholderExecutor', () => {
       globalThis.fetch = originalFetch
       if (originalHome === undefined) delete process.env.HOME
       else process.env.HOME = originalHome
+      rmSync(home, { recursive: true, force: true })
     }
   })
 

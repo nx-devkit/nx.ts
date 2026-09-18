@@ -100,6 +100,7 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
     ])[] = []
     const toolsResults: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] =
       []
+    let publishableManifests = 0
     for (const configFile of configFiles) {
       const normalized = configFile.replace(/\\/g, '/')
       const projectRoot = dirname(normalized).replace(/\/+$/, '')
@@ -138,6 +139,7 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
       if (!publishablePackageName(normalized, context.workspaceRoot)) {
         continue
       }
+      publishableManifests += 1
       if (
         exclude.some((prefix) => projectRoot === prefix || projectRoot.startsWith(`${prefix}/`))
       ) {
@@ -159,10 +161,11 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
         },
       ])
     }
-    // The legacy tools target scans every package — suppress it when
-    // Per-package targets exist so `nx run-many -t` never processes a
-    // Package twice. `packageTargets: false` restores tools-only mode.
-    return packageResults.length > 0 ? packageResults : toolsResults
+    // The legacy tools target scans every package — suppress it whenever
+    // Publishable manifests were seen, even if `exclude` filtered them all
+    // Out (tools mode ignores `exclude` and would republish them).
+    // Option `packageTargets: false` restores tools-only mode.
+    return publishableManifests > 0 ? packageResults : toolsResults
   },
 ]
 

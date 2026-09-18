@@ -211,6 +211,35 @@ describe('createNodesV2', () => {
     expect(roots).toEqual(['packages/lib'])
   })
 
+  it('suppresses the tools target when all publishable packages are excluded', () => {
+    const toolsDir = join(workspace, 'tools')
+    mkdirSync(toolsDir, { recursive: true })
+    writeFileSync(
+      join(toolsDir, 'project.json'),
+      JSON.stringify({
+        targets: {
+          'prepare-for-release': { executor: '@nx-devkit/prepare-for-release:publish-placeholder' },
+        },
+      }),
+    )
+    const libDir = join(workspace, 'packages/lib')
+    mkdirSync(libDir, { recursive: true })
+    writeFileSync(
+      join(libDir, 'package.json'),
+      JSON.stringify({ name: '@acme/lib', version: '1.0.0' }),
+    )
+
+    const result = createNodesV2[1](
+      ['tools/project.json', 'packages/lib/package.json'],
+      { exclude: ['packages'] },
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    // Tools mode scans `packages/*` and ignores `exclude` — emitting it
+    // Here would republish the excluded package.
+    expect(result).toEqual([])
+  })
+
   it('keeps tools-only mode when packageTargets is false', () => {
     const toolsDir = join(workspace, 'tools')
     mkdirSync(toolsDir, { recursive: true })
