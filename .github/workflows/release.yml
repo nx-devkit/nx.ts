@@ -147,7 +147,9 @@ jobs:
           done
           if [ -n "$(git status --porcelain -- 'packages/*/CHANGELOG.md')" ]; then
             git add 'packages/*/CHANGELOG.md'
-            git commit -m "chore(release): changelogs"
+            # --no-verify: the pre-commit hook does `git add -u`, which would
+            # stage the CI-only workspace:* rewrites into this commit.
+            git commit --no-verify -m "chore(release): changelogs"
             # A merge racing in during the loop rejects this push; unlike the
             # version commit, a lost changelog commit is NOT recomputed by the
             # next run (that run only sees its own tags). Rebase + retry —
