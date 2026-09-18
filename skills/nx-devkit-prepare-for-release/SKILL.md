@@ -64,22 +64,27 @@ export interface NxPrepareForReleaseOptions {
 
 ## Example output
 
-```
-[@nx-devkit/prepare-for-release] Checking 4 packages
-[@nx-devkit/prepare-for-release] @nx-devkit/tsdown: 404 → publishing 0.0.0 placeholder
-[@nx-devkit/prepare-for-release] @nx-devkit/oxlint: 404 → publishing 0.0.0 placeholder
-[@nx-devkit/prepare-for-release] @nx-devkit/biome: 0.5.0 already on registry, skipping
-[@nx-devkit/prepare-for-release] @nx-devkit/typescript: 404 → publishing 0.0.0 placeholder
+`nx run-many -t prepare-for-release` runs one executor per package target, so output appears as per-package blocks. An unpublished package:
 
-Published: @nx-devkit/tsdown, @nx-devkit/oxlint, @nx-devkit/typescript
-Skipped:   @nx-devkit/biome
+```
+  npm requires one-time authorization for @nx-devkit/tsdown.
+  Open this URL to approve the publish:
+
+    https://www.npmjs.com/auth/cli/…
+
+  Waiting for approval...
+
+Published: @nx-devkit/tsdown
 
 Run these locally (requires MFA) to enable GitHub OIDC trusted publishing:
 
   npm trust github @nx-devkit/tsdown --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
-  npm trust github @nx-devkit/oxlint --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
-  npm trust github @nx-devkit/typescript --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
-  npm trust github @nx-devkit/biome --file release.yml --repo nx-devkit/nx.ts --allow-publish --yes
+```
+
+An already-published package:
+
+```
+Skipped:   @nx-devkit/biome
 ```
 
 ## Why npm, not bun, for the placeholder publish

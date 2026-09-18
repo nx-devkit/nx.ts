@@ -7,7 +7,9 @@ on:
 
 jobs:
   bootstrap:
-    if: github.event_name == 'workflow_dispatch'
+    # NPM_TOKEN is exposed to the checked-out tree — restrict dispatches to
+    # main so an arbitrary branch cannot run modified code with the secret.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     name: Prepare new packages for release
     runs-on: ubuntu-latest
     permissions:
@@ -24,6 +26,8 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+      - name: Upgrade npm for npm trust
+        run: npm install -g npm@latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Build prepare-for-release plugin
@@ -35,8 +39,9 @@ jobs:
         # runs `npm trust github` so each placeholder gets OIDC bound for
         # subsequent releases. Requires an NPM_TOKEN secret (automation
         # token allowed to publish @nx-devkit/* — OIDC cannot create a
-        # package that does not exist yet).
-        run: bunx nx run-many -t prepare-for-release --trust
+        # package that does not exist yet). Serialized because `npm trust`
+        # may prompt interactively and must not race on stdin.
+        run: bunx nx run-many -t prepare-for-release --trust --parallel=1
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

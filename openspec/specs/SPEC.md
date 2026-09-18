@@ -78,7 +78,7 @@ Releases are bootstrapped and then automated by `@nx-devkit/prepare-for-release`
 bunx nx run-many -t prepare-for-release --trust
 ```
 
-Each target calls `npm view <name> version`; a 404 triggers a minimal `0.0.0` placeholder tarball (built in a temp dir — the source `package.json` is never modified) published with `npm publish --access public --tag placeholder`. `--trust` runs `npm trust github` per package to bind OIDC. In CI, `release.yml`'s `bootstrap` job (workflow_dispatch) runs the same command with an `NPM_TOKEN` secret; locally it needs an npm auth token in `.npmrc`.
+Each target calls `npm view <name> version`; a 404 triggers a minimal `0.0.0` placeholder tarball (built in a temp dir — the source `package.json` is never modified) published with `npm publish --access public --tag placeholder`. `--trust` runs `npm trust github` per package to bind OIDC; without `--trust` the target only prints the exact `npm trust github` commands for a manual MFA run. In CI, `release.yml`'s `bootstrap` job (workflow_dispatch, main only) runs the same command with an `NPM_TOKEN` secret — note `npm trust` may not accept bypass-2FA automation tokens, in which case run the printed commands locally; locally it needs an npm auth token in `.npmrc`.
 
 **2. Ongoing releases (CI).** `.github/workflows/release.yml` on push to `main` (loop-guarded against `chore(release)` commits, serialized via `concurrency: release`):
 
