@@ -144,7 +144,7 @@ describe('publishPlaceholderExecutor', () => {
     expect(afterParsed.publishConfig).toBeUndefined()
   })
 
-  it('uses stdio: inherit for npm publish so OTP/MFA prompts reach the terminal', async () => {
+  it('tees piped npm publish output to the terminal (needed to detect EOTP)', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
     state.responses.set('npm pack', {
@@ -154,16 +154,27 @@ describe('publishPlaceholderExecutor', () => {
     })
     state.responses.set('npm publish', {
       status: 0,
-      stderr: '',
+      stderr: 'npm warn something',
       stdout: '+ @nx-devkit/prepare-for-release@0.0.0',
     })
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake-tarball-bytes')
 
-    await publishPlaceholderExecutor({ dryRun: false }, { root: workspace })
+    const writes: string[] = []
+    const originalWrite = process.stderr.write.bind(process.stderr)
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(((
+      chunk: unknown,
+      ...rest: unknown[]
+    ) => {
+      writes.push(String(chunk))
+      return originalWrite(chunk as never, ...(rest as never[]))
+    }) as typeof process.stderr.write)
 
-    const publishCall = state.calls.find((c) => c.args[0] === 'publish')
-    expect(publishCall).toBeDefined()
-    expect(publishCall?.options).toMatchObject({ stdio: 'inherit' })
+    try {
+      await publishPlaceholderExecutor({ dryRun: false }, { root: workspace })
+      expect(writes.join('')).toContain('npm warn something')
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('skips a package that is already published on the registry', async () => {
@@ -395,6 +406,185 @@ describe('publishPlaceholderExecutor', () => {
 
     expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
     expect(result.skipped).toEqual([])
+  })
+
+  it('packageJson option processes a single manifest outside packages/*', async () => {
+    const pkgRoot = join(workspace, 'libs', 'my-lib')
+    mkdirSync(pkgRoot, { recursive: true })
+    writeFileSync(
+      join(pkgRoot, 'package.json'),
+      JSON.stringify({ license: 'MIT', name: '@acme/my-lib', version: '0.0.0' }),
+    )
+    makePackage(workspace, '@nx-devkit/other', '0.0.0')
+
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'acme-my-lib-0.0.0.tgz'),
+    })
+    state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' })
+    writeFileSync(join(workspace, 'acme-my-lib-0.0.0.tgz'), 'fake')
+
+    const result = await publishPlaceholderExecutor(
+      { packageJson: 'libs/my-lib/package.json' },
+      { root: workspace },
+    )
+
+    expect(result.published).toEqual(['@acme/my-lib'])
+    expect(result.skipped).toEqual([])
+    const viewCall = state.calls.find((c) => c.args[0] === 'view')
+    expect(viewCall?.args).toContain('@acme/my-lib')
+    expect(viewCall?.args).not.toContain('@nx-devkit/other')
+  })
+
+  it('recovers from EOTP via web auth: prints authUrl, polls doneUrl, retries with --otp', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    writeFileSync(join(workspace, '.npmrc'), '//registry.npmjs.org/:_authToken=test-token-123\n')
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
+
+    const fetchCalls: { url: string; init?: RequestInit }[] = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      fetchCalls.push({ url: String(url), init })
+      if (String(url).includes('done')) {
+        return new Response(JSON.stringify({ otp: '654321' }), { status: 200 })
+      }
+      return new Response(
+        JSON.stringify({
+          authUrl: 'https://www.npmjs.com/auth/cli/test-auth-id',
+          doneUrl: 'https://registry.npmjs.org/-/v1/done?authId=test-auth-id',
+        }),
+        { status: 401 },
+      )
+    }) as typeof fetch
+
+    // Response patterns are matched in Map insertion order: `--otp` first so
+    // the retry (args contain --otp) succeeds while the first publish EOTPs.
+    state.responses.set('--otp', { status: 0, stderr: '', stdout: 'ok' })
+    state.responses.set('npm publish', {
+      status: 1,
+      stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
+      stdout: '',
+    })
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+
+    try {
+      const result = await publishPlaceholderExecutor({}, { root: workspace })
+      expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
+      const otpCall = state.calls.find((c) => c.args[0] === 'publish' && c.args.includes('--otp'))
+      expect(otpCall).toBeDefined()
+      expect(otpCall?.args).toContain('654321')
+      expect(fetchCalls.some((f) => f.url.includes('done'))).toBe(true)
+      const probe = fetchCalls.find((f) => !f.url.includes('done'))
+      expect(probe).toBeDefined()
+      expect(probe?.init?.headers).toMatchObject({ 'npm-auth-type': 'web' })
+      const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(printed).toContain('https://www.npmjs.com/auth/cli/test-auth-id')
+    } finally {
+      globalThis.fetch = originalFetch
+      logSpy.mockRestore()
+    }
+  })
+
+  it('never sends a host-scoped token for a different registry on EOTP', async () => {
+    // Isolates HOME so a real ~/.npmrc token can never leak into this spec.
+    const home = mkdtempSync(join(tmpdir(), 'npmrc-home-'))
+    const originalHome = process.env.HOME
+    process.env.HOME = home
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    writeFileSync(
+      join(workspace, '.npmrc'),
+      '//other-registry.example.com/:_authToken=foreign-token\n',
+    )
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
+    state.responses.set('npm publish', {
+      status: 1,
+      stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
+      stdout: '',
+    })
+
+    const fetchCalls: { url: string; init?: RequestInit }[] = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      fetchCalls.push({ url: String(url), init })
+      return new Response('{}', { status: 401 })
+    }) as typeof fetch
+
+    try {
+      await expect(publishPlaceholderExecutor({}, { root: workspace })).rejects.toThrow(
+        /no npm\s+auth token/,
+      )
+      expect(fetchCalls).toEqual([])
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalHome === undefined) delete process.env.HOME
+      else process.env.HOME = originalHome
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
+  it('uses an unscoped `_authToken` entry when no host-scoped token exists', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'npmrc-home-'))
+    const originalHome = process.env.HOME
+    process.env.HOME = home
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    writeFileSync(join(workspace, '.npmrc'), '_authToken=unscoped-token-456\n')
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
+    state.responses.set('--otp', { status: 0, stderr: '', stdout: 'ok' })
+    state.responses.set('npm publish', {
+      status: 1,
+      stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
+      stdout: '',
+    })
+
+    const fetchCalls: { url: string; init?: RequestInit }[] = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      fetchCalls.push({ url: String(url), init })
+      if (String(url).includes('done')) {
+        return Response.json({ otp: '654321' })
+      }
+      return Response.json(
+        {
+          authUrl: 'https://www.npmjs.com/auth/cli/test-auth-id',
+          doneUrl: 'https://registry.npmjs.org/-/v1/done?authId=test-auth-id',
+        },
+        { status: 401 },
+      )
+    }) as typeof fetch
+
+    try {
+      const result = await publishPlaceholderExecutor({}, { root: workspace })
+      expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
+      const probe = fetchCalls.find((f) => !f.url.includes('done'))
+      expect(probe?.init?.headers).toMatchObject({
+        authorization: 'Bearer unscoped-token-456',
+      })
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalHome === undefined) delete process.env.HOME
+      else process.env.HOME = originalHome
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 
   it('throws when `npm view` fails with a non-404 error (does not silently republish)', async () => {

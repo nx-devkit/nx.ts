@@ -5,6 +5,10 @@
   "description": "Publishes a 0.0.0 placeholder tarball to the npm registry for every workspace package that is not yet published. Idempotent.",
   "type": "object",
   "properties": {
+    "packageJson": {
+      "type": "string",
+      "description": "Path to a single package.json (workspace-relative or absolute). When set, only that package is processed — used by the per-package `prepare-for-release` target."
+    },
     "scope": {
       "type": "array",
       "items": { "type": "string" },

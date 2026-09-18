@@ -14,42 +14,27 @@ Requires `@nx/devkit` `^22 || ^23` (peer).
 
 ## Bootstrap
 
-Run the `init` generator — it registers the plugin in `nx.json` and creates a `tools` project with the `prepare-for-release` target:
-
-```bash
-npx nx g @nx-devkit/prepare-for-release:init
-```
-
-<!-- sym:generators.json → generators.init.factory,schema -->
-
-Or do it manually:
-
-1. Register the plugin in `nx.json` so `createNodesV2` can detect release-bootstrap projects:
+Register the plugin in `nx.json`:
 
 ```jsonc
 { "plugins": ["@nx-devkit/prepare-for-release"] }
 ```
 
-2. Create `tools/project.json` wired to the executor:
-
-```jsonc
-{
-  "name": "tools",
-  "targets": {
-    "prepare-for-release": {
-      "executor": "@nx-devkit/prepare-for-release:publish-placeholder"
-    }
-  }
-}
-```
-
-The plugin's `createNodesV2` scans `**/project.json` for projects whose targets reference its executor and surfaces them on the graph.
-
-Then run:
+That's all — `createNodesV2` infers a `prepare-for-release` target on every non-root `package.json` that has a `name` and is not `private: true`. Then:
 
 ```bash
-npx nx run tools:prepare-for-release
+npx nx run-many -t prepare-for-release
 ```
+
+Each target processes exactly one package; already-published packages skip via `npm view`. Opt a package out with `"private": true`, or exclude project-root prefixes via plugin options:
+
+```jsonc
+{ "plugins": [{ "plugin": "@nx-devkit/prepare-for-release", "options": { "exclude": ["fixtures"] } }] }
+```
+
+<!-- sym:generators.json → generators.init.factory,schema -->
+
+Alternatively, `npx nx g @nx-devkit/prepare-for-release:init` registers the plugin and creates a legacy `tools` project whose single `prepare-for-release` target scans `packages/*`. When per-package targets are inferred, the tools target is suppressed so `nx run-many -t` never processes a package twice — set `packageTargets: false` in plugin options to keep tools-only mode.
 
 ## What the executor does
 
@@ -62,6 +47,10 @@ For each package under `packages/*` (or your `scope` filter):
 
 Already-published packages are skipped on every run. Packages marked `private: true` are ignored entirely — no `npm view`, no publish.
 
+### Interactive auth (EOTP)
+
+When npm demands a one-time password, the executor doesn't leave you guessing: it detects the `EOTP` failure, recovers the real approval URL (npm masks it in non-TTY output), prints it, polls for your approval, and retries with `--otp`. Requires an `npm login` session token in `.npmrc`.
+
 ## Options
 
 <!-- option reference consistent with src/executors/publish-placeholder/schema.json -->
@@ -69,6 +58,7 @@ Already-published packages are skipped on every run. Packages marked `private: t
 ```jsonc
 // tools/project.json → targets.prepare-for-release.options
 {
+  "packageJson": "packages/foo/package.json",
   "scope": ["@nx-devkit"],
   "placeholderTag": "placeholder",
   "placeholderVersion": "0.0.0",
@@ -81,6 +71,7 @@ Already-published packages are skipped on every run. Packages marked `private: t
 
 | Option | Default | Effect |
 |---|---|---|
+| `packageJson` | unset | Process only this manifest (workspace-relative or absolute path). Set automatically by the per-package inferred target; leave unset for the `packages/*` scan. |
 | `scope` | every package in `packages/*` | Package scope prefixes to check. |
 | `placeholderTag` | `placeholder` | npm dist-tag applied to the placeholder publish. |
 | `placeholderVersion` | `0.0.0` | Version written into the temporary placeholder manifest. |
