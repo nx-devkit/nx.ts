@@ -132,8 +132,65 @@ function npmViewVersion(packageName: string, registry: string): string | null {
   return result.ok && result.stdout ? result.stdout : null
 }
 
-function gitRemoteTagExists(tag: string): boolean {
-  return exec('git', ['ls-remote', '--exit-code', '--tags', 'origin', `refs/tags/${tag}`]).ok
+function gitRemoteTagSha(tag: string): string | null {
+  // No --exit-code: a failed lookup (network/auth) must throw, not read as
+  // "tag absent" and let the run publish toward a tag it couldn't inspect.
+  const result = exec('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`])
+  if (!result.ok) {
+    throw new Error(`Cannot query remote tag ${tag}: ${result.stderr}`)
+  }
+  if (!result.stdout) return null
+  const lines = result.stdout.split('\n')
+  // Annotated tags may also emit a peeled "<sha>\trefs/tags/<tag>^{}" line —
+  // that sha is the commit, which is what tag equality compares against.
+  const ref =
+    lines.find((l) => l.endsWith(`\trefs/tags/${tag}^{}`)) ??
+    lines.find((l) => l.endsWith(`\trefs/tags/${tag}`))
+  return ref?.split('\t')[0] || null
+}
+
+// Fetch the tag and inspect its commit's package.json — a reusable tag must
+// mark a release commit, one carrying this exact version. Covers annotated
+// tags (whose ls-remote sha is the tag object) and release commits the branch
+// tip has since moved past. ":./" resolves against cwd, so absolute
+// packagePath values work too.
+function tagCarriesVersion(packagePath: string, tag: string, version: string): boolean {
+  const fetched = exec('git', ['fetch', '--depth=1', 'origin', `refs/tags/${tag}`])
+  if (!fetched.ok) {
+    throw new Error(`Cannot fetch remote tag ${tag} to verify its target: ${fetched.stderr}`)
+  }
+  const shown = exec('git', ['show', 'FETCH_HEAD:./package.json'], { cwd: packagePath })
+  // No package.json at the tagged commit means it cannot be the release commit
+  if (!shown.ok) return false
+  try {
+    return (JSON.parse(shown.stdout) as { version?: string }).version === version
+  } catch {
+    return false
+  }
+}
+
+// An existing remote tag on the wrong commit would suppress tag creation and
+// attach the GitHub Release to the wrong source — verify the target before
+// skipping. Publish mode intends to tag HEAD (the merged release commit), so
+// an sha match on HEAD is the fast path; both modes fall back to the content
+// check. Bump mode never tags.
+function assertTagTarget(
+  resolved: ResolvedOptions,
+  tag: string,
+  remoteTagSha: string,
+  nextVersion: string,
+): void {
+  if (resolved.mode === 'bump') return
+  const match =
+    resolved.mode === 'full'
+      ? tagCarriesVersion(resolved.packagePath, tag, nextVersion)
+      : remoteTagSha === execOrThrow('git', ['rev-parse', 'HEAD']).stdout ||
+        tagCarriesVersion(resolved.packagePath, tag, nextVersion)
+  if (!match) {
+    throw new Error(
+      `Remote tag ${tag} points at ${remoteTagSha.slice(0, 12)} — refusing to attach the ${nextVersion} release to a stale tag`,
+    )
+  }
 }
 
 function ghReleaseExists(tag: string): boolean {
@@ -394,7 +451,9 @@ function checkReleaseState(
   // Query the exact version — npm latest may have moved past nextVersion
   const alreadyPublished =
     npmViewVersion(`${resolved.packageName}@${nextVersion}`, resolved.registry) === nextVersion
-  const alreadyTagged = gitRemoteTagExists(tag)
+  const remoteTagSha = gitRemoteTagSha(tag)
+  if (remoteTagSha) assertTagTarget(resolved, tag, remoteTagSha, nextVersion)
+  const alreadyTagged = remoteTagSha !== null
   const alreadyReleased = alreadyTagged && ghReleaseExists(tag)
   return { alreadyPublished, alreadyTagged, alreadyReleased }
 }

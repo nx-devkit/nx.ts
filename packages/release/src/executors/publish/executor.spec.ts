@@ -1,4 +1,4 @@
-/* eslint-disable one-var, node/no-sync -- test style follows repo conventions, not CodeFactor's default preset */
+/* eslint-disable one-var, node/no-sync, capitalized-comments -- test style follows repo conventions, not CodeFactor's default preset */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -56,13 +56,21 @@ function mockFlow(responses: Record<string, SpawnOut> = {}): string[] {
   return calls
 }
 
+const HEAD_SHA = 'a'.repeat(40)
+const TIP_SHA = 'b'.repeat(40)
+const STALE_SHA = 'c'.repeat(40)
+
 const NO_REMOTE = {
-  'git ls-remote': fail('not found'),
+  'git ls-remote --tags': ok(''), // no tag refs — absent, not a lookup failure
+  'git ls-remote --exit-code --heads': fail('not found'),
   'git diff --cached': fail('diff'), // non-empty staged diff
 } satisfies Record<string, SpawnOut>
 
+// Full mode: tag exists and its commit carries the released version
 const RELEASED = {
-  'git ls-remote': ok('v0.4.2'),
+  'git ls-remote --tags': ok(`${HEAD_SHA}\trefs/tags/v0.4.2`),
+  'git fetch': ok(),
+  'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.4.2' })),
   'gh release view': ok(),
 } satisfies Record<string, SpawnOut>
 
@@ -95,7 +103,9 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.2')
     mockFlow({
       'npm view': ok('0.4.2'),
-      'git ls-remote': ok('v0.4.2'),
+      'git ls-remote --tags': ok(`${HEAD_SHA}\trefs/tags/v0.4.2`),
+      'git fetch': ok(),
+      'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.4.2' })),
       'gh release view': fail('not found'),
       'gh release create': ok(),
     })
@@ -105,6 +115,133 @@ describe('publishExecutor', () => {
     expect(result.releaseCreated).toBe(true)
     expect(result.published).toBe(false)
     expect(result.tagged).toBe(false)
+  })
+
+  it('mode=publish skips tagging when the remote tag already marks HEAD', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.2')
+    const calls = mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --tags': ok(`${HEAD_SHA}\trefs/tags/v0.4.2`),
+      'git rev-parse HEAD': ok(HEAD_SHA),
+      'gh release view': fail('not found'),
+      'gh release create': ok(),
+    })
+
+    const result = await publishExecutor({ packagePath: dir, mode: 'publish' })
+    expect(result.success).toBe(true)
+    expect(result.tagged).toBe(false)
+    expect(result.skipped).toContain('already tagged')
+    expect(calls.some((c) => c === 'git tag v0.4.2')).toBe(false)
+    // Sha matched — no need to fetch the tag for content verification
+    expect(calls.some((c) => c.startsWith('git fetch'))).toBe(false)
+  })
+
+  it('resolves the peeled commit of an annotated remote tag', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.2')
+    const calls = mockFlow({
+      'npm view': ok('0.4.2'),
+      // Tag object sha first, peeled commit second — the ^{} line wins
+      'git ls-remote --tags': ok(
+        `${STALE_SHA}\trefs/tags/v0.4.2\n${HEAD_SHA}\trefs/tags/v0.4.2^{}`,
+      ),
+      'git rev-parse HEAD': ok(HEAD_SHA),
+      'gh release view': fail('not found'),
+      'gh release create': ok(),
+    })
+
+    const result = await publishExecutor({ packagePath: dir, mode: 'publish' })
+    expect(result.success).toBe(true)
+    expect(result.tagged).toBe(false)
+    expect(calls.some((c) => c.startsWith('git fetch'))).toBe(false)
+  })
+
+  it('mode=publish accepts a tag whose commit carries the version after main moved on', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.2')
+    const calls = mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --tags': ok(`${HEAD_SHA}\trefs/tags/v0.4.2`),
+      'git rev-parse HEAD': ok(TIP_SHA),
+      'git fetch': ok(),
+      'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.4.2' })),
+      'gh release view': fail('not found'),
+      'gh release create': ok(),
+    })
+
+    const result = await publishExecutor({ packagePath: dir, mode: 'publish' })
+    expect(result.success).toBe(true)
+    expect(result.tagged).toBe(false)
+    expect(result.releaseCreated).toBe(true)
+    // cwd-relative ":./" form — works for absolute packagePath too
+    expect(calls).toContainEqual('git show FETCH_HEAD:./package.json')
+  })
+
+  it('mode=publish fails loudly when the remote tag points at an unrelated commit', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.2')
+    mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --tags': ok(`${STALE_SHA}\trefs/tags/v0.4.2`),
+      'git rev-parse HEAD': ok(HEAD_SHA),
+      'git fetch': ok(),
+      'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.3.9' })),
+    })
+
+    await expect(publishExecutor({ packagePath: dir, mode: 'publish' })).rejects.toThrow(
+      'stale tag',
+    )
+  })
+
+  it('mode=full fails loudly when the remote tag does not mark the release commit', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.1')
+    mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --tags': ok(`${STALE_SHA}\trefs/tags/v0.4.2`),
+      'git fetch': ok(),
+      'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.3.9' })),
+    })
+
+    await expect(publishExecutor({ packagePath: dir, version: 'patch' })).rejects.toThrow(
+      'stale tag',
+    )
+  })
+
+  it('fails loudly when the remote tag lookup fails instead of treating it as absent', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.2')
+    mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --tags': fail('auth denied'),
+    })
+
+    await expect(publishExecutor({ packagePath: dir, mode: 'publish' })).rejects.toThrow(
+      'Cannot query remote tag v0.4.2',
+    )
+  })
+
+  it('fails with a distinct error when the tag cannot be fetched for verification', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.2')
+    mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --tags': ok(`${STALE_SHA}\trefs/tags/v0.4.2`),
+      'git rev-parse HEAD': ok(HEAD_SHA),
+      'git fetch': fail('network unreachable'),
+    })
+
+    await expect(publishExecutor({ packagePath: dir, mode: 'publish' })).rejects.toThrow(
+      'Cannot fetch remote tag v0.4.2',
+    )
+  })
+
+  it('mode=full rejects a tag on the branch tip when its commit lacks the version', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.1')
+    mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --tags': ok(`${TIP_SHA}\trefs/tags/v0.4.2`),
+      'git fetch': ok(),
+      'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.3.9' })),
+    })
+
+    await expect(publishExecutor({ packagePath: dir, version: 'patch' })).rejects.toThrow(
+      'stale tag',
+    )
   })
 
   it('dry run does nothing', async () => {
@@ -150,7 +287,7 @@ describe('publishExecutor', () => {
     mockFlow({
       'npm view': ok('0.4.1'),
       'git ls-remote --exit-code --heads': ok('refs/heads/release/v0.4.2'),
-      'git ls-remote --exit-code --tags': fail('no tag'),
+      'git ls-remote --tags': ok(''),
       'gh pr create': fail('a pull request already exists'),
     })
 
@@ -165,7 +302,7 @@ describe('publishExecutor', () => {
     mockFlow({
       'npm view': ok('0.4.1'),
       'git ls-remote --exit-code --heads': ok('refs/heads/release/v0.4.2'),
-      'git ls-remote --exit-code --tags': fail('no tag'),
+      'git ls-remote --tags': ok(''),
       'gh pr create': ok('https://github.com/x/y/pull/9'),
     })
 
@@ -195,7 +332,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.2')
     mockFlow({
       'npm view': ok('0.4.2'),
-      'git ls-remote': fail('not found'),
+      'git ls-remote --tags': ok(''),
       'gh release view': fail('not found'),
       'gh release create': ok(),
     })
@@ -228,7 +365,7 @@ describe('publishExecutor', () => {
 
   it('treats npm prerelease beta.10 as ahead of local beta.2 (semver, not lexical)', async () => {
     const dir = makePkgDir('@test/pkg', '1.0.0-beta.2')
-    mockFlow({ 'npm view': ok('1.0.0-beta.10'), 'git ls-remote': fail('not found') })
+    mockFlow({ 'npm view': ok('1.0.0-beta.10'), 'git ls-remote --tags': ok('') })
 
     const result = await publishExecutor({ packagePath: dir, version: 'patch' })
     expect(result.version).toBe('1.0.0-beta.10')
@@ -236,7 +373,7 @@ describe('publishExecutor', () => {
 
   it('graduates a prerelease to stable on patch bump (1.0.0-beta.2 → 1.0.0)', async () => {
     const dir = makePkgDir('@test/pkg', '1.0.0-beta.2')
-    mockFlow({ 'npm view': fail('not published'), 'git ls-remote': fail('not found') })
+    mockFlow({ 'npm view': fail('not published'), 'git ls-remote --tags': ok('') })
 
     const result = await publishExecutor({ packagePath: dir, version: 'patch' })
     expect(result.version).toBe('1.0.0')
@@ -272,7 +409,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.1')
     const calls = mockFlow({
       'npm view': ok('0.4.2'),
-      'git ls-remote': fail('not found'),
+      'git ls-remote --tags': ok(''),
       'git diff --cached': fail('diff'),
     })
 
