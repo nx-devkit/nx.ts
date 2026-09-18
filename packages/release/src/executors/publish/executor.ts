@@ -151,8 +151,11 @@ function gitRemoteTagSha(tag: string): string | null {
 // packagePath values work too.
 function tagCarriesVersion(packagePath: string, tag: string, version: string): boolean {
   const fetched = exec('git', ['fetch', '--depth=1', 'origin', `refs/tags/${tag}`])
-  if (!fetched.ok) return false
+  if (!fetched.ok) {
+    throw new Error(`Cannot fetch remote tag ${tag} to verify its target: ${fetched.stderr}`)
+  }
   const shown = exec('git', ['show', 'FETCH_HEAD:./package.json'], { cwd: packagePath })
+  // No package.json at the tagged commit means it cannot be the release commit
   if (!shown.ok) return false
   try {
     return (JSON.parse(shown.stdout) as { version?: string }).version === version

@@ -203,6 +203,20 @@ describe('publishExecutor', () => {
     )
   })
 
+  it('fails with a distinct error when the tag cannot be fetched for verification', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.2')
+    mockFlow({
+      'npm view': ok('0.4.2'),
+      'git ls-remote --exit-code --tags': ok(`${STALE_SHA}\trefs/tags/v0.4.2`),
+      'git rev-parse HEAD': ok(HEAD_SHA),
+      'git fetch': fail('network unreachable'),
+    })
+
+    await expect(publishExecutor({ packagePath: dir, mode: 'publish' })).rejects.toThrow(
+      'Cannot fetch remote tag v0.4.2',
+    )
+  })
+
   it('mode=full rejects a tag on the branch tip when its commit lacks the version', async () => {
     const dir = makePkgDir('@test/pkg', '0.4.1')
     mockFlow({
