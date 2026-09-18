@@ -44,6 +44,7 @@ const NPM_SUBPROCESS_TIMEOUT_MS = 120_000
 const EOTP_RE = /\bEOTP\b|one-time password/i
 const WEB_AUTH_TIMEOUT_MS = 5 * 60_000
 const WEB_AUTH_POLL_MS = 4_000
+const WEB_AUTH_FETCH_TIMEOUT_MS = 15_000
 
 interface ResolvedOptions {
   registry: string
@@ -313,8 +314,9 @@ function runTrustFor(pkgName: string, trustRepo: string, registry?: string): Pro
 
 /**
  * Locate an npm auth token for `registry`: prefers a host-scoped
- * `//host/:_authToken=` entry in `<cwd>/.npmrc`, then `~/.npmrc`, then any
- * `_authToken` entry. Returns null when the user is not logged in.
+ * `//host/:_authToken=` entry in `<cwd>/.npmrc`, then `~/.npmrc`, then an
+ * unscoped `_authToken=` line. Host-scoped tokens for OTHER registries
+ * are never returned — sending one to the wrong host would leak it.
  */
 function readNpmAuthToken(registry: string, cwd: string): string | null {
   const host = new URL(registry).host
@@ -329,8 +331,8 @@ function readNpmAuthToken(registry: string, cwd: string): string | null {
     const hostMatch = text.match(
       new RegExp(`//${host.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/:_authToken=(\\S+)`),
     )
-    const anyMatch = text.match(/_authToken=(\S+)/)
-    const match = hostMatch ?? anyMatch
+    const unscopedMatch = text.match(/^\s*_authToken\s*=\s*(\S+)/m)
+    const match = hostMatch ?? unscopedMatch
     if (match) return match[1]
   }
   return null
@@ -361,6 +363,7 @@ async function requestWebAuthUrls(
       'npm-command': 'publish',
     },
     method: 'PUT',
+    signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
   })
   const text = await res.text()
   let parsed: Partial<WebAuthUrls> = {}
@@ -385,6 +388,7 @@ async function pollForWebAuthOtp(doneUrl: string, token: string): Promise<string
   while (Date.now() < deadline) {
     const res = await fetch(doneUrl, {
       headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
     }).catch(() => null)
     if (res?.ok) {
       const body = (await res.json().catch(() => null)) as { otp?: string } | null

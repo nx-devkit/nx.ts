@@ -178,6 +178,66 @@ describe('createNodesV2', () => {
     expect(roots).toEqual(['packages/lib'])
   })
 
+  it('suppresses the legacy tools target when per-package targets exist', () => {
+    const toolsDir = join(workspace, 'tools')
+    mkdirSync(toolsDir, { recursive: true })
+    writeFileSync(
+      join(toolsDir, 'project.json'),
+      JSON.stringify({
+        targets: {
+          'prepare-for-release': { executor: '@nx-devkit/prepare-for-release:publish-placeholder' },
+        },
+      }),
+    )
+    const libDir = join(workspace, 'packages/lib')
+    mkdirSync(libDir, { recursive: true })
+    writeFileSync(
+      join(libDir, 'package.json'),
+      JSON.stringify({ name: '@acme/lib', version: '1.0.0' }),
+    )
+
+    const result = createNodesV2[1](
+      ['tools/project.json', 'packages/lib/package.json'],
+      {},
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    const roots = (result as (readonly [string, { projects: Record<string, unknown> }])[]).flatMap(
+      ([_file, body]) => Object.keys(body.projects),
+    )
+    expect(roots).toEqual(['packages/lib'])
+  })
+
+  it('keeps tools-only mode when packageTargets is false', () => {
+    const toolsDir = join(workspace, 'tools')
+    mkdirSync(toolsDir, { recursive: true })
+    writeFileSync(
+      join(toolsDir, 'project.json'),
+      JSON.stringify({
+        targets: {
+          'prepare-for-release': { executor: '@nx-devkit/prepare-for-release:publish-placeholder' },
+        },
+      }),
+    )
+    const libDir = join(workspace, 'packages/lib')
+    mkdirSync(libDir, { recursive: true })
+    writeFileSync(
+      join(libDir, 'package.json'),
+      JSON.stringify({ name: '@acme/lib', version: '1.0.0' }),
+    )
+
+    const result = createNodesV2[1](
+      ['tools/project.json', 'packages/lib/package.json'],
+      { packageTargets: false },
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    const roots = (result as (readonly [string, { projects: Record<string, unknown> }])[]).flatMap(
+      ([_file, body]) => Object.keys(body.projects),
+    )
+    expect(roots).toEqual(['tools'])
+  })
+
   it('limits inference to a custom toolsProject when provided', () => {
     const toolsDir = join(workspace, 'tools')
     mkdirSync(toolsDir, { recursive: true })

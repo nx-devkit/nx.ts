@@ -9,6 +9,13 @@ export interface NxPrepareForReleasePluginOptions {
   targetName?: string
   /** Project-root prefixes excluded from per-package inference (e.g. ["fixtures"]). */
   exclude?: string[]
+  /**
+   * Infer `prepare-for-release` on every publishable package.json.
+   * Default: true. Set false to keep only the legacy tools-project mode —
+   * when per-package targets exist, the tools target is suppressed so
+   * `nx run-many -t` never processes a package twice.
+   */
+  packageTargets?: boolean
 }
 
 const PLUGIN_NAME = '@nx-devkit/prepare-for-release'
@@ -87,7 +94,12 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
     const exclude = (options.exclude ?? []).map((e) =>
       e.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, ''),
     )
-    const results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
+    const packageResults: (readonly [
+      string,
+      { projects: Record<string, ProjectConfiguration> },
+    ])[] = []
+    const toolsResults: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] =
+      []
     for (const configFile of configFiles) {
       const normalized = configFile.replace(/\\/g, '/')
       const projectRoot = dirname(normalized).replace(/\/+$/, '')
@@ -101,7 +113,7 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
         if (toolsProjectRoot && projectRoot !== toolsProjectRoot) {
           continue
         }
-        results.push([
+        toolsResults.push([
           configFile,
           {
             projects: {
@@ -120,6 +132,9 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
       }
       // package.json — per-package inference so `nx run-many -t
       // prepare-for-release` processes each publishable package.
+      if (options.packageTargets === false) {
+        continue
+      }
       if (!publishablePackageName(normalized, context.workspaceRoot)) {
         continue
       }
@@ -128,7 +143,7 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
       ) {
         continue
       }
-      results.push([
+      packageResults.push([
         configFile,
         {
           projects: {
@@ -144,7 +159,10 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
         },
       ])
     }
-    return results
+    // The legacy tools target scans every package — suppress it when
+    // Per-package targets exist so `nx run-many -t` never processes a
+    // Package twice. `packageTargets: false` restores tools-only mode.
+    return packageResults.length > 0 ? packageResults : toolsResults
   },
 ]
 

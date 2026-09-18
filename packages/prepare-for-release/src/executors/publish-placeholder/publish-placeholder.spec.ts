@@ -489,6 +489,98 @@ describe('publishPlaceholderExecutor', () => {
     }
   })
 
+  it('never sends a host-scoped token for a different registry on EOTP', async () => {
+    // Isolates HOME so a real ~/.npmrc token can never leak into this spec.
+    const home = mkdtempSync(join(tmpdir(), 'npmrc-home-'))
+    const originalHome = process.env.HOME
+    process.env.HOME = home
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    writeFileSync(
+      join(workspace, '.npmrc'),
+      '//other-registry.example.com/:_authToken=foreign-token\n',
+    )
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
+    state.responses.set('npm publish', {
+      status: 1,
+      stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
+      stdout: '',
+    })
+
+    const fetchCalls: { url: string; init?: RequestInit }[] = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      fetchCalls.push({ url: String(url), init })
+      return new Response('{}', { status: 401 })
+    }) as typeof fetch
+
+    try {
+      await expect(publishPlaceholderExecutor({}, { root: workspace })).rejects.toThrow(
+        /no npm\s+auth token/,
+      )
+      expect(fetchCalls).toEqual([])
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalHome === undefined) delete process.env.HOME
+      else process.env.HOME = originalHome
+    }
+  })
+
+  it('uses an unscoped `_authToken` entry when no host-scoped token exists', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'npmrc-home-'))
+    const originalHome = process.env.HOME
+    process.env.HOME = home
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
+    writeFileSync(join(workspace, '.npmrc'), '_authToken=unscoped-token-456\n')
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' })
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    })
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake')
+    state.responses.set('--otp', { status: 0, stderr: '', stdout: 'ok' })
+    state.responses.set('npm publish', {
+      status: 1,
+      stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
+      stdout: '',
+    })
+
+    const fetchCalls: { url: string; init?: RequestInit }[] = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      fetchCalls.push({ url: String(url), init })
+      if (String(url).includes('done')) {
+        return Response.json({ otp: '654321' })
+      }
+      return Response.json(
+        {
+          authUrl: 'https://www.npmjs.com/auth/cli/test-auth-id',
+          doneUrl: 'https://registry.npmjs.org/-/v1/done?authId=test-auth-id',
+        },
+        { status: 401 },
+      )
+    }) as typeof fetch
+
+    try {
+      const result = await publishPlaceholderExecutor({}, { root: workspace })
+      expect(result.published).toEqual(['@nx-devkit/prepare-for-release'])
+      const probe = fetchCalls.find((f) => !f.url.includes('done'))
+      expect(probe?.init?.headers).toMatchObject({
+        authorization: 'Bearer unscoped-token-456',
+      })
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalHome === undefined) delete process.env.HOME
+      else process.env.HOME = originalHome
+    }
+  })
+
   it('throws when `npm view` fails with a non-404 error (does not silently republish)', async () => {
     makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0')
     state.responses.set('npm view', {

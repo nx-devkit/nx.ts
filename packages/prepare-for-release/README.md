@@ -20,7 +20,7 @@ Register the plugin in `nx.json`:
 { "plugins": ["@nx-devkit/prepare-for-release"] }
 ```
 
-That's all — `createNodesV2` infers a `prepare-for-release` target on every non-private `package.json` in the workspace. Then:
+That's all — `createNodesV2` infers a `prepare-for-release` target on every non-root `package.json` that has a `name` and is not `private: true`. Then:
 
 ```bash
 npx nx run-many -t prepare-for-release
@@ -34,7 +34,7 @@ Each target processes exactly one package; already-published packages skip via `
 
 <!-- sym:generators.json → generators.init.factory,schema -->
 
-Alternatively, `npx nx g @nx-devkit/prepare-for-release:init` registers the plugin and creates a legacy `tools` project whose single `prepare-for-release` target scans `packages/*` — useful when you want one task instead of per-package tasks.
+Alternatively, `npx nx g @nx-devkit/prepare-for-release:init` registers the plugin and creates a legacy `tools` project whose single `prepare-for-release` target scans `packages/*`. When per-package targets are inferred, the tools target is suppressed so `nx run-many -t` never processes a package twice — set `packageTargets: false` in plugin options to keep tools-only mode.
 
 ## What the executor does
 

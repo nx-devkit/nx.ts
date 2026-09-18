@@ -46,8 +46,8 @@ export interface NxPrepareForReleaseOptions {
 
 `createNodesV2` globs `**/{package,project}.json`:
 
-- `project.json` referencing `publish-placeholder` → tools-project target (legacy mode, scans `packages/*`).
-- `package.json` with `name` + `private !== true` → per-package `prepare-for-release` target with `options.packageJson`. This is the primary mode: `nx run-many -t prepare-for-release` processes every publishable package; already-published packages skip via `npm view`. Opt out with `private: true` or the plugin `exclude` option.
+- `project.json` referencing `publish-placeholder` → tools-project target (legacy mode, scans `packages/*`). **Suppressed whenever any per-package target is inferred** so `nx run-many -t` never processes a package twice; `packageTargets: false` in plugin options restores tools-only mode.
+- non-root `package.json` with `name` + `private !== true` → per-package `prepare-for-release` target with `options.packageJson`. This is the primary mode: `nx run-many -t prepare-for-release` processes every publishable package; already-published packages skip via `npm view`. Opt out with `private: true`, the plugin `exclude` option, or `packageTargets: false`.
 
 ## EOTP web-auth recovery
 
