@@ -38,8 +38,20 @@ export interface NxPrepareForReleaseOptions {
   dryRun?: boolean;             // default: false
   trust?: boolean;              // default: false — run `npm trust github` for all packages including already-published (requires MFA)
   trustRepo?: string;           // default: process.env.NPM_TRUST_REPO or process.env.GITHUB_REPOSITORY or "nx-devkit/nx.ts"
+  packageJson?: string;         // default: unset — when set, process only this manifest (per-package inferred target); unset = scan packages/* (tools-project mode)
 }
 ```
+
+## Inference modes
+
+`createNodesV2` globs `**/{package,project}.json`:
+
+- `project.json` referencing `publish-placeholder` → tools-project target (legacy mode, scans `packages/*`).
+- `package.json` with `name` + `private !== true` → per-package `prepare-for-release` target with `options.packageJson`. This is the primary mode: `nx run-many -t prepare-for-release` processes every publishable package; already-published packages skip via `npm view`. Opt out with `private: true` or the plugin `exclude` option.
+
+## EOTP web-auth recovery
+
+`npm publish` in non-TTY output masks the EOTP auth URL (`https://www.npmjs.com/auth/cli/***`). The executor detects `EOTP`, replicates the publish PUT with `npm-auth-type: web` (global `fetch`) to get the real `authUrl`/`doneUrl`, prints `authUrl`, polls `doneUrl` for the OTP (5 min), and retries `npm publish --otp`. Token is read from `<cwd>/.npmrc` or `~/.npmrc`.
 
 ## Scope rules
 

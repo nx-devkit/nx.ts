@@ -109,6 +109,75 @@ describe('createNodesV2', () => {
     expect(Object.keys(projects.tools.targets ?? {})).toEqual(['release-bootstrap'])
   })
 
+  it('infers a prepare-for-release target on every non-private package.json', () => {
+    const libDir = join(workspace, 'packages/lib')
+    mkdirSync(libDir, { recursive: true })
+    writeFileSync(
+      join(libDir, 'package.json'),
+      JSON.stringify({ name: '@acme/lib', version: '1.0.0', private: false }),
+    )
+
+    const result = createNodesV2[1](
+      ['packages/lib/package.json'],
+      {},
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    const projects = (
+      result as (readonly [
+        string,
+        { projects: Record<string, { targets?: Record<string, { options?: unknown }> }> },
+      ])[]
+    ).map(([_file, body]) => body.projects)[0]
+    const target = projects['packages/lib'].targets?.['prepare-for-release']
+    expect(target).toBeDefined()
+    expect(target?.options).toEqual({ packageJson: 'packages/lib/package.json' })
+  })
+
+  it('skips private and root package.json files', () => {
+    const privDir = join(workspace, 'packages/internal')
+    mkdirSync(privDir, { recursive: true })
+    writeFileSync(
+      join(privDir, 'package.json'),
+      JSON.stringify({ name: '@acme/internal', private: true }),
+    )
+    writeFileSync(join(workspace, 'package.json'), JSON.stringify({ name: 'root', private: true }))
+
+    const result = createNodesV2[1](
+      ['package.json', 'packages/internal/package.json'],
+      {},
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    expect(result).toEqual([])
+  })
+
+  it('skips package.json files matched by the exclude option', () => {
+    const fixDir = join(workspace, 'fixtures/demo')
+    mkdirSync(fixDir, { recursive: true })
+    writeFileSync(
+      join(fixDir, 'package.json'),
+      JSON.stringify({ name: '@acme/fixture', version: '0.0.0' }),
+    )
+    const libDir = join(workspace, 'packages/lib')
+    mkdirSync(libDir, { recursive: true })
+    writeFileSync(
+      join(libDir, 'package.json'),
+      JSON.stringify({ name: '@acme/lib', version: '1.0.0' }),
+    )
+
+    const result = createNodesV2[1](
+      ['fixtures/demo/package.json', 'packages/lib/package.json'],
+      { exclude: ['fixtures'] },
+      { nxJsonConfiguration: {}, workspaceRoot: workspace },
+    )
+
+    const roots = (result as (readonly [string, { projects: Record<string, unknown> }])[]).flatMap(
+      ([_file, body]) => Object.keys(body.projects),
+    )
+    expect(roots).toEqual(['packages/lib'])
+  })
+
   it('limits inference to a custom toolsProject when provided', () => {
     const toolsDir = join(workspace, 'tools')
     mkdirSync(toolsDir, { recursive: true })

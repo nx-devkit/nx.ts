@@ -1,11 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { glob } from 'tinyglobby'
 
 export interface NxPrepareForReleaseOptions {
+  /** Path to a single package.json (workspace-relative or absolute). When set, only that package is processed — used by the per-package `prepare-for-release` target. */
+  packageJson?: string
   /** Package scopes to check. Default: derived from packages/* names in the workspace. */
   scope?: string[]
   /** Npm dist-tag applied to the placeholder publish. Default: "placeholder". */
@@ -39,6 +41,10 @@ const DEFAULT_VERSION = '0.0.0'
 const TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 const NPM_SUBPROCESS_TIMEOUT_MS = 120_000
 
+const EOTP_RE = /\bEOTP\b|one-time password/i
+const WEB_AUTH_TIMEOUT_MS = 5 * 60_000
+const WEB_AUTH_POLL_MS = 4_000
+
 interface ResolvedOptions {
   registry: string
   placeholderTag: string
@@ -47,11 +53,13 @@ interface ResolvedOptions {
   trust: boolean
   trustRepo: string
   scope: string[] | undefined
+  packageJson: string | undefined
 }
 
 function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
   return {
     dryRun: options.dryRun ?? false,
+    packageJson: options.packageJson,
     placeholderTag: options.placeholderTag ?? DEFAULT_TAG,
     placeholderVersion: options.placeholderVersion ?? DEFAULT_VERSION,
     registry: options.registry ?? DEFAULT_REGISTRY,
@@ -303,10 +311,111 @@ function runTrustFor(pkgName: string, trustRepo: string, registry?: string): Pro
   })
 }
 
+/**
+ * Locate an npm auth token for `registry`: prefers a host-scoped
+ * `//host/:_authToken=` entry in `<cwd>/.npmrc`, then `~/.npmrc`, then any
+ * `_authToken` entry. Returns null when the user is not logged in.
+ */
+function readNpmAuthToken(registry: string, cwd: string): string | null {
+  const host = new URL(registry).host
+  const candidates = [join(cwd, '.npmrc'), join(homedir(), '.npmrc')]
+  for (const rcPath of candidates) {
+    let text: string
+    try {
+      text = readFileSync(rcPath, 'utf8')
+    } catch {
+      continue
+    }
+    const hostMatch = text.match(
+      new RegExp(`//${host.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/:_authToken=(\\S+)`),
+    )
+    const anyMatch = text.match(/_authToken=(\S+)/)
+    const match = hostMatch ?? anyMatch
+    if (match) return match[1]
+  }
+  return null
+}
+
+interface WebAuthUrls {
+  authUrl: string
+  doneUrl: string
+}
+
+/**
+ * npm masks the EOTP auth URL in non-TTY output. Replicating the publish
+ * PUT with `npm-auth-type: web` makes the registry return the real
+ * authUrl/doneUrl pair in the 401 body.
+ */
+async function requestWebAuthUrls(
+  pkgName: string,
+  registry: string,
+  token: string,
+): Promise<WebAuthUrls> {
+  const base = registry.endsWith('/') ? registry.slice(0, -1) : registry
+  const res = await fetch(`${base}/${pkgName.replace('/', '%2f')}`, {
+    body: '{}',
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+      'npm-auth-type': 'web',
+      'npm-command': 'publish',
+    },
+    method: 'PUT',
+  })
+  const text = await res.text()
+  let parsed: Partial<WebAuthUrls> = {}
+  try {
+    parsed = JSON.parse(text) as Partial<WebAuthUrls>
+  } catch {
+    // fall through to the error below
+  }
+  if (!parsed.authUrl || !parsed.doneUrl) {
+    throw new Error(
+      `npm web-auth probe for ${pkgName} returned no auth URL (HTTP ${res.status}): ${text}`,
+    )
+  }
+  return { authUrl: parsed.authUrl, doneUrl: parsed.doneUrl }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Poll the registry done endpoint until the web approval yields an OTP. */
+async function pollForWebAuthOtp(doneUrl: string, token: string): Promise<string | null> {
+  const deadline = Date.now() + WEB_AUTH_TIMEOUT_MS
+  while (Date.now() < deadline) {
+    const res = await fetch(doneUrl, {
+      headers: { authorization: `Bearer ${token}` },
+    }).catch(() => null)
+    if (res?.ok) {
+      const body = (await res.json().catch(() => null)) as { otp?: string } | null
+      if (body?.otp) return body.otp
+    }
+    await sleep(WEB_AUTH_POLL_MS)
+  }
+  return null
+}
+
+function runNpmPublish(
+  npmCmd: string,
+  tarballPath: string,
+  resolved: ResolvedOptions,
+  otp?: string,
+): ReturnType<typeof spawnSync> {
+  const args = publishArgs(tarballPath, resolved.registry, resolved.placeholderTag)
+  if (otp) args.push('--otp', otp)
+  const result = spawnWithTimeout(npmCmd, args, { encoding: 'utf8' })
+  // Output is piped (for EOTP detection) then teed so npm notices and
+  // warnings still reach the user's terminal.
+  if (result.stdout) process.stdout.write(result.stdout)
+  if (result.stderr) process.stderr.write(result.stderr)
+  return result
+}
+
 async function publishOnePackage(
   pkgRoot: string,
   name: string,
   resolved: ResolvedOptions,
+  workspaceRoot: string,
 ): Promise<void> {
   const { tarballPath, tempDir } = await buildPlaceholderTarball(
     pkgRoot,
@@ -316,13 +425,33 @@ async function publishOnePackage(
   )
   try {
     const npmCmd = resolveNpmCommand()
-    const publishResult = spawnWithTimeout(
-      npmCmd,
-      publishArgs(tarballPath, resolved.registry, resolved.placeholderTag),
-      { encoding: 'utf8', stdio: 'inherit' },
-    )
-    if (publishResult.status !== 0) {
-      throw new Error(`npm publish failed for ${name} (exit ${publishResult.status})`)
+    let result = runNpmPublish(npmCmd, tarballPath, resolved)
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
+    if (result.status !== 0 && EOTP_RE.test(output)) {
+      const token = readNpmAuthToken(resolved.registry, workspaceRoot)
+      if (!token) {
+        throw new Error(
+          `npm publish requires a one-time password for ${name}, but no npm ` +
+            `auth token was found in .npmrc. Run \`npm login\` first.`,
+        )
+      }
+      const { authUrl, doneUrl } = await requestWebAuthUrls(name, resolved.registry, token)
+      console.log(
+        `\n  npm requires one-time authorization for ${name}.\n` +
+          `  Open this URL to approve the publish:\n\n    ${authUrl}\n\n` +
+          `  Waiting for approval...`,
+      )
+      const otp = await pollForWebAuthOtp(doneUrl, token)
+      if (!otp) {
+        throw new Error(`Timed out waiting for npm web authorization for ${name}`)
+      }
+      result = runNpmPublish(npmCmd, tarballPath, resolved, otp)
+    }
+    if (result.status !== 0) {
+      const stderr = (result.stderr ?? '').toString()
+      throw new Error(
+        `npm publish failed for ${name} (exit ${result.status})${stderr ? `: ${stderr}` : ''}`,
+      )
     }
   } finally {
     await rm(tempDir, { force: true, recursive: true }).catch(() => undefined)
@@ -341,6 +470,7 @@ async function processPackage(
   pkgJsonPath: string,
   resolved: ResolvedOptions,
   acc: PackageAccumulators,
+  workspaceRoot: string,
 ): Promise<PackageOutcome> {
   const parsed = readPackageJsonSafe(pkgJsonPath)
   if (!parsed) {
@@ -366,7 +496,7 @@ async function processPackage(
   }
 
   const pkgRoot = dirname(pkgJsonPath)
-  await publishOnePackage(pkgRoot, name, resolved)
+  await publishOnePackage(pkgRoot, name, resolved, workspaceRoot)
   acc.published.push(name)
   acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry))
   return 'published'
@@ -379,15 +509,23 @@ export async function publishPlaceholderExecutor(
   const resolved = resolveOptions(options)
   detectPackageManager()
 
-  const pkgDirs = await glob(['packages/*/package.json'], {
-    absolute: true,
-    cwd: context.root,
-    onlyFiles: true,
-  })
+  // Per-package mode (inferred `prepare-for-release` targets) processes a
+  // single manifest; the tools-project mode scans `packages/*` as before.
+  const pkgDirs = resolved.packageJson
+    ? [
+        resolved.packageJson.startsWith('/')
+          ? resolved.packageJson
+          : join(context.root, resolved.packageJson),
+      ]
+    : await glob(['packages/*/package.json'], {
+        absolute: true,
+        cwd: context.root,
+        onlyFiles: true,
+      })
 
   const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] }
   for (const pkgJsonPath of pkgDirs) {
-    await processPackage(pkgJsonPath, resolved, acc)
+    await processPackage(pkgJsonPath, resolved, acc, context.root)
   }
 
   if (existsSync(join(context.root, 'scripts/trust-github.sh'))) {
