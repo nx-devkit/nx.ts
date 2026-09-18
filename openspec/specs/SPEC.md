@@ -80,7 +80,7 @@ bunx nx run-many -t prepare-for-release --trust
 
 Each target calls `npm view <name> version`; a 404 triggers a minimal `0.0.0` placeholder tarball (built in a temp dir — the source `package.json` is never modified) published with `npm publish --access public --tag placeholder`. `--trust` runs `npm trust github` per package to bind OIDC; without `--trust` the target only prints the exact `npm trust github` commands for a manual MFA run. Bootstrap is a **local** ritual — CI holds no npm credentials (OIDC only, and OIDC cannot create a package that does not exist yet). Run `npm login` locally first; the executor handles EOTP web-auth automatically (prints the real approval URL, polls, retries with `--otp`).
 
-**2. Ongoing releases (CI).** `.github/workflows/release.yml` on push to `main` (loop-guarded against `chore(release)` commits, serialized via `concurrency: release`):
+**2. Ongoing releases (CI).** `.github/workflows/release.yml` on push to `main`, or manual `workflow_dispatch` on `main` as a retry path (loop-guarded against `chore(release)` commits, serialized via `concurrency: release`):
 
 - `bun install` → lint, spec-check, build, test, e2e, packed-tarball e2e
 - `npx nx release version --git-push=false` — per-project conventional-commit bumps (`independent`, `useCommitScope: false`, `fallbackCurrentVersionResolver: disk`), committed + tagged **locally**
