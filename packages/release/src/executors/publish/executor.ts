@@ -133,8 +133,13 @@ function npmViewVersion(packageName: string, registry: string): string | null {
 }
 
 function gitRemoteTagSha(tag: string): string | null {
-  const result = exec('git', ['ls-remote', '--exit-code', '--tags', 'origin', `refs/tags/${tag}`])
-  if (!result.ok) return null
+  // No --exit-code: a failed lookup (network/auth) must throw, not read as
+  // "tag absent" and let the run publish toward a tag it couldn't inspect.
+  const result = exec('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`])
+  if (!result.ok) {
+    throw new Error(`Cannot query remote tag ${tag}: ${result.stderr}`)
+  }
+  if (!result.stdout) return null
   const lines = result.stdout.split('\n')
   // Annotated tags may also emit a peeled "<sha>\trefs/tags/<tag>^{}" line —
   // that sha is the commit, which is what tag equality compares against.
