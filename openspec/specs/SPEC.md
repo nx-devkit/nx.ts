@@ -72,28 +72,22 @@ Every plugin bead follows this order: tests first, implementation second, README
 
 Releases are bootstrapped and then automated by `@nx-devkit/prepare-for-release` + the CI release workflow.
 
-**1. One-time bootstrap (manual, MFA).** From a fresh clone of any Nx workspace that has this plugin family installed:
+**1. New-package bootstrap.** `createNodesV2` infers a `prepare-for-release` target on every named, non-private, non-root `package.json`. Placeholder publishing is idempotent:
 
 ```bash
-bunx nx run tools:prepare-for-release
+bunx nx run-many -t prepare-for-release --trust
 ```
 
-The executor scans `packages/*`, calls `npm view <name> version` for each, and — for any package that returns 404 — builds a minimal placeholder tarball in a temp dir via `npm pack` and publishes it with `npm publish <tarball> --access public --tag placeholder`. The source `package.json` is never modified.
+Each target calls `npm view <name> version`; a 404 triggers a minimal `0.0.0` placeholder tarball (built in a temp dir — the source `package.json` is never modified) published with `npm publish --access public --tag placeholder`. `--trust` runs `npm trust github` per package to bind OIDC. In CI, `release.yml`'s `bootstrap` job (workflow_dispatch) runs the same command with an `NPM_TOKEN` secret; locally it needs an npm auth token in `.npmrc`.
 
-The executor returns `{ published, skipped, trustCommands }`. The `trustCommands` array is printed so the user can run them locally with MFA:
+**2. Ongoing releases (CI).** `.github/workflows/release.yml` on push to `main` (loop-guarded against `chore(release)` commits, serialized via `concurrency: release`):
 
-```bash
-npm trust github @nx-devkit/<name> --file release.yml --repo nx-devkit/nx.ts --allow-publish
-```
-
-**2. Ongoing releases (CI).** Once the placeholders are published and trusted, `.github/workflows/release.yml` (triggered by push to `main`) runs:
-
-- `bun install`
-- `bun run lint` + `bun run check:spec`
-- `bun run build` + `bun test`
-- `bash scripts/e2e.sh`
-- `npx nx release --skip-publish --dry-run` (confirm versioning intent)
-- `npx nx release publish` (OIDC trusted publishing — no `--token`)
+- `bun install` → lint, spec-check, build, test, e2e, packed-tarball e2e
+- `npx nx release version --git-push=false` — per-project conventional-commit bumps (`independent`, `useCommitScope: false`, `fallbackCurrentVersionResolver: disk`), committed + tagged **locally**
+- `bun scripts/rewrite-workspace-protocol.ts` — `workspace:*` → resolved versions, CI tree only
+- `npx nx release publish` — OIDC trusted publishing (`NPM_CONFIG_PROVENANCE=true`, no token)
+- Push the version commit + tags only **after** publish succeeds (failure → next run recomputes identical versions)
+- Per-project `nx release changelog` → `CHANGELOG.md` + GitHub release per tag, pushed as a `chore(release)` commit
 
 CI uses `npx` (npm CLI), not bun, because `bun publish` does not yet support npm OIDC trusted publishing. Install/build/test still use bun.
 

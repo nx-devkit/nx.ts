@@ -47,19 +47,21 @@ The scope is usually the package name; omit it for repo-wide changes.
 
 ## Adding a new plugin
 
-The one-shot bootstrap path is the `init` generator from `@nx-devkit/prepare-for-release`:
+The one-shot bootstrap path is `@nx-devkit/prepare-for-release`. Register it in `nx.json`:
 
-```bash
-bunx nx g @nx-devkit/prepare-for-release:init
+```jsonc
+{ "plugins": ["@nx-devkit/prepare-for-release"] }
 ```
 
-This:
+This infers a `prepare-for-release` target on every publishable `package.json` (named, non-private, non-root). Then:
 
-- Adds the plugin to `nx.json`.
-- Creates a `tools` project with a `prepare-for-release` target.
-- Prints the post-setup checklist (install → bootstrap → `npm trust github`).
+```bash
+bunx nx run-many -t prepare-for-release --trust
+```
 
-Follow the printed checklist — install the plugin, publish placeholders, run the `npm trust github` commands locally with MFA, then commit the workflow file. CI takes over from there.
+Each target processes one package: `npm view` check → `0.0.0` placeholder publish for unpublished packages → `npm trust github` to bind OIDC (`--trust`; requires an npm auth token in `.npmrc` with permission to manage trusted publishers). Already-published packages are skipped.
+
+Alternatively the legacy `bunx nx g @nx-devkit/prepare-for-release:init` generator creates a `tools` project whose single target scans `packages/*` — equivalent but no longer needed with per-package inference.
 
 For per-package scope rules, TDD workflow, and verification commands, see [`AGENTS.md`](./AGENTS.md) and the per-package `packages/<name>/AGENTS.md`.
 

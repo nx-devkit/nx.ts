@@ -21,27 +21,30 @@ Use this skill when:
 bun add -D @nx-devkit/prepare-for-release
 ```
 
-## Init
+## Setup
 
-```bash
-bunx nx g @nx-devkit/prepare-for-release:init
+Register the plugin in `nx.json` — no project.json or init generator needed:
+
+```jsonc
+{ "plugins": ["@nx-devkit/prepare-for-release"] }
 ```
 
-This adds the plugin to `nx.json` and creates a `tools` project with a `prepare-for-release` target.
+`createNodesV2` infers a `prepare-for-release` target on every non-root `package.json` that has a `name` and is not `private: true`. Opt out with `"private": true`, the plugin `exclude` option, or `packageTargets: false` (keeps only the legacy `tools` project from `nx g @nx-devkit/prepare-for-release:init`).
 
 ## Run
 
 ```bash
-bunx nx run tools:prepare-for-release
+bunx nx run-many -t prepare-for-release
 ```
 
-Pass options:
+Each target processes exactly one package; already-published packages skip via `npm view`. Pass options:
 
 ```bash
-bunx nx run tools:prepare-for-release \
+bunx nx run-many -t prepare-for-release \
   --placeholderTag=alpha \
   --placeholderVersion=0.0.1 \
   --registry=https://registry.npmjs.org/ \
+  --trust \
   --dryRun
 ```
 
@@ -92,7 +95,9 @@ Run these locally (requires MFA) to enable GitHub OIDC trusted publishing:
 
 ## How it works
 
-`createNodesV2` matches `**/project.json`. For each match, it checks whether the project references `@nx-devkit/prepare-for-release:publish-placeholder` as one of its targets. If so, it re-affirms a `prepare-for-release` target pointing at the executor. The init generator creates that `tools` project on demand.
+`createNodesV2` globs `**/{package,project}.json`: non-root `package.json` files with `name` + `private !== true` get a per-package target (`options.packageJson` scopes the executor to that manifest); a `project.json` referencing `publish-placeholder` gets the legacy tools-mode target that scans `packages/*` — suppressed whenever per-package targets exist so nothing is processed twice.
+
+`npm publish` masking the EOTP approval URL (`https://www.npmjs.com/auth/cli/***`) is handled automatically: the executor detects `EOTP`, fetches the real `authUrl`/`doneUrl` via the npm web-auth flow, prints the URL, polls for the OTP (5 min), and retries with `--otp`. Auth tokens are read from `.npmrc` host-scoped entries only (or a truly unscoped `_authToken=` line) — a token for another registry is never sent.
 
 See `packages/prepare-for-release/src/executors/publish-placeholder/executor.ts`.
 
