@@ -148,7 +148,14 @@ jobs:
           if [ -n "$(git status --porcelain -- 'packages/*/CHANGELOG.md')" ]; then
             git add 'packages/*/CHANGELOG.md'
             git commit -m "chore(release): changelogs"
-            git push origin HEAD:main
+            # A merge racing in during the loop rejects this push; unlike the
+            # version commit, a lost changelog commit is NOT recomputed by the
+            # next run (that run only sees its own tags). Rebase + retry —
+            # changelog-only commits cannot conflict.
+            for attempt in 1 2 3; do
+              git push origin HEAD:main && break
+              git fetch origin main && git rebase origin/main
+            done
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
