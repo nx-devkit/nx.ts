@@ -122,3 +122,50 @@ jobs:
           git push origin --tags
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate project changelogs and GitHub releases
+        # Standalone `nx release changelog` requires an explicit version, so
+        # run once per tag the version step created (`git tag --points-at
+        # HEAD` = exactly the new tags on the release commit). --from is the
+        # project's previous tag so entries diff correctly; --git-* stay off
+        # and the generated CHANGELOG.md files land in a single guarded
+        # `chore(release)` commit (the push loop-guards itself). A rerun is
+        # a clean no-op: an unchanged entry produces no diff and nx skips
+        # remote release creation in CI instead of prompting.
+        run: |
+          gh auth setup-git
+          for tag in $(git tag --points-at HEAD | grep '^@nx-devkit/'); do
+            project="${tag%@*}"
+            version="${tag##*@}"
+            prev=$(git tag --list "${project}@*" --sort=-version:refname | sed -n '2p')
+            if [ -n "$prev" ]; then
+              npx nx release changelog "$version" -p "$project" --from "$prev" \
+                --git-commit=false --git-tag=false --git-push=false
+            else
+              npx nx release changelog "$version" -p "$project" --first-release \
+                --git-commit=false --git-tag=false --git-push=false
+            fi
+          done
+          if [ -n "$(git status --porcelain -- 'packages/*/CHANGELOG.md')" ]; then
+            git add 'packages/*/CHANGELOG.md'
+            # --no-verify: the pre-commit hook does `git add -u`, which would
+            # stage the CI-only workspace:* rewrites into this commit.
+            git commit --no-verify -m "chore(release): changelogs"
+            # A merge racing in during the loop rejects this push; unlike the
+            # version commit, a lost changelog commit is NOT recomputed by the
+            # next run (that run only sees its own tags). Rebase + retry —
+            # changelog-only commits cannot conflict.
+            pushed=false
+            for attempt in 1 2 3; do
+              if git push origin HEAD:main; then
+                pushed=true
+                break
+              fi
+              git fetch origin main && git rebase origin/main
+            done
+            if [ "$pushed" != true ]; then
+              echo "Failed to push changelogs after 3 attempts" >&2
+              exit 1
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
