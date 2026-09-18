@@ -38,6 +38,11 @@
         "tag": true,
         "push": true
       }
+    },
+    "changelog": {
+      "projectChangelogs": {
+        "createRelease": "github"
+      }
     }
   },
   "namedInputs": {
