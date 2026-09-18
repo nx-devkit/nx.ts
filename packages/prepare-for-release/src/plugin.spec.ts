@@ -141,7 +141,10 @@ describe('createNodesV2', () => {
       join(privDir, 'package.json'),
       JSON.stringify({ name: '@acme/internal', private: true }),
     )
-    writeFileSync(join(workspace, 'package.json'), JSON.stringify({ name: 'root', private: true }))
+    writeFileSync(
+      join(workspace, 'package.json'),
+      JSON.stringify({ name: 'root', version: '1.0.0' }),
+    )
 
     const result = createNodesV2[1](
       ['package.json', 'packages/internal/package.json'],

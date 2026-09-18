@@ -473,6 +473,7 @@ describe('publishPlaceholderExecutor', () => {
       stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
       stdout: '',
     })
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
     try {
       const result = await publishPlaceholderExecutor({}, { root: workspace })
@@ -484,8 +485,11 @@ describe('publishPlaceholderExecutor', () => {
       const probe = fetchCalls.find((f) => !f.url.includes('done'))
       expect(probe).toBeDefined()
       expect(probe?.init?.headers).toMatchObject({ 'npm-auth-type': 'web' })
+      const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(printed).toContain('https://www.npmjs.com/auth/cli/test-auth-id')
     } finally {
       globalThis.fetch = originalFetch
+      logSpy.mockRestore()
     }
   })
 

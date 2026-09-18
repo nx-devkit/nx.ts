@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { glob } from 'tinyglobby'
 
@@ -368,7 +368,10 @@ async function requestWebAuthUrls(
   const text = await res.text()
   let parsed: Partial<WebAuthUrls> = {}
   try {
-    parsed = JSON.parse(text) as Partial<WebAuthUrls>
+    const body: unknown = JSON.parse(text)
+    if (typeof body === 'object' && body !== null) {
+      parsed = body as Partial<WebAuthUrls>
+    }
   } catch {
     // fall through to the error below
   }
@@ -517,7 +520,7 @@ export async function publishPlaceholderExecutor(
   // single manifest; the tools-project mode scans `packages/*` as before.
   const pkgDirs = resolved.packageJson
     ? [
-        resolved.packageJson.startsWith('/')
+        isAbsolute(resolved.packageJson)
           ? resolved.packageJson
           : join(context.root, resolved.packageJson),
       ]
