@@ -187,6 +187,39 @@ describe('renderExecutor', () => {
     ).rejects.toThrow('timed out after')
   })
 
+  it('removes a stale output before running the command', async () => {
+    writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
+    writeFileSync(join(workspace, 'flow.svg'), 'stale')
+    state.spawnWritesOutput = false
+
+    await expect(
+      renderExecutor(
+        { commands: { mermaid: 'mmdc -i {input} -o {output}' }, file: 'flow.mmd' },
+        makeContext(workspace),
+      ),
+    ).rejects.toThrow('did not create')
+  })
+
+  it('rejects an output path escaping the workspace', async () => {
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    await expect(
+      renderExecutor({ file: 'auth.puml', output: '../auth.svg' }, makeContext(workspace)),
+    ).rejects.toThrow('inside the workspace')
+  })
+
+  it('dryRun works without any configured renderer', async () => {
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    const result = await renderExecutor(
+      { dryRun: true, file: 'auth.puml', krokiUrl: '' },
+      makeContext(workspace),
+    )
+
+    expect(result.success).toBe(true)
+    expect(state.fetchCalls).toHaveLength(0)
+  })
+
   it('fails when the command exits non-zero, including stderr', async () => {
     writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
     state.spawnResponse = { status: 1, stderr: 'syntax error on line 1' }

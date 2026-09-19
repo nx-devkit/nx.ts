@@ -76,14 +76,25 @@ The output path MUST be derived from `outputDir` with `{fileDir}`, `{fileName}`,
 - **THEN** inference fails with an error naming the offending `outputDir`
 
 ### Requirement: Format and URL options
-`format` MUST accept `svg` (default), `png`, or `jpeg` and appear in both the output filename and the Kroki request path — actual per-type format support depends on the renderer (Kroki serves `jpeg` only for some types; unsupported combinations surface via the non-2xx failure rule). `krokiUrl` MUST be an absolute `http(s)` URL; trailing slashes are trimmed.
+`format` MUST accept `svg` (default), `png`, or `jpeg` and appear in both the output filename and the Kroki request path — actual per-type format support depends on the renderer (Kroki serves `jpeg` only for some types; unsupported combinations surface via the non-2xx failure rule). `krokiUrl` MUST be empty (disables Kroki) or an absolute `http(s)` URL; trailing slashes are trimmed.
 
 #### Scenario: png format
 - **WHEN** `format: "png"`
 - **THEN** outputs end in `.png` and Kroki requests use `/png`
 
+### Requirement: Filtering and naming options
+`include`/`exclude` MUST filter matched files using glob semantics (`*`, `?`, `**`, `{a,b}`) against workspace-relative paths. `targetName` MUST rename the aggregate target (default `diagrams`). `dryRun` MUST be forwarded from plugin options to inferred targets.
+
+#### Scenario: include filter
+- **WHEN** `include` is `docs/**`
+- **THEN** only diagram files under `docs/` produce targets
+
+#### Scenario: custom targetName
+- **WHEN** `targetName` is `render-diagrams`
+- **THEN** the aggregate target is named `render-diagrams` instead of `diagrams`
+
 ### Requirement: dryRun writes nothing
-With `dryRun: true` the executor MUST report planned outputs and MUST NOT write files or invoke renderers.
+With `dryRun: true` the executor MUST report planned outputs and MUST NOT write files, invoke renderers, or require a renderer to be configured.
 
 #### Scenario: Dry run
 - **WHEN** `dryRun` is set

@@ -1,7 +1,7 @@
 import type { ExecutorContext } from '@nx/devkit'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join, normalize } from 'node:path'
 import { diagramTypeFor, outputPathFor } from '../../plugin.ts'
 import type { RenderExecutorSchema } from './schema.d.ts'
 
@@ -20,7 +20,7 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
     throw new Error(`krokiUrl must be an absolute http(s) URL, got "${options.krokiUrl}"`)
   }
   const commands = options.commands ?? {}
-  if (!krokiUrl && Object.keys(commands).length === 0) {
+  if (!krokiUrl && Object.keys(commands).length === 0 && !options.dryRun) {
     throw new Error('No renderer configured: set krokiUrl or provide commands for diagram types')
   }
   const timeout = options.timeout ?? 30_000
@@ -119,6 +119,9 @@ export default async function renderExecutor(
     }
     const output =
       outputsOption[index] ?? outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
+    if (isAbsolute(output) || normalize(output).split('/').includes('..')) {
+      throw new Error(`output path "${output}" must resolve inside the workspace`)
+    }
     const absOutput = join(context.root, output)
     const fileDir = dirname(file)
 
@@ -129,7 +132,7 @@ export default async function renderExecutor(
 
     const vars = {
       fileDir,
-      fileName: (file.split('/').pop() ?? file).replace(/\.[a-z0-9]+$/i, ''),
+      fileName: basename(file).replace(/\.[a-z0-9]+$/i, ''),
       format: resolved.format,
       input: file,
       output,
@@ -141,6 +144,8 @@ export default async function renderExecutor(
     if (command) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from a glob-matched path under the trusted workspace root
       mkdirSync(dirname(absOutput), { recursive: true })
+      // A stale file must not satisfy the post-command existence check.
+      rmSync(absOutput, { force: true })
       renderWithCommand(resolved, command, vars, context.root)
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
       if (!existsSync(absOutput)) {

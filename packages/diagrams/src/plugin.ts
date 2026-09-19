@@ -1,7 +1,7 @@
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { dirname, isAbsolute, join, normalize, relative } from 'node:path'
+import { basename, dirname, isAbsolute, join, normalize, relative } from 'node:path'
 
 export interface NxDiagramsPluginOptions {
   /** Aggregate target name. Default: 'diagrams'. */
@@ -20,6 +20,8 @@ export interface NxDiagramsPluginOptions {
   /** Additional glob-style filters (matched against workspace-relative paths). */
   include?: string[]
   exclude?: string[]
+  /** Report planned outputs without rendering or writing. Default: false. */
+  dryRun?: boolean
 }
 
 const PLUGIN_NAME = '@nx-devkit/diagrams'
@@ -66,7 +68,7 @@ export function outputPathFor(
   // All tokens are workspace-relative: {fileDir} is the source file's directory,
   // {projectRoot} the owning project root ('' for the root project).
   const fileDir = dirname(file)
-  const fileName = (file.split('/').pop() ?? file).replace(/\.[a-z0-9]+$/i, '')
+  const fileName = basename(file).replace(/\.[a-z0-9]+$/i, '')
   const dir = (outputDir ?? '{fileDir}')
     .replaceAll('{fileDir}', fileDir === '.' ? '' : fileDir)
     .replaceAll('{fileName}', fileName)
@@ -106,9 +108,10 @@ function globToRegExp(glob: string): RegExp {
     .replace(/[.+^$()|[\]\\]/g, String.raw`\$&`)
     .replace(/\?/g, '[^/]')
     .replace(/\*\*\//g, '__GLOBSTAR_SLASH__')
-    .replace(/\*\*/g, '.*')
+    .replace(/\*\*/g, '__GLOBSTAR__')
     .replace(/\*/g, '[^/]*')
     .replace(/__GLOBSTAR_SLASH__/g, '(?:.*/)?')
+    .replace(/__GLOBSTAR__/g, '.*')
     .replace(/\{([^}]*)\}/g, (_, alts: string) => `(?:${alts.split(',').join('|')})`)
   // eslint-disable-next-line security/detect-non-literal-regexp, security/detect-non-literal-reg-expr -- user-supplied glob escaped before construction
   // Nosemgrep: javascript_dos_rule-non-literal-regexp
@@ -125,6 +128,7 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
 
     const sharedOptions = {
       commands: options.commands ?? {},
+      dryRun: options.dryRun ?? false,
       format,
       krokiUrl: options.krokiUrl ?? 'https://kroki.io',
       outputDir: options.outputDir ?? '{fileDir}',

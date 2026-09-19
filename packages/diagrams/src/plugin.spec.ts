@@ -229,6 +229,44 @@ describe('createNodesV2', () => {
     expect(targets['.']?.['diagram-flow']).toBeUndefined()
   })
 
+  it('emits one configuration per project across multiple roots', () => {
+    mkdirSync(join(workspace, 'packages/docs/diagrams'), { recursive: true })
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'packages/docs/package.json'), '{"name":"docs"}')
+    writeFileSync(join(workspace, 'packages/docs/diagrams/auth.puml'), '@startuml\n@enduml')
+    writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
+
+    const result = createNodesV2[1](
+      ['packages/docs/diagrams/auth.puml', 'flow.mmd'],
+      {},
+      ctx(workspace),
+    )
+    const targets = mergedTargets(result)
+
+    expect(Object.keys(targets).sort()).toEqual(['.', 'packages/docs'])
+    expect(targets['packages/docs']?.['diagram-diagrams-auth']).toBeDefined()
+    expect(targets['packages/docs']?.diagrams).toBeDefined()
+    expect(targets['.']?.['diagram-flow']).toBeDefined()
+    expect(targets['.']?.diagrams).toBeDefined()
+  })
+
+  it('matches a trailing globstar in include filters', () => {
+    mkdirSync(join(workspace, 'docs/sub'), { recursive: true })
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'docs/sub/b.puml'), '@startuml\n@enduml')
+    writeFileSync(join(workspace, 'root.puml'), '@startuml\n@enduml')
+
+    const result = createNodesV2[1](
+      ['docs/sub/b.puml', 'root.puml'],
+      { include: ['docs/**'] },
+      ctx(workspace),
+    )
+    const targets = mergedTargets(result)
+
+    expect(targets['.']?.['diagram-docs-sub-b']).toBeDefined()
+    expect(targets['.']?.['diagram-root']).toBeUndefined()
+  })
+
   it('respects a custom aggregate targetName', () => {
     writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
     writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
