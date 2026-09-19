@@ -59,7 +59,7 @@ This infers a `prepare-for-release` target on every publishable `package.json` (
 bunx nx run-many -t prepare-for-release --trust
 ```
 
-Each target processes one package: `npm view` check → `0.0.0` placeholder publish for unpublished packages → `npm trust github` to bind OIDC (`--trust`; requires an npm auth token in `.npmrc` with permission to manage trusted publishers). Already-published packages skip the placeholder publish but still run `npm trust github` under `--trust`; without `--trust` the target only prints the exact `npm trust github` commands for a manual MFA run.
+This is a **local** ritual — CI is OIDC-only and holds no npm credentials (OIDC cannot publish a package that does not exist yet). Run `npm login` first; the executor automates the EOTP web-auth dance (prints the approval URL, polls, retries). Each target processes one package: `npm view` check → `0.0.0` placeholder publish for unpublished packages → `npm trust github` to bind OIDC (`--trust`; requires an npm auth token in `.npmrc` with permission to manage trusted publishers). Already-published packages skip the placeholder publish but still run `npm trust github` under `--trust`; without `--trust` the target only prints the exact `npm trust github` commands for a manual MFA run.
 
 Alternatively the legacy `bunx nx g @nx-devkit/prepare-for-release:init` generator creates a `tools` project whose single target scans `packages/*` — equivalent but no longer needed with per-package inference.
 
