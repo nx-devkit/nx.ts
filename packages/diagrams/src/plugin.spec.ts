@@ -174,6 +174,12 @@ describe('createNodesV2', () => {
     expect(() => createNodesV2[1](['auth.puml'], { outputDir: '../out' }, ctx(workspace))).toThrow(
       'inside the workspace',
     )
+    expect(() =>
+      createNodesV2[1](['auth.puml'], { outputDir: '/tmp/out' }, ctx(workspace)),
+    ).toThrow('inside the workspace')
+    expect(() =>
+      createNodesV2[1](['auth.puml'], { outputDir: '{fileDir}/../out' }, ctx(workspace)),
+    ).toThrow('inside the workspace')
   })
 
   it('disambiguates colliding slugs and outputs deterministically', () => {

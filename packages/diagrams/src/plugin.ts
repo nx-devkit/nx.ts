@@ -1,7 +1,7 @@
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, matchesGlob, normalize, relative } from 'node:path'
+import { basename, dirname, isAbsolute, join, matchesGlob, relative } from 'node:path'
 
 export interface NxDiagramsPluginOptions {
   /** Aggregate target name. Default: 'diagrams'. */
@@ -69,15 +69,17 @@ export function outputPathFor(
   // {projectRoot} the owning project root ('' for the root project).
   const fileDir = dirname(file)
   const fileName = basename(file).replace(/\.[a-z0-9]+$/i, '')
-  const dir = (outputDir ?? '{fileDir}')
+  const expanded = (outputDir ?? '{fileDir}')
     .replaceAll('{fileDir}', fileDir === '.' ? '' : fileDir)
     .replaceAll('{fileName}', fileName)
     .replaceAll('{projectRoot}', projectRoot === '.' ? '' : projectRoot)
     .replace(/\\/g, '/')
-    .replace(/^\/+|\/+$/g, '')
-  if (isAbsolute(dir) || normalize(dir).split('/').includes('..')) {
+  // Validate the expanded template before trimming separators so an
+  // Absolute outputDir cannot slip through as a relative path.
+  if (isAbsolute(expanded) || expanded.split('/').includes('..')) {
     throw new Error(`outputDir "${outputDir}" must resolve to a directory inside the workspace`)
   }
+  const dir = expanded.replace(/^\/+|\/+$/g, '')
   return [dir, `${fileName}.${format}`].filter(Boolean).join('/')
 }
 

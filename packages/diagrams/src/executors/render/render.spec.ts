@@ -155,17 +155,32 @@ describe('renderExecutor', () => {
     expect(state.spawnCalls[0]?.command).toBe("mmdc -i 'my dir/flow.mmd' -o 'my dir/flow.svg'")
   })
 
-  it('keeps the output extension consistent with an overridden format', async () => {
+  it('rejects an explicit output whose extension conflicts with the format', async () => {
     writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
 
-    await renderExecutor(
-      { file: 'auth.puml', format: 'png', output: 'auth.svg' },
-      makeContext(workspace),
-    )
+    await expect(
+      renderExecutor(
+        { file: 'auth.puml', format: 'png', output: 'auth.svg' },
+        makeContext(workspace),
+      ),
+    ).rejects.toThrow(/declares \.svg but format is png/)
+    expect(state.fetchCalls).toHaveLength(0)
+  })
 
-    expect(state.fetchCalls[0]?.url).toBe('https://kroki.io/plantuml/png')
-    expect(existsSync(join(workspace, 'auth.png'))).toBe(true)
-    expect(existsSync(join(workspace, 'auth.svg'))).toBe(false)
+  it('appends the format extension when an explicit output has none', async () => {
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    await renderExecutor({ file: 'auth.puml', output: 'out/auth' }, makeContext(workspace))
+
+    expect(existsSync(join(workspace, 'out/auth.svg'))).toBe(true)
+  })
+
+  it('rejects an explicit output escaping the workspace', async () => {
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    await expect(
+      renderExecutor({ file: 'auth.puml', output: '../auth.svg' }, makeContext(workspace)),
+    ).rejects.toThrow(/must resolve inside the workspace/)
   })
 
   it('uses the output path passed via options (collision-suffixed)', async () => {

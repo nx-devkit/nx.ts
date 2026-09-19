@@ -1,7 +1,7 @@
 import type { ExecutorContext } from '@nx/devkit'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, normalize } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { diagramTypeFor, outputPathFor } from '../../plugin.ts'
 import type { RenderExecutorSchema } from './schema.d.ts'
 
@@ -39,7 +39,13 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
 // Values expand shell-quoted so paths with spaces/metacharacters stay single arguments.
 // Command authors must not wrap placeholders in their own quotes.
 function shellQuote(value: string): string {
-  return /^[a-zA-Z0-9_@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`
+  if (/^[a-zA-Z0-9_@%+=:,./-]+$/.test(value)) return value
+  // Cmd.exe does not treat single quotes as quoting; wrap in double quotes
+  // And double any inner double quotes instead.
+  if (process.platform === 'win32') {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return `'${value.replace(/'/g, `'\\''`)}'`
 }
 
 function interpolate(template: string, vars: Record<string, string>): string {
@@ -117,16 +123,27 @@ export default async function renderExecutor(
     if (!type) {
       throw new Error(`Unknown diagram type for ${file}`)
     }
-    // The extension always matches the resolved format, even when format is
-    // Overridden on an inferred target whose output was baked for another format.
-    const rawOutput =
+    // An explicit output path is part of the inferred Nx output contract:
+    // Its extension must match the resolved format, otherwise the artifact
+    // Written at runtime would diverge from the declared target outputs.
+    const declared =
       // eslint-disable-next-line security/detect-object-injection -- index iterates files; outputsOption may be shorter, guarded by the ?? fallback
       outputsOption[index] ?? outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
-    const output = rawOutput.replace(/\.[a-z0-9]+$/i, `.${resolved.format}`)
-    if (isAbsolute(output) || normalize(output).split('/').includes('..')) {
+    const declaredExt = extname(declared).replace(/^\./, '').toLowerCase()
+    if (declaredExt && declaredExt !== resolved.format) {
+      throw new Error(
+        `output "${declared}" declares .${declaredExt} but format is ${resolved.format}; adjust the format or the output path`,
+      )
+    }
+    const output = (declaredExt ? declared : `${declared}.${resolved.format}`).replace(/\\/g, '/')
+    if (isAbsolute(output) || output.split('/').includes('..')) {
       throw new Error(`output path "${output}" must resolve inside the workspace`)
     }
-    const absOutput = join(context.root, output)
+    const absOutput = resolve(context.root, output)
+    const rel = relative(context.root, absOutput)
+    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+      throw new Error(`output path "${output}" must resolve inside the workspace`)
+    }
     const fileDir = dirname(file)
 
     if (options.dryRun) {
