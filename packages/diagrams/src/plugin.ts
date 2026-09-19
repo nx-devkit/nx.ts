@@ -1,7 +1,7 @@
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, normalize, relative } from 'node:path'
+import { basename, dirname, isAbsolute, join, matchesGlob, normalize, relative } from 'node:path'
 
 export interface NxDiagramsPluginOptions {
   /** Aggregate target name. Default: 'diagrams'. */
@@ -103,28 +103,13 @@ function findProjectRoot(workspaceRoot: string, fileDir: string): string {
   return '.'
 }
 
-function globToRegExp(glob: string): RegExp {
-  const escaped = glob
-    .replace(/[.+^$()|[\]\\]/g, String.raw`\$&`)
-    .replace(/\?/g, '[^/]')
-    .replace(/\*\*\//g, '__GLOBSTAR_SLASH__')
-    .replace(/\*\*/g, '__GLOBSTAR__')
-    .replace(/\*/g, '[^/]*')
-    .replace(/__GLOBSTAR_SLASH__/g, '(?:.*/)?')
-    .replace(/__GLOBSTAR__/g, '.*')
-    .replace(/\{([^}]*)\}/g, (_, alts: string) => `(?:${alts.split(',').join('|')})`)
-  // Nosemgrep: javascript_dos_rule-non-literal-regexp -- user-supplied glob escaped before construction
-  // eslint-disable-next-line security/detect-non-literal-regexp, security/detect-non-literal-reg-expr -- same: glob is escaped before construction
-  return new RegExp(`^${escaped}$`)
-}
-
 export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
   DEFAULT_GLOB,
   (configFiles, options = {}, context) => {
     const format = options.format ?? 'svg'
     const aggregateName = options.targetName ?? 'diagrams'
-    const include = (options.include ?? []).map(globToRegExp)
-    const exclude = (options.exclude ?? []).map(globToRegExp)
+    const include = options.include ?? []
+    const exclude = options.exclude ?? []
 
     const sharedOptions = {
       commands: options.commands ?? {},
@@ -148,10 +133,10 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       if (!type) {
         continue
       }
-      if (include.length > 0 && !include.some((re) => re.test(file))) {
+      if (include.length > 0 && !include.some((glob) => matchesGlob(file, glob))) {
         continue
       }
-      if (exclude.some((re) => re.test(file))) {
+      if (exclude.some((glob) => matchesGlob(file, glob))) {
         continue
       }
 
