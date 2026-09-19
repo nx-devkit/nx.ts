@@ -49,7 +49,7 @@ If neither covers a file's type, the executor fails with an actionable error.
 
 ### Type registry (default)
 
-`.puml`/`.plantuml` → `plantuml`, `.mmd`/`.mermaid` → `mermaid`, `.dot`/`.gv` → `graphviz`, `.d2` → `d2`, `.bpmn` → `bpmn`, `.excalidraw` → `excalidraw`. `commands` may introduce types outside the registry.
+`.puml`/`.plantuml` → `plantuml`, `.mmd`/`.mermaid` → `mermaid`, `.dot`/`.gv` → `graphviz`, `.d2` → `d2`, `.bpmn` → `bpmn`, `.excalidraw` → `excalidraw`. `commands` keys are registry type names; types outside the registry are not reachable in v1.
 
 ### init generator
 
@@ -57,7 +57,7 @@ Registers the plugin in `nx.json` via JSONC-preserving edits (mirrors `@nx-devki
 
 ## Out of scope (v1)
 
-- ``` fenced diagram blocks inside Markdown files (v2)
+- Fenced diagram blocks (e.g. ` ```mermaid `) inside Markdown files (v2)
 - Built-in local-renderer modes beyond `commands` override
 - `diagrams-serve` target booting a kroki docker-compose (v2 candidate)
 

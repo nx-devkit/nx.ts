@@ -23,18 +23,31 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
   if (!krokiUrl && Object.keys(commands).length === 0) {
     throw new Error('No renderer configured: set krokiUrl or provide commands for diagram types')
   }
+  const timeout = options.timeout ?? 30_000
+  if (!Number.isFinite(timeout) || timeout <= 0) {
+    throw new Error(`timeout must be a positive number of ms, got ${timeout}`)
+  }
   return {
     commands,
     format,
     krokiUrl,
     outputDir: options.outputDir ?? '{fileDir}',
-    timeout: options.timeout ?? 30_000,
+    timeout,
   }
+}
+
+// Values expand shell-quoted so paths with spaces/metacharacters stay single arguments.
+// Command authors must not wrap placeholders in their own quotes.
+function shellQuote(value: string): string {
+  return /^[a-zA-Z0-9_@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`
 }
 
 function interpolate(template: string, vars: Record<string, string>): string {
   // eslint-disable-next-line security/detect-object-injection -- key comes from {name} placeholders in a workspace-authored command template
-  return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? `{${key}}`)
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    const value = vars[key]
+    return value === undefined ? `{${key}}` : shellQuote(value)
+  })
 }
 
 async function renderWithKroki(resolved: Resolved, type: string, source: string): Promise<Buffer> {
@@ -69,7 +82,14 @@ function renderWithCommand(
     timeout: resolved.timeout,
   })
   if (result.error) {
+    const code = (result.error as NodeJS.ErrnoException).code
+    if (code === 'ETIMEDOUT') {
+      throw new Error(`Diagram command timed out after ${resolved.timeout}ms: ${cmd}`)
+    }
     throw new Error(`Diagram command failed to start: ${result.error.message}`)
+  }
+  if (result.signal) {
+    throw new Error(`Diagram command killed by signal ${result.signal}: ${cmd}`)
   }
   if (result.status !== 0) {
     const stderr = String(result.stderr).trim()
@@ -87,22 +107,23 @@ export default async function renderExecutor(
     throw new Error('render executor requires `file` or `files`')
   }
 
-  const rendered: string[] = []
-  for (const file of files) {
+  const outputsOption = options.file ? [options.output] : (options.outputs ?? [])
+  const projectRoot = context.projectName
+    ? (context.projectsConfigurations?.projects[context.projectName]?.root ?? '.')
+    : '.'
+
+  for (const [index, file] of files.entries()) {
     const type = diagramTypeFor(file)
     if (!type) {
       throw new Error(`Unknown diagram type for ${file}`)
     }
-    const projectRoot = context.projectName
-      ? (context.projectsConfigurations?.projects[context.projectName]?.root ?? '.')
-      : '.'
-    const output = outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
+    const output =
+      outputsOption[index] ?? outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
     const absOutput = join(context.root, output)
     const fileDir = dirname(file)
 
     if (options.dryRun) {
       console.log(`[dryRun] would render ${file} -> ${output}`)
-      rendered.push(output)
       continue
     }
 
@@ -139,7 +160,6 @@ export default async function renderExecutor(
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
       writeFileSync(absOutput, image)
     }
-    rendered.push(output)
     console.log(`${file} -> ${output}`)
   }
 

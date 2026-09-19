@@ -20,7 +20,7 @@ export function detectIndent(text: string): {
   insertSpaces: boolean
   tabSize: number
 } {
-  const match = /\n([ \t]+)"/.exec(text)
+  const match = /\n([ \t]+)"[^"\n]+"\s*:/.exec(text)
   const indent = match?.[1] ?? '  '
   return {
     eol: text.includes('\r\n') ? '\r\n' : '\n',

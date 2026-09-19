@@ -5,12 +5,22 @@ import { join } from 'node:path'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = {
-  fetchCalls: [] as { body?: string; url: string }[],
+  fetchCalls: [] as {
+    body?: string
+    contentType: string | undefined
+    method: string | undefined
+    url: string
+  }[],
   fetchResponse: { body: '<svg/>', status: 200 } as
     | { body: string; status: number }
     | ((url: string) => { body: string; status: number }),
   spawnCalls: [] as { command: string; options: { cwd?: string } | undefined }[],
-  spawnResponse: { status: 0, stderr: '' } as { status: number; stderr?: string },
+  spawnResponse: { status: 0, stderr: '' } as {
+    error?: { code?: string; message: string }
+    signal?: string
+    status: number | null
+    stderr?: string
+  },
   spawnWritesOutput: true,
 }
 
@@ -18,21 +28,28 @@ vi.mock('node:child_process', () => ({
   spawnSync: (command: string, options?: { cwd?: string }) => {
     state.spawnCalls.push({ command, options })
     if (state.spawnResponse.status === 0 && state.spawnWritesOutput) {
-      const out = /-o (\S+)/.exec(command)?.[1]
+      // The output path is whichever token ends with an image extension,
+      // Independent of the flag spelling the command template used.
+      const out = (command.match(/'[^']*'|\S+/g) ?? [])
+        .map((token) => token.replace(/^'|'$/g, ''))
+        .find((token) => /\.(svg|png|jpe?g)$/.test(token))
       if (out) {
         writeFileSync(join(options?.cwd ?? '', out), '<svg/>')
       }
     }
-    return {
-      status: state.spawnResponse.status,
-      stderr: state.spawnResponse.stderr,
-    }
+    return state.spawnResponse
   },
 }))
 
 const originalFetch = globalThis.fetch
-globalThis.fetch = (async (input: unknown, init?: { body?: unknown }) => {
-  state.fetchCalls.push({ body: String(init?.body), url: String(input) })
+globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
+  const headers = new Headers(init?.headers)
+  state.fetchCalls.push({
+    body: String(init?.body),
+    contentType: headers.get('content-type') ?? undefined,
+    method: init?.method,
+    url: String(input),
+  })
   const res =
     typeof state.fetchResponse === 'function'
       ? state.fetchResponse(String(input))
@@ -79,7 +96,12 @@ describe('renderExecutor', () => {
 
     expect(result.success).toBe(true)
     expect(state.fetchCalls).toEqual([
-      { body: '@startuml\nA -> B\n@enduml', url: 'https://kroki.io/plantuml/svg' },
+      {
+        body: '@startuml\nA -> B\n@enduml',
+        contentType: 'text/plain',
+        method: 'POST',
+        url: 'https://kroki.io/plantuml/svg',
+      },
     ])
     expect(readFileSync(join(workspace, 'auth.svg'))).toEqual(Buffer.from('<svg/>'))
   })
@@ -119,6 +141,50 @@ describe('renderExecutor', () => {
     expect(state.fetchCalls).toHaveLength(0)
     expect(state.spawnCalls[0]?.command).toBe('mmdc -i flow.mmd -o flow.svg')
     expect(state.spawnCalls[0]?.options?.cwd).toBe(workspace)
+  })
+
+  it('shell-quotes placeholders so paths with spaces stay single arguments', async () => {
+    mkdirSync(join(workspace, 'my dir'), { recursive: true })
+    writeFileSync(join(workspace, 'my dir/flow.mmd'), 'graph TD')
+
+    await renderExecutor(
+      { commands: { mermaid: 'mmdc -i {input} -o {output}' }, file: 'my dir/flow.mmd' },
+      makeContext(workspace),
+    )
+
+    expect(state.spawnCalls[0]?.command).toBe("mmdc -i 'my dir/flow.mmd' -o 'my dir/flow.svg'")
+  })
+
+  it('uses the output path passed via options (collision-suffixed)', async () => {
+    writeFileSync(join(workspace, 'auth.mmd'), 'graph TD')
+
+    await renderExecutor({ file: 'auth.mmd', output: 'auth-mermaid.svg' }, makeContext(workspace))
+
+    expect(existsSync(join(workspace, 'auth-mermaid.svg'))).toBe(true)
+    expect(existsSync(join(workspace, 'auth.svg'))).toBe(false)
+  })
+
+  it('rejects a non-positive timeout', async () => {
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    await expect(
+      renderExecutor({ file: 'auth.puml', timeout: 0 }, makeContext(workspace)),
+    ).rejects.toThrow('positive')
+  })
+
+  it('reports command timeouts distinctly', async () => {
+    writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
+    state.spawnResponse = {
+      error: { code: 'ETIMEDOUT', message: 'timed out' },
+      status: null,
+    }
+
+    await expect(
+      renderExecutor(
+        { commands: { mermaid: 'mmdc -i {input} -o {output}' }, file: 'flow.mmd' },
+        makeContext(workspace),
+      ),
+    ).rejects.toThrow('timed out after')
   })
 
   it('fails when the command exits non-zero, including stderr', async () => {

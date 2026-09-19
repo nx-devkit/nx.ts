@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createNodesV2, diagramTypeFor, slugify } from './plugin.ts'
+import { createNodesV2, DIAGRAM_TYPES, diagramTypeFor, slugify } from './plugin.ts'
 
 function makeWorkspace(): string {
   return mkdtempSync(join(tmpdir(), 'nx-diagrams-plugin-'))
@@ -37,11 +37,11 @@ describe('createNodesV2', () => {
     rmSync(workspace, { force: true, recursive: true })
   })
 
-  it('watches the diagram extensions glob', () => {
+  it('watches every registered diagram extension', () => {
     const glob = createNodesV2[0]
-    expect(glob).toContain('.puml')
-    expect(glob).toContain('.mmd')
-    expect(glob).toContain('.d2')
+    for (const ext of Object.keys(DIAGRAM_TYPES)) {
+      expect(glob).toContain(ext)
+    }
   })
 
   it('maps extensions to kroki types', () => {
@@ -80,9 +80,33 @@ describe('createNodesV2', () => {
     expect(perFile.options.format).toBe('svg')
 
     const aggregate = targets['packages/docs']?.diagrams as {
-      options: { files: string[] }
+      inputs: string[]
+      options: { files: string[]; outputs: string[] }
+      outputs: string[]
     }
     expect(aggregate.options.files).toEqual(['packages/docs/diagrams/auth.puml'])
+    expect(aggregate.options.outputs).toEqual(['packages/docs/diagrams/auth.svg'])
+    expect(aggregate.inputs).toEqual(['{workspaceRoot}/packages/docs/diagrams/auth.puml'])
+    expect(aggregate.outputs).toEqual(['{workspaceRoot}/packages/docs/diagrams/auth.svg'])
+  })
+
+  it('covers all files in the aggregate for multi-diagram projects', () => {
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'a.puml'), '@startuml\n@enduml')
+    writeFileSync(join(workspace, 'b.mmd'), 'graph TD')
+
+    const result = createNodesV2[1](['a.puml', 'b.mmd'], {}, ctx(workspace))
+    const targets = mergedTargets(result)
+
+    const aggregate = targets['.']?.diagrams as {
+      inputs: string[]
+      options: { files: string[]; outputs: string[] }
+      outputs: string[]
+    }
+    expect(aggregate.options.files).toEqual(['a.puml', 'b.mmd'])
+    expect(aggregate.options.outputs).toEqual(['a.svg', 'b.svg'])
+    expect(aggregate.inputs).toEqual(['{workspaceRoot}/a.puml', '{workspaceRoot}/b.mmd'])
+    expect(aggregate.outputs).toEqual(['{workspaceRoot}/a.svg', '{workspaceRoot}/b.svg'])
   })
 
   it('attaches root-level diagrams to the "." project', () => {
@@ -123,6 +147,86 @@ describe('createNodesV2', () => {
     const perFile = targets['.']?.['diagram-auth'] as { outputs: string[] }
 
     expect(perFile.outputs).toEqual(['{workspaceRoot}/docs/img/auth.png'])
+  })
+
+  it('expands {projectRoot} in outputDir once, workspace-relative', () => {
+    mkdirSync(join(workspace, 'packages/docs/diagrams'), { recursive: true })
+    writeFileSync(join(workspace, 'packages/docs/package.json'), '{"name":"docs"}')
+    writeFileSync(join(workspace, 'packages/docs/diagrams/auth.puml'), '@startuml\n@enduml')
+
+    const result = createNodesV2[1](
+      ['packages/docs/diagrams/auth.puml'],
+      { outputDir: '{projectRoot}/img' },
+      ctx(workspace),
+    )
+    const targets = mergedTargets(result)
+    const perFile = targets['packages/docs']?.['diagram-diagrams-auth'] as {
+      outputs: string[]
+    }
+
+    expect(perFile.outputs).toEqual(['{workspaceRoot}/packages/docs/img/auth.svg'])
+  })
+
+  it('rejects outputDir escaping the workspace', () => {
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    expect(() => createNodesV2[1](['auth.puml'], { outputDir: '../out' }, ctx(workspace))).toThrow(
+      'inside the workspace',
+    )
+  })
+
+  it('disambiguates colliding slugs and outputs deterministically', () => {
+    mkdirSync(join(workspace, 'a'), { recursive: true })
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'a-b.puml'), '@startuml\n@enduml')
+    writeFileSync(join(workspace, 'a/b.puml'), '@startuml\n@enduml')
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+    writeFileSync(join(workspace, 'auth.mmd'), 'graph TD')
+
+    const result = createNodesV2[1](
+      ['a-b.puml', 'a/b.puml', 'auth.puml', 'auth.mmd'],
+      {},
+      ctx(workspace),
+    )
+    const targets = mergedTargets(result)
+    const names = Object.keys(targets['.'] ?? {})
+    const outputs = Object.values(targets['.'] ?? {}).flatMap(
+      (t) => (t as { outputs?: string[] }).outputs ?? [],
+    )
+
+    // Files a-b.puml and a/b.puml slug to the same 'a-b' — type+hash suffixes keep both.
+    expect(names.filter((n) => n.startsWith('diagram-a-b')).length).toBe(2)
+    // Files auth.puml and auth.mmd would both write auth.svg — outputs disambiguated by type.
+    expect(outputs).toContain('{workspaceRoot}/auth-plantuml.svg')
+    expect(outputs).toContain('{workspaceRoot}/auth-mermaid.svg')
+    expect(outputs).not.toContain('{workspaceRoot}/auth.svg')
+    expect(new Set(names).size).toBe(names.length)
+  })
+
+  it('rejects a targetName colliding with an inferred per-file target', () => {
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    expect(() =>
+      createNodesV2[1](['auth.puml'], { targetName: 'diagram-auth' }, ctx(workspace)),
+    ).toThrow('collides')
+  })
+
+  it('supports brace alternation in include globs', () => {
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+    writeFileSync(join(workspace, 'flow.d2'), 'x -> y')
+
+    const result = createNodesV2[1](
+      ['auth.puml', 'flow.d2'],
+      { include: ['**/*.{puml,mmd}'] },
+      ctx(workspace),
+    )
+    const targets = mergedTargets(result)
+
+    expect(targets['.']?.['diagram-auth']).toBeDefined()
+    expect(targets['.']?.['diagram-flow']).toBeUndefined()
   })
 
   it('respects a custom aggregate targetName', () => {

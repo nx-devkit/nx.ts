@@ -1,6 +1,7 @@
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { dirname, join, relative } from 'node:path'
+import { dirname, isAbsolute, join, normalize, relative } from 'node:path'
 
 export interface NxDiagramsPluginOptions {
   /** Aggregate target name. Default: 'diagrams'. */
@@ -10,7 +11,7 @@ export interface NxDiagramsPluginOptions {
   /** Kroki base URL. Default: 'https://kroki.io'. Empty string disables Kroki. */
   krokiUrl?: string
   /**
-   * Output directory template relative to the project root.
+   * Output directory template, workspace-relative.
    * Tokens: {fileDir} {fileName} {projectRoot}. Default: '{fileDir}'.
    */
   outputDir?: string
@@ -62,17 +63,29 @@ export function outputPathFor(
   outputDir: string | undefined,
   format: string,
 ): string {
-  const fileDirWs = dirname(file)
-  // {fileDir} is the diagram's directory relative to the project root.
-  const fileDir =
-    projectRoot === '.' ? fileDirWs : relative(projectRoot, fileDirWs).replace(/\\/g, '/')
+  // All tokens are workspace-relative: {fileDir} is the source file's directory,
+  // {projectRoot} the owning project root ('' for the root project).
+  const fileDir = dirname(file)
   const fileName = (file.split('/').pop() ?? file).replace(/\.[a-z0-9]+$/i, '')
   const dir = (outputDir ?? '{fileDir}')
     .replaceAll('{fileDir}', fileDir === '.' ? '' : fileDir)
     .replaceAll('{fileName}', fileName)
     .replaceAll('{projectRoot}', projectRoot === '.' ? '' : projectRoot)
-  const rel = [dir.replace(/^\/+|\/+$/g, ''), `${fileName}.${format}`].filter(Boolean).join('/')
-  return projectRoot === '.' ? rel : `${projectRoot}/${rel}`
+    .replace(/\\/g, '/')
+    .replace(/^\/+|\/+$/g, '')
+  if (isAbsolute(dir) || normalize(dir).split('/').includes('..')) {
+    throw new Error(`outputDir "${outputDir}" must resolve to a directory inside the workspace`)
+  }
+  return [dir, `${fileName}.${format}`].filter(Boolean).join('/')
+}
+
+function shortHash(value: string): string {
+  return createHash('sha1').update(value).digest('hex').slice(0, 6)
+}
+
+/** Inserts a suffix before the extension: 'a/b.svg' + '-mermaid' → 'a/b-mermaid.svg'. */
+function suffixOutput(output: string, suffix: string): string {
+  return output.replace(/(\.[a-z0-9]+)$/i, `${suffix}$1`)
 }
 
 function findProjectRoot(workspaceRoot: string, fileDir: string): string {
@@ -90,12 +103,13 @@ function findProjectRoot(workspaceRoot: string, fileDir: string): string {
 
 function globToRegExp(glob: string): RegExp {
   const escaped = glob
-    .replace(/[.+^${}()|[\]\\]/g, String.raw`\$&`)
+    .replace(/[.+^$()|[\]\\]/g, String.raw`\$&`)
     .replace(/\?/g, '[^/]')
     .replace(/\*\*\//g, '__GLOBSTAR_SLASH__')
     .replace(/\*\*/g, '.*')
     .replace(/\*/g, '[^/]*')
     .replace(/__GLOBSTAR_SLASH__/g, '(?:.*/)?')
+    .replace(/\{([^}]*)\}/g, (_, alts: string) => `(?:${alts.split(',').join('|')})`)
   // eslint-disable-next-line security/detect-non-literal-regexp, security/detect-non-literal-reg-expr -- user-supplied glob escaped before construction
   // Nosemgrep: javascript_dos_rule-non-literal-regexp
   return new RegExp(`^${escaped}$`)
@@ -116,7 +130,13 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       outputDir: options.outputDir ?? '{fileDir}',
     }
 
-    const perProject = new Map<string, Map<string, TargetConfiguration>>()
+    interface DiagramFile {
+      file: string
+      output: string
+      slug: string
+      type: string
+    }
+    const perProject = new Map<string, DiagramFile[]>()
 
     for (const configFile of configFiles) {
       const file = configFile.replace(/\\/g, '/')
@@ -131,54 +151,85 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         continue
       }
 
-      const fileDir = dirname(file)
-      const projectRoot = findProjectRoot(context.workspaceRoot, fileDir)
+      const projectRoot = findProjectRoot(context.workspaceRoot, dirname(file))
       const rel = projectRoot === '.' ? file : relative(projectRoot, file).replace(/\\/g, '/')
-      const slug = slugify(rel)
-      const output = outputPathFor(file, projectRoot, options.outputDir, format)
-
-      const targets = perProject.get(projectRoot) ?? new Map<string, TargetConfiguration>()
-      targets.set(`diagram-${slug}`, {
-        cache: true,
-        executor: `${PLUGIN_NAME}:render`,
-        inputs: [`{workspaceRoot}/${file}`],
-        outputs: [`{workspaceRoot}/${output}`],
-        options: { ...sharedOptions, file },
+      const entries = perProject.get(projectRoot) ?? []
+      entries.push({
+        file,
+        output: outputPathFor(file, projectRoot, options.outputDir, format),
+        slug: slugify(rel),
+        type,
       })
-      perProject.set(projectRoot, targets)
+      perProject.set(projectRoot, entries)
     }
 
     const results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
-    const emittedRoots = new Set<string>()
-    for (const configFile of configFiles) {
-      const file = configFile.replace(/\\/g, '/')
-      const projectRoot = findProjectRoot(context.workspaceRoot, dirname(file))
-      const targets = perProject.get(projectRoot)
-      if (!targets || emittedRoots.has(projectRoot)) {
+    for (const [projectRoot, entries] of perProject) {
+      entries.sort((a, b) => a.file.localeCompare(b.file))
+
+      // Files whose slugs or outputs collide get deterministic type/hash suffixes.
+      const slugDup = new Set(
+        entries.map((e) => e.slug).filter((s, i, all) => all.indexOf(s) !== i),
+      )
+      const outputDup = new Set(
+        entries.map((e) => e.output).filter((o, i, all) => all.indexOf(o) !== i),
+      )
+      const takenNames = new Set<string>()
+      const takenOutputs = new Set<string>()
+
+      const targets: Record<string, TargetConfiguration> = {}
+      for (const e of entries) {
+        let name = `diagram-${e.slug}`
+        if (slugDup.has(e.slug)) {
+          name = `${name}-${e.type}`
+        }
+        if (takenNames.has(name)) {
+          name = `${name}-h${shortHash(e.file)}`
+        }
+        takenNames.add(name)
+
+        let output = e.output
+        if (outputDup.has(output)) {
+          output = suffixOutput(output, `-${e.type}`)
+        }
+        if (takenOutputs.has(output)) {
+          output = suffixOutput(e.output, `-${e.type}-h${shortHash(e.file)}`)
+        }
+        takenOutputs.add(output)
+
+        targets[name] = {
+          cache: true,
+          executor: `${PLUGIN_NAME}:render`,
+          inputs: [`{workspaceRoot}/${e.file}`],
+          outputs: [`{workspaceRoot}/${output}`],
+          options: { ...sharedOptions, file: e.file, output },
+        }
+      }
+
+      if (targets[aggregateName]) {
+        throw new Error(
+          `targetName "${aggregateName}" collides with an inferred per-file target in ${projectRoot} — pick a different targetName`,
+        )
+      }
+
+      const files = entries.map((e) => e.file)
+      targets[aggregateName] = {
+        cache: true,
+        executor: `${PLUGIN_NAME}:render`,
+        inputs: files.map((f) => `{workspaceRoot}/${f}`),
+        outputs: [...takenOutputs].map((o) => `{workspaceRoot}/${o}`),
+        options: { ...sharedOptions, files, outputs: [...takenOutputs] },
+      }
+
+      const first = entries[0]
+      if (!first) {
         continue
       }
-      emittedRoots.add(projectRoot)
-      const files = [...targets.values()].map((t) => (t.options as { file: string }).file).sort()
       results.push([
-        configFile,
+        first.file,
         {
           projects: {
-            [projectRoot]: {
-              root: projectRoot,
-              targets: {
-                ...Object.fromEntries(targets),
-                [aggregateName]: {
-                  cache: true,
-                  executor: `${PLUGIN_NAME}:render`,
-                  inputs: files.map((f) => `{workspaceRoot}/${f}`),
-                  outputs: files.map(
-                    (f) =>
-                      `{workspaceRoot}/${outputPathFor(f, projectRoot, options.outputDir, format)}`,
-                  ),
-                  options: { ...sharedOptions, files },
-                },
-              },
-            },
+            [projectRoot]: { root: projectRoot, targets },
           },
         },
       ])

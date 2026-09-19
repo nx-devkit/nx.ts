@@ -13,6 +13,15 @@
       "items": { "type": "string" },
       "description": "Multiple workspace-relative diagram source files (aggregate target)."
     },
+    "output": {
+      "type": "string",
+      "description": "Workspace-relative output image path for `file` (set by inferred targets; overrides outputDir templating)."
+    },
+    "outputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Workspace-relative output paths parallel to `files` (set by inferred targets)."
+    },
     "format": {
       "type": "string",
       "enum": ["svg", "png", "jpeg"],
@@ -27,17 +36,18 @@
     "outputDir": {
       "type": "string",
       "default": "{fileDir}",
-      "description": "Output directory template. Tokens: {fileDir} {fileName} {projectRoot}."
+      "description": "Workspace-relative output directory template. Tokens: {fileDir} {fileName} {projectRoot}."
     },
     "commands": {
       "type": "object",
       "additionalProperties": { "type": "string" },
       "default": {},
-      "description": "Per-type local command overrides. Placeholders: {input} {output} {format} {fileDir}."
+      "description": "Per-type local command overrides. Placeholders (expanded shell-quoted — do not wrap in quotes): {input} {output} {format} {fileDir} {fileName} {projectRoot}."
     },
     "timeout": {
       "type": "number",
       "default": 30000,
+      "minimum": 1,
       "description": "Timeout in ms for commands and HTTP requests."
     },
     "dryRun": {

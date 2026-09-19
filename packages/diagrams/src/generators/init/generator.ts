@@ -1,4 +1,4 @@
-import type { GeneratorCallback, Tree } from '@nx/devkit'
+import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit'
 import { applyEdits, modify } from 'jsonc-parser'
 import { detectIndent, parseJsonObject } from '../../jsonc.ts'
 
@@ -84,6 +84,7 @@ export async function initGenerator(
   for (const line of checklist) {
     console.log(line)
   }
+  await formatFiles(tree)
 
   return () => {
     /* No-op */

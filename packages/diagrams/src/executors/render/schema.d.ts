@@ -1,6 +1,8 @@
 export interface RenderExecutorSchema {
   file?: string
   files?: string[]
+  output?: string
+  outputs?: string[]
   format?: 'svg' | 'png' | 'jpeg'
   krokiUrl?: string
   outputDir?: string

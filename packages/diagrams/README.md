@@ -38,8 +38,8 @@ For `packages/docs/diagrams/auth.puml` inside project `packages/docs`:
 "diagram-diagrams-auth": {
   "executor": "@nx-devkit/diagrams:render",
   "cache": true,
-  "inputs": [{ "file": "packages/docs/diagrams/auth.puml" }],
-  "outputs": ["packages/docs/diagrams/auth.svg"],
+  "inputs": ["{workspaceRoot}/packages/docs/diagrams/auth.puml"],
+  "outputs": ["{workspaceRoot}/packages/docs/diagrams/auth.svg"],
   "options": { "file": "packages/docs/diagrams/auth.puml", "format": "svg", ... }
 },
 "diagrams": { /* aggregate: renders all of the project's diagrams */ }
@@ -48,8 +48,9 @@ For `packages/docs/diagrams/auth.puml` inside project `packages/docs`:
 ```bash
 bunx nx run docs:diagrams              # render all diagrams in the project
 bunx nx run docs:diagram-diagrams-auth # render one
-bunx nx affected -t diagrams           # render only changed diagrams
 ```
+
+Per-file targets are the cache unit — each renders a single file, so unchanged diagrams are restored from cache. The aggregate `diagrams` target re-runs all of a project's diagrams when any of them changes (`nx affected -t diagrams`).
 
 ## Plugin options
 
@@ -59,7 +60,7 @@ bunx nx affected -t diagrams           # render only changed diagrams
   "options": {
     "format": "svg",                  // svg | png | jpeg (default: svg)
     "krokiUrl": "https://kroki.io",   // self-host for privacy/offline; "" disables
-    "outputDir": "{fileDir}",         // tokens: {fileDir} {fileName} {projectRoot}
+    "outputDir": "{fileDir}",         // workspace-relative; tokens: {fileDir} {fileName} {projectRoot}
     "targetName": "diagrams",         // aggregate target name
     "include": ["docs/**"],           // extra filters over matched files
     "exclude": ["**/vendor/**"],
@@ -73,7 +74,11 @@ bunx nx affected -t diagrams           # render only changed diagrams
 }
 ```
 
-Command placeholders: `{input}` (source file, workspace-relative), `{output}` (target image path), `{format}`, `{fileDir}`, `{fileName}`, `{projectRoot}`. Commands run with `cwd` = workspace root.
+Command placeholders — all workspace-relative: `{input}` (source file), `{output}` (target image path), `{format}`, `{fileDir}` (source file's directory), `{fileName}` (basename without extension), `{projectRoot}` (owning project root, empty for the root project). Commands run with `cwd` = workspace root.
+
+Placeholder values expand **shell-quoted** — paths with spaces stay single arguments — so do not wrap placeholders in your own quotes. Commands are workspace-authored configuration (same trust level as `nx:run-commands`); they run through a shell so pipes and redirects work.
+
+`outputDir` uses the same workspace-relative tokens: the default `{fileDir}` colocates output next to the source; use `{projectRoot}/img` for a per-project image directory.
 
 ## Self-hosted Kroki
 
@@ -87,8 +92,14 @@ services:
     ports: ["8000:8000"]
     environment:
       KROKI_MERMAID_HOST: mermaid
+      KROKI_BPMN_HOST: bpmn
+      KROKI_EXCALIDRAW_HOST: excalidraw
   mermaid:
     image: yuzutech/kroki-mermaid
+  bpmn:
+    image: yuzutech/kroki-bpmn
+  excalidraw:
+    image: yuzutech/kroki-excalidraw
 ```
 
 Then `"krokiUrl": "http://localhost:8000"`.

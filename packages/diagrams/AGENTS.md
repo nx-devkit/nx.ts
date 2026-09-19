@@ -10,8 +10,11 @@ Infers cached, atomized render targets for text-diagram files (`*.puml`, `*.mmd`
 
 ```
 packages/diagrams/
-├── package.json
+├── package.json            # executors/generators fields → manifests below
+├── executors.json          # render executor manifest
+├── generators.json         # init generator manifest
 ├── tsdown.config.ts        # entry: index, plugin, executors/render/executor, generators/init/generator
+├── tsconfig.json
 ├── vitest.config.ts
 ├── src/
 │   ├── index.ts            # public surface
@@ -40,8 +43,10 @@ export interface NxDiagramsPluginOptions {
 ## Invariants
 
 - Per-file targets are `cache: true` with single-file `inputs` and the rendered image in `outputs`.
-- `commands[type]` wins over Kroki. Command placeholders `{input}`/`{output}` are workspace-relative; commands run with `cwd` = workspace root.
+- `commands[type]` wins over Kroki. All placeholders are workspace-relative and expand shell-quoted; commands run with `cwd` = workspace root.
 - `krokiUrl` must be absolute http(s) or empty. Empty + no command for the type → actionable error.
+- `timeout` must be positive; `outputDir` must resolve inside the workspace.
+- Colliding slugs/outputs get deterministic `-<type>` then `-h<hash>` suffixes; the resolved paths travel to the executor via `options.output`/`options.outputs` — never recompute them there.
 - `dryRun` never writes files, never calls renderers.
 - The init generator edits `nx.json` via `jsonc-parser` (comments/formatting preserved) — never `JSON.stringify` an existing file.
 
@@ -55,4 +60,4 @@ export interface NxDiagramsPluginOptions {
 
 - `createNodesV2` glob is static — new extensions require editing `DIAGRAM_TYPES` in `plugin.ts`.
 - `globToRegExp` placeholder order matters: `?` must be converted before regex syntax is injected.
-- `outputPathFor` tokens are project-relative; the output path is workspace-relative.
+- `outputPathFor` tokens and the returned path are all workspace-relative — `{projectRoot}` expands to the project root (no second prepend).

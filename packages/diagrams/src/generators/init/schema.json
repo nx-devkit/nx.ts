@@ -7,6 +7,7 @@
     "pluginPath": {
       "type": "string",
       "default": "@nx-devkit/diagrams",
+      "minLength": 1,
       "description": "Plugin specifier to register (e.g. a local path during development)."
     }
   },

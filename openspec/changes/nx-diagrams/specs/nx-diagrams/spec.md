@@ -9,8 +9,8 @@ Renders text-diagram source files (PlantUML, Mermaid, Graphviz, D2, BPMN, Excali
 The plugin MUST use `createNodesV2` with a default trigger glob covering `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` and MUST infer one `diagram-<relpath-slug>` target per matched file on the owning project, plus a `diagrams` aggregate target on projects containing at least one match.
 
 #### Scenario: Single diagram file
-- **WHEN** `packages/docs/diagrams/auth.puml` exists
-- **THEN** the owning project gets a `diagram-docs-diagrams-auth` target with `cache: true`, `inputs` containing the source file, `outputs` containing the rendered image path, and executor `@nx-devkit/diagrams:render`
+- **WHEN** `packages/docs/diagrams/auth.puml` exists in project `packages/docs`
+- **THEN** the owning project gets a `diagram-diagrams-auth` target (slug from the project-relative path) with `cache: true`, `inputs` containing the source file, `outputs` containing the rendered image path, and executor `@nx-devkit/diagrams:render`
 
 #### Scenario: Aggregate target
 - **WHEN** a project contains at least one diagram file
@@ -27,15 +27,19 @@ The plugin MUST map `.puml`/`.plantuml`→`plantuml`, `.mmd`/`.mermaid`→`merma
 - **WHEN** a file matches the glob but has no type mapping and no `commands` entry
 - **THEN** no target is inferred for it
 
-### Requirement: Basename collision safety
-When two diagram files share a basename, target names MUST disambiguate via the relative path slug, not a hash.
+### Requirement: Collision safety
+Target names MUST disambiguate via the relative path slug. When distinct files still collide — same slug after normalization (e.g. `a-b.puml` vs `a/b.puml`) or same output path (e.g. `auth.puml` vs `auth.mmd`) — the plugin MUST add a deterministic suffix (diagram type, then a short path hash) instead of silently overwriting the earlier target or output. A `targetName` that collides with an inferred per-file target MUST fail inference with an actionable error.
 
 #### Scenario: Duplicate basenames
 - **WHEN** `a/auth.puml` and `b/auth.puml` both exist
 - **THEN** distinct targets `diagram-a-auth` and `diagram-b-auth` are inferred
 
+#### Scenario: Same basename, different types
+- **WHEN** `auth.puml` and `auth.mmd` exist in the same directory
+- **THEN** distinct targets are inferred and the outputs are disambiguated (e.g. `auth-plantuml.svg` and `auth-mermaid.svg`) instead of both writing `auth.svg`
+
 ### Requirement: Renderer precedence
-The `render` executor MUST prefer `commands[type]` when configured, spawning the command with `{input}`, `{output}`, `{format}`, and `{fileDir}` placeholders interpolated; otherwise it MUST POST the diagram source to `{krokiUrl}/{type}/{format}` and write the response body bytes to the output path.
+The `render` executor MUST prefer `commands[type]` when configured, spawning the command with `{input}`, `{output}`, `{format}`, `{fileDir}`, `{fileName}`, and `{projectRoot}` placeholders interpolated; otherwise it MUST POST the diagram source to `{krokiUrl}/{type}/{format}` and write the response body bytes to the output path. Placeholder values MUST be shell-quoted during interpolation so paths with spaces or metacharacters remain single arguments; command authors MUST NOT wrap placeholders in their own quotes. `timeout` MUST be a positive number of milliseconds; non-positive values MUST fail validation before any rendering.
 
 #### Scenario: Command override wins
 - **WHEN** `commands.mermaid` is configured and a `.mmd` file renders
@@ -61,14 +65,18 @@ The executor MUST fail when a command exits non-zero (including stderr in the er
 - **THEN** the executor throws telling the user to configure `commands` or set `krokiUrl`
 
 ### Requirement: Output path templating
-The output path MUST be derived from `outputDir` with `{fileDir}`, `{fileName}`, and `{projectRoot}` tokens, defaulting to colocated `{fileDir}/{fileName}.{format}`.
+The output path MUST be derived from `outputDir` with `{fileDir}`, `{fileName}`, and `{projectRoot}` tokens — all workspace-relative (`{fileDir}` is the source file's directory, `{projectRoot}` the owning project root, `''` for the root project) — defaulting to colocated `{fileDir}/{fileName}.{format}`. An `outputDir` that resolves to an absolute path or escapes the workspace via `..` MUST fail inference.
 
 #### Scenario: Custom outputDir
-- **WHEN** `outputDir` is `docs/img`
-- **THEN** `packages/docs/diagrams/auth.puml` renders to `packages/docs/docs/img/auth.svg` resolved under the project root
+- **WHEN** `outputDir` is `{projectRoot}/docs/img`
+- **THEN** `packages/docs/diagrams/auth.puml` renders to `packages/docs/docs/img/auth.svg`
+
+#### Scenario: outputDir escapes the workspace
+- **WHEN** `outputDir` is `../out` or `/tmp/out`
+- **THEN** inference fails with an error naming the offending `outputDir`
 
 ### Requirement: Format and URL options
-`format` MUST accept `svg` (default), `png`, or `jpeg` and appear in both the output filename and the Kroki request path. `krokiUrl` MUST be an absolute `http(s)` URL; trailing slashes are trimmed.
+`format` MUST accept `svg` (default), `png`, or `jpeg` and appear in both the output filename and the Kroki request path — actual per-type format support depends on the renderer (Kroki serves `jpeg` only for some types; unsupported combinations surface via the non-2xx failure rule). `krokiUrl` MUST be an absolute `http(s)` URL; trailing slashes are trimmed.
 
 #### Scenario: png format
 - **WHEN** `format: "png"`

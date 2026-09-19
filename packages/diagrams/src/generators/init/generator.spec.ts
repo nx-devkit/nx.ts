@@ -16,6 +16,10 @@ class MemTree {
   write(path: string, content: string): void {
     this.files.set(path, content)
   }
+
+  listChanges(): { path: string; type: string }[] {
+    return [...this.files.keys()].map((path) => ({ path, type: 'CREATE' }))
+  }
 }
 
 function createTree(): MemTree {
@@ -77,7 +81,7 @@ describe('initGenerator', () => {
     await initGenerator(tree as unknown as Tree, {})
 
     const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
-    expect(nxJson.plugins).toHaveLength(1)
+    expect(nxJson.plugins).toEqual([['@nx-devkit/diagrams', { format: 'png' }]])
   })
 
   it('preserves existing plugin entries', async () => {
@@ -121,6 +125,17 @@ describe('initGenerator', () => {
     const lines = await captureLogs(async () => initGenerator(tree as unknown as Tree, {}))
 
     expect(lines.join('\n')).toContain('my-workspace:diagrams')
+  })
+
+  it('prefers project.json name over nx.json and package.json names', async () => {
+    const tree = createTree()
+    tree.write('project.json', JSON.stringify({ name: 'proj-name' }))
+    tree.write('nx.json', JSON.stringify({ name: 'ws-name' }))
+    tree.write('package.json', JSON.stringify({ name: 'pkg-name' }))
+
+    const lines = await captureLogs(async () => initGenerator(tree as unknown as Tree, {}))
+
+    expect(lines.join('\n')).toContain('proj-name:diagrams')
   })
 
   it('prefers nx.json name over package.json name for the root project', async () => {
