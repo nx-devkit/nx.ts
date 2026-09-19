@@ -175,14 +175,6 @@ describe('renderExecutor', () => {
     expect(existsSync(join(workspace, 'out/auth.svg'))).toBe(true)
   })
 
-  it('rejects an explicit output escaping the workspace', async () => {
-    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
-
-    await expect(
-      renderExecutor({ file: 'auth.puml', output: '../auth.svg' }, makeContext(workspace)),
-    ).rejects.toThrow(/must resolve inside the workspace/)
-  })
-
   it('uses the output path passed via options (collision-suffixed)', async () => {
     writeFileSync(join(workspace, 'auth.mmd'), 'graph TD')
 
@@ -233,6 +225,10 @@ describe('renderExecutor', () => {
 
     await expect(
       renderExecutor({ file: 'auth.puml', output: '../auth.svg' }, makeContext(workspace)),
+    ).rejects.toThrow('inside the workspace')
+    // Backslash separators must not bypass the traversal check on win32.
+    await expect(
+      renderExecutor({ file: 'auth.puml', output: '..\\auth.svg' }, makeContext(workspace)),
     ).rejects.toThrow('inside the workspace')
   })
 
