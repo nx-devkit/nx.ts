@@ -151,13 +151,15 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
     }
 
     const results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
+    const emittedRoots = new Set<string>()
     for (const configFile of configFiles) {
       const file = configFile.replace(/\\/g, '/')
       const projectRoot = findProjectRoot(context.workspaceRoot, dirname(file))
       const targets = perProject.get(projectRoot)
-      if (!targets) {
+      if (!targets || emittedRoots.has(projectRoot)) {
         continue
       }
+      emittedRoots.add(projectRoot)
       const files = [...targets.values()].map((t) => (t.options as { file: string }).file).sort()
       results.push([
         configFile,

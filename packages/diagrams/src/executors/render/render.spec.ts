@@ -156,11 +156,22 @@ describe('renderExecutor', () => {
     expect(existsSync(join(workspace, 'auth.svg'))).toBe(false)
   })
 
-  it('fails with actionable error when krokiUrl is empty and no command covers the type', async () => {
+  it('fails fast when krokiUrl is empty and no commands are configured', async () => {
     writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
 
     await expect(
       renderExecutor({ file: 'auth.puml', krokiUrl: '' }, makeContext(workspace)),
+    ).rejects.toThrow('set krokiUrl or provide commands')
+  })
+
+  it('fails per-file when krokiUrl is empty and commands lack the type', async () => {
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    await expect(
+      renderExecutor(
+        { commands: { mermaid: 'mmdc' }, file: 'auth.puml', krokiUrl: '' },
+        makeContext(workspace),
+      ),
     ).rejects.toThrow('configure commands.plantuml or set krokiUrl')
   })
 

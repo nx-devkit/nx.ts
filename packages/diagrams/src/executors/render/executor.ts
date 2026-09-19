@@ -19,8 +19,12 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
   if (krokiUrl && !/^https?:\/\//.test(krokiUrl)) {
     throw new Error(`krokiUrl must be an absolute http(s) URL, got "${options.krokiUrl}"`)
   }
+  const commands = options.commands ?? {}
+  if (!krokiUrl && Object.keys(commands).length === 0) {
+    throw new Error('No renderer configured: set krokiUrl or provide commands for diagram types')
+  }
   return {
-    commands: options.commands ?? {},
+    commands,
     format,
     krokiUrl,
     outputDir: options.outputDir ?? '{fileDir}',
