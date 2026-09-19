@@ -235,7 +235,7 @@ describe('createNodesV2', () => {
     const files = ['packages/docs/x.puml', 'packages/web/x.puml']
 
     const forward = createNodesV2[1](files, { outputDir: 'img' }, ctx(workspace))
-    const reversed = createNodesV2[1]([...files].reverse(), { outputDir: 'img' }, ctx(workspace))
+    const reversed = createNodesV2[1](files.toReversed(), { outputDir: 'img' }, ctx(workspace))
 
     expect(reversed).toEqual(forward)
   })
