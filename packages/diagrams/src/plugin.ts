@@ -178,7 +178,9 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
     const takenOutputs = new Set<string>()
 
     const results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
-    for (const [projectRoot, entries] of perProject) {
+    // Project roots sorted so cross-project output allocation is deterministic.
+    for (const projectRoot of [...perProject.keys()].sort()) {
+      const entries = perProject.get(projectRoot) ?? []
       entries.sort((a, b) => a.file.localeCompare(b.file))
 
       // Files whose slugs or outputs collide get deterministic type/hash suffixes.
