@@ -13,7 +13,7 @@
 
 - [x] Failing `plugin.spec.ts`: `.puml` file → `diagram-<slug>` target with cache, inputs, outputs
 - [x] Aggregate `diagrams` target on projects containing ≥1 diagram (multi-file inputs/outputs/files covered)
-- [x] Nested/node_modules diagram files handled per `include`/`exclude` (incl. `{a,b}` brace alternation)
+- [x] Nested diagram files handled per `include`/`exclude` (incl. `{a,b}` brace alternation and trailing `**`); `node_modules` never matched — Nx does not enumerate it
 - [x] Custom `targetName`/`format`/`outputDir` options reflected in inferred targets
 - [x] Basename collisions resolved via relpath slug; remaining slug/output collisions disambiguated by type+hash suffixes
 - [x] `targetName` colliding with a per-file target fails inference

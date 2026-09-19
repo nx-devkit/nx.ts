@@ -117,8 +117,11 @@ export default async function renderExecutor(
     if (!type) {
       throw new Error(`Unknown diagram type for ${file}`)
     }
-    const output =
+    // The extension always matches the resolved format, even when format is
+    // Overridden on an inferred target whose output was baked for another format.
+    const rawOutput =
       outputsOption[index] ?? outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
+    const output = rawOutput.replace(/\.[a-z0-9]+$/i, `.${resolved.format}`)
     if (isAbsolute(output) || normalize(output).split('/').includes('..')) {
       throw new Error(`output path "${output}" must resolve inside the workspace`)
     }

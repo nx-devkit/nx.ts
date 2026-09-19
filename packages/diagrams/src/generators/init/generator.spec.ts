@@ -148,6 +148,20 @@ describe('initGenerator', () => {
     expect(lines.join('\n')).toContain('ws-name:diagrams')
   })
 
+  it('detects indentation from a real property, not a quoted comment line', async () => {
+    const tree = new MemTree()
+    tree.write(
+      'nx.json',
+      '{\n  /*\n        "plugins": example\n  */\n  "plugins": ["other-plugin"]\n}\n',
+    )
+
+    await initGenerator(tree as unknown as Tree, {})
+
+    // The emitted entry follows the real 2-space top-level indent,
+    // Not the 8-space indent of the quoted block-comment line.
+    expect(tree.read('nx.json')).toContain('\n    {\n      "options"')
+  })
+
   it('preserves comments and formatting in nx.json', async () => {
     const tree = new MemTree()
     tree.write('nx.json', '{\n  // keep me\n  "plugins": ["other-plugin"]\n}\n')

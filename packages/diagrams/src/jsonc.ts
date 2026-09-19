@@ -1,4 +1,4 @@
-import { parse, type ParseError, printParseErrorCode } from 'jsonc-parser'
+import { parse, type ParseError, parseTree, printParseErrorCode } from 'jsonc-parser'
 
 export function parseJsonObject(text: string, path: string): Record<string, unknown> {
   const errors: ParseError[] = []
@@ -20,8 +20,13 @@ export function detectIndent(text: string): {
   insertSpaces: boolean
   tabSize: number
 } {
-  const match = /\n([ \t]+)"[^"\n]+"\s*:/.exec(text)
-  const indent = match?.[1] ?? '  '
+  // Anchor on the first real property of the root object so quoted lines
+  // Inside comments cannot skew the detected indentation.
+  const root = parseTree(text)
+  const firstProp = root?.children?.[0]?.children?.[0]
+  const lineStart = firstProp ? text.lastIndexOf('\n', firstProp.offset) + 1 : -1
+  const leading = firstProp ? text.slice(lineStart, firstProp.offset) : ''
+  const indent = /^[ \t]+$/.test(leading) ? leading : '  '
   return {
     eol: text.includes('\r\n') ? '\r\n' : '\n',
     insertSpaces: !indent.startsWith('\t'),

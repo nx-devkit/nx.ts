@@ -204,6 +204,28 @@ describe('createNodesV2', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 
+  it('disambiguates shared outputDir collisions across projects', () => {
+    for (const pkg of ['docs', 'web']) {
+      mkdirSync(join(workspace, `packages/${pkg}`), { recursive: true })
+      writeFileSync(join(workspace, `packages/${pkg}/package.json`), `{"name":"${pkg}"}`)
+      writeFileSync(join(workspace, `packages/${pkg}/x.puml`), '@startuml\n@enduml')
+    }
+
+    const result = createNodesV2[1](
+      ['packages/docs/x.puml', 'packages/web/x.puml'],
+      { outputDir: 'img' },
+      ctx(workspace),
+    )
+    const perFileOutputs = Object.values(mergedTargets(result))
+      .flatMap((targets) => Object.entries(targets).filter(([name]) => name.startsWith('diagram-')))
+      .flatMap(([, t]) => (t as { outputs?: string[] }).outputs ?? [])
+
+    // Both files would render to img/x.svg — every emitted output is unique.
+    expect(perFileOutputs.length).toBe(2)
+    expect(new Set(perFileOutputs).size).toBe(2)
+    expect(perFileOutputs).not.toContain('{workspaceRoot}/img/x.svg')
+  })
+
   it('rejects a targetName colliding with an inferred per-file target', () => {
     writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
     writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')

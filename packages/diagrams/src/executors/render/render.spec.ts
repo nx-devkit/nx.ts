@@ -155,6 +155,19 @@ describe('renderExecutor', () => {
     expect(state.spawnCalls[0]?.command).toBe("mmdc -i 'my dir/flow.mmd' -o 'my dir/flow.svg'")
   })
 
+  it('keeps the output extension consistent with an overridden format', async () => {
+    writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
+
+    await renderExecutor(
+      { file: 'auth.puml', format: 'png', output: 'auth.svg' },
+      makeContext(workspace),
+    )
+
+    expect(state.fetchCalls[0]?.url).toBe('https://kroki.io/plantuml/png')
+    expect(existsSync(join(workspace, 'auth.png'))).toBe(true)
+    expect(existsSync(join(workspace, 'auth.svg'))).toBe(false)
+  })
+
   it('uses the output path passed via options (collision-suffixed)', async () => {
     writeFileSync(join(workspace, 'auth.mmd'), 'graph TD')
 

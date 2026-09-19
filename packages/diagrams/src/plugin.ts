@@ -167,6 +167,16 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       perProject.set(projectRoot, entries)
     }
 
+    // Output paths are workspace-relative, so collisions are tracked globally —
+    // A shared outputDir can collide across projects. Target names are per-project.
+    const outputCounts = new Map<string, number>()
+    for (const entries of perProject.values()) {
+      for (const e of entries) {
+        outputCounts.set(e.output, (outputCounts.get(e.output) ?? 0) + 1)
+      }
+    }
+    const takenOutputs = new Set<string>()
+
     const results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
     for (const [projectRoot, entries] of perProject) {
       entries.sort((a, b) => a.file.localeCompare(b.file))
@@ -175,11 +185,8 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       const slugDup = new Set(
         entries.map((e) => e.slug).filter((s, i, all) => all.indexOf(s) !== i),
       )
-      const outputDup = new Set(
-        entries.map((e) => e.output).filter((o, i, all) => all.indexOf(o) !== i),
-      )
       const takenNames = new Set<string>()
-      const takenOutputs = new Set<string>()
+      const projectOutputs: string[] = []
 
       const targets: Record<string, TargetConfiguration> = {}
       for (const e of entries) {
@@ -193,13 +200,14 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         takenNames.add(name)
 
         let output = e.output
-        if (outputDup.has(output)) {
+        if ((outputCounts.get(output) ?? 0) > 1) {
           output = suffixOutput(output, `-${e.type}`)
         }
         if (takenOutputs.has(output)) {
           output = suffixOutput(e.output, `-${e.type}-h${shortHash(e.file)}`)
         }
         takenOutputs.add(output)
+        projectOutputs.push(output)
 
         targets[name] = {
           cache: true,
@@ -221,8 +229,8 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         cache: true,
         executor: `${PLUGIN_NAME}:render`,
         inputs: files.map((f) => `{workspaceRoot}/${f}`),
-        outputs: [...takenOutputs].map((o) => `{workspaceRoot}/${o}`),
-        options: { ...sharedOptions, files, outputs: [...takenOutputs] },
+        outputs: projectOutputs.map((o) => `{workspaceRoot}/${o}`),
+        options: { ...sharedOptions, files, outputs: projectOutputs },
       }
 
       const first = entries[0]

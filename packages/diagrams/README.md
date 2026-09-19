@@ -74,7 +74,7 @@ Per-file targets are the cache unit — each renders a single file, so unchanged
 }
 ```
 
-Command placeholders — all workspace-relative: `{input}` (source file), `{output}` (target image path), `{format}`, `{fileDir}` (source file's directory), `{fileName}` (basename without extension), `{projectRoot}` (owning project root, empty for the root project). Commands run with `cwd` = workspace root.
+Command placeholders — all workspace-relative: `{input}` (source file), `{output}` (target image path), `{format}`, `{fileDir}` (source file's directory), `{fileName}` (basename without extension), `{projectRoot}` (owning project root — `.` for the root project in commands, so `{projectRoot}/img` resolves to `./img`; in `outputDir` templates it expands to an empty prefix). Commands run with `cwd` = workspace root.
 
 Placeholder values expand **shell-quoted** — paths with spaces stay single arguments — so do not wrap placeholders in your own quotes. Commands are workspace-authored configuration (same trust level as `nx:run-commands`); they run through a shell so pipes and redirects work.
 
