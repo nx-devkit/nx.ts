@@ -120,7 +120,7 @@ export default async function renderExecutor(
     // The extension always matches the resolved format, even when format is
     // Overridden on an inferred target whose output was baked for another format.
     const rawOutput =
-      // eslint-disable-next-line security/detect-object-injection -- index iterates the same array, always in range
+      // eslint-disable-next-line security/detect-object-injection -- index iterates files; outputsOption may be shorter, guarded by the ?? fallback
       outputsOption[index] ?? outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
     const output = rawOutput.replace(/\.[a-z0-9]+$/i, `.${resolved.format}`)
     if (isAbsolute(output) || normalize(output).split('/').includes('..')) {
