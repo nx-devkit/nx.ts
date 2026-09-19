@@ -41,6 +41,7 @@ const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).join(',')}}`
 export function diagramTypeFor(file: string): string | undefined {
   const lower = file.toLowerCase()
   const ext = Object.keys(DIAGRAM_TYPES).find((e) => lower.endsWith(e))
+  // eslint-disable-next-line security/detect-object-injection -- ext comes from Object.keys(DIAGRAM_TYPES), a fixed registry
   return ext ? DIAGRAM_TYPES[ext] : undefined
 }
 
@@ -76,20 +77,15 @@ export function outputPathFor(
 
 function findProjectRoot(workspaceRoot: string, fileDir: string): string {
   let dir = fileDir === '.' ? workspaceRoot : join(workspaceRoot, fileDir)
-  while (true) {
+  while (dir.startsWith(workspaceRoot)) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- marker filenames joined to a dir under the trusted workspace root
     if (existsSync(join(dir, 'project.json')) || existsSync(join(dir, 'package.json'))) {
       const rel = relative(workspaceRoot, dir).replace(/\\/g, '/')
       return rel === '' ? '.' : rel
     }
-    if (dir === workspaceRoot) {
-      return '.'
-    }
-    const parent = dirname(dir)
-    if (parent === dir) {
-      return '.'
-    }
-    dir = parent
+    dir = dirname(dir)
   }
+  return '.'
 }
 
 function globToRegExp(glob: string): RegExp {
@@ -100,6 +96,8 @@ function globToRegExp(glob: string): RegExp {
     .replace(/\*\*/g, '.*')
     .replace(/\*/g, '[^/]*')
     .replace(/__GLOBSTAR_SLASH__/g, '(?:.*/)?')
+  // eslint-disable-next-line security/detect-non-literal-regexp, security/detect-non-literal-reg-expr -- user-supplied glob escaped before construction
+  // Nosemgrep: javascript_dos_rule-non-literal-regexp
   return new RegExp(`^${escaped}$`)
 }
 

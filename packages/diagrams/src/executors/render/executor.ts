@@ -33,11 +33,13 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
 }
 
 function interpolate(template: string, vars: Record<string, string>): string {
+  // eslint-disable-next-line security/detect-object-injection -- key comes from {name} placeholders in a workspace-authored command template
   return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? `{${key}}`)
 }
 
 async function renderWithKroki(resolved: Resolved, type: string, source: string): Promise<Buffer> {
   const url = `${resolved.krokiUrl}/${type}/${resolved.format}`
+  // Nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- krokiUrl is workspace config validated as absolute http(s); type/format come from fixed enums
   const res = await fetch(url, {
     body: source,
     headers: { 'content-type': 'text/plain' },
@@ -59,6 +61,7 @@ function renderWithCommand(
   cwd: string,
 ): void {
   const cmd = interpolate(command, vars)
+  // Nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true -- commands are workspace-authored config (same trust level as nx:run-commands); shell is required for pipes/redirects
   const result = spawnSync(cmd, {
     cwd,
     shell: true,
@@ -69,7 +72,7 @@ function renderWithCommand(
     throw new Error(`Diagram command failed to start: ${result.error.message}`)
   }
   if (result.status !== 0) {
-    const stderr = result.stderr?.toString().trim() ?? ''
+    const stderr = String(result.stderr).trim()
     throw new Error(`Diagram command failed (exit ${result.status}): ${cmd}\n${stderr}`)
   }
 }
@@ -112,10 +115,13 @@ export default async function renderExecutor(
       projectRoot,
     }
 
+    // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed DIAGRAM_TYPES registry
     const command = resolved.commands[type]
     if (command) {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from a glob-matched path under the trusted workspace root
       mkdirSync(dirname(absOutput), { recursive: true })
       renderWithCommand(resolved, command, vars, context.root)
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
       if (!existsSync(absOutput)) {
         throw new Error(`Diagram command succeeded but did not create ${output}`)
       }
@@ -125,9 +131,12 @@ export default async function renderExecutor(
           `No renderer for ${file} (type ${type}): krokiUrl is empty — configure commands.${type} or set krokiUrl`,
         )
       }
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path joined to context.root
       const source = readFileSync(join(context.root, file), 'utf8')
       const image = await renderWithKroki(resolved, type, source)
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from the same glob-matched path
       mkdirSync(dirname(absOutput), { recursive: true })
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
       writeFileSync(absOutput, image)
     }
     rendered.push(output)
