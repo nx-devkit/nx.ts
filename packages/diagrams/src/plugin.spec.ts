@@ -226,6 +226,20 @@ describe('createNodesV2', () => {
     expect(perFileOutputs).not.toContain('{workspaceRoot}/img/x.svg')
   })
 
+  it('allocates outputs deterministically regardless of file order', () => {
+    for (const pkg of ['docs', 'web']) {
+      mkdirSync(join(workspace, `packages/${pkg}`), { recursive: true })
+      writeFileSync(join(workspace, `packages/${pkg}/package.json`), `{"name":"${pkg}"}`)
+      writeFileSync(join(workspace, `packages/${pkg}/x.puml`), '@startuml\n@enduml')
+    }
+    const files = ['packages/docs/x.puml', 'packages/web/x.puml']
+
+    const forward = createNodesV2[1](files, { outputDir: 'img' }, ctx(workspace))
+    const reversed = createNodesV2[1]([...files].reverse(), { outputDir: 'img' }, ctx(workspace))
+
+    expect(reversed).toEqual(forward)
+  })
+
   it('rejects a targetName colliding with an inferred per-file target', () => {
     writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
     writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
