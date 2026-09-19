@@ -113,8 +113,8 @@ function globToRegExp(glob: string): RegExp {
     .replace(/__GLOBSTAR_SLASH__/g, '(?:.*/)?')
     .replace(/__GLOBSTAR__/g, '.*')
     .replace(/\{([^}]*)\}/g, (_, alts: string) => `(?:${alts.split(',').join('|')})`)
-  // eslint-disable-next-line security/detect-non-literal-regexp, security/detect-non-literal-reg-expr -- user-supplied glob escaped before construction
-  // Nosemgrep: javascript_dos_rule-non-literal-regexp
+  // Nosemgrep: javascript_dos_rule-non-literal-regexp -- user-supplied glob escaped before construction
+  // eslint-disable-next-line security/detect-non-literal-regexp, security/detect-non-literal-reg-expr -- same: glob is escaped before construction
   return new RegExp(`^${escaped}$`)
 }
 
@@ -211,6 +211,7 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         takenOutputs.add(output)
         projectOutputs.push(output)
 
+        // eslint-disable-next-line security/detect-object-injection -- name is a slug derived from glob-matched workspace files
         targets[name] = {
           cache: true,
           executor: `${PLUGIN_NAME}:render`,
@@ -220,13 +221,14 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         }
       }
 
-      if (targets[aggregateName]) {
+      if (Object.hasOwn(targets, aggregateName)) {
         throw new Error(
           `targetName "${aggregateName}" collides with an inferred per-file target in ${projectRoot} — pick a different targetName`,
         )
       }
 
       const files = entries.map((e) => e.file)
+      // eslint-disable-next-line security/detect-object-injection -- aggregateName is workspace-authored plugin config
       targets[aggregateName] = {
         cache: true,
         executor: `${PLUGIN_NAME}:render`,
@@ -235,7 +237,7 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         options: { ...sharedOptions, files, outputs: projectOutputs },
       }
 
-      const first = entries[0]
+      const first = entries.at(0)
       if (!first) {
         continue
       }

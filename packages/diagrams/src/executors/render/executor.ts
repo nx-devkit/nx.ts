@@ -43,9 +43,9 @@ function shellQuote(value: string): string {
 }
 
 function interpolate(template: string, vars: Record<string, string>): string {
-  // eslint-disable-next-line security/detect-object-injection -- key comes from {name} placeholders in a workspace-authored command template
   return template.replace(/\{(\w+)\}/g, (_, key: string) => {
-    const value = vars[key]
+    // eslint-disable-next-line security/detect-object-injection -- key comes from {name} placeholders in a workspace-authored command template
+    const value = vars[key] as string | undefined
     return value === undefined ? `{${key}}` : shellQuote(value)
   })
 }
@@ -120,6 +120,7 @@ export default async function renderExecutor(
     // The extension always matches the resolved format, even when format is
     // Overridden on an inferred target whose output was baked for another format.
     const rawOutput =
+      // eslint-disable-next-line security/detect-object-injection -- index iterates the same array, always in range
       outputsOption[index] ?? outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
     const output = rawOutput.replace(/\.[a-z0-9]+$/i, `.${resolved.format}`)
     if (isAbsolute(output) || normalize(output).split('/').includes('..')) {
