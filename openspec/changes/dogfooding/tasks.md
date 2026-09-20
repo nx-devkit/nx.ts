@@ -26,7 +26,7 @@
 ## 5. CI / release
 
 - [x] `ci.yml`: Python setup, SkillSpector install, executor builds, real inferred targets, skill checks, scans
-- [x] `release.yml`: `nx run-many -t prepare-for-release` before `nx release version`
+- [x] `release.yml` reviewed — placeholder step intentionally omitted (npm OIDC cannot first-publish); documented as local tool
 
 ## 6. Docs / specs
 

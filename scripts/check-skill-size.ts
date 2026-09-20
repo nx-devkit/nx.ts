@@ -18,7 +18,7 @@ const MAX_SKILL_MD_BYTES = 50 * 1024
 const MAX_DIR_BYTES = 1024 * 1024
 
 const skillArg = process.argv.indexOf('--skill')
-const skillDir = skillArg >= 0 ? process.argv[skillArg + 1] : undefined
+const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
 if (!skillDir) {
   console.error('Usage: check-skill-size.ts --skill <dir>')
   process.exit(1)

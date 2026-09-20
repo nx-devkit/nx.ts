@@ -63,16 +63,6 @@ jobs:
         env:
           E2E_SKIP_BUILD: "1" # Build step above already produced dist/
         run: bash scripts/e2e-packed.sh
-      - name: Publish placeholders for new packages (dogfood)
-        # Uses our own @nx-devkit/prepare-for-release plugin: for every
-        # publishable package not yet on npm it publishes a 0.0.0 placeholder
-        # tarball (temp-dir build, source manifests untouched). Idempotent —
-        # already-published packages are skipped via `npm view`. Ensures new
-        # packages exist on the registry before `nx release publish` and that
-        # OIDC trusted publishers can be configured for them.
-        run: bun --bun node_modules/.bin/nx run-many -t prepare-for-release --verbose
-        env:
-          NPM_CONFIG_PROVENANCE: 'true'
       - name: Configure git identity for release commits
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"

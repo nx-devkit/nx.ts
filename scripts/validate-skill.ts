@@ -18,7 +18,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 
 const skillArg = process.argv.indexOf('--skill')
-const skillDir = skillArg >= 0 ? process.argv[skillArg + 1] : undefined
+const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
 if (!skillDir) {
   console.error('Usage: validate-skill.ts --skill <dir>')
   process.exit(1)
@@ -45,8 +45,8 @@ if (!existsSync(skillMd)) {
     const description = fields.get('description')
     if (!name) errors.push('frontmatter `name` is missing or empty')
     if (!description) errors.push('frontmatter `description` is missing or empty')
-    // name should match the directory basename for normal skill dirs; container
-    // dirs like `.agents/skills` legitimately carry a different frontmatter name.
+    // Name should match the directory basename for normal skill dirs; container
+    // Dirs like `.agents/skills` legitimately carry a different frontmatter name.
     if (name && name !== basename(root) && basename(root) !== 'skills') {
       console.warn(`  ! frontmatter name "${name}" does not match directory "${basename(root)}"`)
     }

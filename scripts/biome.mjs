@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// biome launcher: on Nix/devenv Linux the glibc build of
+// Biome launcher: on Nix/devenv Linux the glibc build of
 // @biomejs/cli-linux-x64 cannot exec (no /lib64/ld-linux-x86-64.so.2) even
-// though `ldd` reports glibc, so biome's own musl detection misfires.
+// Though `ldd` reports glibc, so biome's own musl detection misfires.
 // When the dynamic loader is missing, resolve the musl build via the
 // @biomejs/biome package's own dependency graph and spawn it directly.
 import { spawnSync } from 'node:child_process'

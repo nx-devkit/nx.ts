@@ -12,7 +12,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const skillArg = process.argv.indexOf('--skill')
-const skillDir = skillArg >= 0 ? process.argv[skillArg + 1] : undefined
+const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
 if (!skillDir) {
   console.error('Usage: check-os-independence.ts --skill <dir>')
   process.exit(1)

@@ -51,6 +51,7 @@ the inferred `diagrams` target — Kroki backend, `outputDir` pinned to
   executor-providing plugins first, then runs `nx run-many -t
   lint,build,test,typecheck` (covers skill lint/build + diagram render), plus
   `validate,os-check,size-check` and `scan` on `skills-*` projects.
-- `release.yml`: runs `nx run-many -t prepare-for-release` (our own plugin)
-  before `nx release version` — placeholder publishing for new packages stays
-  idempotent and OIDC-only.
+- `release.yml` keeps `nx release` as the publish path. The
+  `prepare-for-release` plugin stays the documented local bootstrap for new
+  packages — npm OIDC trusted publishing cannot perform a first publish, so
+  it is intentionally NOT a workflow step.

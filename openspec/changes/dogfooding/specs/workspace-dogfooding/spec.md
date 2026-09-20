@@ -35,13 +35,15 @@ targets, and SkillSpector scans — not only package-level tests.
 - **THEN** skill lifecycle targets, SkillSpector scans, and diagram renders
   all execute in the pipeline
 
-### Requirement: Release uses the repo's own release plugin
-`.github/workflows/release.yml` MUST run `nx run-many -t
-prepare-for-release` (the `@nx-devkit/prepare-for-release` executor) before
-`nx release version`, so new publishable packages receive npm placeholders
-through the repo's own tooling. The step MUST be idempotent and OIDC-only.
+### Requirement: Release preparation uses the repo's own plugin
+New publishable packages MUST be bootstrapped via `nx run-many -t
+prepare-for-release` (the `@nx-devkit/prepare-for-release` executor) run
+locally with npm credentials — NOT in the OIDC-only release workflow, since
+npm trusted publishing cannot perform a package's first publish. The
+executor MUST stay idempotent and MUST NOT mutate source manifests.
 
 #### Scenario: New package gets a placeholder
-- **WHEN** a publishable package has never been published
-- **THEN** the release pipeline publishes a `0.0.0` placeholder tarball built
-  in a temp dir without mutating the source manifest
+- **WHEN** a publishable package has never been published and a maintainer
+  runs the target locally (EOTP web-auth or token in `.npmrc`)
+- **THEN** a `0.0.0` placeholder tarball built in a temp dir is published
+  without mutating the source manifest
