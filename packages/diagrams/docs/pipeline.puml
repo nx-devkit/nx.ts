@@ -13,7 +13,7 @@ nx -> cache: lookup inputs hash
 alt cache miss
   nx -> exec: render(file, output)
   exec -> renderer: POST source or local command
-  renderer --> exec: svg/png
+  renderer --> exec: svg/png/jpeg
   nx -> cache: store output artifact
 else cache hit
   cache --> nx: restore output
