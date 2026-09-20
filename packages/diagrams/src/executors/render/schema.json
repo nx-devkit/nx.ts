@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "type": "object",
+  "title": "Render diagram executor",
+  "description": "Renders text diagram sources to images via Kroki or per-type local commands.",
+  "properties": {
+    "file": {
+      "type": "string",
+      "description": "Single workspace-relative diagram source file (atomized targets)."
+    },
+    "files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Multiple workspace-relative diagram source files (aggregate target)."
+    },
+    "output": {
+      "type": "string",
+      "description": "Workspace-relative output image path for `file` (set by inferred targets; overrides outputDir templating)."
+    },
+    "outputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Workspace-relative output paths parallel to `files` (set by inferred targets)."
+    },
+    "format": {
+      "type": "string",
+      "enum": ["svg", "png", "jpeg"],
+      "default": "svg",
+      "description": "Output image format."
+    },
+    "krokiUrl": {
+      "type": "string",
+      "default": "https://kroki.io",
+      "description": "Kroki base URL. Empty string disables Kroki (commands must cover all types)."
+    },
+    "outputDir": {
+      "type": "string",
+      "default": "{fileDir}",
+      "description": "Workspace-relative output directory template. Tokens: {fileDir} {fileName} {projectRoot}."
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "description": "Per-type local command overrides. Placeholders (expanded shell-quoted — do not wrap in quotes): {input} {output} {format} {fileDir} {fileName} {projectRoot}."
+    },
+    "timeout": {
+      "type": "number",
+      "default": 30000,
+      "minimum": 1,
+      "description": "Timeout in ms for commands and HTTP requests."
+    },
+    "dryRun": {
+      "type": "boolean",
+      "default": false,
+      "description": "Report planned outputs without rendering or writing."
+    }
+  },
+  "additionalProperties": false
+}

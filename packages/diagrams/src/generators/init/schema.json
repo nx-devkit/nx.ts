@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "type": "object",
+  "title": "Init generator",
+  "description": "Registers @nx-devkit/diagrams in nx.json plugins.",
+  "properties": {
+    "pluginPath": {
+      "type": "string",
+      "default": "@nx-devkit/diagrams",
+      "minLength": 1,
+      "description": "Plugin specifier to register (e.g. a local path during development)."
+    }
+  },
+  "additionalProperties": false
+}

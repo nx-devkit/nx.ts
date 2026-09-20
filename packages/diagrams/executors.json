@@ -1,0 +1,9 @@
+{
+  "executors": {
+    "render": {
+      "implementation": "./dist/executors/render/executor.mjs",
+      "schema": "./src/executors/render/schema.json",
+      "description": "Renders text diagram sources (PlantUML, Mermaid, Graphviz, D2, BPMN, Excalidraw) to images via Kroki (default, self-hostable) or per-type local commands."
+    }
+  }
+}

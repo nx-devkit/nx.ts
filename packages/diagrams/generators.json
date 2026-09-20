@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "generators": {
+    "init": {
+      "factory": "./dist/generators/init/generator.mjs",
+      "schema": "./src/generators/init/schema.json",
+      "description": "Registers @nx-devkit/diagrams in nx.json plugins so per-file diagram render targets are inferred."
+    }
+  }
+}
