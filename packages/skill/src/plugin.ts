@@ -179,6 +179,8 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
           {
             projects: {
               [projectName]: {
+                root: projectRoot,
+                name: projectName,
                 targets,
               },
             },

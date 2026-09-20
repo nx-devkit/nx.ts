@@ -21,8 +21,8 @@ export interface ScanExecutorOptions {
 }
 
 export interface ScanExecutorContext {
-  workspaceRoot: string
-  options: ScanExecutorOptions
+  /** Workspace root — `context.root` when invoked by Nx. */
+  root: string
 }
 
 export interface ScanExecutorResult {
@@ -190,8 +190,11 @@ function spawnSkillspector(
   })
 }
 
-export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecutorResult> {
-  const opts = ctx.options
+export async function scanExecutor(
+  options: ScanExecutorOptions,
+  ctx: ScanExecutorContext,
+): Promise<ScanExecutorResult> {
+  const opts = options
   const noLlm = opts.noLlm ?? true
   const annotations = opts.annotations ?? true
   const failOnError = opts.failOnError ?? true
@@ -208,7 +211,7 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
 
   let stdout: string
   try {
-    const result = await spawnSkillspector(binCmd, args, ctx.workspaceRoot)
+    const result = await spawnSkillspector(binCmd, args, ctx.root)
     stdout = result.stdout
   } catch (error) {
     // If skillspector exits non-zero, treat as failure
@@ -234,7 +237,7 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
 
   // Write SARIF report if option is set
   if (opts.sarif) {
-    const workspaceRoot = resolvePath(ctx.workspaceRoot)
+    const workspaceRoot = resolvePath(ctx.root)
     const sarifPath = resolvePath(workspaceRoot, opts.sarif)
     const relSarif = relative(workspaceRoot, sarifPath)
     if (relSarif === '..' || relSarif.startsWith(`..${sep}`) || isAbsolute(relSarif)) {
@@ -262,7 +265,7 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
     if (realFileRel === '..' || realFileRel.startsWith(`..${sep}`) || isAbsolute(realFileRel)) {
       return { success: false }
     }
-    const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
+    const sarifReport = buildSarifReport(issues, ctx.root)
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is contained within workspaceRoot, validated via relative() + realpath()
     await writeFile(sarifPath, JSON.stringify(sarifReport, null, 2), 'utf8')
   }
@@ -271,7 +274,7 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
   if (annotations) {
     const projectName = computeProjectName(opts.path)
     const annotationsFileName = `annotations-${projectName}.txt`
-    const annotationsPath = join(ctx.workspaceRoot, annotationsFileName)
+    const annotationsPath = join(ctx.root, annotationsFileName)
     const annotationLines = buildAnnotations(issues, projectName)
     if (annotationLines.length > 0) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- annotationsPath is derived from the trusted workspaceRoot

@@ -66,7 +66,7 @@ export interface NxPrepareForReleaseOptions {
 
 `nx run-many -t prepare-for-release` runs one executor per package target, so output appears as per-package blocks. An unpublished package:
 
-```
+```text
   npm requires one-time authorization for @nx-devkit/tsdown.
   Open this URL to approve the publish:
 
@@ -83,7 +83,7 @@ Run these locally (requires MFA) to enable GitHub OIDC trusted publishing:
 
 An already-published package:
 
-```
+```text
 Skipped:   @nx-devkit/biome
 ```
 

@@ -43,6 +43,9 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/biome`](./packages/biome/README.md) | `**/biome.json{,c}` | Standalone `format`, `format-check`, `lint` |
 | [`@nx-devkit/skill`](./packages/skill/README.md) | `**/SKILL.md` | Skill lifecycle: `build`, `lint`, `validate`, `os-check`, `size-check` |
 | [`@nx-devkit/skillspector`](./packages/skillspector/README.md) | `**/SKILL.md` | `scan` target — SkillSpector security scans with SARIF + CI annotations |
+| [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{mmd,puml,dot,d2,bpmn,excalidraw,…}` | `diagrams` target — renders diagram sources via Kroki or local command overrides |
+| [`@nx-devkit/nx-cloud`](./packages/nx-cloud/README.md) | `nx.json` | `nx-cloud-rotate` target on the root project — rebinds to a fresh Nx Cloud org/workspace |
+| [`@nx-devkit/release`](./packages/release/README.md) | `nx g @nx-devkit/release:init` | Automated npm releases: version bump, OIDC publish, tag push, GitHub Release — all idempotent |
 | [`@nx-devkit/prepare-for-release`](./packages/prepare-for-release/README.md) | Every non-root `package.json` with `name` + `private !== true` | `prepare-for-release` target per package — idempotent npm placeholder publishing + OIDC trust |
 
 The preset subsumes the standalone tsdown/oxlint/biome plugins; they stay available for single-tool consumers.
@@ -61,9 +64,11 @@ Because inference is per-run, the graph always reflects the files on disk: add `
 |---|---|
 | `packages/` | The publishable plugins above (+ private `internal` helpers) |
 | `apps/demo/` | Working demo workspace exercising the plugins |
-| `skills/` | Project-facing agent skills (`nx-devkit-typescript`, `nx-skill`, …) |
-| `scripts/` | `e2e.sh`, `spec-check.ts`, `rewrite-workspace-protocol.ts` |
-| `.github/workflows/` | `ci.yml` (lint/build/test), `release.yml` (e2e + OIDC publish) |
+| `skills/` | Project-facing agent skills (`nx-devkit-typescript`, `nx-skill`, …) — built, linted, validated, and scanned through this repo's own `skill` + `skillspector` plugins |
+| `docs/diagrams/` | Mermaid sources rendered to SVG through the `diagrams` plugin |
+| `tools/` | Internal workspace tooling (`skills-compiler`, vendored; private) |
+| `scripts/` | `e2e.sh`, `spec-check.ts`, `rewrite-workspace-protocol.ts`, skill checks |
+| `.github/workflows/` | `ci.yml` (lint/build/test + skill scans + diagram builds), `release.yml` (e2e + OIDC publish) |
 
 ## Contributing
 

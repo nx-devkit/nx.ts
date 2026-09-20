@@ -15,6 +15,12 @@ A monorepo of **zero-config Nx inference plugins** under the `@nx-devkit` scope.
 | `packages/biome` | `packages/biome/**` | beads scoped to biome only |
 | `packages/typescript-preset` | `packages/typescript-preset/**` | beads scoped to typescript-preset only |
 | `packages/prepare-for-release` | `packages/prepare-for-release/**` | beads scoped to prepare-for-release only |
+| `packages/skill` | `packages/skill/**` | beads scoped to skill only |
+| `packages/skillspector` | `packages/skillspector/**` | beads scoped to skillspector only |
+| `packages/diagrams` | `packages/diagrams/**` | beads scoped to diagrams only |
+| `packages/nx-cloud` | `packages/nx-cloud/**` | beads scoped to nx-cloud only |
+| `packages/release` | `packages/release/**` | beads scoped to release only |
+| `tools/skills-compiler` | `tools/skills-compiler/**` | vendored upstream copy — prefer minimal diffs |
 
 Per-package options interfaces, file layout, and TDD workflow are in each `packages/<name>/AGENTS.md` — read the one for your package before touching its directory.
 
@@ -135,6 +141,28 @@ npx @nx-devkit/typescript init
 ```
 
 This registers the preset, removes any existing `@nx-devkit/*` standalone entries, detects config files, installs missing peer deps, and prints a summary of inferred targets.
+
+## Dogfooding
+
+This workspace builds itself with its own plugins — root `nx.json` registers the
+TypeScript preset plus `skill`, `skillspector`, `diagrams`, `nx-cloud`, and
+`prepare-for-release` from `packages/*/src/plugin.ts`.
+
+- `skills/*/SKILL.md` → `skills-<slug>-<hash>` projects with `build` (via the
+  vendored `tools/skills-compiler` bin), `lint` (markdownlint), `validate`,
+  `os-check`, `size-check`, and `scan` (SkillSpector).
+- `docs/diagrams/*.mmd` → `diagrams` target on the root project renders SVGs to
+  `docs/diagrams/dist/` via Kroki (`outputDir` pinned in `nx.json`; no local
+  browser needed).
+- SkillSpector is a Python CLI, not on npm/PyPI. Local dev expects it at
+  `.tools/skillspector-venv/bin/skillspector` (gitignored) — see
+  `.github/workflows/ci.yml` for the pinned install (`pip install
+  git+https://github.com/NVIDIA/skillspector.git@v2.11.2`).
+- Executors run from `packages/*/dist` — rebuild a plugin (`bun run build` in
+  its dir) after changing an executor, or inferred targets will use stale code.
+- Use `bun run test` / Nx `test` targets (Vitest) — NOT `bun test`. Bun's
+  built-in runner hangs on suites with async `vi.mock` factories
+  (`packages/skill`, `packages/tsdown`).
 
 ## OpenSpec workflow
 

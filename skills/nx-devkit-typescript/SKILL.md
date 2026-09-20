@@ -14,6 +14,7 @@ npx @nx-devkit/typescript init
 ```
 
 This single command:
+
 1. Registers `@nx-devkit/typescript` as the **sole plugin** in `nx.json` (removes any existing `@nx-devkit/*` standalone entries)
 2. Creates `nx.json` and `package.json` if they don't exist
 3. Detects config files in your workspace and nested project directories

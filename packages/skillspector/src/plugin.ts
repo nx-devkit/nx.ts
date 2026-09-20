@@ -106,6 +106,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
 
       const project: ProjectConfiguration = {
         root: projectRoot,
+        name: projectName,
         targets: {
           [targetName]: inferScanTarget(projectRoot, projectName, opts),
         },
