@@ -14,7 +14,7 @@ alt cache miss
   nx -> exec: render(file, output)
   exec -> renderer: POST source or local command
   renderer --> exec: svg/png
-  exec -> cache: store output artifact
+  nx -> cache: store output artifact
 else cache hit
   cache --> nx: restore output
 end

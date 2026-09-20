@@ -30,7 +30,8 @@
     "generators.json",
     "src/executors/render/schema.json",
     "src/generators/init/schema.json",
-    "README.md"
+    "README.md",
+    "docs/pipeline.svg"
   ],
   "scripts": {
     "build": "tsdown",
