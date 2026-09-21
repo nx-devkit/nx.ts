@@ -33,15 +33,17 @@ if (!existsSync(skillMd)) {
   errors.push(`SKILL.md not found in ${skillDir}`)
 } else {
   const content = readFileSync(skillMd, 'utf8')
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/)
-  if (!match) {
+  // Extract the frontmatter block between --- fences (no regex needed).
+  const lines = content.split('\n')
+  const fmEnd = lines[0]?.trim() === '---' ? lines.indexOf('---', 1) : -1
+  if (fmEnd <= 0) {
     errors.push('SKILL.md is missing a YAML frontmatter block')
   } else {
     // Parse with a real YAML parser so scalar types are enforced — a
     // line-regex parser would accept `name: 123` as the string "123".
     let fm: unknown
     try {
-      fm = parse(match[1])
+      fm = parse(lines.slice(1, fmEnd).join('\n'))
     } catch (err) {
       errors.push(`frontmatter does not parse as YAML: ${(err as Error).message}`)
       fm = undefined
