@@ -4,7 +4,7 @@
 Renders text-diagram source files (PlantUML, Mermaid, Graphviz, D2, BPMN, Excalidraw, …) — standalone files and fenced blocks inside Markdown — to images as cached, atomized Nx targets. Kroki is the default rendering backend; per-type shell commands override it for offline or private rendering.
 ## Requirements
 ### Requirement: Diagram files trigger per-file target inference
-The plugin MUST use `createNodesV2` with a default trigger glob covering `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` and MUST infer one `diagram-<relpath-slug>` target per matched file on the owning project, plus a `diagrams` aggregate target on projects containing at least one match.
+The plugin MUST use `createNodesV2` with a default trigger glob covering `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` — extension matching is case-insensitive (`.PUML`, `.ExCaLiDrAw` match on case-sensitive filesystems) — and MUST infer one `diagram-<relpath-slug>` target per matched file on the owning project, plus a `diagrams` aggregate target on projects containing at least one match. `createNodesV2` MUST return exactly one project configuration per owning project root, regardless of how many files match under it.
 
 #### Scenario: Single diagram file
 - **WHEN** `packages/docs/diagrams/auth.puml` exists in project `packages/docs`
@@ -17,6 +17,10 @@ The plugin MUST use `createNodesV2` with a default trigger glob covering `**/*.{
 #### Scenario: No diagrams
 - **WHEN** a project contains no matched files
 - **THEN** no diagram targets are inferred for it
+
+#### Scenario: One configuration per project root
+- **WHEN** `a.puml` and `b.mmd` live under project root `packages/docs` while `c.d2` lives under `libs/other`
+- **THEN** `createNodesV2` returns one configuration for `packages/docs` carrying both per-file targets and the aggregate, and a separate configuration for `libs/other` — never duplicate configurations for the same root
 
 ### Requirement: Extension-to-type registry
 The plugin MUST map `.puml`/`.plantuml`→`plantuml`, `.mmd`/`.mermaid`→`mermaid`, `.dot`/`.gv`→`graphviz`, `.d2`→`d2`, `.bpmn`→`bpmn`, `.excalidraw`→`excalidraw`. Files with no registry mapping and no matching `commands` entry MUST be skipped by inference.
@@ -63,7 +67,7 @@ The executor MUST fail when a command exits non-zero (including stderr in the er
 - **THEN** the executor throws telling the user to configure `commands` or set `krokiUrl`
 
 ### Requirement: Output path templating
-The output path MUST be derived from `outputDir` with `{fileDir}`, `{fileName}`, and `{projectRoot}` tokens — all workspace-relative (`{fileDir}` is the source file's directory, `{projectRoot}` the owning project root, `''` for the root project) — defaulting to colocated `{fileDir}/{fileName}.{format}`. An `outputDir` that resolves to an absolute path or escapes the workspace via `..` MUST fail inference.
+The output path MUST be derived from `outputDir` with `{fileDir}`, `{fileName}`, and `{projectRoot}` tokens — all workspace-relative (`{fileDir}` is the source file's directory, `{projectRoot}` the owning project root, `''` for the root project) — defaulting to colocated `{fileDir}/{fileName}.{format}`. For Markdown blocks `{fileName}` is `<basename>-<n>` where `<n>` is the block's 1-based ordinal (`docs/guide.md` block 0 → `docs/guide-1.svg`); for standalone files it is the basename without extension. An `outputDir` that resolves to an absolute path or escapes the workspace via `..` MUST fail inference.
 
 #### Scenario: Custom outputDir
 - **WHEN** `outputDir` is `{projectRoot}/docs/img`
