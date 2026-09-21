@@ -47,7 +47,7 @@ const caseGlob = (ext: string) =>
   ext.replace(/[a-z]/gi, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`)
 // .md joins the glob — fenced diagram blocks inside Markdown are extracted
 // at inference time and get one atomized target per block.
-const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).map(caseGlob).join(',')},[mM][dD]}`
+const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).map(caseGlob).join(',')},.[mM][dD]}`
 
 export function diagramTypeFor(file: string): string | undefined {
   const lower = file.toLowerCase()
@@ -237,8 +237,12 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         if ((outputCounts.get(output) ?? 0) > 1) {
           output = suffixOutput(output, `-${e.type}`)
         }
-        if (takenOutputs.has(output)) {
-          output = suffixOutput(e.output, `-${e.type}-h${shortHash(e.file)}`)
+        // Keep allocating until the candidate is unused — a type/hash
+        // fallback can itself collide (e.g. two same-named files of the
+        // same type under different roots writing to one outputDir).
+        for (let n = 0; takenOutputs.has(output); n++) {
+          const hash = `-${e.type}-h${shortHash(e.file)}`
+          output = suffixOutput(e.output, n ? `${hash}-${n + 1}` : hash)
         }
         takenOutputs.add(output)
         projectOutputs.push(output)

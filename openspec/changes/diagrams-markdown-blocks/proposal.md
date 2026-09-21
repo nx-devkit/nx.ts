@@ -20,7 +20,7 @@ Each diagram block becomes its own target — same granularity as per-file v1:
 
 | Target | Inputs | Outputs |
 |---|---|---|
-| `diagram-<file-slug>-<n>` | the `.md` file | `<fileName>-<n>.<format>` (1-based block ordinal among diagram fences) |
+| `diagram-<file-slug>-<n>` | the `.md` file | `<fileName>-<n>.<format>` (1-based block ordinal among diagram fences; nominal — collision handling may append `-<type>`/`-h<hash>` suffixes) |
 | `diagrams` (aggregate) | all sources incl. the `.md` | all outputs incl. block images |
 
 The executor receives `block: <index>` (per-target) / `blocks` (aggregate) and extracts the block source itself — the plugin only declares the count/outputs contract. `block`/`blocks` indexes are **0-based** (the fence's ordinal among diagram blocks); the `<n>` in target names and output filenames is **1-based** (`index + 1`).

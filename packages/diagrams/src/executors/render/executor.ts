@@ -114,6 +114,11 @@ export default async function renderExecutor(
   if (files.length === 0) {
     throw new Error('render executor requires `file` or `files`')
   }
+  if (options.blocks !== undefined && options.blocks.length !== files.length) {
+    throw new Error(
+      `blocks (${options.blocks.length}) must align with files (${files.length}) — use null for whole-file entries`,
+    )
+  }
 
   const outputsOption = options.file ? [options.output] : (options.outputs ?? [])
   const projectRoot = context.projectName

@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Markdown files trigger per-block target inference
-The default trigger glob MUST additionally cover `**/*.md` (case-insensitive). For each matched Markdown file the plugin MUST extract fenced code blocks (``` ``` ``` or `~~~` fences) whose language tag maps to a registry type — `mermaid`, `plantuml`/`puml`, `d2`, `dot`/`graphviz`, `bpmn`, `excalidraw` — and MUST infer one `diagram-<file-slug>-<n>` target per block, where `<n>` is the 1-based ordinal among diagram fences in that file. Fences with unmapped or missing language tags MUST be ignored. A Markdown file with zero diagram blocks MUST produce no targets.
+The default trigger glob MUST additionally cover `**/*.md` (case-insensitive, literal extension dot — `foo.cmd` MUST NOT match). For each matched Markdown file the plugin MUST extract fenced code blocks (``` ``` ``` or `~~~` fences) whose language tag maps to a registry type — `mermaid`, `plantuml`/`puml`, `d2`, `dot`/`graphviz`, `bpmn`, `excalidraw` — and MUST infer one `diagram-<file-slug>-<n>` target per block, where `<n>` is the 1-based ordinal among diagram fences in that file. Fences with unmapped or missing language tags MUST be ignored, and a diagram-looking fence nested inside a non-diagram fence is body text, not a block. A Markdown file with zero diagram blocks MUST produce no targets — including no aggregate `diagrams` target, since aggregate eligibility requires at least one standalone diagram file or extracted block.
 
 #### Scenario: Markdown with mermaid block
 - **WHEN** `docs/guide.md` contains one ` ```mermaid ` block
@@ -22,7 +22,7 @@ The default trigger glob MUST additionally cover `**/*.md` (case-insensitive). F
 - **THEN** the aggregate target's `files` option lists `arch.md` twice, `blocks` is `[0, 1]`, and `outputs` lists `arch-1.svg` and `arch-2.svg` at the matching positions — `files[i]`/`blocks[i]`/`outputs[i]` describe one render unit
 
 ### Requirement: Block rendering in the render executor
-When a target carries a `block` index (single mode) or a `blocks` array aligned to `files` (aggregate mode, `null` for whole-file entries), the executor MUST extract that block's source and render it with the block's fence-mapped type — via `commands[type]` or Kroki — instead of reading the file as diagram source. A `block` index outside the file's diagram blocks MUST fail with an actionable error. For command overrides the executor MUST write the block source to a temp file whose extension matches the type's canonical extension and pass it as `{input}`.
+When a target carries a `block` index (single mode) or a `blocks` array aligned to `files` (aggregate mode, `null` for whole-file entries), the executor MUST extract that block's source and render it with the block's fence-mapped type — via `commands[type]` or Kroki — instead of reading the file as diagram source. A `block` index outside the file's diagram blocks MUST fail with an actionable error. `block`/`blocks` values MUST be nonnegative integers, and a `blocks` array whose length differs from `files` MUST fail before any rendering. For command overrides the executor MUST write the block source to a temp file whose extension matches the type's canonical extension and pass it as `{input}`.
 
 #### Scenario: Block rendered via Kroki
 - **WHEN** a target has `file: "guide.md"`, `block: 0`, and the fence language is `mermaid`

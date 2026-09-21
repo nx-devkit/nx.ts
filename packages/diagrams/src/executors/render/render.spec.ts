@@ -32,6 +32,8 @@ const state = {
     stderr?: string
   },
   spawnWritesOutput: true,
+  /** Content of the temp input file, captured inside the mock before cleanup. */
+  inputContent: undefined as string | undefined,
 }
 
 vi.mock('node:child_process', () => ({
@@ -40,9 +42,15 @@ vi.mock('node:child_process', () => ({
     if (state.spawnResponse.status === 0 && state.spawnWritesOutput) {
       // The output path is whichever token ends with an image extension,
       // Independent of the flag spelling the command template used.
-      const out = (command.match(/'[^']*'|\S+/g) ?? [])
-        .map((token) => token.replace(/^'|'$/g, ''))
-        .find((token) => /\.(svg|png|jpe?g)$/.test(token))
+      const tokens = (command.match(/'[^']*'|"[^"]*"|\S+/g) ?? []).map((token) =>
+        token.replace(/^['"]|['"]$/g, ''),
+      )
+      // Capture the materialized temp input's body while it still exists.
+      const input = tokens.find((token) => token.includes('nx-diagrams-'))
+      if (input && existsSync(input)) {
+        state.inputContent = readFileSync(input, 'utf8')
+      }
+      const out = tokens.find((token) => /\.(svg|png|jpe?g)$/.test(token))
       if (out) {
         writeFileSync(join(options?.cwd ?? '', out), '<svg/>')
       }
@@ -92,6 +100,7 @@ describe('renderExecutor', () => {
     state.fetchResponse = { body: '<svg/>', status: 200 }
     state.spawnResponse = { status: 0, stderr: '' }
     state.spawnWritesOutput = true
+    state.inputContent = undefined
     mkdirSync(workspace, { recursive: true })
   })
 
@@ -409,6 +418,8 @@ describe('renderExecutor', () => {
         ?.slice(1)
         .find(Boolean)
       expect(inputArg).toMatch(/nx-diagrams-[^/\\]+[/\\]guide-1\.mmd$/)
+      // The temp file carried the block body — not the whole Markdown file.
+      expect(state.inputContent).toBe('graph TD; A-->B\n')
       // Temp input is cleaned up after the command runs.
       expect(existsSync(inputArg ?? '')).toBe(false)
       expect(existsSync(join(workspace, 'guide-1.svg'))).toBe(true)

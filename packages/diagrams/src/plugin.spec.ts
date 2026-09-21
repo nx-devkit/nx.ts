@@ -434,8 +434,11 @@ describe('createNodesV2', () => {
         .filter(([name]) => name !== 'diagrams')
         .map(([, t]) => (t as { outputs: string[] }).outputs)
         .flat()
-      expect(new Set(outputs).size).toBe(outputs.length)
-      expect(outputs).toHaveLength(2)
+      // Both nominal `readme-1.svg` collide → each gets its type suffix.
+      expect(outputs.sort()).toEqual([
+        '{workspaceRoot}/readme-1-mermaid.svg',
+        '{workspaceRoot}/readme-1-plantuml.svg',
+      ])
     })
 
     it('applies include/exclude filters to markdown', () => {
