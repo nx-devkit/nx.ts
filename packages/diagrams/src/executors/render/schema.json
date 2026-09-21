@@ -8,10 +8,20 @@
       "type": "string",
       "description": "Single workspace-relative diagram source file (atomized targets)."
     },
+    "block": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "0-based diagram-fence index inside a Markdown `file` (atomized targets)."
+    },
     "files": {
       "type": "array",
       "items": { "type": "string" },
       "description": "Multiple workspace-relative diagram source files (aggregate target)."
+    },
+    "blocks": {
+      "type": "array",
+      "items": { "type": ["integer", "null"], "minimum": 0 },
+      "description": "Diagram-fence indexes parallel to `files`; null for whole-file entries (aggregate target)."
     },
     "output": {
       "type": "string",
@@ -42,7 +52,7 @@
       "type": "object",
       "additionalProperties": { "type": "string" },
       "default": {},
-      "description": "Per-type local command overrides. Placeholders (expanded shell-quoted — do not wrap in quotes): {input} {output} {format} {fileDir} {fileName} {projectRoot}."
+      "description": "Per-type local command overrides. Placeholders (expanded shell-quoted — do not wrap in quotes): {input} {output} {format} {fileDir} {fileName} {projectRoot}. For Markdown blocks {input} is a materialized temp file (absolute path, type's canonical extension)."
     },
     "timeout": {
       "type": "number",

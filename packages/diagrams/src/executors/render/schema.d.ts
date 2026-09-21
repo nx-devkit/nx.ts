@@ -1,4 +1,6 @@
 export interface RenderExecutorSchema {
+  block?: number
+  blocks?: (number | null)[]
   file?: string
   files?: string[]
   output?: string

@@ -32,6 +32,8 @@ const state = {
     stderr?: string
   },
   spawnWritesOutput: true,
+  /** Content of the temp input file, captured inside the mock before cleanup. */
+  inputContent: undefined as string | undefined,
 }
 
 vi.mock('node:child_process', () => ({
@@ -40,9 +42,15 @@ vi.mock('node:child_process', () => ({
     if (state.spawnResponse.status === 0 && state.spawnWritesOutput) {
       // The output path is whichever token ends with an image extension,
       // Independent of the flag spelling the command template used.
-      const out = (command.match(/'[^']*'|\S+/g) ?? [])
-        .map((token) => token.replace(/^'|'$/g, ''))
-        .find((token) => /\.(svg|png|jpe?g)$/.test(token))
+      const tokens = (command.match(/'[^']*'|"[^"]*"|\S+/g) ?? []).map((token) =>
+        token.replace(/^['"]|['"]$/g, ''),
+      )
+      // Capture the materialized temp input's body while it still exists.
+      const input = tokens.find((token) => token.includes('nx-diagrams-'))
+      if (input && existsSync(input)) {
+        state.inputContent = readFileSync(input, 'utf8')
+      }
+      const out = tokens.find((token) => /\.(svg|png|jpe?g)$/.test(token))
       if (out) {
         writeFileSync(join(options?.cwd ?? '', out), '<svg/>')
       }
@@ -92,6 +100,7 @@ describe('renderExecutor', () => {
     state.fetchResponse = { body: '<svg/>', status: 200 }
     state.spawnResponse = { status: 0, stderr: '' }
     state.spawnWritesOutput = true
+    state.inputContent = undefined
     mkdirSync(workspace, { recursive: true })
   })
 
@@ -325,5 +334,109 @@ describe('renderExecutor', () => {
 
   it('throws when neither file nor files is given', async () => {
     await expect(renderExecutor({}, makeContext(workspace))).rejects.toThrow('file')
+  })
+
+  describe('markdown blocks', () => {
+    it('POSTs the block body, not the markdown file, to kroki', async () => {
+      writeFileSync(
+        join(workspace, 'guide.md'),
+        '# G\n\n```mermaid\ngraph TD; A-->B\n```\n\n```ts\nx\n```\n',
+      )
+
+      await renderExecutor(
+        { block: 0, file: 'guide.md', output: 'guide-1.svg' },
+        makeContext(workspace),
+      )
+
+      expect(state.fetchCalls).toEqual([
+        {
+          body: 'graph TD; A-->B\n',
+          contentType: 'text/plain',
+          method: 'POST',
+          url: 'https://kroki.io/mermaid/svg',
+        },
+      ])
+      expect(readFileSync(join(workspace, 'guide-1.svg'))).toEqual(Buffer.from('<svg/>'))
+    })
+
+    it('selects the block by index in batch mode via blocks[]', async () => {
+      writeFileSync(join(workspace, 'a.puml'), '@startuml\n@enduml')
+      writeFileSync(
+        join(workspace, 'g.md'),
+        '```mermaid\ngraph TD; A-->B\n```\n~~~d2\nx -> y\n~~~\n',
+      )
+
+      await renderExecutor(
+        {
+          blocks: [null, 0, 1],
+          files: ['a.puml', 'g.md', 'g.md'],
+          outputs: ['a.svg', 'g-1.svg', 'g-2.svg'],
+        },
+        makeContext(workspace),
+      )
+
+      expect(state.fetchCalls.map((c) => c.url)).toEqual([
+        'https://kroki.io/plantuml/svg',
+        'https://kroki.io/mermaid/svg',
+        'https://kroki.io/d2/svg',
+      ])
+      expect(state.fetchCalls[2]?.body).toBe('x -> y\n')
+      expect(existsSync(join(workspace, 'g-1.svg'))).toBe(true)
+      expect(existsSync(join(workspace, 'g-2.svg'))).toBe(true)
+    })
+
+    it('fails when the block index is out of range', async () => {
+      writeFileSync(join(workspace, 'guide.md'), '```mermaid\ngraph TD;\n```\n')
+
+      await expect(
+        renderExecutor(
+          { block: 5, file: 'guide.md', output: 'guide-6.svg' },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow('block 5 is out of range')
+    })
+
+    it('writes the block body to a temp input file for command overrides', async () => {
+      writeFileSync(join(workspace, 'guide.md'), '```mermaid\ngraph TD; A-->B\n```\n')
+
+      await renderExecutor(
+        {
+          block: 0,
+          commands: { mermaid: 'mmdc -i {input} -o {output}' },
+          file: 'guide.md',
+          output: 'guide-1.svg',
+        },
+        makeContext(workspace),
+      )
+
+      expect(state.fetchCalls).toHaveLength(0)
+      const cmd = state.spawnCalls[0]?.command ?? ''
+      // The quoted arg may be 'single', "double" (win32), or bare — match
+      // any of the three forms after -i.
+      const inputArg = cmd
+        .match(/-i (?:"([^"]*)"|'([^']*)'|(\S+))/)
+        ?.slice(1)
+        .find(Boolean)
+      expect(inputArg).toMatch(/nx-diagrams-[^/\\]+[/\\]guide-1\.mmd$/)
+      // The temp file carried the block body — not the whole Markdown file.
+      expect(state.inputContent).toBe('graph TD; A-->B\n')
+      // Temp input is cleaned up after the command runs.
+      expect(existsSync(inputArg ?? '')).toBe(false)
+      expect(existsSync(join(workspace, 'guide-1.svg'))).toBe(true)
+    })
+
+    it('dryRun reports the block index without rendering', async () => {
+      writeFileSync(join(workspace, 'guide.md'), '```mermaid\ngraph TD;\n```\n')
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      await renderExecutor(
+        { block: 0, dryRun: true, file: 'guide.md', output: 'guide-1.svg' },
+        makeContext(workspace),
+      )
+
+      expect(log).toHaveBeenCalledWith('[dryRun] would render guide.md block 0 -> guide-1.svg')
+      expect(state.fetchCalls).toHaveLength(0)
+      log.mockRestore()
+    })
   })
 })

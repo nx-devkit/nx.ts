@@ -15,6 +15,16 @@ Supported types (extension → renderer type; matching is case-insensitive, `.PU
 | `.bpmn` | `bpmn` |
 | `.excalidraw` | `excalidraw` |
 
+Markdown files (`**/*.md`) are sources too: every fenced block whose language maps to a type — ` ```mermaid `, ` ```plantuml `/`puml`, ` ```d2 `, ` ```dot `/`graphviz`, ` ```bpmn `, ` ```excalidraw ` — gets its own `diagram-<slug>-<n>` target rendering to `<fileName>-<n>.<format>` next to the file, where `<n>` is the block's 1-based ordinal among diagram fences in that file:
+
+```mermaid
+graph LR
+  MD[README.md] -->|"mermaid fence"| T[diagram-readme-1]
+  T -->|"nx run"| SVG[README-1.svg]
+```
+
+![This very block, rendered by the plugin](README-1.svg)
+
 ## Setup
 
 ```bash
@@ -76,7 +86,7 @@ Per-file targets are the cache unit — each renders a single file, so unchanged
 }
 ```
 
-Command placeholders — all workspace-relative: `{input}` (source file), `{output}` (target image path), `{format}`, `{fileDir}` (source file's directory), `{fileName}` (basename without extension), `{projectRoot}` (owning project root — `.` for the root project in commands, so `{projectRoot}/img` resolves to `./img`; in `outputDir` templates it expands to an empty prefix). Commands run with `cwd` = workspace root.
+Command placeholders — all workspace-relative: `{input}` (source file; for Markdown blocks a materialized temp file — absolute path, named `<fileName>-<n>` with the type's canonical extension), `{output}` (target image path), `{format}`, `{fileDir}` (source file's directory), `{fileName}` (basename without extension; `<basename>-<n>` for blocks), `{projectRoot}` (owning project root — `.` for the root project in commands, so `{projectRoot}/img` resolves to `./img`; in `outputDir` templates it expands to an empty prefix). Commands run with `cwd` = workspace root.
 
 Placeholder values expand **shell-quoted** — paths with spaces stay single arguments — so do not wrap placeholders in your own quotes. Commands are workspace-authored configuration (same trust level as `nx:run-commands`); they run through a shell so pipes and redirects work.
 
