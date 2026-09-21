@@ -25,9 +25,9 @@ The plugin MUST use `createNodesV2` with a default trigger glob covering `**/*.{
 ### Requirement: Extension-to-type registry
 The plugin MUST map `.puml`/`.plantuml`→`plantuml`, `.mmd`/`.mermaid`→`mermaid`, `.dot`/`.gv`→`graphviz`, `.d2`→`d2`, `.bpmn`→`bpmn`, `.excalidraw`→`excalidraw`. The trigger glob covers only registry extensions and `.md` — `commands` entries override the renderer per type but MUST NOT extend discovery to custom extensions.
 
-#### Scenario: Unmapped extension ignored
-- **WHEN** a file matches the glob but has no type mapping
-- **THEN** no target is inferred for it
+#### Scenario: Glob-matched file without a type mapping
+- **WHEN** a `.md` file matches the glob (the only trigger extension with no file-level type mapping) and contains no diagram fences
+- **THEN** no target is inferred for it — per-file typing applies only to registry extensions; `.md` sources render exclusively via extracted blocks
 
 ### Requirement: Collision safety
 Target names MUST disambiguate via the relative path slug. When distinct files still collide — same slug after normalization (e.g. `a-b.puml` vs `a/b.puml`) or same output path (e.g. `auth.puml` vs `auth.mmd`) — the plugin MUST add a deterministic suffix (diagram type, then a short path hash) instead of silently overwriting the earlier target or output. A `targetName` that collides with an inferred per-file target MUST fail inference with an actionable error.
