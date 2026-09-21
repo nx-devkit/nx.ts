@@ -38,9 +38,14 @@ jobs:
           cd ../skillspector && bun run build
           cd ../diagrams && bun run build
       - name: Lint, Build, Test, Typecheck (Nx inferred targets)
-        # Covers packages/* plus dogfooded inferred targets: skills lint via
+        # packages/* only — skills-* build must not run concurrently with a
+        # packages/skill rebuild: the executor is loaded from packages/skill/dist
+        # and tsdown rewrites it mid-build.
+        run: bun --bun node_modules/.bin/nx run-many -t lint,build,test,typecheck --exclude 'skills-*' --verbose
+      - name: Skill lint + build (Nx inferred targets)
+        # Runs after all plugin dists are stable; covers skills lint via
         # markdownlint and skills build via skills-compiler.
-        run: bun --bun node_modules/.bin/nx run-many -t lint,build,test,typecheck --verbose
+        run: bun --bun node_modules/.bin/nx run-many -t lint,build --projects 'skills-*' --verbose
       - name: Render diagrams
         # docs/diagrams/*.mmd → SVG via @nx-devkit/diagrams (Kroki backend).
         run: bun --bun node_modules/.bin/nx run-many -t diagrams --verbose
