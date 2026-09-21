@@ -356,4 +356,96 @@ describe('createNodesV2', () => {
 
     expect(result).toEqual([])
   })
+
+  describe('markdown fenced blocks', () => {
+    it('matches .md in the trigger glob case-insensitively', () => {
+      const glob = createNodesV2[0]
+      const nxMatcher = new Minimatch(glob, { dot: true })
+      for (const f of ['a.md', 'a.MD', 'docs/guide.mD']) {
+        expect(matchesGlob(f, glob)).toBe(true)
+        expect(nxMatcher.match(f)).toBe(true)
+      }
+    })
+
+    it('infers one target per diagram block with numbered outputs', () => {
+      writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+      mkdirSync(join(workspace, 'docs'), { recursive: true })
+      writeFileSync(
+        join(workspace, 'docs/guide.md'),
+        '# G\n\n```mermaid\ngraph TD; A-->B\n```\n\ntext\n\n```d2\nx -> y\n```\n',
+      )
+
+      const result = createNodesV2[1](['docs/guide.md'], {}, ctx(workspace))
+      const targets = mergedTargets(result)
+
+      const first = targets['.']?.['diagram-docs-guide-1'] as {
+        inputs: string[]
+        options: { block: number; file: string; output: string }
+        outputs: string[]
+      }
+      expect(first.inputs).toEqual(['{workspaceRoot}/docs/guide.md'])
+      expect(first.outputs).toEqual(['{workspaceRoot}/docs/guide-1.svg'])
+      expect(first.options).toMatchObject({ block: 0, file: 'docs/guide.md' })
+
+      const second = targets['.']?.['diagram-docs-guide-2'] as {
+        options: { block: number; output: string }
+      }
+      expect(second.options.block).toBe(1)
+      expect(second.options.output).toBe('docs/guide-2.svg')
+
+      const aggregate = targets['.']?.diagrams as {
+        inputs: string[]
+        options: { blocks: (number | null)[]; files: string[]; outputs: string[] }
+      }
+      expect(aggregate.inputs).toEqual(['{workspaceRoot}/docs/guide.md'])
+      expect(aggregate.options.files).toEqual(['docs/guide.md', 'docs/guide.md'])
+      expect(aggregate.options.blocks).toEqual([0, 1])
+      expect(aggregate.options.outputs).toEqual(['docs/guide-1.svg', 'docs/guide-2.svg'])
+    })
+
+    it('produces no targets for markdown without diagram fences', () => {
+      writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+      writeFileSync(join(workspace, 'README.md'), '# hi\n\n```ts\nconst a = 1\n```\n')
+
+      const result = createNodesV2[1](['README.md'], {}, ctx(workspace))
+
+      expect(result).toEqual([])
+    })
+
+    it('handles uppercase .MD extension', () => {
+      writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+      writeFileSync(join(workspace, 'G.MD'), '```mermaid\ngraph TD;\n```\n')
+
+      const result = createNodesV2[1](['G.MD'], {}, ctx(workspace))
+
+      expect(mergedTargets(result)['.']?.['diagram-g-1']).toBeDefined()
+    })
+
+    it('disambiguates block outputs colliding with file outputs', () => {
+      writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+      writeFileSync(join(workspace, 'readme-1.puml'), '@startuml\n@enduml')
+      writeFileSync(join(workspace, 'readme.md'), '```mermaid\ngraph TD;\n```\n')
+
+      const result = createNodesV2[1](['readme-1.puml', 'readme.md'], {}, ctx(workspace))
+      const targets = mergedTargets(result)
+
+      // Per-file targets only — the aggregate lists the same outputs again.
+      const outputs = Object.entries(targets['.'] ?? {})
+        .filter(([name]) => name !== 'diagrams')
+        .map(([, t]) => (t as { outputs: string[] }).outputs)
+        .flat()
+      expect(new Set(outputs).size).toBe(outputs.length)
+      expect(outputs).toHaveLength(2)
+    })
+
+    it('applies include/exclude filters to markdown', () => {
+      writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+      mkdirSync(join(workspace, 'docs'), { recursive: true })
+      writeFileSync(join(workspace, 'docs/g.md'), '```mermaid\ngraph TD;\n```\n')
+
+      expect(createNodesV2[1](['docs/g.md'], { exclude: ['docs/**'] }, ctx(workspace))).toEqual([])
+      const included = createNodesV2[1](['docs/g.md'], { include: ['docs/**'] }, ctx(workspace))
+      expect((included as unknown[]).length).toBeGreaterThan(0)
+    })
+  })
 })

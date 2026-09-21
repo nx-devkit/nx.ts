@@ -8,10 +8,19 @@
       "type": "string",
       "description": "Single workspace-relative diagram source file (atomized targets)."
     },
+    "block": {
+      "type": "number",
+      "description": "0-based diagram-fence index inside a Markdown `file` (atomized targets)."
+    },
     "files": {
       "type": "array",
       "items": { "type": "string" },
       "description": "Multiple workspace-relative diagram source files (aggregate target)."
+    },
+    "blocks": {
+      "type": "array",
+      "items": { "type": ["number", "null"] },
+      "description": "Diagram-fence indexes parallel to `files`; null for whole-file entries (aggregate target)."
     },
     "output": {
       "type": "string",

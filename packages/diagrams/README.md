@@ -15,6 +15,16 @@ Supported types (extension → renderer type; matching is case-insensitive, `.PU
 | `.bpmn` | `bpmn` |
 | `.excalidraw` | `excalidraw` |
 
+Markdown files (`**/*.md`) are sources too: every fenced block whose language maps to a type — ` ```mermaid `, ` ```plantuml `/`puml`, ` ```d2 `, ` ```dot `/`graphviz`, ` ```bpmn `, ` ```excalidraw ` — gets its own `diagram-<slug>-<n>` target rendering to `<fileName>-<n>.<format>` next to the file:
+
+```mermaid
+graph LR
+  MD[README.md] -->|"mermaid fence"| T[diagram-readme-1]
+  T -->|"nx run"| SVG[README-1.svg]
+```
+
+![This very block, rendered by the plugin](README-1.svg)
+
 ## Setup
 
 ```bash

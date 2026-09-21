@@ -1,8 +1,10 @@
 import type { ExecutorContext } from '@nx/devkit'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
-import { diagramTypeFor, outputPathFor } from '../../plugin.ts'
+import { extractDiagramBlocks, TYPE_EXTENSIONS } from '../../blocks.ts'
+import { diagramTypeFor, outputPathFor, shortHash } from '../../plugin.ts'
 import type { RenderExecutorSchema } from './schema.d.ts'
 
 interface Resolved {
@@ -119,9 +121,28 @@ export default async function renderExecutor(
     : '.'
 
   for (const [index, file] of files.entries()) {
-    const type = diagramTypeFor(file)
-    if (!type) {
-      throw new Error(`Unknown diagram type for ${file}`)
+    // Markdown sources carry a diagram-fence index; the executor re-extracts
+    // the block body — the plugin only declares count/outputs at inference.
+    const blockIndex = options.file ? (options.block ?? null) : (options.blocks?.[index] ?? null)
+    let type: string
+    let blockSource: string | undefined
+    if (blockIndex !== null) {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
+      const blocks = extractDiagramBlocks(readFileSync(join(context.root, file), 'utf8'))
+      const block = blocks[blockIndex]
+      if (!block) {
+        throw new Error(
+          `${file} has ${blocks.length} diagram block(s); block ${blockIndex} is out of range`,
+        )
+      }
+      type = block.type
+      blockSource = block.source
+    } else {
+      const fileType = diagramTypeFor(file)
+      if (!fileType) {
+        throw new Error(`Unknown diagram type for ${file}`)
+      }
+      type = fileType
     }
     // An explicit output path is part of the inferred Nx output contract:
     // Its extension must match the resolved format, otherwise the artifact
@@ -147,13 +168,17 @@ export default async function renderExecutor(
     const fileDir = dirname(file)
 
     if (options.dryRun) {
-      console.log(`[dryRun] would render ${file} -> ${output}`)
+      console.log(
+        `[dryRun] would render ${file}${blockIndex !== null ? ` block ${blockIndex}` : ''} -> ${output}`,
+      )
       continue
     }
 
     const vars = {
       fileDir,
-      fileName: basename(file).replace(/\.[a-z0-9]+$/i, ''),
+      fileName:
+        basename(file).replace(/\.[a-z0-9]+$/i, '') +
+        (blockIndex !== null ? `-${blockIndex + 1}` : ''),
       format: resolved.format,
       input: file,
       output,
@@ -163,14 +188,34 @@ export default async function renderExecutor(
     // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed DIAGRAM_TYPES registry
     const command = resolved.commands[type]
     if (command) {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from a glob-matched path under the trusted workspace root
-      mkdirSync(dirname(absOutput), { recursive: true })
-      // A stale file must not satisfy the post-command existence check.
-      rmSync(absOutput, { force: true })
-      renderWithCommand(resolved, command, vars, context.root)
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
-      if (!existsSync(absOutput)) {
-        throw new Error(`Diagram command succeeded but did not create ${output}`)
+      // Block bodies aren't files — commands take a path, so materialize a
+      // temp input carrying the type's canonical extension.
+      let input = file
+      if (blockSource !== undefined) {
+        input = join(
+          tmpdir(),
+          `nx-diagrams-${shortHash(`${file}#${blockIndex}:${blockSource}`)}${TYPE_EXTENSIONS[type] ?? '.txt'}`,
+        )
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- hash-derived name under the OS temp dir
+        mkdirSync(dirname(input), { recursive: true })
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
+        writeFileSync(input, blockSource)
+        vars.input = input
+      }
+      try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from a glob-matched path under the trusted workspace root
+        mkdirSync(dirname(absOutput), { recursive: true })
+        // A stale file must not satisfy the post-command existence check.
+        rmSync(absOutput, { force: true })
+        renderWithCommand(resolved, command, vars, context.root)
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
+        if (!existsSync(absOutput)) {
+          throw new Error(`Diagram command succeeded but did not create ${output}`)
+        }
+      } finally {
+        if (input !== file) {
+          rmSync(input, { force: true })
+        }
       }
     } else {
       if (!resolved.krokiUrl) {
@@ -178,8 +223,10 @@ export default async function renderExecutor(
           `No renderer for ${file} (type ${type}): krokiUrl is empty — configure commands.${type} or set krokiUrl`,
         )
       }
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path joined to context.root
-      const source = readFileSync(join(context.root, file), 'utf8')
+      const source =
+        blockSource ??
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path joined to context.root
+        readFileSync(join(context.root, file), 'utf8')
       const image = await renderWithKroki(resolved, type, source)
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from the same glob-matched path
       mkdirSync(dirname(absOutput), { recursive: true })

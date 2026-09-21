@@ -1,7 +1,8 @@
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
 import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, matchesGlob, relative } from 'node:path'
+import { extractDiagramBlocks } from './blocks.ts'
 
 export interface NxDiagramsPluginOptions {
   /** Aggregate target name. Default: 'diagrams'. */
@@ -44,7 +45,9 @@ export const DIAGRAM_TYPES: Record<string, string> = {
 // instead of {l,L} braces — nested braces hit the expander depth limit.
 const caseGlob = (ext: string) =>
   ext.replace(/[a-z]/gi, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`)
-const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).map(caseGlob).join(',')}}`
+// .md joins the glob — fenced diagram blocks inside Markdown are extracted
+// at inference time and get one atomized target per block.
+const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).map(caseGlob).join(',')},[mM][dD]}`
 
 export function diagramTypeFor(file: string): string | undefined {
   const lower = file.toLowerCase()
@@ -69,11 +72,12 @@ export function outputPathFor(
   projectRoot: string,
   outputDir: string | undefined,
   format: string,
+  nameSuffix = '',
 ): string {
   // All tokens are workspace-relative: {fileDir} is the source file's directory,
   // {projectRoot} the owning project root ('' for the root project).
   const fileDir = dirname(file)
-  const fileName = basename(file).replace(/\.[a-z0-9]+$/i, '')
+  const fileName = basename(file).replace(/\.[a-z0-9]+$/i, '') + nameSuffix
   const expanded = (outputDir ?? '{fileDir}')
     .replaceAll('{fileDir}', fileDir === '.' ? '' : fileDir)
     .replaceAll('{fileName}', fileName)
@@ -88,7 +92,7 @@ export function outputPathFor(
   return [dir, `${fileName}.${format}`].filter(Boolean).join('/')
 }
 
-function shortHash(value: string): string {
+export function shortHash(value: string): string {
   return createHash('sha1').update(value).digest('hex').slice(0, 6)
 }
 
@@ -127,6 +131,8 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
     }
 
     interface DiagramFile {
+      /** 0-based diagram-fence index for Markdown sources. */
+      block?: number
       file: string
       output: string
       slug: string
@@ -136,8 +142,8 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
 
     for (const configFile of configFiles) {
       const file = configFile.replace(/\\/g, '/')
-      const type = diagramTypeFor(file)
-      if (!type) {
+      const isMd = file.toLowerCase().endsWith('.md')
+      if (!isMd && !diagramTypeFor(file)) {
         continue
       }
       if (include.length > 0 && !include.some((glob) => matchesGlob(file, glob))) {
@@ -149,14 +155,43 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
 
       const projectRoot = findProjectRoot(context.workspaceRoot, dirname(file))
       const rel = projectRoot === '.' ? file : relative(projectRoot, file).replace(/\\/g, '/')
+      const baseSlug = slugify(rel)
       const entries = perProject.get(projectRoot) ?? []
-      entries.push({
-        file,
-        output: outputPathFor(file, projectRoot, options.outputDir, format),
-        slug: slugify(rel),
-        type,
-      })
-      perProject.set(projectRoot, entries)
+
+      if (isMd) {
+        // Block count and ordinals are declared at inference time — outputs
+        // must be known statically for Nx's cache contract. The executor
+        // re-extracts the block source by index when it runs.
+        const abs = join(context.workspaceRoot, file)
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
+        const blocks = extractDiagramBlocks(readFileSync(abs, 'utf8'))
+        for (const block of blocks) {
+          entries.push({
+            block: block.index,
+            file,
+            output: outputPathFor(
+              file,
+              projectRoot,
+              options.outputDir,
+              format,
+              `-${block.index + 1}`,
+            ),
+            slug: `${baseSlug}-${block.index + 1}`,
+            type: block.type,
+          })
+        }
+      } else {
+        entries.push({
+          file,
+          output: outputPathFor(file, projectRoot, options.outputDir, format),
+          slug: baseSlug,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- isMd guard above narrows to a mapped extension
+          type: diagramTypeFor(file)!,
+        })
+      }
+      if (entries.length > 0) {
+        perProject.set(projectRoot, entries)
+      }
     }
 
     // Output paths are workspace-relative, so collisions are tracked globally —
@@ -209,7 +244,12 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
           executor: `${PLUGIN_NAME}:render`,
           inputs: [`{workspaceRoot}/${e.file}`],
           outputs: [`{workspaceRoot}/${output}`],
-          options: { ...sharedOptions, file: e.file, output },
+          options: {
+            ...sharedOptions,
+            file: e.file,
+            output,
+            ...(e.block !== undefined ? { block: e.block } : {}),
+          },
         }
       }
 
@@ -224,9 +264,16 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       targets[aggregateName] = {
         cache: true,
         executor: `${PLUGIN_NAME}:render`,
-        inputs: files.map((f) => `{workspaceRoot}/${f}`),
+        // files repeat for multi-block Markdown — dedupe for inputs only;
+        // the blocks array keeps outputs↔files↔block alignment for the executor.
+        inputs: [...new Set(files)].map((f) => `{workspaceRoot}/${f}`),
         outputs: projectOutputs.map((o) => `{workspaceRoot}/${o}`),
-        options: { ...sharedOptions, files, outputs: projectOutputs },
+        options: {
+          ...sharedOptions,
+          blocks: entries.map((e) => e.block ?? null),
+          files,
+          outputs: projectOutputs,
+        },
       }
 
       const first = entries.at(0)

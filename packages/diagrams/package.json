@@ -31,7 +31,8 @@
     "src/executors/render/schema.json",
     "src/generators/init/schema.json",
     "README.md",
-    "docs/pipeline.svg"
+    "docs/pipeline.svg",
+    "README-1.svg"
   ],
   "scripts": {
     "build": "tsdown",
