@@ -1,12 +1,19 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join, matchesGlob } from 'node:path'
+import { vol } from 'memfs'
+import { Minimatch } from 'minimatch'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createNodesV2, DIAGRAM_TYPES, diagramTypeFor, slugify } from './plugin.ts'
 
-function makeWorkspace(): string {
-  return mkdtempSync(join(tmpdir(), 'nx-diagrams-plugin-'))
-}
+vi.mock('node:fs', async () => {
+  const memfs = await import('memfs')
+  return { ...memfs.fs, default: memfs.fs }
+})
+
+vi.mock('fs', async () => {
+  const memfs = await import('memfs')
+  return { ...memfs.fs, default: memfs.fs }
+})
 
 function mergedTargets(result: unknown): Record<string, Record<string, unknown>> {
   const entries = result as (readonly [
@@ -28,19 +35,28 @@ const ctx = (workspaceRoot: string) => ({
 })
 
 describe('createNodesV2', () => {
-  let workspace: string
+  const workspace = '/workspace'
 
   beforeEach(() => {
-    workspace = makeWorkspace()
-  })
-  afterEach(() => {
-    rmSync(workspace, { force: true, recursive: true })
+    vol.reset()
+    mkdirSync(workspace, { recursive: true })
   })
 
   it('watches every registered diagram extension', () => {
     const glob = createNodesV2[0]
+    // Nx filters configFiles with minimatch ({ dot: true }) before invoking
+    // createNodes — assert against that engine, not only node:path.
+    const nxMatcher = new Minimatch(glob, { dot: true })
     for (const ext of Object.keys(DIAGRAM_TYPES)) {
-      expect(glob).toContain(ext)
+      expect(matchesGlob(`a${ext}`, glob)).toBe(true)
+      expect(nxMatcher.match(`a${ext}`)).toBe(true)
+      // The trigger glob must match case-insensitively (.PUML on
+      // Case-sensitive filesystems) — the type lookup lowercases already.
+      expect(matchesGlob(`a${ext.toUpperCase()}`, glob)).toBe(true)
+      expect(nxMatcher.match(`a${ext.toUpperCase()}`)).toBe(true)
+      const mixed = ext.slice(1).replace(/[a-z]/gi, (c, i) => (i % 2 ? c.toUpperCase() : c))
+      expect(matchesGlob(`a.${mixed}`, glob)).toBe(true)
+      expect(nxMatcher.match(`a.${mixed}`)).toBe(true)
     }
   })
 

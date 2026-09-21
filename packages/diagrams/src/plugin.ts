@@ -39,7 +39,12 @@ export const DIAGRAM_TYPES: Record<string, string> = {
   '.excalidraw': 'excalidraw',
 }
 
-const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).join(',')}}`
+// Each letter expands to a [lL] char class so the Nx trigger glob matches
+// .PUML/.ExCaLiDrAw on case-sensitive filesystems. Char classes are used
+// instead of {l,L} braces — nested braces hit the expander depth limit.
+const caseGlob = (ext: string) =>
+  ext.replace(/[a-z]/gi, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`)
+const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).map(caseGlob).join(',')}}`
 
 export function diagramTypeFor(file: string): string | undefined {
   const lower = file.toLowerCase()

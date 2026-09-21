@@ -4,7 +4,7 @@ Zero-config Nx plugin that renders text-diagram sources to images — the Nx way
 
 ![Render pipeline — rendered by this very plugin from docs/pipeline.puml](docs/pipeline.svg)
 
-Supported types (extension → renderer type):
+Supported types (extension → renderer type; matching is case-insensitive, `.PUML` works too):
 
 | Extension | Type |
 |---|---|
