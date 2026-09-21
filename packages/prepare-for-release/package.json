@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/prepare-for-release",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "MIT",
   "private": false,
   "type": "module",
