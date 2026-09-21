@@ -2,6 +2,8 @@
 
 Zero-config Nx plugin that renders text-diagram sources to images — the Nx way. Every diagram file becomes a cached, atomized target: `nx affected` re-renders only changed diagrams, and Nx Cloud shares the artifacts.
 
+![Render pipeline — rendered by this very plugin from docs/pipeline.puml](docs/pipeline.svg)
+
 Supported types (extension → renderer type):
 
 | Extension | Type |

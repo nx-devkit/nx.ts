@@ -10,7 +10,8 @@
       "!**/coverage",
       "!**/.nx",
       "!**/.nx-cache",
-      "!**/tmp"
+      "!**/tmp",
+      "!**/*.svg"
     ]
   },
   "formatter": {

@@ -1,0 +1,21 @@
+@startuml
+title @nx-devkit/diagrams — render pipeline
+
+actor "nx run" as nx
+participant "createNodesV2" as plugin
+participant "render executor" as exec
+database "Nx cache" as cache
+participant "Kroki / commands" as renderer
+
+nx -> plugin: *.puml, *.mmd, *.d2 ...
+plugin -> nx: diagram-* targets (cache: true)
+nx -> cache: lookup inputs hash
+alt cache miss
+  nx -> exec: render(file, output)
+  exec -> renderer: POST source or local command
+  renderer --> exec: svg/png/jpeg
+  nx -> cache: store output artifact
+else cache hit
+  cache --> nx: restore output
+end
+@enduml
