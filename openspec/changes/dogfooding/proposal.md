@@ -25,7 +25,8 @@ the inferred `diagrams` target — Kroki backend, `outputDir` pinned to
 
 - Registered plugins: typescript preset, `skill`, `skillspector`
   (`skillspectorBin: .tools/skillspector-venv/bin/skillspector`), `diagrams`
-  (`renderer: local`), `nx-cloud`, `prepare-for-release`.
+  (`outputDir: "{fileDir}/dist"`, Kroki rendering), `nx-cloud`,
+  `prepare-for-release`.
 - New devDeps: `tsx`, `markdownlint-cli2`, `beautiful-mermaid`,
   `@nx-devkit/skills-compiler` (workspace).
 - New check scripts: `validate-skill.ts`, `check-os-independence.ts`,

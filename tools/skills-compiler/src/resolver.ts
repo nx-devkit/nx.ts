@@ -177,7 +177,9 @@ function resolveLinksInBody(
     if (raw.startsWith('!')) continue // images
     if (url.startsWith('http') || url.startsWith('#')) continue
     const resolved = path.resolve(sourceDir, url.split('?')[0].split('#')[0])
-    if (!resolved.toLowerCase().endsWith('.md')) continue
+    // Only links that point at a SKILL.md itself count as skill references —
+    // links to README.md or other files in a skill dir are plain file links.
+    if (path.basename(resolved).toLowerCase() !== 'skill.md') continue
     const skillDir = path.dirname(resolved)
     const skillFile = path.join(skillDir, 'SKILL.md')
     if (!fs.existsSync(skillFile)) continue

@@ -27,8 +27,9 @@ pins `outputDir: "{fileDir}/dist"`).
 
 ### Requirement: CI executes real inferred targets
 `.github/workflows/ci.yml` MUST run `nx run-many -t lint,build,test,typecheck`
-(which includes skill lint/build and diagram render), the skill validation
-targets, and SkillSpector scans — not only package-level tests.
+(which includes skill lint/build), a separate `nx run-many -t diagrams` for
+diagram rendering, the skill validation targets, and SkillSpector scans — not
+only package-level tests.
 
 #### Scenario: CI covers skills and diagrams
 - **WHEN** a PR is opened

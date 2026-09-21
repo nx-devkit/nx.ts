@@ -11,7 +11,7 @@
  * Exit 0 within budget, 1 on violation.
  */
 import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 const MAX_LINES = 500
 const MAX_SKILL_MD_BYTES = 50 * 1024
@@ -41,6 +41,10 @@ try {
 }
 
 let dirBytes = 0
+// Canonical root — a `--skill` arg that is itself a symlink must still
+// compare correctly against realpath() results.
+const realRoot = realpathSync(root)
+
 function walk(dir: string): void {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry.startsWith('.')) continue
@@ -52,7 +56,8 @@ function walk(dir: string): void {
       const rel = full.slice(root.length + 1)
       try {
         const real = realpathSync(full)
-        if (real !== root && !real.startsWith(root + '/')) {
+        const relToRoot = relative(realRoot, real)
+        if (relToRoot === '..' || relToRoot.startsWith(`..${sep}`) || isAbsolute(relToRoot)) {
           errors.push(`${rel}: symlink escapes skill directory -> ${real}`)
         }
       } catch {

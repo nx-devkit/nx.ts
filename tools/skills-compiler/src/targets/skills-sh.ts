@@ -189,6 +189,7 @@ function rewriteFileLinks(
     const titleRest = titleMatch?.[2] ?? ''
     if (urlPart.startsWith('http') || urlPart.startsWith('#')) return raw
     const cleanUrl = urlPart.split('?')[0].split('#')[0]
+    const suffix = urlPart.slice(cleanUrl.length)
     if (!cleanUrl.toLowerCase().endsWith('.md')) return raw
 
     // Resolve the link relative to the SOURCE file's directory (not the
@@ -212,7 +213,7 @@ function rewriteFileLinks(
     const rel = relativeSkillPath(fileDir, targetName, projectName, outDir, byName)
     if (!rel) return raw
     changed = true
-    return `[${text}](${rel}${titleRest})`
+    return `[${text}](${rel}${suffix}${titleRest})`
   })
 
   if (changed) {

@@ -1,7 +1,15 @@
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile, realpath } from 'node:fs/promises'
-import { dirname, join, relative, resolve as resolvePath, isAbsolute, sep } from 'node:path'
+import {
+  basename,
+  dirname,
+  join,
+  relative,
+  resolve as resolvePath,
+  isAbsolute,
+  sep,
+} from 'node:path'
 import { createHash } from 'node:crypto'
 
 export interface ScanExecutorOptions {
@@ -205,7 +213,9 @@ export async function scanExecutor(
   // `.tools/skillspector-venv` outside CI) falls back to `skillspector` on
   // PATH instead of failing with ENOENT.
   const effectiveCmd =
-    /[/\\]/.test(binCmd) && !existsSync(resolvePath(ctx.root, binCmd)) ? 'skillspector' : binCmd
+    basename(binCmd) !== binCmd && !existsSync(resolvePath(ctx.root, binCmd))
+      ? 'skillspector'
+      : binCmd
 
   const args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
   if (noLlm) {

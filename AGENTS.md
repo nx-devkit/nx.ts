@@ -37,7 +37,7 @@ Per-package options interfaces, file layout, and TDD workflow are in each `packa
 This is the agent-execution checklist. The human-readable summary is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 1. Write a failing `*.spec.ts` (vitest) using `@nx/devkit` testing helpers + `memfs` / tmp dirs / `vi.mock` for child_process.
-2. `bun test` → RED.
+2. `bun run test` → RED.
 3. Implement the minimum to pass.
 4. Refactor only after GREEN.
 5. `bun run build` → must succeed.
@@ -64,7 +64,6 @@ Run `@nx-devkit/prepare-for-release:publish-placeholder` when:
 
 - You are adding a brand-new package to this monorepo that needs to exist on npm before OIDC trust can be set up.
 - The user has just invited you to bootstrap a fresh consumer workspace.
-- You need to publish placeholders so the `release` job in `.github/workflows/release.yml` can run.
 
 The executor is **idempotent** — already-published packages are skipped. It **never mutates** the source `package.json`; the placeholder tarball is built in a temp dir.
 
@@ -73,7 +72,7 @@ The executor is **idempotent** — already-published packages are skipped. It **
 ```bash
 bun install
 bun run lint
-bun test
+bun run test
 bun run build
 bash scripts/e2e.sh
 bun run check:spec
@@ -99,7 +98,7 @@ bun --bun node_modules/.bin/nx migrate --run-migrations=migrations.json
 bun install
 
 # 5. Verify everything still works
-bun run lint && bun test && bun run build
+bun run lint && bun run test && bun run build
 
 # 6. Delete migrations.json — it is a transient artifact, never commit it
 rm migrations.json

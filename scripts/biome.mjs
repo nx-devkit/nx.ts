@@ -31,5 +31,5 @@ if (!cmd) {
   cmd = process.execPath
 }
 
-const result = spawnSync(cmd, args, { stdio: 'inherit' })
+const result = spawnSync(cmd, args, { stdio: 'inherit', timeout: 300_000 })
 process.exit(result.status ?? 1)

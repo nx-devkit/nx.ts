@@ -9,7 +9,7 @@
  * Exit 0 when clean, 1 on violations.
  */
 import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
-import { extname, join, resolve } from 'node:path'
+import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 const skillArg = process.argv.indexOf('--skill')
 const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
@@ -47,6 +47,9 @@ const PATTERNS: { re: RegExp; label: string }[] = [
 ]
 
 const violations: string[] = []
+// Canonical root — a `--skill` arg that is itself a symlink must still
+// compare correctly against realpath() results.
+const realRoot = realpathSync(root)
 
 function* walk(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
@@ -58,7 +61,8 @@ function* walk(dir: string): Generator<string> {
       const rel = full.slice(root.length + 1)
       try {
         const real = realpathSync(full)
-        if (real !== root && !real.startsWith(root + '/')) {
+        const relToRoot = relative(realRoot, real)
+        if (relToRoot === '..' || relToRoot.startsWith(`..${sep}`) || isAbsolute(relToRoot)) {
           violations.push(`${rel}: symlink escapes skill directory -> ${real}`)
         }
       } catch {
