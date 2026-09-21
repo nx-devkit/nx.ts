@@ -1,7 +1,7 @@
 # nx-diagrams Specification
 
 ## Purpose
-TBD - created by archiving change nx-diagrams. Update Purpose after archive.
+Renders text-diagram source files (PlantUML, Mermaid, Graphviz, D2, BPMN, Excalidraw, …) — standalone files and fenced blocks inside Markdown — to images as cached, atomized Nx targets. Kroki is the default rendering backend; per-type shell commands override it for offline or private rendering.
 ## Requirements
 ### Requirement: Diagram files trigger per-file target inference
 The plugin MUST use `createNodesV2` with a default trigger glob covering `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` and MUST infer one `diagram-<relpath-slug>` target per matched file on the owning project, plus a `diagrams` aggregate target on projects containing at least one match.
@@ -106,7 +106,7 @@ The `init` generator MUST register `@nx-devkit/diagrams` in `nx.json`, dedupe st
 - **THEN** the plugin is appended and comments/formatting are byte-preserved outside the edit
 
 ### Requirement: Markdown files trigger per-block target inference
-The default trigger glob MUST additionally cover `**/*.md` (case-insensitive, literal extension dot — `foo.cmd` MUST NOT match). For each matched Markdown file the plugin MUST extract fenced code blocks (``` ``` ``` or `~~~` fences) whose language tag maps to a registry type — `mermaid`, `plantuml`/`puml`, `d2`, `dot`/`graphviz`, `bpmn`, `excalidraw` — and MUST infer one `diagram-<file-slug>-<n>` target per block, where `<n>` is the 1-based ordinal among diagram fences in that file. Fences with unmapped or missing language tags MUST be ignored, and a diagram-looking fence nested inside a non-diagram fence is body text, not a block. A Markdown file with zero diagram blocks MUST produce no targets — including no aggregate `diagrams` target, since aggregate eligibility requires at least one standalone diagram file or extracted block.
+The default trigger glob MUST additionally cover `**/*.md` (case-insensitive, literal extension dot — `foo.cmd` MUST NOT match). For each matched Markdown file the plugin MUST extract fenced code blocks (backtick or `~~~` fences) whose language tag maps to a registry type — `mermaid`, `plantuml`/`puml`, `d2`, `dot`/`graphviz`, `bpmn`, `excalidraw` — and MUST infer one `diagram-<file-slug>-<n>` target per block, where `<n>` is the 1-based ordinal among diagram fences in that file. Fences with unmapped or missing language tags MUST be ignored, and a diagram-looking fence nested inside a non-diagram fence is body text, not a block. A Markdown file with zero diagram blocks MUST produce no targets — including no aggregate `diagrams` target, since aggregate eligibility requires at least one standalone diagram file or extracted block.
 
 #### Scenario: Markdown with mermaid block
 - **WHEN** `docs/guide.md` contains one ` ```mermaid ` block
