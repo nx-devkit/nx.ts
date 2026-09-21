@@ -1,3 +1,13 @@
+## 0.1.6 (2026-09-21)
+
+### 🩹 Fixes
+
+- **tsdown-config:** don't wipe executor dist mid-run ([c45a061](https://github.com/nx-devkit/nx.ts/commit/c45a061))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.5 (2026-09-21)
 
 This was a version bump only for @nx-devkit/skill to align it with other projects, there were no code changes.

@@ -1,3 +1,13 @@
+## 0.1.6 (2026-09-21)
+
+### 🩹 Fixes
+
+- **tsdown-config:** extend clean:false to all executor-provider packages ([3a92cef](https://github.com/nx-devkit/nx.ts/commit/3a92cef))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.5 (2026-09-21)
 
 This was a version bump only for @nx-devkit/skillspector to align it with other projects, there were no code changes.
