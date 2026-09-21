@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/diagrams",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "MIT",
   "private": false,
   "type": "module",
