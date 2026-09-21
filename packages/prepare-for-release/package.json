@@ -34,6 +34,7 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "prepublishOnly": "tsdown --clean",
     "test": "vitest run"
   },
   "peerDependencies": {
