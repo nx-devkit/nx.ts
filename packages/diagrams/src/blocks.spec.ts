@@ -86,8 +86,9 @@ describe('extractDiagramBlocks', () => {
     const start = performance.now()
     const blocks = extractDiagramBlocks(evil)
     expect(performance.now() - start).toBeLessThan(1000)
-    // The first mermaid fence opens and never closes — everything after is
-    // its body and the unclosed block is dropped at EOF.
+    // Line 0's ````not-a-lang opens a non-diagram 4-backtick fence that
+    // never closes — the ```mermaid lines are nested body text, and the
+    // unclosed fence leaves no blocks at EOF.
     expect(blocks).toEqual([])
   })
 
