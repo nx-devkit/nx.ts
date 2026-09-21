@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdir, stat, writeFile, realpath } from 'node:fs/promises'
+import { mkdir, writeFile, realpath } from 'node:fs/promises'
 import {
   basename,
   dirname,
@@ -208,17 +208,6 @@ export async function scanExecutor(
   const failOnError = opts.failOnError ?? true
   const skillspectorBin = opts.skillspectorBin ?? 'skillspector'
   const { cmd: binCmd, args: binArgs } = parseBin(skillspectorBin)
-  // A configured filesystem path that does not exist (e.g. the CI-only
-  // `.tools/skillspector-venv` outside CI) falls back to `skillspector` on
-  // PATH instead of failing with ENOENT.
-  const binIsConfiguredPath = basename(binCmd) !== binCmd
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- binCmd is a configured path resolved under the trusted ctx.root
-  const binExists = await stat(resolvePath(ctx.root, binCmd)).then(
-    () => true,
-    () => false,
-  )
-  const effectiveCmd = binIsConfiguredPath && !binExists ? 'skillspector' : binCmd
-
   const args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
   if (noLlm) {
     args.push('--no-llm')
@@ -229,12 +218,26 @@ export async function scanExecutor(
 
   let stdout: string
   try {
-    const result = await spawnSkillspector(effectiveCmd, args, ctx.root)
+    const result = await spawnSkillspector(binCmd, args, ctx.root)
     stdout = result.stdout
   } catch (error) {
-    // If skillspector exits non-zero, treat as failure
-    console.error(`skillspector scan failed: ${(error as Error).message}`)
-    return { success: false }
+    // A configured filesystem path that does not exist (e.g. the CI-only
+    // `.tools/skillspector-venv` outside CI) fails execFile with ENOENT —
+    // retry once via `skillspector` on PATH. Bare command names do not
+    // retry: a missing PATH binary has no fallback.
+    const missingConfiguredPath =
+      (error as NodeJS.ErrnoException).code === 'ENOENT' && basename(binCmd) !== binCmd
+    if (!missingConfiguredPath) {
+      console.error(`skillspector scan failed: ${(error as Error).message}`)
+      return { success: false }
+    }
+    try {
+      const retry = await spawnSkillspector('skillspector', args, ctx.root)
+      stdout = retry.stdout
+    } catch (retryError) {
+      console.error(`skillspector scan failed: ${(retryError as Error).message}`)
+      return { success: false }
+    }
   }
 
   let issues: SkillIssue[] = []

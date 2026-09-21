@@ -15,6 +15,13 @@ let execFileResponse: { error: Error | null; stdout: string; stderr: string } = 
   stderr: '',
 }
 
+// Per-call responses take precedence over execFileResponse (FIFO).
+let execFileResponseQueue: {
+  error: Error | null
+  stdout: string
+  stderr: string
+}[] = []
+
 vi.mock('node:child_process', () => ({
   execFile: (
     command: string,
@@ -25,7 +32,8 @@ vi.mock('node:child_process', () => ({
     execFileCalls.push({ args, command, options })
     // Simulate async execution
     setTimeout(() => {
-      callback(execFileResponse.error, execFileResponse.stdout, execFileResponse.stderr)
+      const r = execFileResponseQueue.length ? execFileResponseQueue.shift()! : execFileResponse
+      callback(r.error, r.stdout, r.stderr)
     }, 0)
   },
 }))
@@ -65,6 +73,7 @@ describe('scanExecutor', () => {
     workspace = makeWorkspace()
     execFileCalls.length = 0
     execFileResponse = { error: null, stdout: '', stderr: '' }
+    execFileResponseQueue = []
   })
 
   afterEach(() => {
@@ -418,7 +427,14 @@ describe('scanExecutor', () => {
     expect(call.args).toContain('skillspector')
   })
 
-  it('falls back to PATH skillspector when a configured bin path does not exist', async () => {
+  it('falls back to PATH skillspector when a configured bin path fails with ENOENT', async () => {
+    execFileResponseQueue = [
+      {
+        error: Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }),
+        stdout: '',
+        stderr: '',
+      },
+    ]
     execFileResponse.stdout = makeFindings()
 
     await scanExecutor(
@@ -429,18 +445,52 @@ describe('scanExecutor', () => {
       { root: workspace },
     )
 
-    const call = execFileCalls[0]!
-    expect(call.command).toBe('skillspector')
+    expect(execFileCalls).toHaveLength(2)
+    expect(execFileCalls[0]!.command).toBe('.tools/skillspector-venv/bin/skillspector')
+    expect(execFileCalls[1]!.command).toBe('skillspector')
+  })
+
+  it('does not retry on ENOENT for a bare command name', async () => {
+    execFileResponseQueue = [
+      {
+        error: Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }),
+        stdout: '',
+        stderr: '',
+      },
+    ]
+
+    const result = await scanExecutor(
+      { path: 'skills/code-review/act', skillspectorBin: 'skillspector' },
+      { root: workspace },
+    )
+
+    expect(result.success).toBe(false)
+    expect(execFileCalls).toHaveLength(1)
+  })
+
+  it('does not retry on non-ENOENT failures for a configured path', async () => {
+    execFileResponseQueue = [
+      {
+        error: Object.assign(new Error('exit 1'), { code: 1 }),
+        stdout: '',
+        stderr: '',
+      },
+    ]
+
+    const result = await scanExecutor(
+      {
+        path: 'skills/code-review/act',
+        skillspectorBin: '.tools/skillspector-venv/bin/skillspector',
+      },
+      { root: workspace },
+    )
+
+    expect(result.success).toBe(false)
+    expect(execFileCalls).toHaveLength(1)
   })
 
   it('uses a configured bin path when it exists', async () => {
     execFileResponse.stdout = makeFindings()
-    const { mkdirSync, writeFileSync, chmodSync } = await import('node:fs')
-    const binDir = join(workspace, '.tools', 'skillspector-venv', 'bin')
-    mkdirSync(binDir, { recursive: true })
-    const binPath = join(binDir, 'skillspector')
-    writeFileSync(binPath, '#!/bin/sh\n')
-    chmodSync(binPath, 0o755)
 
     await scanExecutor(
       {
