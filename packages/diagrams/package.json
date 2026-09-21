@@ -46,6 +46,7 @@
   "devDependencies": {
     "@nx/devkit": "23.2.1",
     "@types/node": "^20.19.0",
+    "minimatch": "^10.2.4",
     "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
