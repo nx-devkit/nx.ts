@@ -1,3 +1,13 @@
+## 0.0.5 (2026-09-21)
+
+### 🩹 Fixes
+
+- **diagrams,nx-cloud:** move @nx-devkit/internal to devDependencies ([129f821](https://github.com/nx-devkit/nx.ts/commit/129f821))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.4 (2026-09-21)
 
 This was a version bump only for @nx-devkit/nx-cloud to align it with other projects, there were no code changes.
