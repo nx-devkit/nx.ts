@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, matchesGlob } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createNodesV2, DIAGRAM_TYPES, diagramTypeFor, slugify } from './plugin.ts'
 
@@ -40,7 +40,12 @@ describe('createNodesV2', () => {
   it('watches every registered diagram extension', () => {
     const glob = createNodesV2[0]
     for (const ext of Object.keys(DIAGRAM_TYPES)) {
-      expect(glob).toContain(ext)
+      expect(matchesGlob(`a${ext}`, glob)).toBe(true)
+      // The trigger glob must match case-insensitively (.PUML on
+      // Case-sensitive filesystems) — the type lookup lowercases already.
+      expect(matchesGlob(`a${ext.toUpperCase()}`, glob)).toBe(true)
+      const mixed = ext.slice(1).replace(/[a-z]/gi, (c, i) => (i % 2 ? c.toUpperCase() : c))
+      expect(matchesGlob(`a.${mixed}`, glob)).toBe(true)
     }
   })
 
