@@ -212,6 +212,7 @@ export async function scanExecutor(
   // A configured filesystem path that does not exist (e.g. the CI-only
   // `.tools/skillspector-venv` outside CI) falls back to `skillspector` on
   // PATH instead of failing with ENOENT.
+  // eslint-disable-next-line node/no-sync -- executor startup check, one-shot
   const effectiveCmd =
     basename(binCmd) !== binCmd && !existsSync(resolvePath(ctx.root, binCmd))
       ? 'skillspector'
@@ -263,21 +264,21 @@ export async function scanExecutor(
     // The SARIF file itself doesn't exist yet, so we validate the parent
     // directory after mkdir resolves all symlinks in the path.
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- workspaceRoot is the trusted Nx workspace root
-    const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot)
-    const sarifDir = dirname(sarifPath)
+    const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot),
+      sarifDir = dirname(sarifPath)
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is contained within workspaceRoot, validated via relative()
     await mkdir(sarifDir, { recursive: true })
     // After mkdir, resolve the real path of the directory to catch symlinks
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is validated above
-    const realSarifDir = await realpath(sarifDir).catch(() => sarifDir)
-    const realRel = relative(realWorkspaceRoot, realSarifDir)
+    const realSarifDir = await realpath(sarifDir).catch(() => sarifDir),
+      realRel = relative(realWorkspaceRoot, realSarifDir)
     if (realRel === '..' || realRel.startsWith(`..${sep}`) || isAbsolute(realRel)) {
       return { success: false }
     }
     // Also check if the SARIF file itself is an existing symlink pointing outside
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is validated above
-    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath)
-    const realFileRel = relative(realWorkspaceRoot, realSarifPath)
+    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath),
+      realFileRel = relative(realWorkspaceRoot, realSarifPath)
     if (realFileRel === '..' || realFileRel.startsWith(`..${sep}`) || isAbsolute(realFileRel)) {
       return { success: false }
     }

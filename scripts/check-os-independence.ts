@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * check-os-independence — flag platform-specific content in a skill directory.
+ * Check-os-independence — flag platform-specific content in a skill directory.
  *
  * Usage: tsx scripts/check-os-independence.ts --skill <dir>
  *

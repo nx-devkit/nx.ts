@@ -184,8 +184,8 @@ describe('scanExecutor', () => {
       },
     ])
     // Create a symlink inside workspace pointing outside
-    const outsideDir = mkdtempSync(join(tmpdir(), 'outside-'))
-    const linkDir = join(workspace, 'link')
+    const outsideDir = mkdtempSync(join(tmpdir(), 'outside-')),
+      linkDir = join(workspace, 'link')
     symlinkSync(outsideDir, linkDir, 'dir')
 
     const result = await scanExecutor(

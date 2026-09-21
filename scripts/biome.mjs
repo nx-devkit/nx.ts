@@ -9,8 +9,8 @@ import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { arch, platform } from 'node:process'
 
-const rootRequire = createRequire(import.meta.url)
-const biomeRequire = createRequire(rootRequire.resolve('@biomejs/biome/package.json'))
+const rootRequire = createRequire(import.meta.url),
+  biomeRequire = createRequire(rootRequire.resolve('@biomejs/biome/package.json'))
 
 function needsMuslFallback() {
   return platform === 'linux' && arch === 'x64' && !existsSync('/lib64/ld-linux-x86-64.so.2')

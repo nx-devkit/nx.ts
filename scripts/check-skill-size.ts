@@ -13,9 +13,9 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 
-const MAX_LINES = 500
-const MAX_SKILL_MD_BYTES = 50 * 1024
-const MAX_DIR_BYTES = 1024 * 1024
+const MAX_LINES = 500,
+  MAX_SKILL_MD_BYTES = 50 * 1024,
+  MAX_DIR_BYTES = 1024 * 1024
 
 const skillArg = process.argv.indexOf('--skill')
 const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
@@ -24,10 +24,9 @@ if (!skillDir) {
   process.exit(1)
 }
 
-const root = resolve(skillDir)
-const errors: string[] = []
-
-const skillMd = join(root, 'SKILL.md')
+const root = resolve(skillDir),
+  errors: string[] = [],
+  skillMd = join(root, 'SKILL.md')
 try {
   const content = readFileSync(skillMd, 'utf8')
   const lines = content.split('\n').length
@@ -46,6 +45,7 @@ let dirBytes = 0
 const realRoot = realpathSync(root)
 
 function walk(dir: string): void {
+  // eslint-disable-next-line node/no-sync -- sync CLI traversal
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry.startsWith('.')) continue
     const full = join(dir, entry)

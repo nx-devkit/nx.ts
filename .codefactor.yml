@@ -1,2 +1,4 @@
+# tools/skills-compiler is a vendored upstream copy kept to minimal diffs;
+# its style findings (one-var, node/no-sync, …) are upstream's concern.
 exclude:
-  - "**/*"
+  - "tools/skills-compiler/**"

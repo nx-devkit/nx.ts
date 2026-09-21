@@ -20,15 +20,14 @@ import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { parse } from 'yaml'
 
-const skillArg = process.argv.indexOf('--skill')
-const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
+const skillArg = process.argv.indexOf('--skill'),
+  skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
 if (!skillDir) {
   console.error('Usage: validate-skill.ts --skill <dir>')
   process.exit(1)
 }
-
-const root = resolve(skillDir)
-const errors: string[] = []
+const root = resolve(skillDir),
+  errors: string[] = []
 
 const skillMd = join(root, 'SKILL.md')
 if (!existsSync(skillMd)) {

@@ -43,10 +43,10 @@ export async function buildExecutor(
   if (!VALID_TARGETS.includes(target)) {
     return { success: false }
   }
-  const outDir = options.outDir
-  const skillPath = options.path
-  const workspaceRoot = context?.root ?? process.cwd()
-  const bin = resolveBin('skills-compiler', workspaceRoot)
+  const outDir = options.outDir,
+    skillPath = options.path,
+    workspaceRoot = context?.root ?? process.cwd(),
+    bin = resolveBin('skills-compiler', workspaceRoot)
 
   return new Promise((resolvePromise) => {
     execFile(
