@@ -54,14 +54,14 @@ export function extractDiagramBlocks(markdown: string): DiagramBlock[] {
       // eslint-disable-next-line security/detect-object-injection -- lang is a regex capture; undefined lookup returns undefined
       const mapped = lang ? FENCE_TYPES[lang] : undefined
       if (open && mapped) {
-        fenceChar = open[1]?.[0] ?? '`'
-        fenceLen = open[1]?.length ?? 3
+        fenceChar = open[1][0]
+        fenceLen = open[1].length
         body = []
         type = mapped
       }
     } else {
       const close = stripped.match(CLOSE_RE)
-      if (close && close[1]?.[0] === fenceChar && close[1].length >= fenceLen) {
+      if (close && close[1][0] === fenceChar && close[1].length >= fenceLen) {
         blocks.push({ index: blocks.length, source: body.join(''), type })
         body = null
       } else {

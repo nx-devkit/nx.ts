@@ -123,13 +123,15 @@ export default async function renderExecutor(
   for (const [index, file] of files.entries()) {
     // Markdown sources carry a diagram-fence index; the executor re-extracts
     // the block body — the plugin only declares count/outputs at inference.
+    // eslint-disable-next-line security/detect-object-injection -- index iterates the declared files array
     const blockIndex = options.file ? (options.block ?? null) : (options.blocks?.[index] ?? null)
     let type: string
     let blockSource: string | undefined
     if (blockIndex !== null) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
       const blocks = extractDiagramBlocks(readFileSync(join(context.root, file), 'utf8'))
-      const block = blocks[blockIndex]
+      // eslint-disable-next-line security/detect-object-injection -- blockIndex is a declared target option
+      const block: (typeof blocks)[number] | undefined = blocks[blockIndex]
       if (!block) {
         throw new Error(
           `${file} has ${blocks.length} diagram block(s); block ${blockIndex} is out of range`,
@@ -194,8 +196,11 @@ export default async function renderExecutor(
       let input = file
       let tmpDir: string | undefined
       if (blockSource !== undefined) {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- tmpdir() is the OS temp dir
         mkdirSync(tmpdir(), { recursive: true })
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed prefix under the OS temp dir
         tmpDir = mkdtempSync(join(tmpdir(), 'nx-diagrams-'))
+        // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed registry
         input = join(tmpDir, `block${TYPE_EXTENSIONS[type] ?? '.txt'}`)
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- inside a fresh unique tmpdir
         writeFileSync(input, blockSource)
