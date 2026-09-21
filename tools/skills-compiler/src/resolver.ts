@@ -46,7 +46,15 @@ function getDescription(frontmatter: Record<string, unknown>): string {
 function getName(frontmatter: Record<string, unknown>, dir: string): string {
   const raw = frontmatter.name
   const candidate = typeof raw === 'string' ? raw.trim() : ''
-  return candidate || path.basename(dir)
+  const name = candidate || path.basename(dir)
+  // The name becomes a path segment in emitted output — reject anything that
+  // could traverse outside the output directory.
+  if (name === '.' || name === '..' || /[/\\]/.test(name) || path.isAbsolute(name)) {
+    throw new Error(
+      `Invalid skill name '${name}' in ${dir}/SKILL.md: must be a plain name without path separators`,
+    )
+  }
+  return name
 }
 
 export function discoverSkills(skillsRoot: string): Map<string, Skill> {
@@ -211,6 +219,11 @@ export function resolveClosure(
 ): Skill[] {
   const result: Skill[] = []
   const visited = new Set<string>()
+
+  const missing = include.filter((name) => !skillsByName.has(name))
+  if (missing.length > 0) {
+    throw new Error(`Manifest includes unknown skill(s): ${missing.join(', ')}`)
+  }
 
   function visit(name: string) {
     if (visited.has(name)) return

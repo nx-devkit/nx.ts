@@ -418,6 +418,42 @@ describe('scanExecutor', () => {
     expect(call.args).toContain('skillspector')
   })
 
+  it('falls back to PATH skillspector when a configured bin path does not exist', async () => {
+    execFileResponse.stdout = makeFindings()
+
+    await scanExecutor(
+      {
+        path: 'skills/code-review/act',
+        skillspectorBin: '.tools/skillspector-venv/bin/skillspector',
+      },
+      { root: workspace },
+    )
+
+    const call = execFileCalls[0]!
+    expect(call.command).toBe('skillspector')
+  })
+
+  it('uses a configured bin path when it exists', async () => {
+    execFileResponse.stdout = makeFindings()
+    const { mkdirSync, writeFileSync, chmodSync } = await import('node:fs')
+    const binDir = join(workspace, '.tools', 'skillspector-venv', 'bin')
+    mkdirSync(binDir, { recursive: true })
+    const binPath = join(binDir, 'skillspector')
+    writeFileSync(binPath, '#!/bin/sh\n')
+    chmodSync(binPath, 0o755)
+
+    await scanExecutor(
+      {
+        path: 'skills/code-review/act',
+        skillspectorBin: '.tools/skillspector-venv/bin/skillspector',
+      },
+      { root: workspace },
+    )
+
+    const call = execFileCalls[0]!
+    expect(call.command).toBe('.tools/skillspector-venv/bin/skillspector')
+  })
+
   it('does not use shell: true when spawning', async () => {
     execFileResponse.stdout = makeFindings()
 

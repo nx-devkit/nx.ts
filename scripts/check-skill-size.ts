@@ -10,7 +10,7 @@
  *
  * Exit 0 within budget, 1 on violation.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const MAX_LINES = 500
@@ -45,7 +45,22 @@ function walk(dir: string): void {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry.startsWith('.')) continue
     const full = join(dir, entry)
-    const st = statSync(full)
+    const st = lstatSync(full)
+    if (st.isSymbolicLink()) {
+      // Never follow links — verify the target stays inside the skill and
+      // count only the link itself.
+      const rel = full.slice(root.length + 1)
+      try {
+        const real = realpathSync(full)
+        if (real !== root && !real.startsWith(root + '/')) {
+          errors.push(`${rel}: symlink escapes skill directory -> ${real}`)
+        }
+      } catch {
+        errors.push(`${rel}: dangling symlink`)
+      }
+      dirBytes += st.size
+      continue
+    }
     if (st.isDirectory()) walk(full)
     else dirBytes += st.size
   }

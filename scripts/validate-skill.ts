@@ -16,6 +16,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
+import { parse } from 'yaml'
 
 const skillArg = process.argv.indexOf('--skill')
 const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
@@ -36,25 +37,38 @@ if (!existsSync(skillMd)) {
   if (!match) {
     errors.push('SKILL.md is missing a YAML frontmatter block')
   } else {
-    const fields = new Map<string, string>()
-    for (const line of match[1].split('\n')) {
-      const m = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/)
-      if (m) fields.set(m[1], m[2].replace(/^["']|["']$/g, '').trim())
+    // Parse with a real YAML parser so scalar types are enforced — a
+    // line-regex parser would accept `name: 123` as the string "123".
+    let fm: unknown
+    try {
+      fm = parse(match[1])
+    } catch (err) {
+      errors.push(`frontmatter does not parse as YAML: ${(err as Error).message}`)
+      fm = undefined
     }
-    const name = fields.get('name')
-    const description = fields.get('description')
-    if (!name) errors.push('frontmatter `name` is missing or empty')
-    if (!description) errors.push('frontmatter `description` is missing or empty')
-    // Name should match the directory basename for normal skill dirs; container
-    // Dirs like `.agents/skills` legitimately carry a different frontmatter name.
-    if (name && name !== basename(root) && basename(root) !== 'skills') {
-      console.warn(`  ! frontmatter name "${name}" does not match directory "${basename(root)}"`)
-    }
-    if (description && description.length > 1024) {
-      errors.push(`description is ${description.length} chars (limit 1024)`)
-    }
-    if (name && !/^[a-z0-9][a-z0-9-]*$/.test(name)) {
-      errors.push(`name "${name}" is not kebab-case`)
+    if (fm !== undefined && (typeof fm !== 'object' || fm === null || Array.isArray(fm))) {
+      errors.push('frontmatter must be a YAML mapping')
+    } else if (fm !== undefined) {
+      const fields = fm as Record<string, unknown>
+      const name = fields.name
+      const description = fields.description
+      if (typeof name !== 'string' || !name.trim()) {
+        errors.push('frontmatter `name` is missing or not a non-empty string')
+      }
+      if (typeof description !== 'string' || !description.trim()) {
+        errors.push('frontmatter `description` is missing or not a non-empty string')
+      }
+      // Name must match the directory basename for normal skill dirs;
+      // container dirs like `.agents/skills` legitimately differ.
+      if (typeof name === 'string' && name !== basename(root) && basename(root) !== 'skills') {
+        errors.push(`frontmatter name "${name}" does not match directory "${basename(root)}"`)
+      }
+      if (typeof description === 'string' && description.length > 1024) {
+        errors.push(`description is ${description.length} chars (limit 1024)`)
+      }
+      if (typeof name === 'string' && !/^[a-z0-9][a-z0-9-]*$/.test(name)) {
+        errors.push(`name "${name}" is not kebab-case`)
+      }
     }
   }
 }

@@ -7,9 +7,10 @@ import type { CompilerOptions, Skill, SkillLink } from '../types.js'
 const DEFAULT_CANONICAL_SOURCE = 'theplenkov-ai/skills'
 
 function copySkillDirectory(src: string, dest: string): void {
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true })
-  }
+  // Remove stale output first so deleted/renamed source files do not linger
+  // in repeated builds.
+  fs.rmSync(dest, { recursive: true, force: true })
+  fs.mkdirSync(dest, { recursive: true })
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     // dependencies/ is a build-time artifact from earlier formats; do not publish it.
     if (entry.name === 'dependencies') continue
@@ -17,9 +18,11 @@ function copySkillDirectory(src: string, dest: string): void {
     const destPath = path.join(dest, entry.name)
     if (entry.isSymbolicLink()) {
       const linkTarget = fs.readlinkSync(srcPath)
-      const type = fs.statSync(srcPath).isDirectory() ? 'dir' : 'file'
-      if (fs.existsSync(destPath)) {
-        fs.rmSync(destPath, { recursive: true, force: true })
+      let type: 'dir' | 'file' = 'file'
+      try {
+        type = fs.statSync(srcPath).isDirectory() ? 'dir' : 'file'
+      } catch {
+        // Dangling symlink — nothing to resolve; keep it as a file-type link.
       }
       fs.symlinkSync(linkTarget, destPath, type)
     } else if (entry.isDirectory()) {
@@ -180,8 +183,12 @@ function rewriteFileLinks(
   const mdLinkRegex = /(?<!!)\[([^\]]*)\]\(([^)]+)\)/g
   let changed = false
   const result = content.replace(mdLinkRegex, (raw, text, url) => {
-    if (url.startsWith('http') || url.startsWith('#')) return raw
-    const cleanUrl = url.split('?')[0].split('#')[0]
+    // Optional link titles (`(path "title")`) — split off and preserve.
+    const titleMatch = /^(\S+)(\s.*)?$/.exec(url.trim())
+    const urlPart = titleMatch?.[1] ?? url
+    const titleRest = titleMatch?.[2] ?? ''
+    if (urlPart.startsWith('http') || urlPart.startsWith('#')) return raw
+    const cleanUrl = urlPart.split('?')[0].split('#')[0]
     if (!cleanUrl.toLowerCase().endsWith('.md')) return raw
 
     // Resolve the link relative to the SOURCE file's directory (not the
@@ -205,7 +212,7 @@ function rewriteFileLinks(
     const rel = relativeSkillPath(fileDir, targetName, projectName, outDir, byName)
     if (!rel) return raw
     changed = true
-    return `[${text}](${rel})`
+    return `[${text}](${rel}${titleRest})`
   })
 
   if (changed) {

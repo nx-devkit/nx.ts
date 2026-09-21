@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdir, writeFile, realpath } from 'node:fs/promises'
 import { dirname, join, relative, resolve as resolvePath, isAbsolute, sep } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -200,6 +201,11 @@ export async function scanExecutor(
   const failOnError = opts.failOnError ?? true
   const skillspectorBin = opts.skillspectorBin ?? 'skillspector'
   const { cmd: binCmd, args: binArgs } = parseBin(skillspectorBin)
+  // A configured filesystem path that does not exist (e.g. the CI-only
+  // `.tools/skillspector-venv` outside CI) falls back to `skillspector` on
+  // PATH instead of failing with ENOENT.
+  const effectiveCmd =
+    /[/\\]/.test(binCmd) && !existsSync(resolvePath(ctx.root, binCmd)) ? 'skillspector' : binCmd
 
   const args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
   if (noLlm) {
@@ -211,7 +217,7 @@ export async function scanExecutor(
 
   let stdout: string
   try {
-    const result = await spawnSkillspector(binCmd, args, ctx.root)
+    const result = await spawnSkillspector(effectiveCmd, args, ctx.root)
     stdout = result.stdout
   } catch (error) {
     // If skillspector exits non-zero, treat as failure

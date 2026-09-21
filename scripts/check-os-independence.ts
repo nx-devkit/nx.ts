@@ -8,8 +8,8 @@
  * used without a cross-platform alternative (brew/winget/powershell/cmd.exe).
  * Exit 0 when clean, 1 on violations.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
+import { extname, join, resolve } from 'node:path'
 
 const skillArg = process.argv.indexOf('--skill')
 const skillDir = skillArg !== -1 ? process.argv[skillArg + 1] : undefined
@@ -19,7 +19,22 @@ if (!skillDir) {
 }
 
 const root = resolve(skillDir)
-const TEXT_EXT = new Set(['.md', '.ts', '.js', '.mjs', '.sh', '.yaml', '.yml', '.json', '.txt'])
+const BINARY_EXT = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.ico',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.zip',
+  '.gz',
+  '.pdf',
+  '.mp4',
+])
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist'])
 
 const PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\/Users\/\S+/, label: 'macOS user path (/Users/…)' },
@@ -31,17 +46,34 @@ const PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\bbrew (install|upgrade)\b/, label: 'brew (macOS-only)' },
 ]
 
+const violations: string[] = []
+
 function* walk(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry.startsWith('.')) continue
     const full = join(dir, entry)
-    const st = statSync(full)
-    if (st.isDirectory()) yield* walk(full)
-    else if (TEXT_EXT.has(full.slice(full.lastIndexOf('.')))) yield full
+    const st = lstatSync(full)
+    if (st.isSymbolicLink()) {
+      // Symlinks are never followed — flag ones that escape the skill or
+      // dangle; both would break a published copy.
+      const rel = full.slice(root.length + 1)
+      try {
+        const real = realpathSync(full)
+        if (real !== root && !real.startsWith(root + '/')) {
+          violations.push(`${rel}: symlink escapes skill directory -> ${real}`)
+        }
+      } catch {
+        violations.push(`${rel}: dangling symlink`)
+      }
+      continue
+    }
+    if (st.isDirectory()) {
+      if (!SKIP_DIRS.has(entry)) yield* walk(full)
+    } else if (!BINARY_EXT.has(extname(entry).toLowerCase())) {
+      yield full
+    }
   }
 }
 
-const violations: string[] = []
 for (const file of walk(root)) {
   const rel = file.slice(root.length + 1)
   const lines = readFileSync(file, 'utf8').split('\n')
