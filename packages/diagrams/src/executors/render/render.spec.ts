@@ -403,7 +403,7 @@ describe('renderExecutor', () => {
       expect(state.fetchCalls).toHaveLength(0)
       const cmd = state.spawnCalls[0]?.command ?? ''
       const inputArg = cmd.match(/-i (\S+)/)?.[1]?.replace(/^'|'$/g, '')
-      expect(inputArg).toMatch(/nx-diagrams-[0-9a-f]{6}\.mmd$/)
+      expect(inputArg).toMatch(/nx-diagrams-[^/\\]+[/\\]block\.mmd$/)
       // Temp input is cleaned up after the command runs.
       expect(existsSync(inputArg ?? '')).toBe(false)
       expect(existsSync(join(workspace, 'guide-1.svg'))).toBe(true)

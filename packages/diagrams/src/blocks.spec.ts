@@ -56,6 +56,21 @@ describe('extractDiagramBlocks', () => {
   it('returns empty for no fences', () => {
     expect(extractDiagramBlocks('plain text')).toEqual([])
   })
+
+  it('scans adversarial input without pathological backtracking', () => {
+    // Thousands of backtick-heavy lines with no closing fence — the scanner
+    // must stay linear (regex implementations blew up here).
+    const evil = Array.from({ length: 5000 }, (_, i) =>
+      i % 2 ? '```mermaid\n' : '````not-a-lang `\n```~\n',
+    ).join('')
+    const start = performance.now()
+    extractDiagramBlocks(evil)
+    expect(performance.now() - start).toBeLessThan(1000)
+  })
+
+  it('drops an unclosed fence at EOF', () => {
+    expect(extractDiagramBlocks('```mermaid\ngraph TD;\n')).toEqual([])
+  })
 })
 
 describe('TYPE_EXTENSIONS', () => {

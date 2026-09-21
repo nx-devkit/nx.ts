@@ -1,10 +1,10 @@
 import type { ExecutorContext } from '@nx/devkit'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { extractDiagramBlocks, TYPE_EXTENSIONS } from '../../blocks.ts'
-import { diagramTypeFor, outputPathFor, shortHash } from '../../plugin.ts'
+import { diagramTypeFor, outputPathFor } from '../../plugin.ts'
 import type { RenderExecutorSchema } from './schema.d.ts'
 
 interface Resolved {
@@ -189,16 +189,15 @@ export default async function renderExecutor(
     const command = resolved.commands[type]
     if (command) {
       // Block bodies aren't files — commands take a path, so materialize a
-      // temp input carrying the type's canonical extension.
+      // temp input carrying the type's canonical extension. mkdtempSync
+      // gives an atomically unique dir — no races between parallel runs.
       let input = file
+      let tmpDir: string | undefined
       if (blockSource !== undefined) {
-        input = join(
-          tmpdir(),
-          `nx-diagrams-${shortHash(`${file}#${blockIndex}:${blockSource}`)}${TYPE_EXTENSIONS[type] ?? '.txt'}`,
-        )
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- hash-derived name under the OS temp dir
-        mkdirSync(dirname(input), { recursive: true })
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
+        mkdirSync(tmpdir(), { recursive: true })
+        tmpDir = mkdtempSync(join(tmpdir(), 'nx-diagrams-'))
+        input = join(tmpDir, `block${TYPE_EXTENSIONS[type] ?? '.txt'}`)
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- inside a fresh unique tmpdir
         writeFileSync(input, blockSource)
         vars.input = input
       }
@@ -213,8 +212,8 @@ export default async function renderExecutor(
           throw new Error(`Diagram command succeeded but did not create ${output}`)
         }
       } finally {
-        if (input !== file) {
-          rmSync(input, { force: true })
+        if (tmpDir) {
+          rmSync(tmpDir, { force: true, recursive: true })
         }
       }
     } else {

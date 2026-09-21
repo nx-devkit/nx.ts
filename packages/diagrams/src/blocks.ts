@@ -1,6 +1,7 @@
 // Fenced code blocks inside Markdown whose language tag maps to a diagram
 // registry type. Both ``` and ~~~ fences are recognized; the closing fence
-// must use the same marker as the opening one.
+// must use the same marker and be at least as long as the opening one.
+// Line-scanned, not regex — no backtracking on adversarial input.
 
 /** Fence language tag → registry diagram type. */
 export const FENCE_TYPES: Record<string, string> = {
@@ -33,19 +34,41 @@ export interface DiagramBlock {
   type: string
 }
 
-const FENCE_RE =
-  /^(`{3,}|~{3,})[^\S\r\n]*([a-zA-Z0-9]+)[^\S\r\n]*[^\r\n]*\r?\n([\s\S]*?)^\1[^\S\r\n]*$/gm
+const OPEN_RE = /^(`{3,}|~{3,})[^\S\r\n]*([a-zA-Z0-9]+)[^\S\r\n]*[^\r\n]*$/
+const CLOSE_RE = /^(`{3,}|~{3,})[^\S\r\n]*$/
 
 export function extractDiagramBlocks(markdown: string): DiagramBlock[] {
   const blocks: DiagramBlock[] = []
-  for (const match of markdown.matchAll(FENCE_RE)) {
-    const lang = match[2]?.toLowerCase()
-    // eslint-disable-next-line security/detect-object-injection -- lang comes from the regex; lookup guards with hasOwnProperty semantics via undefined check
-    const type = lang ? FENCE_TYPES[lang] : undefined
-    if (!type) {
-      continue
+  // Split keeps line endings so block sources survive CRLF files intact.
+  const lines = markdown.split(/(?<=\r?\n)/)
+  let fenceChar = ''
+  let fenceLen = 0
+  let body: string[] | null = null
+  let type = ''
+
+  for (const line of lines) {
+    const stripped = line.replace(/\r?\n$/, '')
+    if (body === null) {
+      const open = stripped.match(OPEN_RE)
+      const lang = open?.[2]?.toLowerCase()
+      // eslint-disable-next-line security/detect-object-injection -- lang is a regex capture; undefined lookup returns undefined
+      const mapped = lang ? FENCE_TYPES[lang] : undefined
+      if (open && mapped) {
+        fenceChar = open[1]?.[0] ?? '`'
+        fenceLen = open[1]?.length ?? 3
+        body = []
+        type = mapped
+      }
+    } else {
+      const close = stripped.match(CLOSE_RE)
+      if (close && close[1]?.[0] === fenceChar && close[1].length >= fenceLen) {
+        blocks.push({ index: blocks.length, source: body.join(''), type })
+        body = null
+      } else {
+        body.push(line)
+      }
     }
-    blocks.push({ index: blocks.length, source: match[3] ?? '', type })
   }
+  // An unclosed fence at EOF is not a diagram block — dropped with `body`.
   return blocks
 }
