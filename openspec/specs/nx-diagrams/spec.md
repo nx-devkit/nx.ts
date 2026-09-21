@@ -23,10 +23,10 @@ The plugin MUST use `createNodesV2` with a default trigger glob covering `**/*.{
 - **THEN** `createNodesV2` returns one configuration for `packages/docs` carrying both per-file targets and the aggregate, and a separate configuration for `libs/other` — never duplicate configurations for the same root
 
 ### Requirement: Extension-to-type registry
-The plugin MUST map `.puml`/`.plantuml`→`plantuml`, `.mmd`/`.mermaid`→`mermaid`, `.dot`/`.gv`→`graphviz`, `.d2`→`d2`, `.bpmn`→`bpmn`, `.excalidraw`→`excalidraw`. Files with no registry mapping and no matching `commands` entry MUST be skipped by inference.
+The plugin MUST map `.puml`/`.plantuml`→`plantuml`, `.mmd`/`.mermaid`→`mermaid`, `.dot`/`.gv`→`graphviz`, `.d2`→`d2`, `.bpmn`→`bpmn`, `.excalidraw`→`excalidraw`. The trigger glob covers only registry extensions and `.md` — `commands` entries override the renderer per type but MUST NOT extend discovery to custom extensions.
 
 #### Scenario: Unmapped extension ignored
-- **WHEN** a file matches the glob but has no type mapping and no `commands` entry
+- **WHEN** a file matches the glob but has no type mapping
 - **THEN** no target is inferred for it
 
 ### Requirement: Collision safety
@@ -69,9 +69,15 @@ The executor MUST fail when a command exits non-zero (including stderr in the er
 ### Requirement: Output path templating
 The output path MUST be derived from `outputDir` with `{fileDir}`, `{fileName}`, and `{projectRoot}` tokens — all workspace-relative (`{fileDir}` is the source file's directory, `{projectRoot}` the owning project root, `''` for the root project) — defaulting to colocated `{fileDir}/{fileName}.{format}`. For Markdown blocks `{fileName}` is `<basename>-<n>` where `<n>` is the block's 1-based ordinal (`docs/guide.md` block 0 → `docs/guide-1.svg`); for standalone files it is the basename without extension. An `outputDir` that resolves to an absolute path or escapes the workspace via `..` MUST fail inference.
 
+Empty token expansions MUST collapse path separators rather than leave stray slashes — `{fileDir}`/`{projectRoot}` expanding to `''` at the root yields `auth.svg`, never `/auth.svg`.
+
 #### Scenario: Custom outputDir
 - **WHEN** `outputDir` is `{projectRoot}/docs/img`
 - **THEN** `packages/docs/diagrams/auth.puml` renders to `packages/docs/docs/img/auth.svg`
+
+#### Scenario: Root-level source with default outputDir
+- **WHEN** `auth.puml` sits at the workspace root and `outputDir` is the default `{fileDir}`
+- **THEN** the output path is `auth.svg` — no leading separator from the empty `{fileDir}`
 
 #### Scenario: outputDir escapes the workspace
 - **WHEN** `outputDir` is `../out` or `/tmp/out`
