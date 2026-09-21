@@ -10,10 +10,10 @@ function makeWorkspace(): string {
 
 function mergedTargets(result: unknown): Record<string, Record<string, unknown>> {
   const entries = result as (readonly [
-    string,
-    { projects: Record<string, { targets?: Record<string, unknown> }> },
-  ])[],
-   targets: Record<string, Record<string, unknown>> = {}
+      string,
+      { projects: Record<string, { targets?: Record<string, unknown> }> },
+    ])[],
+    targets: Record<string, Record<string, unknown>> = {}
   for (const [, { projects }] of entries) {
     for (const [root, project] of Object.entries(projects)) {
       targets[root] = { ...targets[root], ...project.targets }
@@ -62,7 +62,7 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'packages/docs/diagrams/auth.puml'), '@startuml\n@enduml')
 
     const result = createNodesV2[1](['packages/docs/diagrams/auth.puml'], {}, ctx(workspace)),
-     targets = mergedTargets(result)
+      targets = mergedTargets(result)
 
     expect(Object.keys(targets)).toEqual(['packages/docs'])
     const perFile = targets['packages/docs']?.['diagram-diagrams-auth'] as {
@@ -96,13 +96,12 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'b.mmd'), 'graph TD')
 
     const result = createNodesV2[1](['a.puml', 'b.mmd'], {}, ctx(workspace)),
-     targets = mergedTargets(result),
-
-     aggregate = targets['.']?.diagrams as {
-      inputs: string[]
-      options: { files: string[]; outputs: string[] }
-      outputs: string[]
-    }
+      targets = mergedTargets(result),
+      aggregate = targets['.']?.diagrams as {
+        inputs: string[]
+        options: { files: string[]; outputs: string[] }
+        outputs: string[]
+      }
     expect(aggregate.options.files).toEqual(['a.puml', 'b.mmd'])
     expect(aggregate.options.outputs).toEqual(['a.svg', 'b.svg'])
     expect(aggregate.inputs).toEqual(['{workspaceRoot}/a.puml', '{workspaceRoot}/b.mmd'])
@@ -114,9 +113,8 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
 
     const result = createNodesV2[1](['flow.mmd'], { timeout: 120_000 }, ctx(workspace)),
-     targets = mergedTargets(result),
-
-     perFile = targets['.']?.['diagram-flow'] as { options: { timeout?: number } }
+      targets = mergedTargets(result),
+      perFile = targets['.']?.['diagram-flow'] as { options: { timeout?: number } }
     expect(perFile.options.timeout).toBe(120_000)
     const aggregate = targets['.']?.diagrams as { options: { timeout?: number } }
     expect(aggregate.options.timeout).toBe(120_000)
@@ -127,9 +125,8 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
 
     const result = createNodesV2[1](['flow.mmd'], {}, ctx(workspace)),
-     targets = mergedTargets(result),
-
-     perFile = targets['.']?.['diagram-flow'] as { options: { timeout?: number } }
+      targets = mergedTargets(result),
+      perFile = targets['.']?.['diagram-flow'] as { options: { timeout?: number } }
     expect(perFile.options.timeout).toBeUndefined()
   })
 
@@ -138,7 +135,7 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
 
     const result = createNodesV2[1](['flow.mmd'], {}, ctx(workspace)),
-     targets = mergedTargets(result)
+      targets = mergedTargets(result)
 
     expect(Object.keys(targets)).toEqual(['.'])
     expect(targets['.']?.['diagram-flow']).toBeDefined()
@@ -152,7 +149,7 @@ describe('createNodesV2', () => {
     }
 
     const result = createNodesV2[1](['a/auth.puml', 'b/auth.puml'], {}, ctx(workspace)),
-     targets = mergedTargets(result)
+      targets = mergedTargets(result)
 
     expect(targets['.']?.['diagram-a-auth']).toBeDefined()
     expect(targets['.']?.['diagram-b-auth']).toBeDefined()
@@ -163,12 +160,12 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
 
     const result = createNodesV2[1](
-      ['auth.puml'],
-      { format: 'png', outputDir: 'docs/img' },
-      ctx(workspace),
-    ),
-     targets = mergedTargets(result),
-     perFile = targets['.']?.['diagram-auth'] as { outputs: string[] }
+        ['auth.puml'],
+        { format: 'png', outputDir: 'docs/img' },
+        ctx(workspace),
+      ),
+      targets = mergedTargets(result),
+      perFile = targets['.']?.['diagram-auth'] as { outputs: string[] }
 
     expect(perFile.outputs).toEqual(['{workspaceRoot}/docs/img/auth.png'])
   })
@@ -179,14 +176,14 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'packages/docs/diagrams/auth.puml'), '@startuml\n@enduml')
 
     const result = createNodesV2[1](
-      ['packages/docs/diagrams/auth.puml'],
-      { outputDir: '{projectRoot}/img' },
-      ctx(workspace),
-    ),
-     targets = mergedTargets(result),
-     perFile = targets['packages/docs']?.['diagram-diagrams-auth'] as {
-      outputs: string[]
-    }
+        ['packages/docs/diagrams/auth.puml'],
+        { outputDir: '{projectRoot}/img' },
+        ctx(workspace),
+      ),
+      targets = mergedTargets(result),
+      perFile = targets['packages/docs']?.['diagram-diagrams-auth'] as {
+        outputs: string[]
+      }
 
     expect(perFile.outputs).toEqual(['{workspaceRoot}/packages/docs/img/auth.svg'])
   })
@@ -215,15 +212,15 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'auth.mmd'), 'graph TD')
 
     const result = createNodesV2[1](
-      ['a-b.puml', 'a/b.puml', 'auth.puml', 'auth.mmd'],
-      {},
-      ctx(workspace),
-    ),
-     targets = mergedTargets(result),
-     names = Object.keys(targets['.'] ?? {}),
-     outputs = Object.values(targets['.'] ?? {}).flatMap(
-      (t) => (t as { outputs?: string[] }).outputs ?? [],
-    )
+        ['a-b.puml', 'a/b.puml', 'auth.puml', 'auth.mmd'],
+        {},
+        ctx(workspace),
+      ),
+      targets = mergedTargets(result),
+      names = Object.keys(targets['.'] ?? {}),
+      outputs = Object.values(targets['.'] ?? {}).flatMap(
+        (t) => (t as { outputs?: string[] }).outputs ?? [],
+      )
 
     // Files a-b.puml and a/b.puml slug to the same 'a-b' — type+hash suffixes keep both.
     expect(names.filter((n) => n.startsWith('diagram-a-b')).length).toBe(2)
@@ -242,13 +239,15 @@ describe('createNodesV2', () => {
     }
 
     const result = createNodesV2[1](
-      ['packages/docs/x.puml', 'packages/web/x.puml'],
-      { outputDir: 'img' },
-      ctx(workspace),
-    ),
-     perFileOutputs = Object.values(mergedTargets(result))
-      .flatMap((targets) => Object.entries(targets).filter(([name]) => name.startsWith('diagram-')))
-      .flatMap(([, t]) => (t as { outputs?: string[] }).outputs ?? [])
+        ['packages/docs/x.puml', 'packages/web/x.puml'],
+        { outputDir: 'img' },
+        ctx(workspace),
+      ),
+      perFileOutputs = Object.values(mergedTargets(result))
+        .flatMap((targets) =>
+          Object.entries(targets).filter(([name]) => name.startsWith('diagram-')),
+        )
+        .flatMap(([, t]) => (t as { outputs?: string[] }).outputs ?? [])
 
     // Both files would render to img/x.svg — every emitted output is unique.
     expect(perFileOutputs.length).toBe(2)
@@ -263,9 +262,8 @@ describe('createNodesV2', () => {
       writeFileSync(join(workspace, `packages/${pkg}/x.puml`), '@startuml\n@enduml')
     }
     const files = ['packages/docs/x.puml', 'packages/web/x.puml'],
-
-     forward = createNodesV2[1](files, { outputDir: 'img' }, ctx(workspace)),
-     reversed = createNodesV2[1](files.toReversed(), { outputDir: 'img' }, ctx(workspace))
+      forward = createNodesV2[1](files, { outputDir: 'img' }, ctx(workspace)),
+      reversed = createNodesV2[1](files.toReversed(), { outputDir: 'img' }, ctx(workspace))
 
     expect(reversed).toEqual(forward)
   })
@@ -285,11 +283,11 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'flow.d2'), 'x -> y')
 
     const result = createNodesV2[1](
-      ['auth.puml', 'flow.d2'],
-      { include: ['**/*.{puml,mmd}'] },
-      ctx(workspace),
-    ),
-     targets = mergedTargets(result)
+        ['auth.puml', 'flow.d2'],
+        { include: ['**/*.{puml,mmd}'] },
+        ctx(workspace),
+      ),
+      targets = mergedTargets(result)
 
     expect(targets['.']?.['diagram-auth']).toBeDefined()
     expect(targets['.']?.['diagram-flow']).toBeUndefined()
@@ -303,11 +301,11 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
 
     const result = createNodesV2[1](
-      ['packages/docs/diagrams/auth.puml', 'flow.mmd'],
-      {},
-      ctx(workspace),
-    ),
-     targets = mergedTargets(result)
+        ['packages/docs/diagrams/auth.puml', 'flow.mmd'],
+        {},
+        ctx(workspace),
+      ),
+      targets = mergedTargets(result)
 
     expect(Object.keys(targets).sort()).toEqual(['.', 'packages/docs'])
     expect(targets['packages/docs']?.['diagram-diagrams-auth']).toBeDefined()
@@ -323,11 +321,11 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'root.puml'), '@startuml\n@enduml')
 
     const result = createNodesV2[1](
-      ['docs/sub/b.puml', 'root.puml'],
-      { include: ['docs/**'] },
-      ctx(workspace),
-    ),
-     targets = mergedTargets(result)
+        ['docs/sub/b.puml', 'root.puml'],
+        { include: ['docs/**'] },
+        ctx(workspace),
+      ),
+      targets = mergedTargets(result)
 
     expect(targets['.']?.['diagram-docs-sub-b']).toBeDefined()
     expect(targets['.']?.['diagram-root']).toBeUndefined()
@@ -338,11 +336,11 @@ describe('createNodesV2', () => {
     writeFileSync(join(workspace, 'auth.puml'), '@startuml\n@enduml')
 
     const result = createNodesV2[1](
-      ['auth.puml'],
-      { targetName: 'render-diagrams' },
-      ctx(workspace),
-    ),
-     targets = mergedTargets(result)
+        ['auth.puml'],
+        { targetName: 'render-diagrams' },
+        ctx(workspace),
+      ),
+      targets = mergedTargets(result)
 
     expect(targets['.']?.['render-diagrams']).toBeDefined()
     expect(targets['.']?.diagrams).toBeUndefined()

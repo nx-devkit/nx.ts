@@ -24,7 +24,7 @@ function mergeDependencies(
   extraNames: string[],
 ): PluginDependency[] {
   const seen = new Set(manifestDeps.map(dependencyName)),
-   result = [...manifestDeps]
+    result = [...manifestDeps]
   for (const name of extraNames) {
     if (!seen.has(name)) {
       seen.add(name)
@@ -40,20 +40,20 @@ export function build(options: CompilerOptions): void {
     const extra = options.skillMetadata?.[skill.name]?.frontmatter
     if (extra) {
       const extraMeta =
-        extra.metadata && typeof extra.metadata === 'object' && !Array.isArray(extra.metadata)
-          ? (extra.metadata as Record<string, unknown>)
-          : {},
-       currentMeta =
-        skill.frontmatter.metadata &&
-        typeof skill.frontmatter.metadata === 'object' &&
-        !Array.isArray(skill.frontmatter.metadata)
-          ? (skill.frontmatter.metadata as Record<string, unknown>)
-          : {},
-       extraTop = Object.fromEntries(
-        Object.entries(extra).filter(
-          ([k]) => k !== 'metadata' && k !== 'name' && k !== 'description',
-        ),
-      )
+          extra.metadata && typeof extra.metadata === 'object' && !Array.isArray(extra.metadata)
+            ? (extra.metadata as Record<string, unknown>)
+            : {},
+        currentMeta =
+          skill.frontmatter.metadata &&
+          typeof skill.frontmatter.metadata === 'object' &&
+          !Array.isArray(skill.frontmatter.metadata)
+            ? (skill.frontmatter.metadata as Record<string, unknown>)
+            : {},
+        extraTop = Object.fromEntries(
+          Object.entries(extra).filter(
+            ([k]) => k !== 'metadata' && k !== 'name' && k !== 'description',
+          ),
+        )
       skill.frontmatter = {
         ...skill.frontmatter,
         ...extraTop,
@@ -63,9 +63,7 @@ export function build(options: CompilerOptions): void {
   }
   const pluginManifest = readPluginManifest(options.projectRoot)
 
-  let include: string[],
-   projectName: string,
-   description: string | undefined
+  let include: string[], projectName: string, description: string | undefined
 
   if (pluginManifest) {
     include = pluginManifest.include
@@ -93,12 +91,9 @@ export function build(options: CompilerOptions): void {
     )
   }
   const inlineDependencies = !useExternal,
-   skillsToEmit = inlineDependencies
-    ? closure
-    : closure.filter((s) => include.includes(s.name)),
-
-   manifestDeps: PluginDependency[] = pluginManifest?.dependencies ?? [],
-   externalDepNames: string[] = []
+    skillsToEmit = inlineDependencies ? closure : closure.filter((s) => include.includes(s.name)),
+    manifestDeps: PluginDependency[] = pluginManifest?.dependencies ?? [],
+    externalDepNames: string[] = []
   if (!inlineDependencies) {
     const includedSet = new Set(include)
     for (const skill of closure) {

@@ -21,16 +21,15 @@ async function loadSkillMetadata(
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2),
-   getArg = (name: string): string | undefined => {
-    const idx = args.indexOf(name)
-    return idx !== -1 ? args[idx + 1] : undefined
-  },
-
-   workspaceRoot = path.resolve(getArg('--workspace-root') ?? process.cwd()),
-   project = getArg('--project'),
-   target = getArg('--target') ?? 'claude',
-   outDir = getArg('--out-dir'),
-   dependencies = getArg('--dependencies') as 'inline' | 'external' | undefined
+    getArg = (name: string): string | undefined => {
+      const idx = args.indexOf(name)
+      return idx !== -1 ? args[idx + 1] : undefined
+    },
+    workspaceRoot = path.resolve(getArg('--workspace-root') ?? process.cwd()),
+    project = getArg('--project'),
+    target = getArg('--target') ?? 'claude',
+    outDir = getArg('--out-dir'),
+    dependencies = getArg('--dependencies') as 'inline' | 'external' | undefined
 
   if (!project) {
     console.error(
@@ -40,9 +39,9 @@ async function main(): Promise<void> {
   }
 
   const projectRoot = path.resolve(workspaceRoot, project),
-   finalOutDir = outDir
-    ? path.resolve(workspaceRoot, outDir)
-    : path.resolve(workspaceRoot, 'dist', project, target)
+    finalOutDir = outDir
+      ? path.resolve(workspaceRoot, outDir)
+      : path.resolve(workspaceRoot, 'dist', project, target)
 
   build({
     workspaceRoot,
