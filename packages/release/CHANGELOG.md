@@ -1,3 +1,14 @@
+## 0.0.9 (2026-09-21)
+
+### 🩹 Fixes
+
+- **release:** point exports at dist and ship schema.json files ([f06d489](https://github.com/nx-devkit/nx.ts/commit/f06d489))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.8 (2026-09-21)
 
 ### 🩹 Fixes
