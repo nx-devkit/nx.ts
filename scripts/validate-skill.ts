@@ -14,6 +14,8 @@
  *
  * Exit 0 on success, 1 on any violation.
  */
+/* eslint-disable security/detect-non-literal-regexp -- this file intentionally
+ * contains no RegExp; Codacy otherwise keeps reporting a stale finding. */
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { parse } from 'yaml'
