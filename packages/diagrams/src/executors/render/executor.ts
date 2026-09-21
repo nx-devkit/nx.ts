@@ -151,7 +151,14 @@ export default async function renderExecutor(
     // Written at runtime would diverge from the declared target outputs.
     const declared =
       // eslint-disable-next-line security/detect-object-injection -- index iterates files; outputsOption may be shorter, guarded by the ?? fallback
-      outputsOption[index] ?? outputPathFor(file, projectRoot, resolved.outputDir, resolved.format)
+      outputsOption[index] ??
+      outputPathFor(
+        file,
+        projectRoot,
+        resolved.outputDir,
+        resolved.format,
+        blockIndex !== null ? `-${blockIndex + 1}` : '',
+      )
     const declaredExt = extname(declared).replace(/^\./, '').toLowerCase()
     if (declaredExt && declaredExt !== resolved.format) {
       throw new Error(
@@ -193,20 +200,22 @@ export default async function renderExecutor(
       // Block bodies aren't files — commands take a path, so materialize a
       // temp input carrying the type's canonical extension. mkdtempSync
       // gives an atomically unique dir — no races between parallel runs.
-      let input = file
+      // The input is named after the diagram (vars.fileName carries the
+      // block suffix) so commands deriving the output name from {input}
+      // keep working.
       let tmpDir: string | undefined
-      if (blockSource !== undefined) {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- tmpdir() is the OS temp dir
-        mkdirSync(tmpdir(), { recursive: true })
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed prefix under the OS temp dir
-        tmpDir = mkdtempSync(join(tmpdir(), 'nx-diagrams-'))
-        // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed registry
-        input = join(tmpDir, `block${TYPE_EXTENSIONS[type] ?? '.txt'}`)
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- inside a fresh unique tmpdir
-        writeFileSync(input, blockSource)
-        vars.input = input
-      }
       try {
+        if (blockSource !== undefined) {
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- tmpdir() is the OS temp dir
+          mkdirSync(tmpdir(), { recursive: true })
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed prefix under the OS temp dir
+          tmpDir = mkdtempSync(join(tmpdir(), 'nx-diagrams-'))
+          // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed registry
+          const input = join(tmpDir, `${vars.fileName}${TYPE_EXTENSIONS[type] ?? '.txt'}`)
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- inside a fresh unique tmpdir
+          writeFileSync(input, blockSource)
+          vars.input = input
+        }
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from a glob-matched path under the trusted workspace root
         mkdirSync(dirname(absOutput), { recursive: true })
         // A stale file must not satisfy the post-command existence check.

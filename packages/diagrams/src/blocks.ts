@@ -34,37 +34,41 @@ export interface DiagramBlock {
   type: string
 }
 
-const OPEN_RE = /^(`{3,}|~{3,})[^\S\r\n]*([a-zA-Z0-9]+)[^\S\r\n]*[^\r\n]*$/
-const CLOSE_RE = /^(`{3,}|~{3,})[^\S\r\n]*$/
+// CommonMark allows up to 3 leading spaces on fences (e.g. inside list items).
+const OPEN_RE = /^[ ]{0,3}(`{3,}|~{3,})[^\S\r\n]*([a-zA-Z0-9]+)[^\S\r\n]*[^\r\n]*$/
+const CLOSE_RE = /^[ ]{0,3}(`{3,}|~{3,})[^\S\r\n]*$/
 
 export function extractDiagramBlocks(markdown: string): DiagramBlock[] {
   const blocks: DiagramBlock[] = []
   // Split keeps line endings so block sources survive CRLF files intact.
   const lines = markdown.split(/(?<=\r?\n)/)
-  let fenceChar = ''
-  let fenceLen = 0
+  // Every fence is tracked — a diagram-looking fence nested inside a
+  // non-diagram fence (docs about Markdown) is body text, not a diagram.
+  let openMarker = ''
   let body: string[] | null = null
   let type = ''
 
   for (const line of lines) {
     const stripped = line.replace(/\r?\n$/, '')
-    if (body === null) {
-      const open = stripped.match(OPEN_RE)
-      const lang = open?.[2]?.toLowerCase()
-      // eslint-disable-next-line security/detect-object-injection -- lang is a regex capture; undefined lookup returns undefined
-      const mapped = lang ? FENCE_TYPES[lang] : undefined
-      if (open && mapped) {
-        fenceChar = open[1][0]
-        fenceLen = open[1].length
-        body = []
-        type = mapped
+    if (!openMarker) {
+      const open = stripped.match(OPEN_RE) ?? stripped.match(CLOSE_RE)
+      const marker = open?.[1]
+      if (marker) {
+        openMarker = marker
+        const lang = open[2]?.toLowerCase()
+        const mapped = lang && Object.hasOwn(FENCE_TYPES, lang) ? FENCE_TYPES[lang] : undefined
+        body = mapped ? [] : null
+        type = mapped ?? ''
       }
     } else {
-      const close = stripped.match(CLOSE_RE)
-      if (close && close[1][0] === fenceChar && close[1].length >= fenceLen) {
-        blocks.push({ index: blocks.length, source: body.join(''), type })
+      const close = stripped.match(CLOSE_RE)?.[1]
+      if (close && close[0] === openMarker[0] && close.length >= openMarker.length) {
+        if (body !== null) {
+          blocks.push({ index: blocks.length, source: body.join(''), type })
+        }
+        openMarker = ''
         body = null
-      } else {
+      } else if (body !== null) {
         body.push(line)
       }
     }

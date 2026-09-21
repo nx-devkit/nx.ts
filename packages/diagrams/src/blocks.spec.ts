@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractDiagramBlocks, TYPE_EXTENSIONS } from './blocks.ts'
+import { extractDiagramBlocks, FENCE_TYPES, TYPE_EXTENSIONS } from './blocks.ts'
 
 describe('extractDiagramBlocks', () => {
   it('extracts a mermaid block', () => {
@@ -21,13 +21,33 @@ describe('extractDiagramBlocks', () => {
 
   it('maps language aliases to registry types', () => {
     const md =
-      '```puml\n@startuml\n@enduml\n```\n~~~plantuml\n@startuml\n@enduml\n~~~\n```graphviz\ndigraph {}\n```\n```dot\ndigraph {}\n```\n'
+      '```puml\n@startuml\n@enduml\n```\n~~~plantuml\n@startuml\n@enduml\n~~~\n```graphviz\ndigraph {}\n```\n```dot\ndigraph {}\n```\n```bpmn\n<bpmn/>\n```\n```excalidraw\n{}\n```\n'
     expect(extractDiagramBlocks(md).map((b) => b.type)).toEqual([
       'plantuml',
       'plantuml',
       'graphviz',
       'graphviz',
+      'bpmn',
+      'excalidraw',
     ])
+  })
+
+  it('accepts fences indented up to three spaces (e.g. inside lists)', () => {
+    const md = '- item\n\n   ```mermaid\n   graph TD;\n   ```\n'
+    expect(extractDiagramBlocks(md)).toHaveLength(1)
+    expect(extractDiagramBlocks('    ```mermaid\ngraph TD;\n    ```\n')).toHaveLength(0)
+  })
+
+  it('does not treat a diagram fence inside a non-diagram fence as a diagram', () => {
+    // Docs about Markdown wrap examples in an outer fence.
+    const md = '```markdown\n```mermaid\ngraph TD;\n```\n```\n'
+    expect(extractDiagramBlocks(md)).toEqual([])
+  })
+
+  it('ignores language tags that collide with Object.prototype members', () => {
+    const md =
+      '```constructor\nnot a diagram\n```\n```toString\nnope\n```\n```hasOwnProperty\nnope\n```\n'
+    expect(extractDiagramBlocks(md)).toEqual([])
   })
 
   it('supports tilde fences and attributes after the language tag', () => {
@@ -64,8 +84,11 @@ describe('extractDiagramBlocks', () => {
       i % 2 ? '```mermaid\n' : '````not-a-lang `\n```~\n',
     ).join('')
     const start = performance.now()
-    extractDiagramBlocks(evil)
+    const blocks = extractDiagramBlocks(evil)
     expect(performance.now() - start).toBeLessThan(1000)
+    // The first mermaid fence opens and never closes — everything after is
+    // its body and the unclosed block is dropped at EOF.
+    expect(blocks).toEqual([])
   })
 
   it('drops an unclosed fence at EOF', () => {
@@ -75,8 +98,8 @@ describe('extractDiagramBlocks', () => {
 
 describe('TYPE_EXTENSIONS', () => {
   it('covers every registry type reachable from fences', () => {
-    for (const ext of Object.values(TYPE_EXTENSIONS)) {
-      expect(ext.startsWith('.')).toBe(true)
+    for (const type of Object.values(FENCE_TYPES)) {
+      expect(TYPE_EXTENSIONS[type]?.startsWith('.')).toBe(true)
     }
     expect(TYPE_EXTENSIONS.mermaid).toBe('.mmd')
     expect(TYPE_EXTENSIONS.plantuml).toBe('.puml')

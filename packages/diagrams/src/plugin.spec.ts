@@ -445,7 +445,8 @@ describe('createNodesV2', () => {
 
       expect(createNodesV2[1](['docs/g.md'], { exclude: ['docs/**'] }, ctx(workspace))).toEqual([])
       const included = createNodesV2[1](['docs/g.md'], { include: ['docs/**'] }, ctx(workspace))
-      expect((included as unknown[]).length).toBeGreaterThan(0)
+      const targets = mergedTargets(included as Awaited<typeof included>)
+      expect(targets['.']?.['diagram-docs-g-1']).toBeDefined()
     })
   })
 })

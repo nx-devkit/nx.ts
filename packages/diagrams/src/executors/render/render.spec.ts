@@ -402,8 +402,13 @@ describe('renderExecutor', () => {
 
       expect(state.fetchCalls).toHaveLength(0)
       const cmd = state.spawnCalls[0]?.command ?? ''
-      const inputArg = cmd.match(/-i (\S+)/)?.[1]?.replace(/^'|'$/g, '')
-      expect(inputArg).toMatch(/nx-diagrams-[^/\\]+[/\\]block\.mmd$/)
+      // The quoted arg may be 'single', "double" (win32), or bare — match
+      // any of the three forms after -i.
+      const inputArg = cmd
+        .match(/-i (?:"([^"]*)"|'([^']*)'|(\S+))/)
+        ?.slice(1)
+        .find(Boolean)
+      expect(inputArg).toMatch(/nx-diagrams-[^/\\]+[/\\]guide-1\.mmd$/)
       // Temp input is cleaned up after the command runs.
       expect(existsSync(inputArg ?? '')).toBe(false)
       expect(existsSync(join(workspace, 'guide-1.svg'))).toBe(true)

@@ -208,7 +208,12 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
     // Project roots sorted so cross-project output allocation is deterministic.
     for (const projectRoot of [...perProject.keys()].sort()) {
       const entries = perProject.get(projectRoot) ?? []
-      entries.sort((a, b) => a.file.localeCompare(b.file))
+      // Byte-order + block ordinal: localeCompare can tie on canonically
+      // equivalent Unicode names, which would make aggregate order depend
+      // on the caller's configFiles order.
+      entries.sort((a, b) =>
+        a.file === b.file ? (a.block ?? -1) - (b.block ?? -1) : a.file < b.file ? -1 : 1,
+      )
 
       // Files whose slugs or outputs collide get deterministic type/hash suffixes.
       const slugDup = new Set(
