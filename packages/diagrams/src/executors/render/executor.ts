@@ -135,8 +135,10 @@ export default async function renderExecutor(
     if (blockIndex !== null) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
       const blocks = extractDiagramBlocks(readFileSync(join(context.root, file), 'utf8'))
-      // .at() types the result as possibly-undefined; indexing would too,
-      // but .at() makes the out-of-range case explicit to the type system.
+      // .at() returns T | undefined so the out-of-range check is honest to
+      // typed lint — but .at(-1) wraps to the last element, so the >= 0
+      // guard is load-bearing: without it a negative index would silently
+      // render the wrong block instead of erroring.
       const block = blockIndex >= 0 ? blocks.at(blockIndex) : undefined
       if (!block) {
         throw new Error(
