@@ -2,6 +2,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { logger } from '@nx/devkit'
 
+export { detectIndent, parseJsonObject } from './jsonc.ts'
+export { readJson, registerPlugin, resolveRootProjectName } from './init-generator.ts'
+
 export function isVerbose(): boolean {
   if (process.argv.includes('--verbose')) {
     return true
