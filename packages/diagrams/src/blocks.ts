@@ -55,7 +55,9 @@ export function extractDiagramBlocks(markdown: string): DiagramBlock[] {
       const marker = open?.[1]
       if (marker) {
         openMarker = marker
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- CLOSE_RE has no lang group, so open[2] is undefined at runtime for bare fences
         const lang = open[2]?.toLowerCase()
+        // eslint-disable-next-line security/detect-object-injection -- guarded by Object.hasOwn; lang is a regex capture
         const mapped = lang && Object.hasOwn(FENCE_TYPES, lang) ? FENCE_TYPES[lang] : undefined
         body = mapped ? [] : null
         type = mapped ?? ''
