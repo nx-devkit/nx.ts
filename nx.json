@@ -17,7 +17,7 @@
     },
     {
       "plugin": "./packages/diagrams/src/plugin.ts",
-      "options": { "outputDir": "{fileDir}/dist" }
+      "options": { "outputDir": "{fileDir}/dist", "timeout": 120000 }
     }
   ],
   "release": {

@@ -48,7 +48,14 @@ jobs:
         run: bun --bun node_modules/.bin/nx run-many -t lint,build --projects 'skills-*' --verbose
       - name: Render diagrams
         # docs/diagrams/*.mmd → SVG via @nx-devkit/diagrams (Kroki backend).
-        run: bun --bun node_modules/.bin/nx run-many -t diagrams --verbose
+        # Kroki is an external service — retry transient timeouts.
+        run: |
+          for i in 1 2 3; do
+            bun --bun node_modules/.bin/nx run-many -t diagrams --verbose && exit 0
+            [ "$i" -eq 3 ] && exit 1
+            echo "diagrams render attempt $i failed — retrying"
+            sleep 5
+          done
       - name: Skill validation targets
         run: bun --bun node_modules/.bin/nx run-many -t validate,os-check,size-check --projects 'skills-*' --verbose
       - name: Install SkillSpector

@@ -22,6 +22,8 @@ export interface NxDiagramsPluginOptions {
   exclude?: string[]
   /** Report planned outputs without rendering or writing. Default: false. */
   dryRun?: boolean
+  /** Per-render timeout in ms (Kroki fetch or command). Default: 30000. */
+  timeout?: number
 }
 
 const PLUGIN_NAME = '@nx-devkit/diagrams'
@@ -119,6 +121,7 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       format,
       krokiUrl: options.krokiUrl ?? 'https://kroki.io',
       outputDir: options.outputDir ?? '{fileDir}',
+      ...(options.timeout !== undefined ? { timeout: options.timeout } : {}),
     }
 
     interface DiagramFile {

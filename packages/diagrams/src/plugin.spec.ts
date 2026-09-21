@@ -109,6 +109,30 @@ describe('createNodesV2', () => {
     expect(aggregate.outputs).toEqual(['{workspaceRoot}/a.svg', '{workspaceRoot}/b.svg'])
   })
 
+  it('forwards the timeout option to inferred targets', () => {
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
+
+    const result = createNodesV2[1](['flow.mmd'], { timeout: 120000 }, ctx(workspace))
+    const targets = mergedTargets(result)
+
+    const perFile = targets['.']?.['diagram-flow'] as { options: { timeout?: number } }
+    expect(perFile.options.timeout).toBe(120000)
+    const aggregate = targets['.']?.diagrams as { options: { timeout?: number } }
+    expect(aggregate.options.timeout).toBe(120000)
+  })
+
+  it('omits timeout from target options when not configured', () => {
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
+
+    const result = createNodesV2[1](['flow.mmd'], {}, ctx(workspace))
+    const targets = mergedTargets(result)
+
+    const perFile = targets['.']?.['diagram-flow'] as { options: { timeout?: number } }
+    expect(perFile.options.timeout).toBeUndefined()
+  })
+
   it('attaches root-level diagrams to the "." project', () => {
     writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
     writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')
