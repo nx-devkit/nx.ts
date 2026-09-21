@@ -8,6 +8,9 @@ export default defineConfig({
   },
   format: ['esm'],
   dts: { eager: true },
-  clean: true,
+  // No clean: executors.json resolves ./dist/executors/*.mjs while a parallel
+  // `nx run-many` may rebuild this package — wiping dist mid-run breaks
+  // concurrent tasks resolving the executor with ImplementationResolutionError.
+  clean: false,
   deps: { alwaysBundle: ['@nx-devkit/internal'] },
 })

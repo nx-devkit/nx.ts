@@ -1,7 +1,9 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  clean: true,
+  // No clean: executors.json resolves ./dist/executors/*.mjs at task start;
+  // wiping dist mid-run-many breaks parallel tasks with ImplementationResolutionError.
+  clean: false,
   dts: true,
   entry: {
     'executors/publish/executor': 'src/executors/publish/executor.ts',
