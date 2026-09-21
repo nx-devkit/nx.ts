@@ -122,7 +122,7 @@ The default trigger glob MUST additionally cover `**/*.md` (case-insensitive, li
 
 #### Scenario: Aggregate aligns repeated file entries with block indexes
 - **WHEN** `arch.md` contains two diagram blocks
-- **THEN** the aggregate target's `files` option lists `arch.md` twice, `blocks` is `[0, 1]`, and `outputs` lists `arch-1.svg` and `arch-2.svg` at the matching positions — `files[i]`/`blocks[i]`/`outputs[i]` describe one render unit
+- **THEN** the aggregate target's `files` option lists `arch.md` twice, `blocks` is `[0, 1]`, and `outputs` lists `arch-1.svg` and `arch-2.svg` at the matching positions — `files[i]`/`blocks[i]`/`outputs[i]` describe one render unit. Note: `block`/`blocks` executor options are **0-based** fence ordinals, while the `<n>` suffix in target names and output filenames is **1-based** (`index + 1`) — the two bases coexist intentionally.
 
 ### Requirement: Block rendering in the render executor
 When a target carries a `block` index (single mode) or a `blocks` array aligned to `files` (aggregate mode, `null` for whole-file entries), the executor MUST extract that block's source and render it with the block's fence-mapped type — via `commands[type]` or Kroki — instead of reading the file as diagram source. A `block` index outside the file's diagram blocks MUST fail with an actionable error. `block`/`blocks` values MUST be nonnegative integers, and a `blocks` array whose length differs from `files` MUST fail before any rendering. For command overrides the executor MUST write the block source to a temp file whose extension matches the type's canonical extension and pass it as `{input}`.
