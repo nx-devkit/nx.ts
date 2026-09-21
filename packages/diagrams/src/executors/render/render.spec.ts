@@ -1,8 +1,18 @@
 import type { ExecutorContext } from '@nx/devkit'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { vol } from 'memfs'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('node:fs', async () => {
+  const memfs = await import('memfs')
+  return { ...memfs.fs, default: memfs.fs }
+})
+
+vi.mock('fs', async () => {
+  const memfs = await import('memfs')
+  return { ...memfs.fs, default: memfs.fs }
+})
 
 const state = {
   fetchCalls: [] as {
@@ -73,20 +83,16 @@ function makeContext(root: string, projectName = 'root'): ExecutorContext {
 }
 
 describe('renderExecutor', () => {
-  let workspace: string
+  const workspace = '/workspace'
 
   beforeEach(() => {
-    workspace = mkdtempSync(join(tmpdir(), 'nx-diagrams-render-'))
+    vol.reset()
     state.fetchCalls.length = 0
     state.spawnCalls.length = 0
     state.fetchResponse = { body: '<svg/>', status: 200 }
     state.spawnResponse = { status: 0, stderr: '' }
     state.spawnWritesOutput = true
     mkdirSync(workspace, { recursive: true })
-  })
-
-  afterEach(() => {
-    rmSync(workspace, { force: true, recursive: true })
   })
 
   it('renders via kroki by default: POSTs source to {krokiUrl}/{type}/{format}', async () => {

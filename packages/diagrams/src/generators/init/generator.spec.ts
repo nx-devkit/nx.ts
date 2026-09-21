@@ -1,29 +1,12 @@
 import type { Tree } from '@nx/devkit'
+import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing'
 import { describe, expect, it } from 'vitest'
 import { initGenerator } from './generator.ts'
 
-class MemTree {
-  private files = new Map<string, string>()
-
-  exists(path: string): boolean {
-    return this.files.has(path)
-  }
-
-  read(path: string): string | null {
-    return this.files.get(path) ?? null
-  }
-
-  write(path: string, content: string): void {
-    this.files.set(path, content)
-  }
-
-  listChanges(): { path: string; type: string }[] {
-    return [...this.files.keys()].map((path) => ({ path, type: 'CREATE' }))
-  }
-}
-
-function createTree(): MemTree {
-  const tree = new MemTree()
+// formatter: 'none' — no formatter config is seeded into the tree, so
+// formatFiles detects nothing and generated content is asserted verbatim.
+function createTree(): Tree {
+  const tree = createTreeWithEmptyWorkspace({ formatter: 'none' })
   tree.write('nx.json', JSON.stringify({}))
   return tree
 }
@@ -46,9 +29,9 @@ describe('initGenerator', () => {
   it('registers @nx-devkit/diagrams in nx.json plugins', async () => {
     const tree = createTree()
 
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
 
-    const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
+    const nxJson = JSON.parse(tree.read('nx.json', 'utf8') ?? '{}')
     const plugins = nxJson.plugins as Array<{ plugin: string }>
     expect(plugins.some((p) => p.plugin === '@nx-devkit/diagrams')).toBe(true)
   })
@@ -56,10 +39,10 @@ describe('initGenerator', () => {
   it('does not duplicate the plugin entry on rerun', async () => {
     const tree = createTree()
 
-    await initGenerator(tree as unknown as Tree, {})
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
+    await initGenerator(tree, {})
 
-    const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
+    const nxJson = JSON.parse(tree.read('nx.json', 'utf8') ?? '{}')
     const plugins = nxJson.plugins as Array<{ plugin: string }>
     expect(plugins.filter((p) => p.plugin === '@nx-devkit/diagrams')).toHaveLength(1)
   })
@@ -68,9 +51,9 @@ describe('initGenerator', () => {
     const tree = createTree()
     tree.write('nx.json', JSON.stringify({ plugins: ['@nx-devkit/diagrams'] }))
 
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
 
-    const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
+    const nxJson = JSON.parse(tree.read('nx.json', 'utf8') ?? '{}')
     expect(nxJson.plugins).toEqual(['@nx-devkit/diagrams'])
   })
 
@@ -78,9 +61,9 @@ describe('initGenerator', () => {
     const tree = createTree()
     tree.write('nx.json', JSON.stringify({ plugins: [['@nx-devkit/diagrams', { format: 'png' }]] }))
 
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
 
-    const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
+    const nxJson = JSON.parse(tree.read('nx.json', 'utf8') ?? '{}')
     expect(nxJson.plugins).toEqual([['@nx-devkit/diagrams', { format: 'png' }]])
   })
 
@@ -88,9 +71,9 @@ describe('initGenerator', () => {
     const tree = createTree()
     tree.write('nx.json', JSON.stringify({ plugins: ['./packages/tsdown/src/plugin.ts'] }))
 
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
 
-    const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
+    const nxJson = JSON.parse(tree.read('nx.json', 'utf8') ?? '{}')
     const plugins = nxJson.plugins as unknown[]
     expect(plugins).toContain('./packages/tsdown/src/plugin.ts')
     expect(plugins).toHaveLength(2)
@@ -99,21 +82,22 @@ describe('initGenerator', () => {
   it('honors a custom pluginPath', async () => {
     const tree = createTree()
 
-    await initGenerator(tree as unknown as Tree, {
+    await initGenerator(tree, {
       pluginPath: './packages/diagrams/src/plugin.ts',
     })
 
-    const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
+    const nxJson = JSON.parse(tree.read('nx.json', 'utf8') ?? '{}')
     const plugins = nxJson.plugins as Array<{ plugin: string }>
     expect(plugins.some((p) => p.plugin === './packages/diagrams/src/plugin.ts')).toBe(true)
   })
 
   it('creates nx.json when it is missing', async () => {
-    const tree = new MemTree()
+    const tree = createTree()
+    tree.delete('nx.json')
 
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
 
-    const nxJson = JSON.parse(tree.read('nx.json') ?? '{}')
+    const nxJson = JSON.parse(tree.read('nx.json', 'utf8') ?? '{}')
     const plugins = nxJson.plugins as Array<{ plugin: string }>
     expect(plugins.some((p) => p.plugin === '@nx-devkit/diagrams')).toBe(true)
   })
@@ -122,7 +106,7 @@ describe('initGenerator', () => {
     const tree = createTree()
     tree.write('package.json', JSON.stringify({ name: 'my-workspace' }))
 
-    const lines = await captureLogs(async () => initGenerator(tree as unknown as Tree, {}))
+    const lines = await captureLogs(async () => initGenerator(tree, {}))
 
     expect(lines.join('\n')).toContain('my-workspace:diagrams')
   })
@@ -133,7 +117,7 @@ describe('initGenerator', () => {
     tree.write('nx.json', JSON.stringify({ name: 'ws-name' }))
     tree.write('package.json', JSON.stringify({ name: 'pkg-name' }))
 
-    const lines = await captureLogs(async () => initGenerator(tree as unknown as Tree, {}))
+    const lines = await captureLogs(async () => initGenerator(tree, {}))
 
     expect(lines.join('\n')).toContain('proj-name:diagrams')
   })
@@ -143,32 +127,32 @@ describe('initGenerator', () => {
     tree.write('nx.json', JSON.stringify({ name: 'ws-name' }))
     tree.write('package.json', JSON.stringify({ name: 'pkg-name' }))
 
-    const lines = await captureLogs(async () => initGenerator(tree as unknown as Tree, {}))
+    const lines = await captureLogs(async () => initGenerator(tree, {}))
 
     expect(lines.join('\n')).toContain('ws-name:diagrams')
   })
 
   it('detects indentation from a real property, not a quoted comment line', async () => {
-    const tree = new MemTree()
+    const tree = createTree()
     tree.write(
       'nx.json',
       '{\n  /*\n        "plugins": example\n  */\n  "plugins": ["other-plugin"]\n}\n',
     )
 
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
 
     // The emitted entry follows the real 2-space top-level indent,
     // Not the 8-space indent of the quoted block-comment line.
-    expect(tree.read('nx.json')).toContain('\n    {\n      "options"')
+    expect(tree.read('nx.json', 'utf8')).toContain('\n    {\n      "options"')
   })
 
   it('preserves comments and formatting in nx.json', async () => {
-    const tree = new MemTree()
+    const tree = createTree()
     tree.write('nx.json', '{\n  // keep me\n  "plugins": ["other-plugin"]\n}\n')
 
-    await initGenerator(tree as unknown as Tree, {})
+    await initGenerator(tree, {})
 
-    expect(tree.read('nx.json')).toBe(
+    expect(tree.read('nx.json', 'utf8')).toBe(
       '{\n  // keep me\n  "plugins": [\n    "other-plugin",\n    {\n      "options": {},\n      "plugin": "@nx-devkit/diagrams"\n    }\n  ]\n}\n',
     )
   })

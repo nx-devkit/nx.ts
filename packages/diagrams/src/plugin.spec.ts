@@ -1,13 +1,19 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, matchesGlob } from 'node:path'
+import { vol } from 'memfs'
 import { Minimatch } from 'minimatch'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createNodesV2, DIAGRAM_TYPES, diagramTypeFor, slugify } from './plugin.ts'
 
-function makeWorkspace(): string {
-  return mkdtempSync(join(tmpdir(), 'nx-diagrams-plugin-'))
-}
+vi.mock('node:fs', async () => {
+  const memfs = await import('memfs')
+  return { ...memfs.fs, default: memfs.fs }
+})
+
+vi.mock('fs', async () => {
+  const memfs = await import('memfs')
+  return { ...memfs.fs, default: memfs.fs }
+})
 
 function mergedTargets(result: unknown): Record<string, Record<string, unknown>> {
   const entries = result as (readonly [
@@ -29,13 +35,11 @@ const ctx = (workspaceRoot: string) => ({
 })
 
 describe('createNodesV2', () => {
-  let workspace: string
+  const workspace = '/workspace'
 
   beforeEach(() => {
-    workspace = makeWorkspace()
-  })
-  afterEach(() => {
-    rmSync(workspace, { force: true, recursive: true })
+    vol.reset()
+    mkdirSync(workspace, { recursive: true })
   })
 
   it('watches every registered diagram extension', () => {
