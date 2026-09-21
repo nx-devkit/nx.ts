@@ -29,7 +29,16 @@ async function main(): Promise<void> {
     project = getArg('--project'),
     target = getArg('--target') ?? 'claude',
     outDir = getArg('--out-dir'),
-    dependencies = getArg('--dependencies') as 'inline' | 'external' | undefined
+    dependenciesArg = getArg('--dependencies')
+
+  const dependencies =
+    dependenciesArg === 'inline' || dependenciesArg === 'external' ? dependenciesArg : undefined
+  if (args.includes('--dependencies') && dependencies === undefined) {
+    console.error(
+      `Invalid --dependencies value '${dependenciesArg}' — expected 'inline' or 'external'`,
+    )
+    process.exit(1)
+  }
 
   if (!project) {
     console.error(

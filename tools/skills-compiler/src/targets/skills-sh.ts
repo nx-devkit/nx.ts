@@ -231,7 +231,10 @@ function emitSkill(
       const target = byName.get(link.targetName)
       if (!target) return link.raw
       if (isPrimary) {
-        return `[${link.text}](references/${target.name}/${target.name === projectName ? 'SKILL.md' : 'README.md'})`
+        if (target.name === projectName) {
+          return `[${link.text}](SKILL.md)`
+        }
+        return `[${link.text}](references/${target.name}/README.md)`
       }
       if (target.name === projectName) {
         return `[${link.text}](../../SKILL.md)`
