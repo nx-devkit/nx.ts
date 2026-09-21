@@ -12,7 +12,9 @@ cd "$(dirname "$0")/.."
 
 PACK_DIR="$(mktemp -d)"
 CONSUMER="$(mktemp -d)"
-trap 'rm -rf "$PACK_DIR" "$CONSUMER"' EXIT
+# Teardown must not gate the result: rm -rf can race npm's concurrent
+# writes ("Directory not empty") on some filesystems — retry once, then let it go.
+trap 'rm -rf "$PACK_DIR" "$CONSUMER" 2>/dev/null || { sleep 2; rm -rf "$PACK_DIR" "$CONSUMER" 2>/dev/null; } || true' EXIT
 
 if [ "${E2E_SKIP_BUILD:-0}" = "1" ]; then
   echo "==> Skipping build (E2E_SKIP_BUILD=1)"
@@ -37,7 +39,9 @@ fi
 
 for pkg_dir in "${PUBLISHABLE[@]}"; do
   echo "  packing $pkg_dir"
-  (cd "$pkg_dir" && npm pack --pack-destination "$PACK_DIR" >/dev/null)
+  # prepublishOnly (clean rebuild) runs on npm publish, NOT npm pack —
+  # run it here so the e2e tarball matches what publish actually ships.
+  (cd "$pkg_dir" && npm run --if-present prepublishOnly >/dev/null && npm pack --pack-destination "$PACK_DIR" >/dev/null)
 done
 
 TARBALLS=("$PACK_DIR"/*.tgz)

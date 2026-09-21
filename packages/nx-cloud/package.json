@@ -34,7 +34,7 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "prepublishOnly": "tsdown --clean",
+    "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
   "publishConfig": {
