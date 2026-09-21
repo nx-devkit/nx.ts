@@ -76,8 +76,13 @@ if (!existsSync(skillMd)) {
 const openaiMeta = join(root, 'agents', 'openai.yaml')
 if (existsSync(openaiMeta)) {
   const meta = readFileSync(openaiMeta, 'utf8')
-  for (const key of ['display_name', 'short_description', 'default_prompt']) {
-    if (!new RegExp(`^\\s*${key}:\\s*\\S`, 'm').test(meta)) {
+  const requiredMetaKeys: Record<string, RegExp> = {
+    display_name: /^\s*display_name:\s*\S/m,
+    short_description: /^\s*short_description:\s*\S/m,
+    default_prompt: /^\s*default_prompt:\s*\S/m,
+  }
+  for (const [key, re] of Object.entries(requiredMetaKeys)) {
+    if (!re.test(meta)) {
       errors.push(`agents/openai.yaml is missing \`${key}\``)
     }
   }
