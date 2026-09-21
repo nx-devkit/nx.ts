@@ -23,8 +23,8 @@ function mergeDependencies(
   manifestDeps: PluginDependency[],
   extraNames: string[],
 ): PluginDependency[] {
-  const seen = new Set(manifestDeps.map(dependencyName))
-  const result = [...manifestDeps]
+  const seen = new Set(manifestDeps.map(dependencyName)),
+   result = [...manifestDeps]
   for (const name of extraNames) {
     if (!seen.has(name)) {
       seen.add(name)
@@ -42,14 +42,14 @@ export function build(options: CompilerOptions): void {
       const extraMeta =
         extra.metadata && typeof extra.metadata === 'object' && !Array.isArray(extra.metadata)
           ? (extra.metadata as Record<string, unknown>)
-          : {}
-      const currentMeta =
+          : {},
+       currentMeta =
         skill.frontmatter.metadata &&
         typeof skill.frontmatter.metadata === 'object' &&
         !Array.isArray(skill.frontmatter.metadata)
           ? (skill.frontmatter.metadata as Record<string, unknown>)
-          : {}
-      const extraTop = Object.fromEntries(
+          : {},
+       extraTop = Object.fromEntries(
         Object.entries(extra).filter(
           ([k]) => k !== 'metadata' && k !== 'name' && k !== 'description',
         ),
@@ -63,9 +63,9 @@ export function build(options: CompilerOptions): void {
   }
   const pluginManifest = readPluginManifest(options.projectRoot)
 
-  let include: string[]
-  let projectName: string
-  let description: string | undefined
+  let include: string[],
+   projectName: string,
+   description: string | undefined
 
   if (pluginManifest) {
     include = pluginManifest.include
@@ -92,13 +92,13 @@ export function build(options: CompilerOptions): void {
       `External dependencies are only supported for Claude plugins, not for target '${options.target}'`,
     )
   }
-  const inlineDependencies = !useExternal
-  const skillsToEmit = inlineDependencies
+  const inlineDependencies = !useExternal,
+   skillsToEmit = inlineDependencies
     ? closure
-    : closure.filter((s) => include.includes(s.name))
+    : closure.filter((s) => include.includes(s.name)),
 
-  const manifestDeps: PluginDependency[] = pluginManifest?.dependencies ?? []
-  const externalDepNames: string[] = []
+   manifestDeps: PluginDependency[] = pluginManifest?.dependencies ?? [],
+   externalDepNames: string[] = []
   if (!inlineDependencies) {
     const includedSet = new Set(include)
     for (const skill of closure) {
@@ -108,22 +108,28 @@ export function build(options: CompilerOptions): void {
   const pluginDependencies = mergeDependencies(manifestDeps, externalDepNames)
 
   switch (options.target) {
-    case 'claude':
+    case 'claude': {
       buildClaude(options, skillsToEmit, projectName, description, pluginDependencies)
       break
-    case 'codex':
+    }
+    case 'codex': {
       buildCodex(options, skillsToEmit, projectName, description)
       break
-    case 'agents':
+    }
+    case 'agents': {
       buildAgents(options, skillsToEmit)
       break
-    case 'obsidian':
+    }
+    case 'obsidian': {
       buildObsidian(options, skillsToEmit)
       break
-    case 'skills-sh':
+    }
+    case 'skills-sh': {
       buildSkillsSh(options, skillsToEmit, projectName)
       break
-    default:
+    }
+    default: {
       throw new Error(`Unknown target: ${options.target}`)
+    }
   }
 }

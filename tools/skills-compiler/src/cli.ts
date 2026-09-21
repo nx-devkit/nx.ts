@@ -8,8 +8,8 @@ async function loadSkillMetadata(
   workspaceRoot: string,
 ): Promise<CompilerOptions['skillMetadata'] | undefined> {
   const configPath = path.join(workspaceRoot, 'skills.config.ts')
-  // existsSync first: Bun throws a ResolveMessage (not instanceof Error) for a
-  // missing dynamic import, so error-sniffing is unreliable across runtimes.
+  // ExistsSync first: Bun throws a ResolveMessage (not instanceof Error) for a
+  // Missing dynamic import, so error-sniffing is unreliable across runtimes.
   if (!fs.existsSync(configPath)) {
     return undefined
   }
@@ -20,17 +20,17 @@ async function loadSkillMetadata(
 }
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2)
-  const getArg = (name: string): string | undefined => {
+  const args = process.argv.slice(2),
+   getArg = (name: string): string | undefined => {
     const idx = args.indexOf(name)
-    return idx >= 0 ? args[idx + 1] : undefined
-  }
+    return idx !== -1 ? args[idx + 1] : undefined
+  },
 
-  const workspaceRoot = path.resolve(getArg('--workspace-root') ?? process.cwd())
-  const project = getArg('--project')
-  const target = getArg('--target') ?? 'claude'
-  const outDir = getArg('--out-dir')
-  const dependencies = getArg('--dependencies') as 'inline' | 'external' | undefined
+   workspaceRoot = path.resolve(getArg('--workspace-root') ?? process.cwd()),
+   project = getArg('--project'),
+   target = getArg('--target') ?? 'claude',
+   outDir = getArg('--out-dir'),
+   dependencies = getArg('--dependencies') as 'inline' | 'external' | undefined
 
   if (!project) {
     console.error(
@@ -39,8 +39,8 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const projectRoot = path.resolve(workspaceRoot, project)
-  const finalOutDir = outDir
+  const projectRoot = path.resolve(workspaceRoot, project),
+   finalOutDir = outDir
     ? path.resolve(workspaceRoot, outDir)
     : path.resolve(workspaceRoot, 'dist', project, target)
 
