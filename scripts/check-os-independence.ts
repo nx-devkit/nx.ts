@@ -48,8 +48,14 @@ const PATTERNS: { re: RegExp; label: string }[] = [
 
 const violations: string[] = []
 // Canonical root — a `--skill` arg that is itself a symlink must still
-// compare correctly against realpath() results.
-const realRoot = realpathSync(root)
+// compare correctly against realpath() results. A missing directory is a
+// violation, not a stack trace.
+let realRoot = ''
+try {
+  realRoot = realpathSync(root)
+} catch {
+  violations.push(`skill directory does not exist: ${skillDir}`)
+}
 
 function* walk(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
@@ -78,16 +84,22 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
-for (const file of walk(root)) {
-  const rel = file.slice(root.length + 1)
-  const lines = readFileSync(file, 'utf8').split('\n')
-  lines.forEach((line, i) => {
-    for (const { re, label } of PATTERNS) {
-      if (re.test(line)) {
-        violations.push(`${rel}:${i + 1} ${label}: ${line.trim().slice(0, 100)}`)
-      }
+if (realRoot) {
+  try {
+    for (const file of walk(root)) {
+      const rel = file.slice(root.length + 1)
+      const lines = readFileSync(file, 'utf8').split('\n')
+      lines.forEach((line, i) => {
+        for (const { re, label } of PATTERNS) {
+          if (re.test(line)) {
+            violations.push(`${rel}:${i + 1} ${label}: ${line.trim().slice(0, 100)}`)
+          }
+        }
+      })
     }
-  })
+  } catch {
+    violations.push(`skill directory is not readable: ${skillDir}`)
+  }
 }
 
 if (violations.length) {

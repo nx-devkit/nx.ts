@@ -41,8 +41,9 @@ try {
 
 let dirBytes = 0
 // Canonical root — a `--skill` arg that is itself a symlink must still
-// compare correctly against realpath() results.
-const realRoot = realpathSync(root)
+// compare correctly against realpath() results. A missing or unreadable
+// directory is reported as an error, not a stack trace.
+let realRoot = ''
 
 function walk(dir: string): void {
   // eslint-disable-next-line node/no-sync -- sync CLI traversal
@@ -70,7 +71,12 @@ function walk(dir: string): void {
     else dirBytes += st.size
   }
 }
-walk(root)
+try {
+  realRoot = realpathSync(root)
+  walk(root)
+} catch {
+  errors.push(`skill directory does not exist or is not readable: ${skillDir}`)
+}
 if (dirBytes > MAX_DIR_BYTES) {
   errors.push(`skill directory is ${dirBytes} bytes (limit ${MAX_DIR_BYTES})`)
 }
