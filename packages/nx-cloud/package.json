@@ -55,6 +55,7 @@
     "directory": "packages/nx-cloud"
   },
   "dependencies": {
-    "jsonc-parser": "^3.3.1"
+    "jsonc-parser": "^3.3.1",
+    "@nx-devkit/internal": "workspace:*"
   }
 }

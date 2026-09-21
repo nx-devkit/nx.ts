@@ -36,7 +36,7 @@
     },
     "packages/biome": {
       "name": "@nx-devkit/biome",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "devDependencies": {
         "@biomejs/biome": "^2.0.0",
         "@nx-devkit/internal": "workspace:*",
@@ -52,8 +52,9 @@
     },
     "packages/diagrams": {
       "name": "@nx-devkit/diagrams",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
+        "@nx-devkit/internal": "workspace:*",
         "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
@@ -72,12 +73,14 @@
       "version": "0.0.0",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
     },
     "packages/nx-cloud": {
       "name": "@nx-devkit/nx-cloud",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
+        "@nx-devkit/internal": "workspace:*",
         "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
@@ -93,7 +96,7 @@
     },
     "packages/oxlint": {
       "name": "@nx-devkit/oxlint",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
         "@types/node": "^26.0.0",
@@ -111,7 +114,7 @@
     },
     "packages/prepare-for-release": {
       "name": "@nx-devkit/prepare-for-release",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "tinyglobby": "^0.2.0",
       },
@@ -129,7 +132,7 @@
     },
     "packages/release": {
       "name": "@nx-devkit/release",
-      "version": "0.0.5",
+      "version": "0.0.6",
       "dependencies": {
         "@nx/devkit": "22.7.1",
       },
@@ -145,7 +148,7 @@
     },
     "packages/skill": {
       "name": "@nx-devkit/skill",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
         "@nx/devkit": "23.2.1",
@@ -161,7 +164,7 @@
     },
     "packages/skillspector": {
       "name": "@nx-devkit/skillspector",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
         "@nx/devkit": "23.2.1",
@@ -177,7 +180,7 @@
     },
     "packages/tsdown": {
       "name": "@nx-devkit/tsdown",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "dependencies": {
         "tsdown": "^0.22.3",
       },
@@ -195,7 +198,7 @@
     },
     "packages/typescript-preset": {
       "name": "@nx-devkit/typescript",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "bin": {
         "nx-devkit-typescript": "./dist/bin/init.mjs",
       },
