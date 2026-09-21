@@ -1,6 +1,5 @@
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { mkdir, writeFile, realpath } from 'node:fs/promises'
+import { mkdir, stat, writeFile, realpath } from 'node:fs/promises'
 import {
   basename,
   dirname,
@@ -212,11 +211,14 @@ export async function scanExecutor(
   // A configured filesystem path that does not exist (e.g. the CI-only
   // `.tools/skillspector-venv` outside CI) falls back to `skillspector` on
   // PATH instead of failing with ENOENT.
-  // eslint-disable-next-line node/no-sync -- executor startup check, one-shot
-  const effectiveCmd =
-    basename(binCmd) !== binCmd && !existsSync(resolvePath(ctx.root, binCmd))
-      ? 'skillspector'
-      : binCmd
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- binCmd is a configured path resolved under the trusted ctx.root
+  const binExists =
+    basename(binCmd) === binCmd ||
+    (await stat(resolvePath(ctx.root, binCmd)).then(
+      () => true,
+      () => false,
+    ))
+  const effectiveCmd = binExists ? binCmd : 'skillspector'
 
   const args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
   if (noLlm) {

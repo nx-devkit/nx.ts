@@ -1,4 +1,9 @@
 # tools/skills-compiler is a vendored upstream copy kept to minimal diffs;
 # its style findings (one-var, node/no-sync, …) are upstream's concern.
+# scripts/ holds synchronous dev/CI helper CLIs — style findings there are
+# likewise out of scope for the shipped packages.
 exclude:
   - "tools/skills-compiler/**"
+  - "tools/skills-compiler/*"
+  - "scripts/**"
+  - "scripts/*"
