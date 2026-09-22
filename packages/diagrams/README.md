@@ -95,7 +95,7 @@ Placeholder values expand **shell-quoted** — paths with spaces stay single arg
 
 ## Local Kroki via docker
 
-Public `kroki.io` is rate-limited and sends your diagram sources to a third party. Set `"krokiUrl": "docker"` and the executor runs an ephemeral Kroki container per run — `docker run -d --rm -p 127.0.0.1::8000 yuzutech/kroki`, lazily on the first Kroki render, health-checked, then stopped when the run finishes (success or failure). Nothing persists between runs; set `krokiImage` to pin a digest or point at a mirror.
+Public `kroki.io` is rate-limited and sends your diagram sources to a third party. Set `"krokiUrl": "docker"` and the executor runs an ephemeral Kroki container per run — `docker run -d --rm -p 127.0.0.1::8000 yuzutech/kroki`, lazily on the first Kroki render, health-checked, then `docker stop`ped when the run finishes. Cleanup is best-effort: a failed `docker stop` fails the run (or warns when a render error is already propagating), and a hard-killed process can leave the container running — `docker ps`/`docker stop` it manually. Nothing is meant to persist between runs; set `krokiImage` to pin a digest or point at a mirror.
 
 Prerequisites: the `docker` CLI and a running daemon must be available on the machine executing Nx (a remote `DOCKER_HOST` is not supported — the port binds loopback on the daemon host while health probes hit the client host). The first run pulls the image, which counts against `timeout`; the container health-wait shares the same `timeout` budget, so raise it for slow boots.
 

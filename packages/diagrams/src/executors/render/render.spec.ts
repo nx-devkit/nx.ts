@@ -617,18 +617,54 @@ describe('renderExecutor', () => {
       expect(state.dockerCalls.map((c) => c[0])).toContain('stop')
     })
 
-    it('warns but still succeeds when docker stop fails', async () => {
+    it('fails the run when docker stop fails on an otherwise-clean run', async () => {
       writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+      state.dockerStop = { status: 1, stdout: '', stderr: 'container already stopped' }
+
+      // Renders succeeded, but a leaked container must not report success.
+      await expect(
+        renderExecutor(
+          { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow(/docker stop.*container123/i)
+    })
+
+    it('warns about a failed stop without masking an earlier render error', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+      state.fetchResponse = (url) =>
+        url.endsWith('/health')
+          ? { body: 'ok', status: 200 }
+          : { body: 'kroki exploded', status: 500 }
       state.dockerStop = { status: 1, stdout: '', stderr: 'container already stopped' }
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      const result = await renderExecutor(
-        { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
-        makeContext(workspace),
-      )
+      try {
+        // The render error wins; the stop failure is reported, not thrown.
+        await expect(
+          renderExecutor(
+            { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+            makeContext(workspace),
+          ),
+        ).rejects.toThrow(/HTTP 500/)
 
-      expect(result.success).toBe(true)
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('docker stop'))
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('docker stop'))
+      } finally {
+        warn.mockRestore()
+      }
+    })
+
+    it('rejects a fractional timeout before touching docker', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+
+      await expect(
+        renderExecutor(
+          { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg', timeout: 1.5 },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow(/positive integer/)
+
+      expect(state.dockerCalls).toEqual([])
     })
   })
 })

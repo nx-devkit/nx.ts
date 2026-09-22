@@ -29,8 +29,9 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
     throw new Error('No renderer configured: set krokiUrl or provide commands for diagram types')
   }
   const timeout = options.timeout ?? 30_000
-  if (!Number.isFinite(timeout) || timeout <= 0) {
-    throw new Error(`timeout must be a positive number of ms, got ${timeout}`)
+  // spawnSync requires an integer timeout — fractional values throw RangeError.
+  if (!Number.isInteger(timeout) || timeout <= 0) {
+    throw new Error(`timeout must be a positive integer of ms, got ${timeout}`)
   }
   return {
     commands,
@@ -207,6 +208,7 @@ export default async function renderExecutor(
     : '.'
 
   let dockerKroki: DockerKroki | undefined
+  let renderError: unknown
   try {
     for (const [index, file] of files.entries()) {
       // Markdown sources carry a diagram-fence index; the executor re-extracts
@@ -346,9 +348,21 @@ export default async function renderExecutor(
       }
       console.log(`${file} -> ${output}`)
     }
+  } catch (error) {
+    renderError = error
+    throw error
   } finally {
     const stopError = dockerKroki?.stop()
-    if (stopError) console.warn(stopError.message)
+    if (stopError) {
+      if (renderError !== undefined) {
+        // A render error is already propagating — don't mask it.
+        console.warn(stopError.message)
+      } else {
+        // Renders succeeded but the container may still be running —
+        // a silent success would leak it.
+        throw stopError
+      }
+    }
   }
 
   return { success: true }
