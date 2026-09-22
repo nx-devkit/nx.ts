@@ -350,20 +350,20 @@ export default async function renderExecutor(
     }
   } catch (error) {
     renderError = error
-    throw error
   } finally {
     const stopError = dockerKroki?.stop()
     if (stopError) {
-      if (renderError !== undefined) {
-        // A render error is already propagating — don't mask it.
-        console.warn(stopError.message)
-      } else {
+      if (renderError === undefined) {
         // Renders succeeded but the container may still be running —
         // a silent success would leak it.
-        throw stopError
+        renderError = stopError
+      } else {
+        // A render error is already pending — don't mask it.
+        console.warn(stopError.message)
       }
     }
   }
+  if (renderError !== undefined) throw renderError
 
   return { success: true }
 }
