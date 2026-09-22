@@ -72,13 +72,22 @@ async function startDockerKroki(image: string, timeoutMs: number): Promise<Docke
       throw new Error(`krokiUrl "docker": docker port failed for container ${id}`)
     }
     const mapped = String(port.stdout).trim().split('\n')[0] ?? ''
-    const url = `http://127.0.0.1:${mapped.split(':').pop()}`
+    // docker port emits HOST:PORT — the port is always the last colon
+    // segment, including bracketed IPv6 like [::1]:32768.
+    const mappedPort = mapped.split(':').at(-1) ?? ''
+    if (!/^\d+$/.test(mappedPort)) {
+      throw new Error(`krokiUrl "docker": could not parse mapped port from "${mapped}"`)
+    }
+    const url = `http://127.0.0.1:${mappedPort}`
     const deadline = Date.now() + timeoutMs
     for (;;) {
       try {
+        // Nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- url is a loopback origin built from `docker port` output, validated as digits above
         const res = await fetch(`${url}/health`, {
           signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
         })
+        // res.ok is evaluated before the deadline check — a successful
+        // response can never be masked by the timeout.
         if (res.ok) break
       } catch {
         // not up yet
