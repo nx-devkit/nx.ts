@@ -43,7 +43,7 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
 }
 
 interface DockerKroki {
-  stop: () => void
+  stop: () => Error | undefined
   url: string
 }
 
@@ -53,21 +53,26 @@ interface DockerKroki {
 async function startDockerKroki(image: string, timeoutMs: number): Promise<DockerKroki> {
   const run = spawnSync('docker', ['run', '-d', '--rm', '-p', '127.0.0.1::8000', image], {
     encoding: 'utf8',
+    timeout: timeoutMs,
   })
   if (run.error || run.status !== 0) {
     const detail = run.error?.message ?? String(run.stderr).trim()
     throw new Error(`krokiUrl "docker": docker run failed for ${image}: ${detail}`)
   }
   const id = String(run.stdout).trim()
-  const stop = () => {
-    try {
-      spawnSync('docker', ['stop', id], { stdio: 'ignore' })
-    } catch {
-      // best effort — the container is --rm, a missed stop is not fatal
+  const stop = (): Error | undefined => {
+    // The container is --rm, but --rm only cleans up once the container
+    // actually exits — a failed stop leaves it running, so report it.
+    const res = spawnSync('docker', ['stop', id], { stdio: 'ignore', timeout: timeoutMs })
+    if (res.error || res.status !== 0) {
+      return new Error(
+        `krokiUrl "docker": docker stop failed for container ${id}: ${res.error?.message ?? `exit ${res.status}`}`,
+      )
     }
+    return undefined
   }
   try {
-    const port = spawnSync('docker', ['port', id, '8000'], { encoding: 'utf8' })
+    const port = spawnSync('docker', ['port', id, '8000'], { encoding: 'utf8', timeout: timeoutMs })
     if (port.error || port.status !== 0) {
       throw new Error(`krokiUrl "docker": docker port failed for container ${id}`)
     }
@@ -99,7 +104,10 @@ async function startDockerKroki(image: string, timeoutMs: number): Promise<Docke
     }
     return { stop, url }
   } catch (error) {
-    stop()
+    // Startup already failed — a stop failure here is reported by callers'
+    // finally path being unreachable, so warn rather than mask.
+    const stopError = stop()
+    if (stopError) console.warn(stopError.message)
     throw error
   }
 }
@@ -337,7 +345,8 @@ export default async function renderExecutor(
       console.log(`${file} -> ${output}`)
     }
   } finally {
-    dockerKroki?.stop()
+    const stopError = dockerKroki?.stop()
+    if (stopError) console.warn(stopError.message)
   }
 
   return { success: true }

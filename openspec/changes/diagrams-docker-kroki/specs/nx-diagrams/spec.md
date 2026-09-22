@@ -6,8 +6,8 @@
 `krokiUrl` MUST additionally accept the literal string `docker`. In this mode the executor MUST lazily start `docker run -d --rm -p 127.0.0.1::8000 <krokiImage>` on the first render that requires Kroki, resolve the mapped port via `docker port`, wait for `GET <url>/health` to succeed (bounded by `timeout`), render all Kroki-needed sources in the run against that URL, and stop the container in `finally` so it is removed (`--rm`). `krokiImage` MUST default to `yuzutech/kroki:latest` and be overridable via plugin options and target config.
 
 #### Scenario: Docker mode render
-- **WHEN** `krokiUrl` is `docker` and a `mermaid` source renders
-- **THEN** the executor POSTs to `http://127.0.0.1:<mapped-port>/mermaid/{format}` and stops the container afterwards
+- **WHEN** `krokiUrl` is `docker` and a `plantuml` source renders
+- **THEN** the executor POSTs to `http://127.0.0.1:<mapped-port>/plantuml/{format}` and stops the container afterwards
 
 #### Scenario: Container is shared within one run
 - **WHEN** an aggregate target renders three Kroki sources with `krokiUrl: "docker"`
