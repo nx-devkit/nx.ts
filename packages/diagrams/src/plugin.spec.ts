@@ -125,6 +125,25 @@ describe('createNodesV2', () => {
     expect(aggregate.outputs).toEqual(['{workspaceRoot}/a.svg', '{workspaceRoot}/b.svg'])
   })
 
+  it('forwards krokiImage to inferred targets, defaulting to yuzutech/kroki:latest', () => {
+    writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
+    writeFileSync(join(workspace, 'a.puml'), '@startuml\n@enduml')
+
+    const defaults = mergedTargets(createNodesV2[1](['a.puml'], {}, ctx(workspace)))
+    const custom = mergedTargets(
+      createNodesV2[1](['a.puml'], { krokiImage: 'mirror.local/kroki:2024.1' }, ctx(workspace)),
+    )
+    for (const [targets, image] of [
+      [defaults, 'yuzutech/kroki:latest'],
+      [custom, 'mirror.local/kroki:2024.1'],
+    ] as const) {
+      const perFile = targets['.']?.['diagram-a'] as { options: { krokiImage?: string } }
+      const aggregate = targets['.']?.diagrams as { options: { krokiImage?: string } }
+      expect(perFile.options.krokiImage).toBe(image)
+      expect(aggregate.options.krokiImage).toBe(image)
+    }
+  })
+
   it('attaches root-level diagrams to the "." project', () => {
     writeFileSync(join(workspace, 'package.json'), '{"name":"root"}')
     writeFileSync(join(workspace, 'flow.mmd'), 'graph TD')

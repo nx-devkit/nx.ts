@@ -9,6 +9,11 @@
 - **WHEN** `krokiUrl` is `docker` and a `plantuml` source renders
 - **THEN** the executor POSTs to `http://127.0.0.1:<mapped-port>/plantuml/{format}` and stops the container afterwards
 
+#### Scenario: Custom image
+- **WHEN** `krokiUrl` is `docker` and `krokiImage` is set to `mirror.local/kroki@sha256:abc`
+- **THEN** `docker run` is invoked with `mirror.local/kroki@sha256:abc`
+- **AND** when `krokiImage` is unset, `docker run` receives `yuzutech/kroki:latest`
+
 #### Scenario: Container is shared within one run
 - **WHEN** an aggregate target renders three Kroki sources with `krokiUrl: "docker"`
 - **THEN** exactly one container is started and all three POSTs target the same URL
@@ -28,3 +33,12 @@
 #### Scenario: Health timeout
 - **WHEN** the container starts but `/health` never returns success within `timeout`
 - **THEN** the executor fails naming the wait and the container is stopped
+
+## MODIFIED Requirements
+
+### Requirement: Format and URL options
+`format` MUST accept `svg` (default), `png`, or `jpeg` and appear in both the output filename and the Kroki request path — actual per-type format support depends on the renderer (Kroki serves `jpeg` only for some types; unsupported combinations surface via the non-2xx failure rule). `krokiUrl` MUST be empty (disables Kroki), an absolute `http(s)` URL, or the literal `docker` (ephemeral local container, see "Ephemeral Kroki backend via docker"); trailing slashes are trimmed.
+
+#### Scenario: png format
+- **WHEN** `format: "png"`
+- **THEN** the executor requests `/{type}/png` and writes a `.png` output

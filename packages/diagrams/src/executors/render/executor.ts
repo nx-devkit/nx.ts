@@ -74,7 +74,8 @@ async function startDockerKroki(image: string, timeoutMs: number): Promise<Docke
   try {
     const port = spawnSync('docker', ['port', id, '8000'], { encoding: 'utf8', timeout: timeoutMs })
     if (port.error || port.status !== 0) {
-      throw new Error(`krokiUrl "docker": docker port failed for container ${id}`)
+      const detail = port.error?.message ?? String(port.stderr).trim()
+      throw new Error(`krokiUrl "docker": docker port failed for container ${id}: ${detail}`)
     }
     const mapped = String(port.stdout).trim().split('\n')[0] ?? ''
     // docker port emits HOST:PORT — the port is always the last colon
@@ -100,7 +101,8 @@ async function startDockerKroki(image: string, timeoutMs: number): Promise<Docke
       if (Date.now() >= deadline) {
         throw new Error(`krokiUrl "docker": ${image} did not become healthy within ${timeoutMs}ms`)
       }
-      await new Promise((r) => setTimeout(r, 200))
+      // Cap the backoff by the remaining budget so `timeout` stays a hard upper bound.
+      await new Promise((r) => setTimeout(r, Math.min(200, Math.max(1, deadline - Date.now()))))
     }
     return { stop, url }
   } catch (error) {

@@ -33,7 +33,18 @@ const state = {
     stdout?: string
     stderr?: string
   },
-  dockerPort: '127.0.0.1:32768\n' as string,
+  dockerPort: { status: 0, stdout: '127.0.0.1:32768\n', stderr: '' } as {
+    error?: { message: string }
+    status: number | null
+    stdout?: string
+    stderr?: string
+  },
+  dockerStop: { status: 0, stdout: '', stderr: '' } as {
+    error?: { message: string }
+    status: number | null
+    stdout?: string
+    stderr?: string
+  },
   spawnResponse: { status: 0, stderr: '' } as {
     error?: { code?: string; message: string }
     signal?: string
@@ -54,8 +65,8 @@ vi.mock('node:child_process', () => ({
       state.dockerCalls.push(argsOrOptions as string[])
       const verb = (argsOrOptions as string[])[0]
       if (verb === 'run') return state.dockerRun
-      if (verb === 'port') return { status: 0, stdout: state.dockerPort, stderr: '' }
-      if (verb === 'stop') return { status: 0, stdout: '', stderr: '' }
+      if (verb === 'port') return state.dockerPort
+      if (verb === 'stop') return state.dockerStop
       return { status: 1, stdout: '', stderr: `unknown docker verb ${verb}` }
     }
     state.spawnCalls.push({ command, options })
@@ -123,7 +134,8 @@ describe('renderExecutor', () => {
     state.inputContent = undefined
     state.dockerCalls.length = 0
     state.dockerRun = { status: 0, stdout: 'container123\n', stderr: '' }
-    state.dockerPort = '127.0.0.1:32768\n'
+    state.dockerPort = { status: 0, stdout: '127.0.0.1:32768\n', stderr: '' }
+    state.dockerStop = { status: 0, stdout: '', stderr: '' }
     mkdirSync(workspace, { recursive: true })
   })
 
@@ -581,7 +593,42 @@ describe('renderExecutor', () => {
         ),
       ).rejects.toThrow(/health|healthy|timeout/i)
 
+      // The poll loop must actually retry before the deadline — a single
+      // probe that failed fast would satisfy the throw assertion above.
+      expect(state.fetchCalls.filter((c) => c.url.endsWith('/health')).length).toBeGreaterThan(1)
       expect(state.dockerCalls.map((c) => c[0])).toContain('stop')
+    })
+
+    it('fails actionably when docker port fails', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+      state.dockerPort = {
+        status: 1,
+        stdout: '',
+        stderr: "Error: No public port '8000/tcp' published for container123",
+      }
+
+      await expect(
+        renderExecutor(
+          { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow(/docker port.*container123.*8000/i)
+
+      expect(state.dockerCalls.map((c) => c[0])).toContain('stop')
+    })
+
+    it('warns but still succeeds when docker stop fails', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+      state.dockerStop = { status: 1, stdout: '', stderr: 'container already stopped' }
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const result = await renderExecutor(
+        { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+        makeContext(workspace),
+      )
+
+      expect(result.success).toBe(true)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('docker stop'))
     })
   })
 })

@@ -97,6 +97,8 @@ Placeholder values expand **shell-quoted** — paths with spaces stay single arg
 
 Public `kroki.io` is rate-limited and sends your diagram sources to a third party. Set `"krokiUrl": "docker"` and the executor runs an ephemeral Kroki container per run — `docker run -d --rm -p 127.0.0.1::8000 yuzutech/kroki`, lazily on the first Kroki render, health-checked, then stopped when the run finishes (success or failure). Nothing persists between runs; set `krokiImage` to pin a digest or point at a mirror.
 
+Prerequisites: the `docker` CLI and a running daemon must be available on the machine executing Nx (a remote `DOCKER_HOST` is not supported — the port binds loopback on the daemon host while health probes hit the client host). The first run pulls the image, which counts against `timeout`; the container health-wait shares the same `timeout` budget, so raise it for slow boots.
+
 The core image covers plantuml, graphviz, d2 and friends — mermaid, bpmn and excalidraw are companion services in upstream Kroki and are not bundled. For those types combine docker mode with `commands` (commands always win per type), or run a full compose stack:
 
 ```jsonc
