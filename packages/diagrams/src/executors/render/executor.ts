@@ -10,6 +10,7 @@ import type { RenderExecutorSchema } from './schema.d.ts'
 interface Resolved {
   commands: Record<string, string>
   format: 'svg' | 'png' | 'jpeg'
+  krokiImage: string
   krokiUrl: string
   outputDir: string
   timeout: number
@@ -18,8 +19,10 @@ interface Resolved {
 function resolveOptions(options: RenderExecutorSchema): Resolved {
   const format = options.format ?? 'svg'
   const krokiUrl = (options.krokiUrl ?? 'https://kroki.io').replace(/\/+$/, '')
-  if (krokiUrl && !/^https?:\/\//.test(krokiUrl)) {
-    throw new Error(`krokiUrl must be an absolute http(s) URL, got "${options.krokiUrl}"`)
+  if (krokiUrl && krokiUrl !== 'docker' && !/^https?:\/\//.test(krokiUrl)) {
+    throw new Error(
+      `krokiUrl must be an absolute http(s) URL or "docker", got "${options.krokiUrl}"`,
+    )
   }
   const commands = options.commands ?? {}
   if (!krokiUrl && Object.keys(commands).length === 0 && !options.dryRun) {
@@ -32,9 +35,63 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
   return {
     commands,
     format,
+    krokiImage: options.krokiImage ?? 'yuzutech/kroki:latest',
     krokiUrl,
     outputDir: options.outputDir ?? '{fileDir}',
     timeout,
+  }
+}
+
+interface DockerKroki {
+  stop: () => void
+  url: string
+}
+
+// Serverless Kroki: one ephemeral container per executor invocation.
+// `-p 127.0.0.1::8000` binds a random loopback port; `docker port` resolves it;
+// `--rm` removes the container on stop.
+async function startDockerKroki(image: string, timeoutMs: number): Promise<DockerKroki> {
+  const run = spawnSync('docker', ['run', '-d', '--rm', '-p', '127.0.0.1::8000', image], {
+    encoding: 'utf8',
+  })
+  if (run.error || run.status !== 0) {
+    const detail = run.error?.message ?? String(run.stderr).trim()
+    throw new Error(`krokiUrl "docker": docker run failed for ${image}: ${detail}`)
+  }
+  const id = String(run.stdout).trim()
+  const stop = () => {
+    try {
+      spawnSync('docker', ['stop', id], { stdio: 'ignore' })
+    } catch {
+      // best effort — the container is --rm, a missed stop is not fatal
+    }
+  }
+  try {
+    const port = spawnSync('docker', ['port', id, '8000'], { encoding: 'utf8' })
+    if (port.error || port.status !== 0) {
+      throw new Error(`krokiUrl "docker": docker port failed for container ${id}`)
+    }
+    const mapped = String(port.stdout).trim().split('\n')[0] ?? ''
+    const url = `http://127.0.0.1:${mapped.split(':').pop()}`
+    const deadline = Date.now() + timeoutMs
+    for (;;) {
+      try {
+        const res = await fetch(`${url}/health`, {
+          signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+        })
+        if (res.ok) break
+      } catch {
+        // not up yet
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(`krokiUrl "docker": ${image} did not become healthy within ${timeoutMs}ms`)
+      }
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    return { stop, url }
+  } catch (error) {
+    stop()
+    throw error
   }
 }
 
@@ -58,8 +115,13 @@ function interpolate(template: string, vars: Record<string, string>): string {
   })
 }
 
-async function renderWithKroki(resolved: Resolved, type: string, source: string): Promise<Buffer> {
-  const url = `${resolved.krokiUrl}/${type}/${resolved.format}`
+async function renderWithKroki(
+  resolved: Resolved,
+  krokiBase: string,
+  type: string,
+  source: string,
+): Promise<Buffer> {
+  const url = `${krokiBase}/${type}/${resolved.format}`
   // Nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- krokiUrl is workspace config validated as absolute http(s); type/format come from fixed enums
   const res = await fetch(url, {
     body: source,
@@ -125,136 +187,148 @@ export default async function renderExecutor(
     ? (context.projectsConfigurations?.projects[context.projectName]?.root ?? '.')
     : '.'
 
-  for (const [index, file] of files.entries()) {
-    // Markdown sources carry a diagram-fence index; the executor re-extracts
-    // the block body — the plugin only declares count/outputs at inference.
-    // eslint-disable-next-line security/detect-object-injection -- index iterates the declared files array
-    const blockIndex = options.file ? (options.block ?? null) : (options.blocks?.[index] ?? null)
-    let type: string
-    let blockSource: string | undefined
-    if (blockIndex !== null) {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
-      const blocks = extractDiagramBlocks(readFileSync(join(context.root, file), 'utf8'))
-      // .at() returns T | undefined so the out-of-range check is honest to
-      // typed lint — but .at(-1) wraps to the last element, so the >= 0
-      // guard is load-bearing: without it a negative index would silently
-      // render the wrong block instead of erroring.
-      const block = blockIndex >= 0 ? blocks.at(blockIndex) : undefined
-      if (!block) {
+  let dockerKroki: DockerKroki | undefined
+  try {
+    for (const [index, file] of files.entries()) {
+      // Markdown sources carry a diagram-fence index; the executor re-extracts
+      // the block body — the plugin only declares count/outputs at inference.
+      // eslint-disable-next-line security/detect-object-injection -- index iterates the declared files array
+      const blockIndex = options.file ? (options.block ?? null) : (options.blocks?.[index] ?? null)
+      let type: string
+      let blockSource: string | undefined
+      if (blockIndex !== null) {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
+        const blocks = extractDiagramBlocks(readFileSync(join(context.root, file), 'utf8'))
+        // .at() returns T | undefined so the out-of-range check is honest to
+        // typed lint — but .at(-1) wraps to the last element, so the >= 0
+        // guard is load-bearing: without it a negative index would silently
+        // render the wrong block instead of erroring.
+        const block = blockIndex >= 0 ? blocks.at(blockIndex) : undefined
+        if (!block) {
+          throw new Error(
+            `${file} has ${blocks.length} diagram block(s); block ${blockIndex} is out of range`,
+          )
+        }
+        type = block.type
+        blockSource = block.source
+      } else {
+        const fileType = diagramTypeFor(file)
+        if (!fileType) {
+          throw new Error(`Unknown diagram type for ${file}`)
+        }
+        type = fileType
+      }
+      // An explicit output path is part of the inferred Nx output contract:
+      // Its extension must match the resolved format, otherwise the artifact
+      // Written at runtime would diverge from the declared target outputs.
+      const declared =
+        // eslint-disable-next-line security/detect-object-injection -- index iterates files; outputsOption may be shorter, guarded by the ?? fallback
+        outputsOption[index] ??
+        outputPathFor(
+          file,
+          projectRoot,
+          resolved.outputDir,
+          resolved.format,
+          blockIndex !== null ? `-${blockIndex + 1}` : '',
+        )
+      const declaredExt = extname(declared).replace(/^\./, '').toLowerCase()
+      if (declaredExt && declaredExt !== resolved.format) {
         throw new Error(
-          `${file} has ${blocks.length} diagram block(s); block ${blockIndex} is out of range`,
+          `output "${declared}" declares .${declaredExt} but format is ${resolved.format}; adjust the format or the output path`,
         )
       }
-      type = block.type
-      blockSource = block.source
-    } else {
-      const fileType = diagramTypeFor(file)
-      if (!fileType) {
-        throw new Error(`Unknown diagram type for ${file}`)
+      const output = (declaredExt ? declared : `${declared}.${resolved.format}`).replace(/\\/g, '/')
+      if (isAbsolute(output) || output.split('/').includes('..')) {
+        throw new Error(`output path "${output}" must resolve inside the workspace`)
       }
-      type = fileType
-    }
-    // An explicit output path is part of the inferred Nx output contract:
-    // Its extension must match the resolved format, otherwise the artifact
-    // Written at runtime would diverge from the declared target outputs.
-    const declared =
-      // eslint-disable-next-line security/detect-object-injection -- index iterates files; outputsOption may be shorter, guarded by the ?? fallback
-      outputsOption[index] ??
-      outputPathFor(
-        file,
+      const absOutput = resolve(context.root, output)
+      const rel = relative(context.root, absOutput)
+      if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+        throw new Error(`output path "${output}" must resolve inside the workspace`)
+      }
+      const fileDir = dirname(file)
+
+      if (options.dryRun) {
+        console.log(
+          `[dryRun] would render ${file}${blockIndex !== null ? ` block ${blockIndex}` : ''} -> ${output}`,
+        )
+        continue
+      }
+
+      const vars = {
+        fileDir,
+        fileName:
+          basename(file).replace(/\.[a-z0-9]+$/i, '') +
+          (blockIndex !== null ? `-${blockIndex + 1}` : ''),
+        format: resolved.format,
+        input: file,
+        output,
         projectRoot,
-        resolved.outputDir,
-        resolved.format,
-        blockIndex !== null ? `-${blockIndex + 1}` : '',
-      )
-    const declaredExt = extname(declared).replace(/^\./, '').toLowerCase()
-    if (declaredExt && declaredExt !== resolved.format) {
-      throw new Error(
-        `output "${declared}" declares .${declaredExt} but format is ${resolved.format}; adjust the format or the output path`,
-      )
-    }
-    const output = (declaredExt ? declared : `${declared}.${resolved.format}`).replace(/\\/g, '/')
-    if (isAbsolute(output) || output.split('/').includes('..')) {
-      throw new Error(`output path "${output}" must resolve inside the workspace`)
-    }
-    const absOutput = resolve(context.root, output)
-    const rel = relative(context.root, absOutput)
-    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
-      throw new Error(`output path "${output}" must resolve inside the workspace`)
-    }
-    const fileDir = dirname(file)
+      }
 
-    if (options.dryRun) {
-      console.log(
-        `[dryRun] would render ${file}${blockIndex !== null ? ` block ${blockIndex}` : ''} -> ${output}`,
-      )
-      continue
-    }
-
-    const vars = {
-      fileDir,
-      fileName:
-        basename(file).replace(/\.[a-z0-9]+$/i, '') +
-        (blockIndex !== null ? `-${blockIndex + 1}` : ''),
-      format: resolved.format,
-      input: file,
-      output,
-      projectRoot,
-    }
-
-    // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed DIAGRAM_TYPES registry
-    const command = resolved.commands[type]
-    if (command) {
-      // Block bodies aren't files — commands take a path, so materialize a
-      // temp input carrying the type's canonical extension. mkdtempSync
-      // gives an atomically unique dir — no races between parallel runs.
-      // The input is named after the diagram (vars.fileName carries the
-      // block suffix) so commands deriving the output name from {input}
-      // keep working.
-      let tmpDir: string | undefined
-      try {
-        if (blockSource !== undefined) {
-          // eslint-disable-next-line security/detect-non-literal-fs-filename -- tmpdir() is the OS temp dir
-          mkdirSync(tmpdir(), { recursive: true })
-          // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed prefix under the OS temp dir
-          tmpDir = mkdtempSync(join(tmpdir(), 'nx-diagrams-'))
-          // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed registry
-          const input = join(tmpDir, `${vars.fileName}${TYPE_EXTENSIONS[type] ?? '.txt'}`)
-          // eslint-disable-next-line security/detect-non-literal-fs-filename -- inside a fresh unique tmpdir
-          writeFileSync(input, blockSource)
-          vars.input = input
+      // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed DIAGRAM_TYPES registry
+      const command = resolved.commands[type]
+      if (command) {
+        // Block bodies aren't files — commands take a path, so materialize a
+        // temp input carrying the type's canonical extension. mkdtempSync
+        // gives an atomically unique dir — no races between parallel runs.
+        // The input is named after the diagram (vars.fileName carries the
+        // block suffix) so commands deriving the output name from {input}
+        // keep working.
+        let tmpDir: string | undefined
+        try {
+          if (blockSource !== undefined) {
+            // eslint-disable-next-line security/detect-non-literal-fs-filename -- tmpdir() is the OS temp dir
+            mkdirSync(tmpdir(), { recursive: true })
+            // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed prefix under the OS temp dir
+            tmpDir = mkdtempSync(join(tmpdir(), 'nx-diagrams-'))
+            // eslint-disable-next-line security/detect-object-injection -- type comes from the fixed registry
+            const input = join(tmpDir, `${vars.fileName}${TYPE_EXTENSIONS[type] ?? '.txt'}`)
+            // eslint-disable-next-line security/detect-non-literal-fs-filename -- inside a fresh unique tmpdir
+            writeFileSync(input, blockSource)
+            vars.input = input
+          }
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from a glob-matched path under the trusted workspace root
+          mkdirSync(dirname(absOutput), { recursive: true })
+          // A stale file must not satisfy the post-command existence check.
+          rmSync(absOutput, { force: true })
+          renderWithCommand(resolved, command, vars, context.root)
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
+          if (!existsSync(absOutput)) {
+            throw new Error(`Diagram command succeeded but did not create ${output}`)
+          }
+        } finally {
+          if (tmpDir) {
+            rmSync(tmpDir, { force: true, recursive: true })
+          }
         }
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from a glob-matched path under the trusted workspace root
+      } else {
+        if (!resolved.krokiUrl) {
+          throw new Error(
+            `No renderer for ${file} (type ${type}): krokiUrl is empty — configure commands.${type} or set krokiUrl`,
+          )
+        }
+        // "docker" mode starts lazily on the first Kroki render — command-only
+        // and dryRun runs never touch the daemon.
+        let krokiBase = resolved.krokiUrl
+        if (krokiBase === 'docker') {
+          dockerKroki ??= await startDockerKroki(resolved.krokiImage, resolved.timeout)
+          krokiBase = dockerKroki.url
+        }
+        const source =
+          blockSource ??
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path joined to context.root
+          readFileSync(join(context.root, file), 'utf8')
+        const image = await renderWithKroki(resolved, krokiBase, type, source)
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from the same glob-matched path
         mkdirSync(dirname(absOutput), { recursive: true })
-        // A stale file must not satisfy the post-command existence check.
-        rmSync(absOutput, { force: true })
-        renderWithCommand(resolved, command, vars, context.root)
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
-        if (!existsSync(absOutput)) {
-          throw new Error(`Diagram command succeeded but did not create ${output}`)
-        }
-      } finally {
-        if (tmpDir) {
-          rmSync(tmpDir, { force: true, recursive: true })
-        }
+        writeFileSync(absOutput, image)
       }
-    } else {
-      if (!resolved.krokiUrl) {
-        throw new Error(
-          `No renderer for ${file} (type ${type}): krokiUrl is empty — configure commands.${type} or set krokiUrl`,
-        )
-      }
-      const source =
-        blockSource ??
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path joined to context.root
-        readFileSync(join(context.root, file), 'utf8')
-      const image = await renderWithKroki(resolved, type, source)
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- output derived from the same glob-matched path
-      mkdirSync(dirname(absOutput), { recursive: true })
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above
-      writeFileSync(absOutput, image)
+      console.log(`${file} -> ${output}`)
     }
-    console.log(`${file} -> ${output}`)
+  } finally {
+    dockerKroki?.stop()
   }
 
   return { success: true }

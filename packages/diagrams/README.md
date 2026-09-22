@@ -71,7 +71,8 @@ Per-file targets are the cache unit — each renders a single file, so unchanged
   "plugin": "@nx-devkit/diagrams",
   "options": {
     "format": "svg",                  // svg | png | jpeg (default: svg)
-    "krokiUrl": "https://kroki.io",   // self-host for privacy/offline; "" disables
+    "krokiUrl": "https://kroki.io",   // or "docker" for an ephemeral local container; "" disables
+    "krokiImage": "yuzutech/kroki:latest", // image used when krokiUrl is "docker"
     "outputDir": "{fileDir}",         // workspace-relative; tokens: {fileDir} {fileName} {projectRoot}
     "targetName": "diagrams",         // aggregate target name
     "include": ["docs/**"],           // extra filters over matched files
@@ -92,9 +93,15 @@ Placeholder values expand **shell-quoted** — paths with spaces stay single arg
 
 `outputDir` uses the same workspace-relative tokens: the default `{fileDir}` colocates output next to the source; use `{projectRoot}/img` for a per-project image directory.
 
-## Self-hosted Kroki
+## Local Kroki via docker
 
-Public `kroki.io` is rate-limited and sends your diagram sources to a third party. For CI or private diagrams run Kroki in docker — the official images are `yuzutech/kroki` (core: plantuml, graphviz, d2, …) plus companions `yuzutech/kroki-mermaid`, `kroki-bpmn`, `kroki-excalidraw`:
+Public `kroki.io` is rate-limited and sends your diagram sources to a third party. Set `"krokiUrl": "docker"` and the executor runs an ephemeral Kroki container per run — `docker run -d --rm -p 127.0.0.1::8000 yuzutech/kroki`, lazily on the first Kroki render, health-checked, then stopped when the run finishes (success or failure). Nothing persists between runs; set `krokiImage` to pin a digest or point at a mirror.
+
+The core image covers plantuml, graphviz, d2 and friends — mermaid, bpmn and excalidraw are companion services in upstream Kroki and are not bundled. For those types combine docker mode with `commands` (commands always win per type), or run a full compose stack:
+
+```jsonc
+{ "options": { "krokiUrl": "docker", "commands": { "mermaid": "mmdc -i {input} -o {output}" } } }
+```
 
 ```yaml
 # docker-compose.yml

@@ -9,8 +9,10 @@ export interface NxDiagramsPluginOptions {
   targetName?: string
   /** Output image format. Default: 'svg'. */
   format?: 'svg' | 'png' | 'jpeg'
-  /** Kroki base URL. Default: 'https://kroki.io'. Empty string disables Kroki. */
+  /** Kroki base URL. Default: 'https://kroki.io'. 'docker' runs an ephemeral local container per run; '' disables Kroki. */
   krokiUrl?: string
+  /** Docker image for krokiUrl='docker'. Default: 'yuzutech/kroki:latest'. */
+  krokiImage?: string
   /**
    * Output directory template, workspace-relative.
    * Tokens: {fileDir} {fileName} {projectRoot}. Default: '{fileDir}'.
@@ -126,6 +128,7 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       commands: options.commands ?? {},
       dryRun: options.dryRun ?? false,
       format,
+      krokiImage: options.krokiImage ?? 'yuzutech/kroki:latest',
       krokiUrl: options.krokiUrl ?? 'https://kroki.io',
       outputDir: options.outputDir ?? '{fileDir}',
     }

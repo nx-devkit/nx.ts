@@ -41,7 +41,12 @@
     "krokiUrl": {
       "type": "string",
       "default": "https://kroki.io",
-      "description": "Kroki base URL. Empty string disables Kroki (commands must cover all types)."
+      "description": "Kroki base URL, or \"docker\" to run an ephemeral local Kroki container per run (serverless — started lazily, stopped in finally). Empty string disables Kroki (commands must cover all types)."
+    },
+    "krokiImage": {
+      "type": "string",
+      "default": "yuzutech/kroki:latest",
+      "description": "Docker image used when krokiUrl is \"docker\" (mirrors, pinned digests)."
     },
     "outputDir": {
       "type": "string",

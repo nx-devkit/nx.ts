@@ -25,6 +25,15 @@ const state = {
     | { body: string; status: number }
     | ((url: string) => { body: string; status: number }),
   spawnCalls: [] as { command: string; options: { cwd?: string } | undefined }[],
+  dockerCalls: [] as string[][],
+  /** Override docker subcommand results by verb: run/port/stop. */
+  dockerRun: { status: 0, stdout: 'container123\n', stderr: '' } as {
+    error?: { message: string }
+    status: number | null
+    stdout?: string
+    stderr?: string
+  },
+  dockerPort: '127.0.0.1:32768\n' as string,
   spawnResponse: { status: 0, stderr: '' } as {
     error?: { code?: string; message: string }
     signal?: string
@@ -37,7 +46,18 @@ const state = {
 }
 
 vi.mock('node:child_process', () => ({
-  spawnSync: (command: string, options?: { cwd?: string }) => {
+  spawnSync: (command: string, argsOrOptions?: unknown, maybeOptions?: unknown) => {
+    const options = (Array.isArray(argsOrOptions) ? maybeOptions : argsOrOptions) as
+      | { cwd?: string }
+      | undefined
+    if (command === 'docker' && Array.isArray(argsOrOptions)) {
+      state.dockerCalls.push(argsOrOptions as string[])
+      const verb = (argsOrOptions as string[])[0]
+      if (verb === 'run') return state.dockerRun
+      if (verb === 'port') return { status: 0, stdout: state.dockerPort, stderr: '' }
+      if (verb === 'stop') return { status: 0, stdout: '', stderr: '' }
+      return { status: 1, stdout: '', stderr: `unknown docker verb ${verb}` }
+    }
     state.spawnCalls.push({ command, options })
     if (state.spawnResponse.status === 0 && state.spawnWritesOutput) {
       // The output path is whichever token ends with an image extension,
@@ -101,6 +121,9 @@ describe('renderExecutor', () => {
     state.spawnResponse = { status: 0, stderr: '' }
     state.spawnWritesOutput = true
     state.inputContent = undefined
+    state.dockerCalls.length = 0
+    state.dockerRun = { status: 0, stdout: 'container123\n', stderr: '' }
+    state.dockerPort = '127.0.0.1:32768\n'
     mkdirSync(workspace, { recursive: true })
   })
 
@@ -437,6 +460,128 @@ describe('renderExecutor', () => {
       expect(log).toHaveBeenCalledWith('[dryRun] would render guide.md block 0 -> guide-1.svg')
       expect(state.fetchCalls).toHaveLength(0)
       log.mockRestore()
+    })
+  })
+
+  describe('krokiUrl "docker"', () => {
+    it('starts an ephemeral container, renders against the mapped port, stops it', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD; A-->B\n')
+
+      await renderExecutor(
+        { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+        makeContext(workspace),
+      )
+
+      expect(state.dockerCalls.map((c) => c[0])).toEqual(['run', 'port', 'stop'])
+      expect(state.dockerCalls[0]).toEqual([
+        'run',
+        '-d',
+        '--rm',
+        '-p',
+        '127.0.0.1::8000',
+        'yuzutech/kroki:latest',
+      ])
+      expect(state.dockerCalls[1]).toEqual(['port', 'container123', '8000'])
+      expect(state.dockerCalls[2]).toEqual(['stop', 'container123'])
+      // Health probe then the render POST, both on the mapped port.
+      expect(state.fetchCalls.map((c) => c.url)).toEqual([
+        'http://127.0.0.1:32768/health',
+        'http://127.0.0.1:32768/mermaid/svg',
+      ])
+      expect(state.fetchCalls[1]?.body).toBe('graph TD; A-->B\n')
+      expect(existsSync(join(workspace, 'a.svg'))).toBe(true)
+    })
+
+    it('reuses one container for an aggregate run', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD; A-->B\n')
+      writeFileSync(join(workspace, 'b.d2'), 'x -> y\n')
+
+      await renderExecutor(
+        { files: ['a.mmd', 'b.d2'], krokiUrl: 'docker', outputs: ['a.svg', 'b.svg'] },
+        makeContext(workspace),
+      )
+
+      expect(state.dockerCalls.map((c) => c[0])).toEqual(['run', 'port', 'stop'])
+      const posts = state.fetchCalls.filter((c) => c.method === 'POST').map((c) => c.url)
+      expect(posts).toEqual(['http://127.0.0.1:32768/mermaid/svg', 'http://127.0.0.1:32768/d2/svg'])
+    })
+
+    it('stops the container even when a render fails', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+      // Health probe succeeds; the render POST fails.
+      state.fetchResponse = (url) =>
+        url.endsWith('/health') ? { body: 'ok', status: 200 } : { body: 'boom', status: 500 }
+
+      await expect(
+        renderExecutor(
+          { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow('HTTP 500')
+
+      expect(state.dockerCalls.map((c) => c[0])).toContain('stop')
+    })
+
+    it('never touches docker when commands cover the type or on dryRun', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+
+      await renderExecutor(
+        {
+          commands: { mermaid: 'mmdc -i {input} -o {output}' },
+          file: 'a.mmd',
+          krokiUrl: 'docker',
+          output: 'a.svg',
+        },
+        makeContext(workspace),
+      )
+      await renderExecutor(
+        { dryRun: true, file: 'a.mmd', krokiUrl: 'docker', output: 'b.svg' },
+        makeContext(workspace),
+      )
+
+      expect(state.dockerCalls).toEqual([])
+    })
+
+    it('fails actionably when docker run fails', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+      state.dockerRun = { status: 1, stdout: '', stderr: 'Cannot connect to the Docker daemon' }
+
+      await expect(
+        renderExecutor(
+          { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow(/docker.*yuzutech\/kroki/i)
+    })
+
+    it('honors a custom krokiImage', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+
+      await renderExecutor(
+        {
+          file: 'a.mmd',
+          krokiImage: 'mirror.local/kroki:2024.1',
+          krokiUrl: 'docker',
+          output: 'a.svg',
+        },
+        makeContext(workspace),
+      )
+
+      expect(state.dockerCalls[0]?.at(-1)).toBe('mirror.local/kroki:2024.1')
+    })
+
+    it('times out when /health never succeeds and still stops the container', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+      state.fetchResponse = { body: 'not ready', status: 503 }
+
+      await expect(
+        renderExecutor(
+          { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg', timeout: 500 },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow(/health|healthy|timeout/i)
+
+      expect(state.dockerCalls.map((c) => c[0])).toContain('stop')
     })
   })
 })
