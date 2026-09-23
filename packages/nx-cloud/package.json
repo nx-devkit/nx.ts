@@ -49,12 +49,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
-  },
   "devDependencies": {
     "@nx-devkit/internal": "workspace:*",
-    "@nx/devkit": "23.2.1",
     "@types/node": "^20.19.0",
     "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
@@ -66,7 +62,8 @@
     "directory": "packages/nx-cloud"
   },
   "dependencies": {
-    "jsonc-parser": "^3.3.1"
+    "jsonc-parser": "^3.3.1",
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
   },
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"

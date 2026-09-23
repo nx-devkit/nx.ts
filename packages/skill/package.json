@@ -41,11 +41,7 @@
     "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
-  },
   "devDependencies": {
-    "@nx/devkit": "23.2.1",
     "@types/node": "^26.0.0",
     "memfs": "^4.50.0",
     "tsdown": "^0.22.3",
@@ -61,5 +57,8 @@
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"
   },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skill"
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skill",
+  "dependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
+  }
 }

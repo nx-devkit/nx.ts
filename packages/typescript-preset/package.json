@@ -67,7 +67,6 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0",
     "@biomejs/biome": "^2.0.0",
     "eslint": "^9.0.0",
     "oxlint": "^1.0.0",
@@ -105,5 +104,8 @@
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"
   },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/typescript-preset"
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/typescript-preset",
+  "dependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
+  }
 }

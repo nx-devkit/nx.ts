@@ -34,8 +34,6 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0",
-    "nx": "^22.0.0 || ^23.0.0",
     "oxlint": "^1.0.0"
   },
   "devDependencies": {
@@ -55,5 +53,8 @@
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"
   },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/oxlint"
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/oxlint",
+  "dependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
+  }
 }

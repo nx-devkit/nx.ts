@@ -44,11 +44,8 @@
     "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
-  },
   "dependencies": {
-    "@nx/devkit": "22.7.1"
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

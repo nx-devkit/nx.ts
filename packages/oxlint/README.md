@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts). If you want the full Ty
 bun add -D @nx-devkit/oxlint oxlint
 ```
 
-Requires `nx`, `@nx/devkit`, and `oxlint` `^1` — all declared peers.
+Depends on `@nx/devkit` `^22 || ^23` (installed automatically — `nx` itself comes from your workspace via devkit's peer range). Requires the `oxlint` `^1` peer.
 
 ## Register
 

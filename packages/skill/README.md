@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/skill
 ```
 
-Requires `@nx/devkit` `^22 || ^23` (peer). The inferred targets also need their tools available: `build` invokes `skills-compiler` (resolved from `node_modules/.bin`, falling back to `PATH`), `lint` runs `markdownlint-cli2`, and `validate`/`os-check`/`size-check` run `tsx` — add whichever you use:
+Depends on `@nx/devkit` `^22 || ^23` — installed automatically. The inferred targets also need their tools available: `build` invokes `skills-compiler` (resolved from `node_modules/.bin`, falling back to `PATH`), `lint` runs `markdownlint-cli2`, and `validate`/`os-check`/`size-check` run `tsx` — add whichever you use:
 
 ```bash
 bun add -D markdownlint-cli2 tsx   # plus the skills-compiler tool for `build`

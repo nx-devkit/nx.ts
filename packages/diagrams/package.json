@@ -56,12 +56,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
-  },
   "devDependencies": {
     "@nx-devkit/internal": "workspace:*",
-    "@nx/devkit": "23.2.1",
     "@types/node": "^20.19.0",
     "memfs": "^4.50.0",
     "minimatch": "^10.2.4",
@@ -75,7 +71,8 @@
     "directory": "packages/diagrams"
   },
   "dependencies": {
-    "jsonc-parser": "^3.3.1"
+    "jsonc-parser": "^3.3.1",
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
   },
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"
