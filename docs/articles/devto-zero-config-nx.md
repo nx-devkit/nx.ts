@@ -13,10 +13,10 @@ If you've run an Nx monorepo, you know the deal: every new package gets a `proje
 // packages/lib-a/project.json — and again in lib-b, lib-c, ...
 {
   "targets": {
-    "build":     { "executor": "...", "options": { ... } },
-    "test":      { "executor": "...", "options": { ... } },
-    "lint":      { "executor": "...", "options": { ... } },
-    "typecheck": { "executor": "...", "options": { ... } }
+    "build":     { "executor": "...", "options": {} /* … */ },
+    "test":      { "executor": "...", "options": {} /* … */ },
+    "lint":      { "executor": "...", "options": {} /* … */ },
+    "typecheck": { "executor": "...", "options": {} /* … */ }
   }
 }
 ```
