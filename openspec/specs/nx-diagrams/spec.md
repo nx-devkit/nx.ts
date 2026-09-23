@@ -150,7 +150,7 @@ When a target carries a `block` index (single mode) or a `blocks` array aligned 
 - **THEN** the block body is written to a temp `.mmd` file passed as `{input}` and no HTTP request is made
 
 ### Requirement: Ephemeral Kroki backend via docker
-`krokiUrl` MUST additionally accept the literal string `docker`. In this mode the executor MUST lazily start `docker run -d --rm -p 127.0.0.1::8000 <krokiImage>` on the first render that requires Kroki, resolve the mapped port via `docker port`, wait for `GET <url>/health` to succeed (bounded by `timeout`), render all Kroki-needed sources in the run against that URL, and stop the container in `finally` so it is removed (`--rm`). `krokiImage` MUST default to `yuzutech/kroki:latest` and be overridable via plugin options and target config.
+`krokiUrl` MUST additionally accept the literal string `docker`. In this mode the executor MUST lazily start `docker run -d --rm -p 127.0.0.1::8000 <krokiImage>` on the first render that requires Kroki, resolve the mapped port via `docker port`, wait for `GET <url>/health` to succeed (bounded by `timeout`), render all Kroki-needed sources in the run against that URL, and stop the container in `finally` so it is removed (`--rm`). `krokiImage` MUST default to `yuzutech/kroki:latest` and be overridable via plugin options and target config. The default core image only serves the types bundled upstream (PlantUML, Graphviz, D2, and similar); Mermaid, BPMN, and Excalidraw are companion services and MUST be covered by `commands` overrides or a `krokiImage` that bundles them — docker mode has no public-URL fallback for them.
 
 #### Scenario: Docker mode render
 - **WHEN** `krokiUrl` is `docker` and a `plantuml` source renders
