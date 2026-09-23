@@ -50,16 +50,16 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/prepare-for-release`](./packages/prepare-for-release/README.md) | Every non-root `package.json` with `name` + `private !== true` | `prepare-for-release` target per package — idempotent npm placeholder publishing + OIDC trust |
 | [`@nx-devkit/release`](./packages/release/README.md) | `project.json` referencing the `publish` executor | Automated npm releases from CI — version bump, OIDC publish, git tag, GitHub Release |
 | [`@nx-devkit/nx-cloud`](./packages/nx-cloud/README.md) | `nx.json` at workspace root | `nx-cloud-rotate` target on the root project — roll over to a fresh Nx Cloud org when quota runs out |
-| [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{puml,mmd,dot,gv,d2,bpmn,excalidraw}` + diagram fences in `*.md` | Cached, atomized `diagram-*` render targets via Kroki, Docker, or local renderers |
+| [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` + diagram fences in `*.md` | Cached, atomized `diagram-*` render targets via Kroki, Docker, or local renderers |
 
 The preset subsumes the standalone tsdown/oxlint/biome plugins; they stay available for single-tool consumers.
 
 ## Requirements
 
-- **Node.js** — any version your Nx release supports (Node 20/22/24 for Nx 22–23)
+- **Node.js** ≥ 22.14 — the preset discovers configs with `fs.globSync`, which does not exist on older lines
 - **Nx** `^22 || ^23` — installed automatically by `init` when missing
 - **Package manager** — any of npm / pnpm / yarn / bun; binaries are resolved from `node_modules/.bin`
-- **Tools are optional peers** — install only what your config files imply (`vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`, `@typescript/native-preview`); `init` adds them for you
+- **Required peers** — `typescript` and `@nx/devkit` (`init` installs both). **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. `@typescript/native-preview` (tsgo) is optional and undeclared — add it for faster `typecheck`.
 
 ## When to use — and when not
 
@@ -82,7 +82,7 @@ Inference is file-driven — the trigger config (`vitest.config.*`, `.oxlintrc.*
 NX_VERBOSE_LOGGING=true npx nx show projects   # or pass --verbose
 ```
 
-**`lint` ran the wrong tool.** Lint has an explicit precedence: oxlint > eslint > biome, and each requires both its option enabled and its config present. `oxlint: false` in the plugin options hands `lint` to ESLint even when `.oxlintrc.json` exists. See the [preset README](./packages/typescript-preset/README.md#lint-precedence).
+**`lint` ran the wrong tool.** Lint has an explicit precedence: oxlint > eslint > biome, and each requires both its option enabled and its config present. `oxlint: false` hands `lint` to ESLint only when `eslint: true` *and* an `eslint.config.*` exists — otherwise Biome's fallback takes it. See the [preset README](./packages/typescript-preset/README.md#lint-precedence).
 
 **`command not found` / binary resolution errors.** Inferred targets call tool binaries from `node_modules/.bin` — the tool must be a devDependency somewhere reachable from the project root (hoisted installs work). Run `npx @nx-devkit/typescript init` to install the tools your configs imply.
 
