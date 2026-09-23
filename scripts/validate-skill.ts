@@ -36,7 +36,8 @@ if (!existsSync(skillMd)) {
   const content = readFileSync(skillMd, 'utf8')
   // Extract the frontmatter block between --- fences (no regex needed).
   const lines = content.split('\n')
-  const fmEnd = lines[0]?.trim() === '---' ? lines.indexOf('---', 1) : -1
+  const fmEnd =
+    lines[0]?.trim() === '---' ? lines.findIndex((l, i) => i > 0 && l.trim() === '---') : -1
   if (fmEnd <= 0) {
     errors.push('SKILL.md is missing a YAML frontmatter block')
   } else {
@@ -78,15 +79,21 @@ if (!existsSync(skillMd)) {
 
 const openaiMeta = join(root, 'agents', 'openai.yaml')
 if (existsSync(openaiMeta)) {
-  const meta = readFileSync(openaiMeta, 'utf8')
-  const metaLines = meta.split('\n')
-  for (const key of ['display_name', 'short_description', 'default_prompt']) {
-    const found = metaLines.some((line) => {
-      const t = line.trimStart()
-      return t.startsWith(`${key}:`) && t.slice(key.length + 1).trim().length > 0
-    })
-    if (!found) {
-      errors.push(`agents/openai.yaml is missing \`${key}\``)
+  let meta: unknown
+  try {
+    meta = parse(readFileSync(openaiMeta, 'utf8'))
+  } catch (err) {
+    errors.push(`agents/openai.yaml does not parse as YAML: ${(err as Error).message}`)
+    meta = undefined
+  }
+  if (meta !== undefined && (typeof meta !== 'object' || meta === null || Array.isArray(meta))) {
+    errors.push('agents/openai.yaml must be a YAML mapping')
+  } else if (meta !== undefined) {
+    const fields = meta as Record<string, unknown>
+    for (const key of ['display_name', 'short_description', 'default_prompt']) {
+      if (typeof fields[key] !== 'string' || !(fields[key] as string).trim()) {
+        errors.push(`agents/openai.yaml is missing \`${key}\` or it is not a non-empty string`)
+      }
     }
   }
 }

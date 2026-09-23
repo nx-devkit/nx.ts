@@ -120,7 +120,11 @@ export function build(options: CompilerOptions): void {
       break
     }
     case 'skills-sh': {
-      buildSkillsSh(options, skillsToEmit, projectName)
+      // A plugin manifest's `name` is the package name and may not be an
+      // included skill — skills-sh needs a skill as primary, so fall back to
+      // the first included skill.
+      const primaryName = skillsByName.has(projectName) ? projectName : include[0]
+      buildSkillsSh(options, skillsToEmit, primaryName)
       break
     }
     default: {

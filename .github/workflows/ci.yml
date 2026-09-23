@@ -67,6 +67,11 @@ jobs:
             "git+https://github.com/NVIDIA/skillspector.git@v2.11.2"
       - name: SkillSpector scans
         run: bun --bun node_modules/.bin/nx run-many -t scan --projects 'skills-*' --verbose
+      - name: Emit scan annotations
+        # The scan executor writes annotations-<project>.txt files with GitHub
+        # workflow commands; printing them surfaces findings as PR annotations.
+        if: always()
+        run: cat annotations-*.txt 2>/dev/null || true
 
   e2e-packed:
     name: Packed-tarball e2e

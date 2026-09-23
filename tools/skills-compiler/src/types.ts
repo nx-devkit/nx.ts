@@ -17,6 +17,8 @@ export interface SkillLink {
   targetName: string
   raw: string
   type: SkillLinkType
+  /** Path of the .md file the link was found in, relative to the skill dir. */
+  sourceFile?: string
 }
 
 export type PluginDependency = string | { name: string; version?: string; marketplace?: string }

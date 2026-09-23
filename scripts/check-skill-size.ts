@@ -29,7 +29,8 @@ const root = resolve(skillDir),
   skillMd = join(root, 'SKILL.md')
 try {
   const content = readFileSync(skillMd, 'utf8')
-  const lines = content.split('\n').length
+  const lines =
+    content === '' ? 0 : content.split(/\r?\n/).length - (content.endsWith('\n') ? 1 : 0)
   const bytes = Buffer.byteLength(content)
   if (lines > MAX_LINES) errors.push(`SKILL.md has ${lines} lines (limit ${MAX_LINES})`)
   if (bytes > MAX_SKILL_MD_BYTES) {
@@ -48,7 +49,7 @@ let realRoot = ''
 function walk(dir: string): void {
   // eslint-disable-next-line node/no-sync -- sync CLI traversal
   for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry.startsWith('.')) continue
+    if (entry === 'node_modules') continue
     const full = join(dir, entry)
     const st = lstatSync(full)
     if (st.isSymbolicLink()) {

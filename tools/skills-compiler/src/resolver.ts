@@ -9,7 +9,7 @@ interface ParsedSkill {
 }
 
 function parseFrontmatter(content: string, sourcePath?: string): ParsedSkill {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/)
   if (!match) {
     return { frontmatter: {}, body: content }
   }
@@ -19,7 +19,7 @@ function parseFrontmatter(content: string, sourcePath?: string): ParsedSkill {
       parsed && typeof parsed === 'object' && !Array.isArray(parsed)
         ? (parsed as Record<string, unknown>)
         : {}
-    return { frontmatter, body: match[2] }
+    return { frontmatter, body: match[2] ?? '' }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     throw new Error(
@@ -118,9 +118,11 @@ export function discoverSkills(skillsRoot: string): Map<string, Skill> {
     const seen = new Set<string>()
     for (const mdFile of collectMdFiles(skill.dir)) {
       const content = fs.readFileSync(mdFile, 'utf8')
-      const fileDir = path.dirname(mdFile)
+      const fileDir = path.dirname(mdFile),
+        relFile = path.relative(skill.dir, mdFile).replace(/\\/g, '/')
       const fileLinks = resolveLinksInBody(content, fileDir, skillsRoot, byName)
       for (const link of fileLinks) {
+        link.sourceFile = relFile
         const key = `${mdFile}\0${link.targetName}\0${link.raw}`
         if (!seen.has(key)) {
           seen.add(key)
@@ -134,7 +136,7 @@ export function discoverSkills(skillsRoot: string): Map<string, Skill> {
   return byName
 }
 
-function collectMdFiles(dir: string): string[] {
+export function collectMdFiles(dir: string): string[] {
   const results: string[] = []
   function walk(d: string) {
     let entries: fs.Dirent[]
@@ -175,8 +177,15 @@ function resolveLinksInBody(
   for (const match of body.matchAll(mdLinkRegex)) {
     const [raw, text, url] = match
     if (raw.startsWith('!')) continue // images
-    if (url.startsWith('http') || url.startsWith('#')) continue
-    const resolved = path.resolve(sourceDir, url.split('?')[0].split('#')[0])
+    // Parse the destination token: angle-bracket destinations may contain
+    // spaces; a whitespace suffix is an optional link title, not part of it.
+    const urlTrim = url.trim(),
+      dest =
+        urlTrim.startsWith('<') && urlTrim.includes('>')
+          ? urlTrim.slice(1, urlTrim.indexOf('>'))
+          : (urlTrim.split(/\s+/)[0] ?? '')
+    if (!dest || dest.startsWith('http') || dest.startsWith('#')) continue
+    const resolved = path.resolve(sourceDir, dest.split('?')[0].split('#')[0])
     // Only links that point at a SKILL.md itself count as skill references —
     // links to README.md or other files in a skill dir are plain file links.
     if (path.basename(resolved).toLowerCase() !== 'skill.md') continue
@@ -244,8 +253,4 @@ export function resolveClosure(
   }
 
   return result
-}
-
-export function inferProjectName(projectRoot: string, workspaceRoot: string): string {
-  return path.relative(path.resolve(workspaceRoot), path.resolve(projectRoot)).replace(/\\/g, '/')
 }

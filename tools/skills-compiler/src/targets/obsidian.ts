@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { rewriteBody } from './common.js'
+import { linksForFile, rewriteBody } from './common.js'
 import type { CompilerOptions, Skill, SkillLink } from '../types.js'
 
 export function buildObsidian(options: CompilerOptions, skills: Skill[]): void {
@@ -12,12 +12,12 @@ export function buildObsidian(options: CompilerOptions, skills: Skill[]): void {
     fs.mkdirSync(targetDir, { recursive: true })
     const body = rewriteBody(
       skill.body,
-      skill.links,
+      linksForFile(skill, 'SKILL.md'),
       (link: SkillLink) => {
         const target = skillsByName.get(link.targetName)
         if (!target) return link.raw
         const rel = path.relative(skill.name, target.name).replace(/\\/g, '/')
-        return `[${link.text}](${rel}/${target.name}.md)`
+        return `[${link.text}](${rel ? `${rel}/` : ''}${target.name}.md)`
       },
       skill,
     )

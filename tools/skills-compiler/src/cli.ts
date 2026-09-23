@@ -23,7 +23,13 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2),
     getArg = (name: string): string | undefined => {
       const idx = args.indexOf(name)
-      return idx !== -1 ? args[idx + 1] : undefined
+      if (idx === -1) return undefined
+      const value = args[idx + 1]
+      if (value === undefined || value.startsWith('--')) {
+        console.error(`Missing value for ${name}`)
+        process.exit(1)
+      }
+      return value
     },
     workspaceRoot = path.resolve(getArg('--workspace-root') ?? process.cwd()),
     project = getArg('--project'),
@@ -66,4 +72,7 @@ async function main(): Promise<void> {
   console.log(`Built ${target} for ${project} -> ${finalOutDir}`)
 }
 
-await main()
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exit(1)
+})

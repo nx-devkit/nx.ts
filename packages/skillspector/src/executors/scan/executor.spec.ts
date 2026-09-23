@@ -448,6 +448,7 @@ describe('scanExecutor', () => {
     expect(execFileCalls).toHaveLength(2)
     expect(execFileCalls[0]!.command).toBe('.tools/skillspector-venv/bin/skillspector')
     expect(execFileCalls[1]!.command).toBe('skillspector')
+    expect(execFileCalls[1]!.args).toEqual(execFileCalls[0]!.args)
   })
 
   it('does not retry on ENOENT for a bare command name', async () => {

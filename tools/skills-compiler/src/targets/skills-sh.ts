@@ -1,37 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stringify as stringifyYaml } from 'yaml'
-import { rewriteBody } from './common.js'
+import { copySkillDirectory, linksForFile, rewriteBody } from './common.js'
 import type { CompilerOptions, Skill, SkillLink } from '../types.js'
 
 const DEFAULT_CANONICAL_SOURCE = 'theplenkov-ai/skills'
-
-function copySkillDirectory(src: string, dest: string): void {
-  // Remove stale output first so deleted/renamed source files do not linger
-  // In repeated builds.
-  fs.rmSync(dest, { recursive: true, force: true })
-  fs.mkdirSync(dest, { recursive: true })
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    // Dependencies/ is a build-time artifact from earlier formats; do not publish it.
-    if (entry.name === 'dependencies') continue
-    const srcPath = path.join(src, entry.name),
-      destPath = path.join(dest, entry.name)
-    if (entry.isSymbolicLink()) {
-      const linkTarget = fs.readlinkSync(srcPath)
-      let type: 'dir' | 'file' = 'file'
-      try {
-        type = fs.statSync(srcPath).isDirectory() ? 'dir' : 'file'
-      } catch {
-        // Dangling symlink — nothing to resolve; keep it as a file-type link.
-      }
-      fs.symlinkSync(linkTarget, destPath, type)
-    } else if (entry.isDirectory()) {
-      copySkillDirectory(srcPath, destPath)
-    } else {
-      fs.copyFileSync(srcPath, destPath)
-    }
-  }
-}
 
 function normalizeRepoShorthand(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -161,6 +134,7 @@ function rewriteFileMacros(
   })
 
   if (changed) {
+    fs.rmSync(filePath, { force: true }) // unlink a copied symlink before writing
     fs.writeFileSync(filePath, result, 'utf8')
   }
 }
@@ -191,7 +165,7 @@ function rewriteFileLinks(
     // Resolve the link relative to the SOURCE file's directory (not the
     // Published copy) to find which skill it points at.
     const resolved = path.resolve(sourceDir, cleanUrl)
-    if (!resolved.toLowerCase().endsWith('skill.md')) return raw
+    if (path.basename(resolved).toLowerCase() !== 'skill.md') return raw
     const skillDir = path.dirname(resolved),
       relToSkills = path.relative(path.resolve(skillsRoot), skillDir).replace(/\\/g, '/')
 
@@ -213,8 +187,24 @@ function rewriteFileLinks(
   })
 
   if (changed) {
+    fs.rmSync(filePath, { force: true }) // unlink a copied symlink before writing
     fs.writeFileSync(filePath, result, 'utf8')
   }
+}
+
+// Extract the suffix of a markdown link destination (query, fragment and
+// optional title) so rewrites preserve them.
+function linkSuffix(raw: string): string {
+  const open = raw.indexOf('('),
+    close = raw.lastIndexOf(')')
+  if (open === -1 || close <= open) return ''
+  const inner = raw.slice(open + 1, close).trim(),
+    match = /^<?([^>\s]+)>?([\s\S]*)$/.exec(inner)
+  if (!match) return ''
+  const dest = match[1],
+    rest = match[2] ?? '',
+    q = dest.search(/[?#]/)
+  return (q === -1 ? '' : dest.slice(q)) + rest
 }
 
 function emitSkill(
@@ -230,19 +220,20 @@ function emitSkill(
   const linkFormatter = (link: SkillLink, _source: Skill) => {
       const target = byName.get(link.targetName)
       if (!target) return link.raw
+      const suffix = linkSuffix(link.raw)
       if (isPrimary) {
         if (target.name === projectName) {
-          return `[${link.text}](SKILL.md)`
+          return `[${link.text}](SKILL.md${suffix})`
         }
-        return `[${link.text}](references/${target.name}/README.md)`
+        return `[${link.text}](references/${target.name}/README.md${suffix})`
       }
       if (target.name === projectName) {
-        return `[${link.text}](../../SKILL.md)`
+        return `[${link.text}](../../SKILL.md${suffix})`
       }
-      return `[${link.text}](../${target.name}/README.md)`
+      return `[${link.text}](../${target.name}/README.md${suffix})`
     },
     header = `---\n${normalizeFrontmatter(skill.frontmatter, options.publicSource)}---\n`,
-    body = rewriteBody(skill.body, skill.links, linkFormatter, skill),
+    body = rewriteBody(skill.body, linksForFile(skill, 'SKILL.md'), linkFormatter, skill),
     // Primary skill: write SKILL.md (the one skills.sh indexes).
     // Dependency skills: write README.md and remove SKILL.md so the snapshot
     // contains exactly one SKILL.md — the primary — which skills.sh expects.
@@ -251,12 +242,16 @@ function emitSkill(
     primaryPath = path.join(destDir, 'SKILL.md'),
     readmePath = path.join(destDir, 'README.md')
   if (isPrimary) {
+    // Unlink first — a copied symlink would otherwise be written through the
+    // link and corrupt the source tree.
+    fs.rmSync(primaryPath, { force: true })
     fs.writeFileSync(primaryPath, header + body, 'utf8')
   } else {
     fs.rmSync(primaryPath, { force: true })
     if (fs.existsSync(readmePath)) {
       fs.renameSync(readmePath, path.join(destDir, 'README.source.md'))
     }
+    fs.rmSync(readmePath, { force: true })
     fs.writeFileSync(readmePath, header + body, 'utf8')
   }
   const skillMdPath = isPrimary ? primaryPath : readmePath
@@ -294,9 +289,11 @@ export function buildSkillsSh(
   fs.mkdirSync(options.outDir, { recursive: true })
   const refsDir = path.join(options.outDir, 'references')
 
+  // Emit the primary first — its copySkillDirectory clears outDir, so
+  // emitting it after dependencies would delete the bundled references.
+  emitSkill(primary, options.outDir, true, options, projectName, byName)
   for (const skill of skills) {
     if (skill.name === projectName) continue
     emitSkill(skill, path.join(refsDir, skill.name), false, options, projectName, byName)
   }
-  emitSkill(primary, options.outDir, true, options, projectName, byName)
 }

@@ -38,8 +38,8 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'dist'])
 
 const PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\/Users\/\S+/, label: 'macOS user path (/Users/…)' },
-  { re: /\/home\/[a-zA-Z0-9._-]+\//, label: 'Linux user path (/home/<user>/…)' },
-  { re: /\b[A-Za-z]:\\[\w\\.-]+/, label: 'Windows path (C:\\…)' },
+  { re: /\/home\/[a-zA-Z0-9._-]+(\/|$)/, label: 'Linux user path (/home/<user>/…)' },
+  { re: /\b[A-Za-z]:[\\/][\w\\/.-]+/, label: 'Windows path (C:\\…)' },
   { re: /\bcmd\.exe\b/i, label: 'cmd.exe invocation' },
   { re: /\bpowershell\b/i, label: 'powershell invocation' },
   { re: /\bwinget\b/i, label: 'winget (Windows-only)' },
