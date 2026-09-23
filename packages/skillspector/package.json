@@ -2,6 +2,17 @@
   "name": "@nx-devkit/skillspector",
   "version": "0.1.7",
   "license": "MIT",
+  "description": "Nx plugin for SkillSpector security scanning: any SKILL.md gets a scan target reporting vulnerabilities, secrets, and risky patterns — with SARIF output and CI annotations.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "security",
+    "security-scanner",
+    "sarif",
+    "agent-skills",
+    "skillspector",
+    "llm-security"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",
@@ -46,5 +57,9 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/skillspector"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skillspector"
 }

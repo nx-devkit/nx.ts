@@ -2,6 +2,20 @@
   "name": "@nx-devkit/diagrams",
   "version": "0.0.6",
   "license": "MIT",
+  "description": "Nx plugin that renders text-diagram sources (PlantUML, Mermaid, D2, Graphviz, BPMN, Excalidraw) into cached, atomized targets via Kroki or local renderers.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "diagrams",
+    "diagram-as-code",
+    "plantuml",
+    "mermaid",
+    "d2",
+    "graphviz",
+    "bpmn",
+    "excalidraw",
+    "kroki"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",
@@ -62,5 +76,9 @@
   },
   "dependencies": {
     "jsonc-parser": "^3.3.1"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/diagrams"
 }
