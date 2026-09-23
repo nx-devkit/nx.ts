@@ -7,6 +7,7 @@ export interface RenderExecutorSchema {
   outputs?: string[]
   format?: 'svg' | 'png' | 'jpeg'
   krokiUrl?: string
+  krokiImage?: string
   outputDir?: string
   commands?: Record<string, string>
   timeout?: number
