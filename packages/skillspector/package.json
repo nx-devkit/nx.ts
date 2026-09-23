@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/skillspector",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "MIT",
   "description": "Nx plugin for SkillSpector security scanning: any SKILL.md gets a scan target reporting vulnerabilities, secrets, and risky patterns — with SARIF output and CI annotations.",
   "keywords": [

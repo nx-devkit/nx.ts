@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/release",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "license": "MIT",
   "description": "Zero-config Nx plugin for automated npm releases via CI — version bump, OIDC publish, git tag, and GitHub Release, fully idempotent.",
   "keywords": [

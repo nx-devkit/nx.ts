@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/prepare-for-release",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "license": "MIT",
   "description": "Nx plugin that bootstraps npm publishing: 0.0.0 placeholder releases for unpublished packages plus OIDC trusted-publishing setup.",
   "keywords": [
