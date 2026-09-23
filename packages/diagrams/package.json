@@ -1,7 +1,21 @@
 {
   "name": "@nx-devkit/diagrams",
-  "version": "0.0.1",
+  "version": "0.0.7",
   "license": "MIT",
+  "description": "Nx plugin that renders text-diagram sources (PlantUML, Mermaid, D2, Graphviz, BPMN, Excalidraw) into cached, atomized targets via Kroki or local renderers.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "diagrams",
+    "diagram-as-code",
+    "plantuml",
+    "mermaid",
+    "d2",
+    "graphviz",
+    "bpmn",
+    "excalidraw",
+    "kroki"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",
@@ -30,21 +44,23 @@
     "generators.json",
     "src/executors/render/schema.json",
     "src/generators/init/schema.json",
-    "README.md"
+    "README.md",
+    "docs/pipeline.svg",
+    "README-1.svg"
   ],
   "scripts": {
     "build": "tsdown",
+    "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
   "publishConfig": {
     "access": "public"
   },
-  "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
-  },
   "devDependencies": {
-    "@nx/devkit": "23.2.1",
+    "@nx-devkit/internal": "workspace:*",
     "@types/node": "^20.19.0",
+    "memfs": "^4.50.0",
+    "minimatch": "^10.2.4",
     "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
@@ -55,6 +71,11 @@
     "directory": "packages/diagrams"
   },
   "dependencies": {
-    "jsonc-parser": "^3.3.1"
-  }
+    "jsonc-parser": "^3.3.1",
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/diagrams"
 }

@@ -105,6 +105,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
       const targetName = opts.scanTargetName ?? 'scan'
 
       const project: ProjectConfiguration = {
+        name: projectName,
         root: projectRoot,
         name: projectName,
         targets: {
@@ -116,7 +117,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
         configFile,
         {
           projects: {
-            [projectName]: project,
+            [projectRoot]: project,
           },
         },
       ])

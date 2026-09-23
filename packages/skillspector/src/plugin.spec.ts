@@ -58,7 +58,8 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     const projectRoot = 'skills/code-review/act'
     const expectedName = expectedProjectName(projectRoot)
     const projects = project.projects
-    expect(projects).toHaveProperty(expectedName)
+    expect(projects).toHaveProperty(projectRoot)
+    expect(projects![projectRoot]!.name).toBe(expectedName)
   })
 
   it('skips workspace root SKILL.md', async () => {
@@ -83,8 +84,8 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
 
     expect(results1).toHaveLength(1)
     expect(results2).toHaveLength(1)
-    const name1 = Object.keys(results1[0]![1].projects!)[0]!
-    const name2 = Object.keys(results2[0]![1].projects!)[0]!
+    const name1 = results1[0]![1].projects!['skills/a-b']!.name!
+    const name2 = results2[0]![1].projects!['skills/a/b']!.name!
     const expectedName1 = expectedProjectName('skills/a-b')
     const expectedName2 = expectedProjectName('skills/a/b')
     expect(name1).toBe(expectedName1)
@@ -96,8 +97,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     const relFile = makeSkill('skills/custom-target')
     const results = await callWith(relFile, { scanTargetName: 'security' })
     const projectRoot = 'skills/custom-target'
-    const expectedName = expectedProjectName(projectRoot)
-    const targets = results[0]![1].projects![expectedName]!.targets!
+    const targets = results[0]![1].projects![projectRoot]!.targets!
 
     expect(targets).toHaveProperty('security')
     expect(targets).not.toHaveProperty('scan')
@@ -107,8 +107,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     const relFile = makeSkill('skills/cache-ann-on')
     const results = await callWith(relFile)
     const projectRoot = 'skills/cache-ann-on'
-    const expectedName = expectedProjectName(projectRoot)
-    const scan = results[0]![1].projects![expectedName]!.targets!.scan!
+    const scan = results[0]![1].projects![projectRoot]!.targets!.scan!
 
     expect(scan.cache).toBe(false)
   })
@@ -117,8 +116,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     const relFile = makeSkill('skills/cache-ann-off')
     const results = await callWith(relFile, { annotations: false, noLlm: true })
     const projectRoot = 'skills/cache-ann-off'
-    const expectedName = expectedProjectName(projectRoot)
-    const scan = results[0]![1].projects![expectedName]!.targets!.scan!
+    const scan = results[0]![1].projects![projectRoot]!.targets!.scan!
 
     expect(scan.cache).toBe(true)
   })
@@ -135,7 +133,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     })
     const projectRoot = 'skills/all-opts'
     const expectedName = expectedProjectName(projectRoot)
-    const scan = results[0]![1].projects![expectedName]!.targets!.scan!
+    const scan = results[0]![1].projects![projectRoot]!.targets!.scan!
 
     expect(scan.executor).toBe('@nx-devkit/skillspector:scan')
     expect(scan.options).toMatchObject({
@@ -153,8 +151,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     const relFile = makeSkill('skills/no-sarif')
     const results = await callWith(relFile)
     const projectRoot = 'skills/no-sarif'
-    const expectedName = expectedProjectName(projectRoot)
-    const scan = results[0]![1].projects![expectedName]!.targets!.scan!
+    const scan = results[0]![1].projects![projectRoot]!.targets!.scan!
 
     expect(scan.options).not.toHaveProperty('sarif')
   })
@@ -167,7 +164,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     })
     const projectRoot = 'skills/outputs-test'
     const expectedName = expectedProjectName(projectRoot)
-    const scan = results[0]![1].projects![expectedName]!.targets!.scan!
+    const scan = results[0]![1].projects![projectRoot]!.targets!.scan!
 
     expect(scan.outputs).toBeDefined()
     expect(scan.outputs).toEqual(
@@ -182,8 +179,7 @@ describe('@nx-devkit/skillspector createNodesV2', () => {
     const relFile = makeSkill('skills/baseline-input')
     const results = await callWith(relFile, { baseline: 'baselines/skills.json' })
     const projectRoot = 'skills/baseline-input'
-    const expectedName = expectedProjectName(projectRoot)
-    const scan = results[0]![1].projects![expectedName]!.targets!.scan!
+    const scan = results[0]![1].projects![projectRoot]!.targets!.scan!
 
     expect(scan.inputs).toEqual(
       expect.arrayContaining(['{projectRoot}/**/*', 'baselines/skills.json', '^production']),

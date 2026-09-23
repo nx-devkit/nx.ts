@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / discussion
+    url: https://github.com/nx-devkit/nx.ts/discussions
+    about: Usage questions and ideas go here, not in issues.
+  - name: Security vulnerability
+    url: https://github.com/nx-devkit/nx.ts/security/advisories/new
+    about: Report privately via Security Advisories — never in a public issue.

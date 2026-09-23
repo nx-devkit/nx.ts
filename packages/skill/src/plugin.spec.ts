@@ -71,7 +71,8 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const projectRoot = 'skills/code-review/act'
     const expectedName = expectedProjectName(projectRoot)
     const projects = project.projects
-    expect(projects).toHaveProperty(expectedName)
+    expect(projects).toHaveProperty(projectRoot)
+    expect(projects![projectRoot]!.name).toBe(expectedName)
   })
 
   it('skips workspace root SKILL.md', async () => {
@@ -91,7 +92,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const results = await fn(['skills/a-b/SKILL.md', 'skills/a/b/SKILL.md'], {}, makeContext())
 
     expect(results).toHaveLength(2)
-    const names = results.flatMap((r) => Object.keys(r[1].projects!))
+    const names = results.flatMap((r) => Object.values(r[1].projects!).map((p) => p.name))
     const name1 = expectedProjectName('skills/a-b')
     const name2 = expectedProjectName('skills/a/b')
     expect(names).toContain(name1)
@@ -103,8 +104,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const targets = results[0]![1].projects![expectedName]!.targets!
+    const targets = results[0]![1].projects![projectRoot]!.targets!
 
     expect(targets).toHaveProperty('build')
     expect(targets).toHaveProperty('lint')
@@ -118,7 +118,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
     const expectedName = expectedProjectName(projectRoot)
-    const build = results[0]![1].projects![expectedName]!.targets!.build!
+    const build = results[0]![1].projects![projectRoot]!.targets!.build!
 
     expect(build.executor).toBe('@nx-devkit/skill:build')
     expect(build.cache).toBe(true)
@@ -134,8 +134,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const build = results[0]![1].projects![expectedName]!.targets!.build!
+    const build = results[0]![1].projects![projectRoot]!.targets!.build!
 
     expect(build.inputs).toEqual(
       expect.arrayContaining([
@@ -154,8 +153,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const lint = results[0]![1].projects![expectedName]!.targets!.lint!
+    const lint = results[0]![1].projects![projectRoot]!.targets!.lint!
 
     expect(lint.executor).toBe('nx:run-commands')
     expect(lint.cache).toBe(true)
@@ -170,8 +168,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const validate = results[0]![1].projects![expectedName]!.targets!.validate!
+    const validate = results[0]![1].projects![projectRoot]!.targets!.validate!
 
     expect(validate.executor).toBe('nx:run-commands')
     expect(validate.cache).toBe(true)
@@ -184,8 +181,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const osCheck = results[0]![1].projects![expectedName]!.targets!['os-check']!
+    const osCheck = results[0]![1].projects![projectRoot]!.targets!['os-check']!
 
     expect(osCheck.executor).toBe('nx:run-commands')
     expect(osCheck.cache).toBe(true)
@@ -200,8 +196,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const sizeCheck = results[0]![1].projects![expectedName]!.targets!['size-check']!
+    const sizeCheck = results[0]![1].projects![projectRoot]!.targets!['size-check']!
 
     expect(sizeCheck.executor).toBe('nx:run-commands')
     expect(sizeCheck.cache).toBe(true)
@@ -226,8 +221,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
       makeContext(),
     )
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const targets = results[0]![1].projects![expectedName]!.targets!
+    const targets = results[0]![1].projects![projectRoot]!.targets!
 
     expect(targets).toHaveProperty('compile')
     expect(targets).toHaveProperty('md-lint')
@@ -246,8 +240,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
       makeContext(),
     )
     const projectRoot = 'skills/code-review/act'
-    const expectedName = expectedProjectName(projectRoot)
-    const build = results[0]![1].projects![expectedName]!.targets!.build!
+    const build = results[0]![1].projects![projectRoot]!.targets!.build!
 
     expect(build.inputs).toEqual(expect.arrayContaining(['{projectRoot}/custom/**/*']))
   })

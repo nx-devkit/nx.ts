@@ -1,7 +1,19 @@
 {
   "name": "@nx-devkit/biome",
-  "version": "0.1.4",
+  "version": "0.1.7",
   "license": "MIT",
+  "description": "Standalone Nx plugin: infers format, format-check, and lint targets from biome.json — no project.json required.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "biome",
+    "formatter",
+    "linter",
+    "format",
+    "typescript",
+    "monorepo",
+    "zero-config"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/plugin.mjs",
@@ -22,9 +34,7 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@biomejs/biome": "^2.0.0",
-    "@nx/devkit": "^22.0.0 || ^23.0.0",
-    "nx": "^22.0.0 || ^23.0.0"
+    "@biomejs/biome": "^2.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
@@ -37,5 +47,12 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/biome"
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/biome",
+  "dependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
   }
 }

@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/skillspector
 ```
 
-Requires `@nx/devkit` `^22 || ^23` (peer) and a `skillspector` binary reachable on `PATH` — or point the `skillspectorBin` option at any install.
+Depends on `@nx/devkit` `^22 || ^23` (installed automatically) and a `skillspector` binary reachable on `PATH` — or point the `skillspectorBin` option at any install.
 
 ## Register
 

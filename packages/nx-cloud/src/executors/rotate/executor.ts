@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyEdits, modify } from 'jsonc-parser'
-import { detectIndent, parseJsonObject } from '../../jsonc.ts'
+import { detectIndent, parseJsonObject } from '@nx-devkit/internal'
 
 export interface NxCloudRotateOptions {
   /** Name sent to create-org-and-workspace. Default: root package.json `name`. */

@@ -1,3 +1,42 @@
+## 0.1.8 (2026-09-23)
+
+### 🩹 Fixes
+
+- **deps:** declare @nx/devkit as a dependency, drop nx peer ([#82](https://github.com/nx-devkit/nx.ts/pull/82))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
+## 0.1.7 (2026-09-23)
+
+### 🩹 Fixes
+
+- **skill:** key inferred projects by projectRoot ([#73](https://github.com/nx-devkit/nx.ts/pull/73))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
+## 0.1.6 (2026-09-21)
+
+### 🩹 Fixes
+
+- **tsdown-config:** don't wipe executor dist mid-run ([c45a061](https://github.com/nx-devkit/nx.ts/commit/c45a061))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
+## 0.1.5 (2026-09-21)
+
+This was a version bump only for @nx-devkit/skill to align it with other projects, there were no code changes.
+
+## 0.1.4 (2026-09-21)
+
+This was a version bump only for @nx-devkit/skill to align it with other projects, there were no code changes.
+
 ## 0.1.3 (2026-09-18)
 
 ### 🚀 Features

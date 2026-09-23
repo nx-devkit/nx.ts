@@ -32,7 +32,8 @@ packages/diagrams/
 export interface NxDiagramsPluginOptions {
   targetName?: string                 // aggregate target, default 'diagrams'
   format?: 'svg' | 'png' | 'jpeg'     // default 'svg'
-  krokiUrl?: string                   // default 'https://kroki.io'; '' disables
+  krokiUrl?: string                   // default 'https://kroki.io'; 'docker' = ephemeral container per run; '' disables
+  krokiImage?: string                 // image for 'docker' mode, default 'yuzutech/kroki:latest'
   outputDir?: string                  // tokens {fileDir} {fileName} {projectRoot}, default '{fileDir}'
   commands?: Record<string, string>   // per-type local renderer overrides
   include?: string[]                  // extra glob filters (workspace-relative paths)
@@ -44,7 +45,7 @@ export interface NxDiagramsPluginOptions {
 
 - Per-file targets are `cache: true` with single-file `inputs` and the rendered image in `outputs`.
 - `commands[type]` wins over Kroki. All placeholders are workspace-relative and expand shell-quoted; commands run with `cwd` = workspace root.
-- `krokiUrl` must be absolute http(s) or empty. Empty + no command for the type → actionable error.
+- `krokiUrl` must be absolute http(s), `docker`, or empty. Empty + no command for the type → actionable error. `docker` lazily starts `docker run -d --rm -p 127.0.0.1::8000 <krokiImage>` on first Kroki render, polls `/health`, stops the container in `finally` — never for dryRun/command-only runs.
 - `timeout` must be positive; `outputDir` must resolve inside the workspace.
 - Colliding slugs/outputs get deterministic `-<type>` then `-h<hash>` suffixes; the resolved paths travel to the executor via `options.output`/`options.outputs` — never recompute them there.
 - `dryRun` never writes files, never calls renderers.

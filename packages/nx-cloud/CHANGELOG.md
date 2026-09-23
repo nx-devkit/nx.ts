@@ -1,3 +1,37 @@
+## 0.0.7 (2026-09-23)
+
+### 🩹 Fixes
+
+- **deps:** declare @nx/devkit as a dependency, drop nx peer ([#82](https://github.com/nx-devkit/nx.ts/pull/82))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
+## 0.0.6 (2026-09-21)
+
+### 🩹 Fixes
+
+- **tsdown-config:** extend clean:false to all executor-provider packages ([3a92cef](https://github.com/nx-devkit/nx.ts/commit/3a92cef))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
+## 0.0.5 (2026-09-21)
+
+### 🩹 Fixes
+
+- **diagrams,nx-cloud:** move @nx-devkit/internal to devDependencies ([129f821](https://github.com/nx-devkit/nx.ts/commit/129f821))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
+## 0.0.4 (2026-09-21)
+
+This was a version bump only for @nx-devkit/nx-cloud to align it with other projects, there were no code changes.
+
 ## 0.0.3 (2026-09-18)
 
 ### 🚀 Features

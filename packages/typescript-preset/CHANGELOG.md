@@ -1,3 +1,31 @@
+## 0.2.7 (2026-09-23)
+
+### 🩹 Fixes
+
+- **deps:** declare @nx/devkit as a dependency, drop nx peer ([#82](https://github.com/nx-devkit/nx.ts/pull/82))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
+## 0.2.6 (2026-09-21)
+
+### 🩹 Fixes
+
+- **tsdown-config:** don't wipe executor dist mid-run ([c45a061](https://github.com/nx-devkit/nx.ts/commit/c45a061))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
+## 0.2.5 (2026-09-21)
+
+This was a version bump only for @nx-devkit/typescript to align it with other projects, there were no code changes.
+
+## 0.2.4 (2026-09-21)
+
+This was a version bump only for @nx-devkit/typescript to align it with other projects, there were no code changes.
+
 ## 0.2.3 (2026-09-18)
 
 ### 🚀 Features

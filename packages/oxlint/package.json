@@ -1,7 +1,19 @@
 {
   "name": "@nx-devkit/oxlint",
-  "version": "0.1.4",
+  "version": "0.1.7",
   "license": "MIT",
+  "description": "Standalone Nx plugin: infers a cached lint target from .oxlintrc config files — no project.json required.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "oxlint",
+    "oxc",
+    "lint",
+    "linter",
+    "typescript",
+    "monorepo",
+    "zero-config"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/plugin.mjs",
@@ -22,8 +34,6 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0",
-    "nx": "^22.0.0 || ^23.0.0",
     "oxlint": "^1.0.0"
   },
   "devDependencies": {
@@ -39,5 +49,12 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/oxlint"
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/oxlint",
+  "dependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0"
   }
 }

@@ -1,7 +1,18 @@
 {
   "name": "@nx-devkit/prepare-for-release",
-  "version": "0.1.6",
+  "version": "0.1.10",
   "license": "MIT",
+  "description": "Nx plugin that bootstraps npm publishing: 0.0.0 placeholder releases for unpublished packages plus OIDC trusted-publishing setup.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "npm",
+    "npm-publish",
+    "oidc",
+    "trusted-publishing",
+    "release",
+    "monorepo"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",
@@ -34,16 +45,14 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
-  "peerDependencies": {
+  "dependencies": {
+    "tinyglobby": "^0.2.0",
     "@nx/devkit": "^22.0.0 || ^23.0.0"
   },
-  "dependencies": {
-    "tinyglobby": "^0.2.0"
-  },
   "devDependencies": {
-    "@nx/devkit": "23.2.1",
     "@types/node": "^20.19.0",
     "memfs": "^4.50.0",
     "tsdown": "^0.22.3",
@@ -54,5 +63,9 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/prepare-for-release"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/prepare-for-release"
 }

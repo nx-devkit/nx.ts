@@ -1,7 +1,14 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  clean: true,
+  // No clean: executors.json resolves ./dist/executors/*.mjs at task start;
+  // wiping dist mid-run-many breaks parallel tasks with ImplementationResolutionError.
+  clean: false,
+  deps: {
+    alwaysBundle: ['@nx-devkit/internal'],
+    // Transitive deps of @nx/devkit that must not be bundled
+    neverBundle: ['nx', '@nx/devkit', 'axios', 'enquirer'],
+  },
   dts: true,
   entry: {
     'executors/render/executor': 'src/executors/render/executor.ts',
