@@ -7,7 +7,7 @@ published: false
 
 # I replaced my Nx toolchain boilerplate with one line in `nx.json`
 
-If you've run an Nx monorepo, you know the deal: every new package gets a `project.json` (or `package.json` targets) declaring `build`, `test`, `lint`, `typecheck` — the same four targets, forever, copy-pasted with slightly different paths:
+If you've run an Nx monorepo without full plugin coverage, you know the deal: packages get a `project.json` (or `package.json` targets) declaring `build`, `test`, `lint`, `typecheck` — the same four targets, forever, copy-pasted with slightly different paths:
 
 ```jsonc
 // packages/lib-a/project.json — and again in lib-b, lib-c, ...
