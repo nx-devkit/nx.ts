@@ -1,5 +1,9 @@
 # nx-devkit
 
+[![CI](https://github.com/nx-devkit/nx.ts/actions/workflows/ci.yml/badge.svg)](https://github.com/nx-devkit/nx.ts/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@nx-devkit/typescript)](https://www.npmjs.com/package/@nx-devkit/typescript)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 Zero-config Nx plugins for modern TypeScript tooling. Register one plugin and get `typecheck`, `test`, `lint`, `format`, and `build` targets derived from the config files your project already keeps — no `project.json`, no target boilerplate.
 
 ## Why
@@ -44,8 +48,45 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/skill`](./packages/skill/README.md) | `**/SKILL.md` | Skill lifecycle: `build`, `lint`, `validate`, `os-check`, `size-check` |
 | [`@nx-devkit/skillspector`](./packages/skillspector/README.md) | `**/SKILL.md` | `scan` target — SkillSpector security scans with SARIF + CI annotations |
 | [`@nx-devkit/prepare-for-release`](./packages/prepare-for-release/README.md) | Every non-root `package.json` with `name` + `private !== true` | `prepare-for-release` target per package — idempotent npm placeholder publishing + OIDC trust |
+| [`@nx-devkit/release`](./packages/release/README.md) | `project.json` referencing the `publish` executor | Automated npm releases from CI — version bump, OIDC publish, git tag, GitHub Release |
+| [`@nx-devkit/nx-cloud`](./packages/nx-cloud/README.md) | `nx.json` at workspace root | `nx-cloud-rotate` target on the root project — roll over to a fresh Nx Cloud org when quota runs out |
+| [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` + diagram fences in `*.md` | Cached, atomized `diagram-*` render targets via Kroki, Docker, or local renderers |
 
 The preset subsumes the standalone tsdown/oxlint/biome plugins; they stay available for single-tool consumers.
+
+## Requirements
+
+- **Node.js** ≥ 22.14 — the preset discovers configs with `fs.globSync`, which does not exist on older lines
+- **Nx** `^22 || ^23` — installed automatically by `init` when missing
+- **Package manager** — any of npm / pnpm / yarn / bun; binaries are resolved from `node_modules/.bin`
+- **Required peers** — `typescript` and `@nx/devkit`. **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. `@typescript/native-preview` (tsgo) is optional and undeclared — add it for faster `typecheck`. `init` installs whatever is missing for the configs it detects.
+
+## When to use — and when not
+
+Use nx-devkit if your Nx workspace is a modern TypeScript toolchain and you want the project graph, caching, and `affected` without maintaining `project.json` targets per package — `tsconfig.json`, `vitest.config.ts`, `biome.json`, and friends *are* the project definition.
+
+Stick with the official `@nx/*` plugins if you rely on their generators (library scaffolding, webpack/vite bundling configs) or need Jest/ESLint-specific Nx integrations beyond running the tools — nx-devkit deliberately replaces the toolchain layer, not the Nx ecosystem. It composes fine alongside official plugins: inference adds targets, it does not remove them.
+
+## Troubleshooting
+
+**A target I expected isn't showing up.** Check what Nx inferred:
+
+```bash
+npx nx show project <name>          # lists every inferred target
+npx nx reset && npx nx show projects  # clear the daemon cache, re-run inference
+```
+
+Inference is file-driven — the trigger config (`vitest.config.*`, `.oxlintrc.*`, …) must exist inside the project directory (root configs act as fallbacks for lint/format only). Enable verbose logging to see each decision:
+
+```bash
+NX_VERBOSE_LOGGING=true npx nx show projects   # or pass --verbose
+```
+
+**`lint` ran the wrong tool.** Lint has an explicit precedence: oxlint > eslint > biome, and each requires both its option enabled and its config present. `oxlint: false` hands `lint` to ESLint only when `eslint: true` *and* an `eslint.config.*` exists — otherwise Biome's fallback takes it. See the [preset README](./packages/typescript-preset/README.md#lint-precedence).
+
+**`command not found` / binary resolution errors.** Inferred targets call tool binaries from `node_modules/.bin` — the tool must be a devDependency somewhere reachable from the project root (hoisted installs work). Run `npx @nx-devkit/typescript init` to install the tools your configs imply.
+
+**The workspace root isn't a project.** By design in monorepos: the root becomes a project only when it's the sole `tsconfig`. Force it either way with the `includeRoot` option.
 
 ## How it works
 
