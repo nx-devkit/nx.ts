@@ -62,7 +62,12 @@ JSON
 cat > tsconfig.json <<'JSON'
 {"compilerOptions":{"strict":true}}
 JSON
-npm install --save-dev "${TARBALLS[@]}"
+# --legacy-peer-deps: npm's default peer auto-install pulls *optional* peers
+# too, and upstream optional-peer chains can conflict with each other (seen:
+# oxlint → vite-plus → vitest@5 vs our vitest@^4 optional peer → ERESOLVE).
+# This e2e verifies our tarballs install and the bin boots — peer resolution
+# policy belongs to the consumer, not to this test.
+npm install --save-dev --legacy-peer-deps "${TARBALLS[@]}"
 
 echo "==> Running the packed bootstrap bin"
 ./node_modules/.bin/nx-devkit-typescript init
