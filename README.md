@@ -59,7 +59,7 @@ The preset subsumes the standalone tsdown/oxlint/biome plugins; they stay availa
 - **Node.js** ≥ 22.14 — the preset discovers configs with `fs.globSync`, which does not exist on older lines
 - **Nx** `^22 || ^23` — installed automatically by `init` when missing
 - **Package manager** — any of npm / pnpm / yarn / bun; binaries are resolved from `node_modules/.bin`
-- **Required peers** — `typescript` and `@nx/devkit` (`init` installs both). **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. `@typescript/native-preview` (tsgo) is optional and undeclared — add it for faster `typecheck`.
+- **Required peers** — `typescript` and `@nx/devkit`. **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. `@typescript/native-preview` (tsgo) is optional and undeclared — add it for faster `typecheck`. `init` installs whatever is missing for the configs it detects.
 
 ## When to use — and when not
 
