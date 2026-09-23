@@ -1,13 +1,20 @@
 ---
-title: "I replaced @nx/js + @nx/eslint + @nx/vite boilerplate with one line in nx.json"
-description: "Zero-config Nx plugins that infer typecheck, test, lint, format, and build targets from the config files you already keep — no project.json."
+title: "Running the Rust-native TypeScript toolchain inside Nx — tsdown, Biome, tsgo"
+description: "Nx has no official plugins for tsdown builds, Biome formatting, or tsgo typecheck. These inference plugins cover them — targets derived from config files, no project.json."
 tags: [nx, typescript, monorepo, webdev]
 published: false
 ---
 
-# I replaced my Nx toolchain boilerplate with one line in `nx.json`
+# Running the Rust-native TypeScript toolchain inside Nx — tsdown, Biome, tsgo
 
-If you've run an Nx monorepo without full plugin coverage, you know the deal: packages get a `project.json` (or `package.json` targets) declaring `build`, `test`, `lint`, `typecheck` — the same four targets, forever, copy-pasted with slightly different paths:
+The TypeScript toolchain is quietly being rewritten in Rust: oxlint for linting, Biome for lint+format, tsdown (Rolldown) for builds, tsgo for typecheck. It's fast and it composes — but if your monorepo runs on Nx, there's a gap: **Nx's official plugin set barely covers this stack.**
+
+- `@nx/oxlint` exists — experimental, single-tool
+- Biome — community plugins only, no official one
+- tsdown/Rolldown — nothing (official builds are webpack/esbuild/rollup/rspack/vite)
+- tsgo — nothing (`@nx/js` typechecks with tsc only)
+
+So adopting the modern stack inside Nx means hand-writing `project.json` targets per package — the same `build`, `lint`, `format`, `typecheck` declarations, copy-pasted with slightly different paths:
 
 ```jsonc
 // packages/lib-a/project.json — and again in lib-b, lib-c, ...
@@ -21,9 +28,7 @@ If you've run an Nx monorepo without full plugin coverage, you know the deal: pa
 }
 ```
 
-Nx's official plugins infer some of this, but they also push their own toolchain opinions: Jest configs, ESLint executors, webpack/vite build setups that don't match a modern TypeScript stack.
-
-I wanted Nx's project graph, caching, and `affected` — with *my* toolchain: tsdown for builds, tsgo for typecheck, oxlint/Biome for lint and format, Vitest or plain `node --test` for tests. So I built plugins that infer targets from the config files that already exist:
+I wanted Nx's project graph, caching, and `affected` *on* that toolchain — so I built inference plugins that derive targets from the config files that already exist:
 
 ```jsonc
 // nx.json — that's the whole configuration
@@ -50,7 +55,7 @@ Each package in the workspace is defined by the config files it *already has*:
 
 One prerequisite: the preset anchors on `**/tsconfig*.json`, so a directory needs a TypeScript config to become a project — a bare `vitest.config.ts` alone won't infer one.
 
-Add `vitest.config.ts` to a package → `test` appears on the next `nx run`. Delete it → the target disappears. `nx show project lib-a` reflects reality, not a file you have to remember to update. The project graph is derived state, not maintained state.
+Add `tsdown.config.ts` to a package → `build` appears on the next `nx run`, cacheable, with `dependsOn: ^build`. Delete it → the target disappears. `nx show project lib-a` reflects reality, not a file you have to remember to update. The project graph is derived state, not maintained state.
 
 ## The part that was harder than it looks
 
@@ -61,18 +66,18 @@ Add `vitest.config.ts` to a package → `test` appears on the next `nx run`. Del
 - **Executors beat `run-commands` for the heavy tools.** `execFile` on the tool's Node entry — no shell, bounded timeouts, large maxBuffer for compiler output.
 - **Single-package repos are the edge case.** A lone `tsconfig` at the root becomes the root project; when any nested config exists, the root is skipped unless `includeRoot: true` explicitly includes it (`includeRoot: false` always excludes it).
 
-## Why not just use `@nx/js` + friends?
+## vs. the official plugins
 
-You can — it works. The difference is where the abstraction sits. The official plugins infer targets that call *their* executors with *their* conventions. nx-devkit's bet is dumber and thinner: your configs are the source of truth, the plugins translate them into cacheable targets, and the tools run exactly as if you'd typed the command — because that's all they do.
+Different bet, not a hostile one. The official plugins infer targets that call *their* executors with *their* conventions — and they're only published per-tool, which is why half the Rust-native stack has no coverage at all. nx-devkit's layer is dumber and thinner: your configs are the source of truth, one preset translates all of them into cacheable targets, and the tools run exactly as if you'd typed the command. And it composes — inference adds targets, it doesn't remove them, so `@nx/react` generators and `@nx-devkit/*` inference can coexist in one workspace.
 
 ## Trade-offs, honestly
 
 - **Pre-1.0.** Minor versions may add or change inferred targets; pin versions if your CI needs reproducible graphs.
-- **Toolchain-covered, not ecosystem-covered.** If you need `@nx/js` generators (library scaffolding) or framework integrations (Angular, React, Next), official plugins still earn their place. nx-devkit composes alongside them — inference adds targets, it doesn't remove them.
+- **Toolchain-covered, not ecosystem-covered.** If you need `@nx/js` generators (library scaffolding) or framework integrations (Angular, React, Next), official plugins still earn their place.
 - **Opinionated tool set.** If your stack is Jest + webpack, this preset isn't for you.
 
 ## What's next
 
 The preset is on npm as `@nx-devkit/typescript` (`npx @nx-devkit/typescript init` installs nx if missing and registers the plugin in `nx.json`). The standalone plugins — `@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome` — exist for single-tool consumers. There's also `@nx-devkit/diagrams` (renders `.mmd`/`.puml`/`.d2` into cached, atomized targets — `nx affected` re-renders only the diagrams that changed) and `@nx-devkit/prepare-for-release` (OIDC trusted-publishing bootstrap).
 
-Repo: https://github.com/nx-devkit/nx.ts — issues and PRs welcome. If you've wanted Nx's graph without its toolchain opinions, this is that.
+Repo: https://github.com/nx-devkit/nx.ts — issues and PRs welcome. If you've wanted Nx's graph on the Rust-native toolchain, this is that.
