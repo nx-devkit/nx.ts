@@ -67,7 +67,12 @@ JSON
 # oxlint → vite-plus → vitest@5 vs our vitest@^4 optional peer → ERESOLVE).
 # This e2e verifies our tarballs install and the bin boots — peer resolution
 # policy belongs to the consumer, not to this test.
-npm install --save-dev --legacy-peer-deps "${TARBALLS[@]}"
+#
+# Legacy mode skips required peers too, so nx/@nx/devkit are installed
+# explicitly at the declared support range — otherwise the init bin's own
+# bootstrap would install registry-latest Nx and the e2e would lose its
+# Nx-compatibility signal (and re-run default peer resolution anyway).
+npm install --save-dev --legacy-peer-deps "${TARBALLS[@]}" 'nx@^22 || ^23' '@nx/devkit@^22 || ^23'
 
 echo "==> Running the packed bootstrap bin"
 ./node_modules/.bin/nx-devkit-typescript init
