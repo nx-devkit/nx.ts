@@ -23,7 +23,7 @@ labels: bug
 
 ## Reproduction
 
-<!-- Minimal steps, or a link to a repro repo. For inference issues, list which config files exist (tsconfig.json, vitest.config.*, .oxlintrc.*, biome.json, tsdown.config.*) and where. -->
+<!-- Minimal steps, or a link to a repro repo. For inference issues, list which config files exist (tsconfig.json, vitest.config.*, .oxlintrc.*, eslint.config.*, biome.json, tsdown.config.*) and where. -->
 
 ## Plugin options
 
