@@ -73,6 +73,8 @@ export function emitSkills(
     // Rewrite links in every other bundled markdown file with the links that
     // were collected from that same source file.
     for (const mdFile of collectMdFiles(targetDir)) {
+      // Skip copied symlinks — writing through them would hit the source tree.
+      if (fs.lstatSync(mdFile).isSymbolicLink()) continue
       const relFile = path.relative(targetDir, mdFile).replace(/\\/g, '/')
       if (relFile === 'SKILL.md') continue
       const fileLinks = linksForFile(skill, relFile)

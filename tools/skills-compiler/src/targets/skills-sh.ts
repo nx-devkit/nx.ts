@@ -103,6 +103,11 @@ function relativeSkillPath(
 function walkMdFiles(dir: string, callback: (filePath: string) => void): void {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name)
+    if (entry.isSymbolicLink()) {
+      // Skip copied symlinks — reading/writing through them resolves in the
+      // output dir (dangling) or, worse, back into the source tree.
+      continue
+    }
     if (entry.isDirectory()) {
       walkMdFiles(fullPath, callback)
     } else if (entry.name.toLowerCase().endsWith('.md')) {
