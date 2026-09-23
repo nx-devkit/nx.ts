@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      specifier:
+        description: >-
+          Force a version specifier for all release projects, bypassing
+          conventional-commit derivation (e.g. to ship metadata-only changes).
+        required: false
+        type: choice
+        options: [patch, minor, major]
 
 jobs:
   release:
@@ -79,7 +87,7 @@ jobs:
         # only — checkout keeps persist-credentials: false.
         run: |
           gh auth setup-git
-          npx nx release version --git-push=false
+          npx nx release version --git-push=false ${{ inputs.specifier && format('--specifier={0}', inputs.specifier) || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Rewrite workspace: protocols for npm publish"
