@@ -1,3 +1,13 @@
+## 0.0.10 (2026-09-23)
+
+### 🩹 Fixes
+
+- **deps:** declare @nx/devkit as a dependency, drop nx peer ([#82](https://github.com/nx-devkit/nx.ts/pull/82))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.9 (2026-09-21)
 
 ### 🩹 Fixes

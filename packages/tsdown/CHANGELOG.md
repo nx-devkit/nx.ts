@@ -1,3 +1,13 @@
+## 0.1.6 (2026-09-23)
+
+### 🩹 Fixes
+
+- **deps:** declare @nx/devkit as a dependency, drop nx peer ([#82](https://github.com/nx-devkit/nx.ts/pull/82))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.5 (2026-09-21)
 
 This was a version bump only for @nx-devkit/tsdown to align it with other projects, there were no code changes.
