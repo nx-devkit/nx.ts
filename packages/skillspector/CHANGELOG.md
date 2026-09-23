@@ -1,3 +1,14 @@
+## 0.1.7 (2026-09-23)
+
+### 🩹 Fixes
+
+- **skill:** key inferred projects by projectRoot ([#73](https://github.com/nx-devkit/nx.ts/pull/73))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.6 (2026-09-21)
 
 ### 🩹 Fixes
