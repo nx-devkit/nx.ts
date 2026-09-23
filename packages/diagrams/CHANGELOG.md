@@ -1,3 +1,22 @@
+## 0.0.6 (2026-09-23)
+
+### 🚀 Features
+
+- **diagrams:** krokiUrl "docker" — ephemeral serverless Kroki ([e218755](https://github.com/nx-devkit/nx.ts/commit/e218755))
+
+### 🩹 Fixes
+
+- **diagrams:** rethrow outside finally (noUnsafeFinally) ([25dc72a](https://github.com/nx-devkit/nx.ts/commit/25dc72a))
+- **diagrams:** fail on leaked container, integer timeout, honest docs ([f2ef002](https://github.com/nx-devkit/nx.ts/commit/f2ef002))
+- **diagrams:** cubic review round — docker error details, spec delta, tests ([924dff1](https://github.com/nx-devkit/nx.ts/commit/924dff1))
+- **diagrams:** bound docker calls, report failed stop, spec/doc accuracy ([40bb0b2](https://github.com/nx-devkit/nx.ts/commit/40bb0b2))
+- **diagrams:** harden docker port parse, nosemgrep on health probe ([14ecb6d](https://github.com/nx-devkit/nx.ts/commit/14ecb6d))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.5 (2026-09-21)
 
 ### 🚀 Features
