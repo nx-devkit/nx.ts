@@ -61,6 +61,10 @@ The preset subsumes the standalone tsdown/oxlint/biome plugins; they stay availa
 - **Package manager** — any of npm / pnpm / yarn / bun; binaries are resolved from `node_modules/.bin`
 - **Peer deps** — `typescript` is the only required peer; `@nx/devkit` ships as a regular dependency (auto-installed, its own peer range carries the `nx` compatibility). **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. `@typescript/native-preview` (tsgo) is optional and undeclared — add it for faster `typecheck`. `init` installs whatever is missing for the configs it detects.
 
+## Stability
+
+All `@nx-devkit/*` packages are pre-1.0: minor versions may add or change inferred targets and option defaults; patches are fixes only. Check per-package `CHANGELOG.md` files before upgrading, and pin exact versions if your CI needs reproducible graphs.
+
 ## When to use — and when not
 
 Use nx-devkit if your Nx workspace is a modern TypeScript toolchain and you want the project graph, caching, and `affected` without maintaining `project.json` targets per package — `tsconfig.json`, `vitest.config.ts`, `biome.json`, and friends *are* the project definition.
@@ -100,7 +104,7 @@ Because inference is per-run, the graph always reflects the files on disk: add `
 
 | Path | Contents |
 |---|---|
-| `packages/` | The publishable plugins above (+ private `internal` helpers) |
+| `packages/` | The publishable plugins above (+ private `internal` helpers). Note: `packages/typescript-preset` publishes as `@nx-devkit/typescript` |
 | `apps/demo/` | Working demo workspace exercising the plugins |
 | `skills/` | Project-facing agent skills (`nx-devkit-typescript`, `nx-skill`, …) |
 | `scripts/` | `e2e.sh`, `spec-check.ts`, `rewrite-workspace-protocol.ts` |
