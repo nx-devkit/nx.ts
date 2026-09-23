@@ -60,7 +60,6 @@
       },
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
-        "@nx/devkit": "23.2.1",
         "@types/node": "^20.19.0",
         "memfs": "^4.50.0",
         "minimatch": "^10.2.4",
@@ -86,7 +85,6 @@
       },
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
-        "@nx/devkit": "23.2.1",
         "@types/node": "^20.19.0",
         "tsdown": "^0.22.3",
         "typescript": "^6.0.3",
@@ -120,7 +118,6 @@
         "tinyglobby": "^0.2.0",
       },
       "devDependencies": {
-        "@nx/devkit": "23.2.1",
         "@types/node": "^20.19.0",
         "memfs": "^4.50.0",
         "tsdown": "^0.22.3",
@@ -149,7 +146,6 @@
       },
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
-        "@nx/devkit": "23.2.1",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
         "tsdown": "^0.22.3",
@@ -165,7 +161,6 @@
       },
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
-        "@nx/devkit": "23.2.1",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
         "tsdown": "^0.22.3",
@@ -182,7 +177,6 @@
       },
       "devDependencies": {
         "@nx-devkit/internal": "workspace:*",
-        "@nx/devkit": "23.2.1",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
         "typescript": "^6.0.3",
