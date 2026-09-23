@@ -71,9 +71,9 @@ function escapeAnnotationValue(value: string): string {
   // Encode % first to avoid double-encoding
   escaped = escaped.replaceAll('%', '%25')
   // Encode newlines as literal \n / \r
-  escaped = escaped.replaceAll('\r\n', '\\r\\n')
-  escaped = escaped.replaceAll('\n', '\\n')
-  escaped = escaped.replaceAll('\r', '\\r')
+  escaped = escaped.replaceAll('\r\n', String.raw`\r\n`)
+  escaped = escaped.replaceAll('\n', String.raw`\n`)
+  escaped = escaped.replaceAll('\r', String.raw`\r`)
   // Remove workflow-command delimiters
   escaped = escaped.replaceAll('::', '')
   return escaped
@@ -93,8 +93,8 @@ function isFailingSeverity(severity: string): boolean {
 
 function buildSarifReport(issues: SkillIssue[], _workspaceRoot: string): Record<string, unknown> {
   const results = issues.map((issue) => {
-    const relFile = issue.location.file.replace(/\\/g, '/')
-    const properties: Record<string, unknown> = {}
+    const relFile = issue.location.file.replace(/\\/g, '/'),
+     properties: Record<string, unknown> = {}
     if (issue.category !== undefined) properties.category = issue.category
     if (issue.confidence !== undefined) properties.confidence = issue.confidence
     if (issue.remediation !== undefined) properties.remediation = issue.remediation
@@ -147,18 +147,18 @@ function buildAnnotations(issues: SkillIssue[], _projectName: string): string[] 
   for (const issue of issues) {
     // Only annotate code findings, not doc findings
     if (!isCodeFile(issue.location.file)) continue
-    const file = escapeAnnotationValue(issue.location.file.replace(/\\/g, '/'))
-    const line = issue.location.start_line
-    const ruleId = escapeAnnotationValue(issue.id)
-    const message = escapeAnnotationValue(issue.explanation ?? issue.id)
+    const file = escapeAnnotationValue(issue.location.file.replace(/\\/g, '/')),
+     line = issue.location.start_line,
+     ruleId = escapeAnnotationValue(issue.id),
+     message = escapeAnnotationValue(issue.explanation ?? issue.id)
     lines.push(`::error file=${file},line=${line}::${ruleId}: ${message}`)
   }
   return lines
 }
 
 function computeProjectName(projectRoot: string): string {
-  const slug = projectRoot.replace(/\//g, '-')
-  const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
+  const slug = projectRoot.replace(/\//g, '-'),
+   hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
   return `${slug}-${hash}`
 }
 
@@ -191,14 +191,14 @@ function spawnSkillspector(
 }
 
 export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecutorResult> {
-  const opts = ctx.options
-  const noLlm = opts.noLlm ?? true
-  const annotations = opts.annotations ?? true
-  const failOnError = opts.failOnError ?? true
-  const skillspectorBin = opts.skillspectorBin ?? 'skillspector'
-  const { cmd: binCmd, args: binArgs } = parseBin(skillspectorBin)
+  const opts = ctx.options,
+   noLlm = opts.noLlm ?? true,
+   annotations = opts.annotations ?? true,
+   failOnError = opts.failOnError ?? true,
+   skillspectorBin = opts.skillspectorBin ?? 'skillspector',
+   { cmd: binCmd, args: binArgs } = parseBin(skillspectorBin),
 
-  const args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
+   args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
   if (noLlm) {
     args.push('--no-llm')
   }
@@ -219,9 +219,9 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
   let issues: SkillIssue[] = []
   try {
     // SkillSpector may emit log lines before JSON; find the first JSON delimiter
-    const jsonStart = stdout.search(/[[{]/)
-    const jsonStr = jsonStart >= 0 ? stdout.slice(jsonStart) : stdout
-    const parsed = JSON.parse(jsonStr) as unknown
+    const jsonStart = stdout.search(/[[{]/),
+     jsonStr = jsonStart >= 0 ? stdout.slice(jsonStart) : stdout,
+     parsed = JSON.parse(jsonStr) as unknown
     if (Array.isArray(parsed)) {
       issues = parsed as SkillIssue[]
     } else if (parsed && typeof parsed === 'object' && 'findings' in parsed) {
@@ -234,31 +234,31 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
 
   // Write SARIF report if option is set
   if (opts.sarif) {
-    const workspaceRoot = resolvePath(ctx.workspaceRoot)
-    const sarifPath = resolvePath(workspaceRoot, opts.sarif)
-    const relSarif = relative(workspaceRoot, sarifPath)
+    const workspaceRoot = resolvePath(ctx.workspaceRoot),
+     sarifPath = resolvePath(workspaceRoot, opts.sarif),
+     relSarif = relative(workspaceRoot, sarifPath)
     if (relSarif === '..' || relSarif.startsWith(`..${sep}`) || isAbsolute(relSarif)) {
       return { success: false }
     }
     // Resolve symlinks on the workspace root to prevent CWE-59 escapes.
     // The SARIF file itself doesn't exist yet, so we validate the parent
-    // directory after mkdir resolves all symlinks in the path.
+    // Directory after mkdir resolves all symlinks in the path.
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- workspaceRoot is the trusted Nx workspace root
-    const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot)
-    const sarifDir = dirname(sarifPath)
+    const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot),
+     sarifDir = dirname(sarifPath)
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is contained within workspaceRoot, validated via relative()
     await mkdir(sarifDir, { recursive: true })
     // After mkdir, resolve the real path of the directory to catch symlinks
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is validated above
-    const realSarifDir = await realpath(sarifDir).catch(() => sarifDir)
-    const realRel = relative(realWorkspaceRoot, realSarifDir)
+    const realSarifDir = await realpath(sarifDir).catch(() => sarifDir),
+     realRel = relative(realWorkspaceRoot, realSarifDir)
     if (realRel === '..' || realRel.startsWith(`..${sep}`) || isAbsolute(realRel)) {
       return { success: false }
     }
     // Also check if the SARIF file itself is an existing symlink pointing outside
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is validated above
-    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath)
-    const realFileRel = relative(realWorkspaceRoot, realSarifPath)
+    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath),
+     realFileRel = relative(realWorkspaceRoot, realSarifPath)
     if (realFileRel === '..' || realFileRel.startsWith(`..${sep}`) || isAbsolute(realFileRel)) {
       return { success: false }
     }
@@ -269,10 +269,10 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
 
   // Write annotations if enabled
   if (annotations) {
-    const projectName = computeProjectName(opts.path)
-    const annotationsFileName = `annotations-${projectName}.txt`
-    const annotationsPath = join(ctx.workspaceRoot, annotationsFileName)
-    const annotationLines = buildAnnotations(issues, projectName)
+    const projectName = computeProjectName(opts.path),
+     annotationsFileName = `annotations-${projectName}.txt`,
+     annotationsPath = join(ctx.workspaceRoot, annotationsFileName),
+     annotationLines = buildAnnotations(issues, projectName)
     if (annotationLines.length > 0) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- annotationsPath is derived from the trusted workspaceRoot
       await writeFile(annotationsPath, `${annotationLines.join('\n')}\n`, 'utf8')

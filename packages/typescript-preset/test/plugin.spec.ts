@@ -37,8 +37,8 @@ async function callCreateNodes(
   options: Partial<NxDevkitTypescriptOptions> = {},
   workspaceRoot = '/workspace',
 ): Promise<CreateNodesResult> {
-  const fn = createNodesV2[1]
-  const result = await fn(configFiles, options, {
+  const fn = createNodesV2[1],
+   result = await fn(configFiles, options, {
     nxJsonConfiguration: {},
     workspaceRoot,
   })
@@ -68,8 +68,8 @@ describe('shouldSkipPath', () => {
 })
 
 describe('isVerbose / logDebug', () => {
-  const originalArgv = process.argv
-  const originalEnv = process.env.NX_VERBOSE_LOGGING
+  const originalArgv = process.argv,
+   originalEnv = process.env.NX_VERBOSE_LOGGING
 
   beforeEach(() => {
     process.argv = originalArgv.filter((a) => a !== '--verbose')
@@ -132,8 +132,8 @@ describe('inferTypecheckTarget', () => {
   })
 
   it('uses @typescript/native-preview when tsgo=true', async () => {
-    const t = inferTypecheckTarget('/w/p', opts)
-    const ext = t.inputs.find((i) => typeof i === 'object') as
+    const t = inferTypecheckTarget('/w/p', opts),
+     ext = t.inputs.find((i) => typeof i === 'object') as
       | { externalDependencies: string[] }
       | undefined
     expect(ext?.externalDependencies).toEqual(['@typescript/native-preview'])
@@ -233,10 +233,10 @@ describe('createNodesV2 integration', () => {
   it('infers a typecheck target for a project with tsconfig.json', async () => {
     const root = makeWorkspace()
     try {
-      const cfg = touch(root, 'packages/foo/tsconfig.json')
-      const result = await callCreateNodes([cfg], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const typecheck = proj.targets?.typecheck
+      const cfg = touch(root, 'packages/foo/tsconfig.json'),
+       result = await callCreateNodes([cfg], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       typecheck = proj.targets?.typecheck
       expect(typecheck).toBeDefined()
       expect(typecheck?.executor).toBe('@nx-devkit/typescript:typecheck')
     } finally {
@@ -247,9 +247,9 @@ describe('createNodesV2 integration', () => {
   it('auto-infers a root project when it is the only tsconfig (standalone repo)', async () => {
     const root = makeWorkspace()
     try {
-      const cfg = touch(root, 'tsconfig.json')
-      const result = await callCreateNodes([cfg], {}, root)
-      const proj = firstProject(result, '.')
+      const cfg = touch(root, 'tsconfig.json'),
+       result = await callCreateNodes([cfg], {}, root),
+       proj = firstProject(result, '.')
       expect(proj.targets).toHaveProperty('typecheck')
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -259,9 +259,9 @@ describe('createNodesV2 integration', () => {
   it('skips the workspace root when nested projects exist', async () => {
     const root = makeWorkspace()
     try {
-      const rootCfg = touch(root, 'tsconfig.json')
-      const nestedCfg = touch(root, 'packages/foo/tsconfig.json')
-      const result = await callCreateNodes([rootCfg, nestedCfg], {}, root)
+      const rootCfg = touch(root, 'tsconfig.json'),
+       nestedCfg = touch(root, 'packages/foo/tsconfig.json'),
+       result = await callCreateNodes([rootCfg, nestedCfg], {}, root)
       expect(result).toHaveLength(1)
       expect(result[0]![1].projects).toHaveProperty('packages/foo')
     } finally {
@@ -271,13 +271,13 @@ describe('createNodesV2 integration', () => {
 
   it('skipped paths do not count as nested projects for auto-detection', async () => {
     // A stray node_modules tsconfig must not suppress root inference —
-    // shouldSkipPath discards it, so it cannot be a "nested project".
+    // ShouldSkipPath discards it, so it cannot be a "nested project".
     const root = makeWorkspace()
     try {
-      const cfg = touch(root, 'tsconfig.json')
-      const nmCfg = touch(root, 'node_modules/some-dep/tsconfig.json')
-      const result = await callCreateNodes([cfg, nmCfg], {}, root)
-      const proj = firstProject(result, '.')
+      const cfg = touch(root, 'tsconfig.json'),
+       nmCfg = touch(root, 'node_modules/some-dep/tsconfig.json'),
+       result = await callCreateNodes([cfg, nmCfg], {}, root),
+       proj = firstProject(result, '.')
       expect(proj.targets).toHaveProperty('typecheck')
       expect(result).toHaveLength(1)
     } finally {
@@ -288,8 +288,8 @@ describe('createNodesV2 integration', () => {
   it('respects explicit includeRoot: false in a standalone repo', async () => {
     const root = makeWorkspace()
     try {
-      const cfg = touch(root, 'tsconfig.json')
-      const result = await callCreateNodes([cfg], { includeRoot: false }, root)
+      const cfg = touch(root, 'tsconfig.json'),
+       result = await callCreateNodes([cfg], { includeRoot: false }, root)
       expect(result).toEqual([])
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -299,11 +299,11 @@ describe('createNodesV2 integration', () => {
   it('respects explicit includeRoot: true alongside nested projects', async () => {
     const root = makeWorkspace()
     try {
-      const rootCfg = touch(root, 'tsconfig.json')
-      const nestedCfg = touch(root, 'packages/foo/tsconfig.json')
-      const result = await callCreateNodes([rootCfg, nestedCfg], { includeRoot: true }, root)
+      const rootCfg = touch(root, 'tsconfig.json'),
+       nestedCfg = touch(root, 'packages/foo/tsconfig.json'),
+       result = await callCreateNodes([rootCfg, nestedCfg], { includeRoot: true }, root)
       expect(result).toHaveLength(2)
-      const keys = result.map(([, r]) => Object.keys(r.projects ?? {})).flat()
+      const keys = result.flatMap(([, r]) => Object.keys(r.projects ?? {}))
       expect(keys).toContain('.')
       expect(keys).toContain('packages/foo')
     } finally {
@@ -314,11 +314,11 @@ describe('createNodesV2 integration', () => {
   it('includeRoot does not rescue node_modules or escaping paths', async () => {
     const root = makeWorkspace()
     try {
-      const nmCfg = touch(root, 'packages/foo/node_modules/x/tsconfig.json')
+      const nmCfg = touch(root, 'packages/foo/node_modules/x/tsconfig.json'),
       // A config path outside the workspace stays skipped — includeRoot
       // only widens the root itself, never paths escaping it.
-      const outsideCfg = join(root, '..', 'outside-escape', 'tsconfig.json')
-      const result = await callCreateNodes([nmCfg, outsideCfg], { includeRoot: true }, root)
+       outsideCfg = join(root, '..', 'outside-escape', 'tsconfig.json'),
+       result = await callCreateNodes([nmCfg, outsideCfg], { includeRoot: true }, root)
       expect(result).toEqual([])
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -328,8 +328,8 @@ describe('createNodesV2 integration', () => {
   it('respects options.configFile', async () => {
     const root = makeWorkspace()
     try {
-      const cfg = touch(root, 'packages/foo/tsconfig.lib.json')
-      const result = await callCreateNodes([cfg], { configFile: 'tsconfig.lib.json' }, root)
+      const cfg = touch(root, 'packages/foo/tsconfig.lib.json'),
+       result = await callCreateNodes([cfg], { configFile: 'tsconfig.lib.json' }, root)
       expect(result).toHaveLength(1)
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -339,8 +339,8 @@ describe('createNodesV2 integration', () => {
   it('does not match tsconfig.json when configFile is tsconfig.lib.json', async () => {
     const root = makeWorkspace()
     try {
-      const cfg = touch(root, 'packages/foo/tsconfig.json')
-      const result = await callCreateNodes([cfg], { configFile: 'tsconfig.lib.json' }, root)
+      const cfg = touch(root, 'packages/foo/tsconfig.json'),
+       result = await callCreateNodes([cfg], { configFile: 'tsconfig.lib.json' }, root)
       expect(result).toEqual([])
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -350,10 +350,10 @@ describe('createNodesV2 integration', () => {
   it('infers test targets when vitest.config.ts coexists with tsconfig.json', async () => {
     const root = makeWorkspace()
     try {
-      const ts = touch(root, 'packages/foo/tsconfig.json')
-      const vitest = touch(root, 'packages/foo/vitest.config.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const ts = touch(root, 'packages/foo/tsconfig.json'),
+       vitest = touch(root, 'packages/foo/vitest.config.ts'),
+       result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.test).toBeDefined()
       expect(proj.targets?.['test:watch']).toBeDefined()
       expect(proj.targets?.['test:coverage']).toBeDefined()
@@ -366,9 +366,9 @@ describe('createNodesV2 integration', () => {
   it('does not infer test targets when no vitest.config.* exists', async () => {
     const root = makeWorkspace()
     try {
-      const ts = touch(root, 'packages/foo/tsconfig.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const ts = touch(root, 'packages/foo/tsconfig.json'),
+       result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.test).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -378,8 +378,8 @@ describe('createNodesV2 integration', () => {
   it('skips paths under node_modules', async () => {
     const root = makeWorkspace()
     try {
-      const cfg = touch(root, 'packages/foo/node_modules/bar/tsconfig.json')
-      const result = await callCreateNodes([cfg], {}, root)
+      const cfg = touch(root, 'packages/foo/node_modules/bar/tsconfig.json'),
+       result = await callCreateNodes([cfg], {}, root)
       expect(result).toEqual([])
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -397,8 +397,8 @@ describe('native Node test runner inference', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/src/foo.test.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.test).toBeDefined()
       const test = proj.targets?.test as Record<string, unknown>
       expect(test.executor).toBe('nx:run-commands')
@@ -419,10 +419,10 @@ describe('native Node test runner inference', () => {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/vitest.config.ts')
       touch(root, 'packages/foo/src/foo.test.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const test = proj.targets?.test as Record<string, unknown>
-      const opts = test.options as Record<string, unknown>
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       test = proj.targets?.test as Record<string, unknown>,
+       opts = test.options as Record<string, unknown>
       expect(opts.command).toBe('vitest run')
       expect(proj.targets?.['test:tap']).toBeUndefined()
     } finally {
@@ -433,9 +433,9 @@ describe('native Node test runner inference', () => {
   it('no test files and no vitest config = no test targets', async () => {
     const root = makeWorkspace()
     try {
-      const ts = touch(root, 'packages/foo/tsconfig.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const ts = touch(root, 'packages/foo/tsconfig.json'),
+       result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.test).toBeUndefined()
       expect(proj.targets?.['test:tap']).toBeUndefined()
       expect(proj.targets?.['test:coverage']).toBeUndefined()
@@ -449,11 +449,11 @@ describe('native Node test runner inference', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/src/foo.test.ts')
-      const result = await callCreateNodes([ts], { tap: true }, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], { tap: true }, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.['test:tap']).toBeDefined()
-      const tap = proj.targets?.['test:tap'] as Record<string, unknown>
-      const opts = tap.options as Record<string, unknown>
+      const tap = proj.targets?.['test:tap'] as Record<string, unknown>,
+       opts = tap.options as Record<string, unknown>
       expect(opts.command).toContain('--test-reporter tap')
       expect(opts.command).toContain('> test-results.tap')
       expect(opts.command).not.toContain('| tee')
@@ -470,11 +470,11 @@ describe('native Node test runner inference', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/src/foo.test.ts')
-      const result = await callCreateNodes([ts], { coverage: true }, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], { coverage: true }, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.['test:coverage']).toBeDefined()
-      const cov = proj.targets?.['test:coverage'] as Record<string, unknown>
-      const opts = cov.options as Record<string, unknown>
+      const cov = proj.targets?.['test:coverage'] as Record<string, unknown>,
+       opts = cov.options as Record<string, unknown>
       expect(opts.command).toContain('--experimental-test-coverage')
       expect(opts.command).not.toContain('{projectRoot}/')
     } finally {
@@ -487,8 +487,8 @@ describe('native Node test runner inference', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/src/foo.spec.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.test).toBeDefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -506,8 +506,8 @@ describe('oxlint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/.oxlintrc.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.lint).toBeDefined()
       const lint = proj.targets?.lint as Record<string, unknown>
       expect(lint.executor).toBe('nx:run-commands')
@@ -525,8 +525,8 @@ describe('oxlint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/.oxlintrc.json')
-      const result = await callCreateNodes([ts], { oxlint: false }, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], { oxlint: false }, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.lint).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -538,9 +538,9 @@ describe('oxlint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, '.oxlintrc.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const lint = proj.targets?.lint as Record<string, unknown> | undefined
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       lint = proj.targets?.lint as Record<string, unknown> | undefined
       expect(lint).toBeDefined()
       const opts = lint?.options as Record<string, unknown>
       expect(opts.command).toContain('oxlint')
@@ -555,9 +555,9 @@ describe('oxlint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'eslint.config.js')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const lint = proj.targets?.lint as Record<string, unknown> | undefined
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       lint = proj.targets?.lint as Record<string, unknown> | undefined
       expect(lint).toBeDefined()
       const opts = lint?.options as Record<string, unknown>
       expect(opts.command).toContain('eslint')
@@ -572,9 +572,9 @@ describe('oxlint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'biome.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const formatCheck = proj.targets?.['format-check'] as Record<string, unknown> | undefined
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       formatCheck = proj.targets?.['format-check'] as Record<string, unknown> | undefined
       expect(formatCheck).toBeDefined()
       expect(formatCheck?.inputs).toContain('{workspaceRoot}/biome.json')
     } finally {
@@ -587,11 +587,11 @@ describe('oxlint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/.oxlintrc.yaml')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.lint).toBeDefined()
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const opts = lint.options as Record<string, unknown>
+      const lint = proj.targets?.lint as Record<string, unknown>,
+       opts = lint.options as Record<string, unknown>
       expect(opts.command).toContain('oxlint')
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -603,8 +603,8 @@ describe('oxlint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/.oxlintrc.yml')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.lint).toBeDefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -637,11 +637,11 @@ describe('eslint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/eslint.config.mjs')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.lint).toBeDefined()
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const opts = lint.options as Record<string, unknown>
+      const lint = proj.targets?.lint as Record<string, unknown>,
+       opts = lint.options as Record<string, unknown>
       expect(opts.command).toContain('eslint')
       expect(opts.command).not.toContain('oxlint')
       expect(opts.command).not.toContain('biome')
@@ -656,10 +656,10 @@ describe('eslint lint delegation', () => {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/.oxlintrc.json')
       touch(root, 'packages/foo/eslint.config.mjs')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const opts = lint.options as Record<string, unknown>
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       lint = proj.targets?.lint as Record<string, unknown>,
+       opts = lint.options as Record<string, unknown>
       expect(opts.command).toContain('oxlint')
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -671,8 +671,8 @@ describe('eslint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/eslint.config.mjs')
-      const result = await callCreateNodes([ts], { eslint: false }, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], { eslint: false }, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.lint).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -685,13 +685,13 @@ describe('eslint lint delegation', () => {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/eslint.config.mjs')
       touch(root, 'packages/foo/biome.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const opts = lint.options as Record<string, unknown>
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       lint = proj.targets?.lint as Record<string, unknown>,
+       opts = lint.options as Record<string, unknown>
       expect(opts.command).toContain('eslint')
       expect(opts.command).not.toContain('biome lint')
-      // biome still provides format targets
+      // Biome still provides format targets
       expect(proj.targets?.format).toBeDefined()
       expect(proj.targets?.['format-check']).toBeDefined()
     } finally {
@@ -704,10 +704,10 @@ describe('eslint lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/biome.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const opts = lint.options as Record<string, unknown>
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       lint = proj.targets?.lint as Record<string, unknown>,
+       opts = lint.options as Record<string, unknown>
       expect(opts.command).toContain('biome lint')
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -725,16 +725,16 @@ describe('biome format/lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/biome.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.format).toBeDefined()
       expect(proj.targets?.['format-check']).toBeDefined()
-      const fmt = proj.targets?.format as Record<string, unknown>
-      const fmtOpts = fmt.options as Record<string, unknown>
+      const fmt = proj.targets?.format as Record<string, unknown>,
+       fmtOpts = fmt.options as Record<string, unknown>
       expect(fmtOpts.command).toContain('biome format --write')
       expect(fmt.cache).toBe(false)
-      const fmtCheck = proj.targets?.['format-check'] as Record<string, unknown>
-      const fcOpts = fmtCheck.options as Record<string, unknown>
+      const fmtCheck = proj.targets?.['format-check'] as Record<string, unknown>,
+       fcOpts = fmtCheck.options as Record<string, unknown>
       expect(fcOpts.command).toContain('biome format')
       expect(fcOpts.command).not.toContain('--write')
       expect(fmtCheck.cache).toBe(true)
@@ -749,10 +749,10 @@ describe('biome format/lint delegation', () => {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/.oxlintrc.json')
       touch(root, 'packages/foo/biome.json')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const opts = lint.options as Record<string, unknown>
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       lint = proj.targets?.lint as Record<string, unknown>,
+       opts = lint.options as Record<string, unknown>
       expect(opts.command).toContain('oxlint')
       expect(opts.command).not.toContain('biome lint')
     } finally {
@@ -765,10 +765,10 @@ describe('biome format/lint delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/biome.json')
-      const result = await callCreateNodes([ts], { oxlint: false }, root)
-      const proj = firstProject(result, 'packages/foo')
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const opts = lint.options as Record<string, unknown>
+      const result = await callCreateNodes([ts], { oxlint: false }, root),
+       proj = firstProject(result, 'packages/foo'),
+       lint = proj.targets?.lint as Record<string, unknown>,
+       opts = lint.options as Record<string, unknown>
       expect(opts.command).toContain('biome lint')
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -786,8 +786,8 @@ describe('tsdown build delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/tsdown.config.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeDefined()
       const build = proj.targets?.build as Record<string, unknown>
       expect(build.executor).toBe('@nx-devkit/typescript:build')
@@ -804,8 +804,8 @@ describe('tsdown build delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/tsdown.config.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.['build:watch']).toBeDefined()
       const watch = proj.targets?.['build:watch'] as Record<string, unknown>
       expect(watch.executor).toBe('@nx-devkit/typescript:build')
@@ -822,8 +822,8 @@ describe('tsdown build delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/tsdown.config.ts')
-      const result = await callCreateNodes([ts], { tsdown: false }, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], { tsdown: false }, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeUndefined()
       expect(proj.targets?.['build:watch']).toBeUndefined()
     } finally {
@@ -836,8 +836,8 @@ describe('tsdown build delegation', () => {
     try {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/tsdown.config.js')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeDefined()
       const build = proj.targets?.build as Record<string, unknown>
       expect(build.executor).toBe('@nx-devkit/typescript:build')
@@ -855,9 +855,9 @@ describe('tsdown build delegation', () => {
         JSON.stringify({ name: 'foo', exports: { '.': './dist/index.mjs' } }),
       )
       touch(root, 'packages/foo/src/index.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
-      const build = proj.targets?.build as Record<string, unknown>
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo'),
+       build = proj.targets?.build as Record<string, unknown>
       expect(build?.executor).toBe('@nx-devkit/typescript:build')
       expect(proj.targets?.['build:watch']).toBeDefined()
     } finally {
@@ -874,8 +874,8 @@ describe('tsdown build delegation', () => {
         JSON.stringify({ name: 'foo', bin: { foo: './dist/cli.mjs' } }),
       )
       touch(root, 'packages/foo/src/index.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeDefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -891,8 +891,8 @@ describe('tsdown build delegation', () => {
         JSON.stringify({ name: 'foo', main: './dist/index.cjs', files: ['dist'] }),
       )
       touch(root, 'packages/foo/src/index.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeDefined()
       expect(proj.targets?.['build:watch']).toBeDefined()
     } finally {
@@ -906,8 +906,8 @@ describe('tsdown build delegation', () => {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/package.json')
       touch(root, 'packages/foo/src/index.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -923,8 +923,8 @@ describe('tsdown build delegation', () => {
         JSON.stringify({ name: 'foo', exports: { '.': './dist/index.mjs' } }),
       )
       touch(root, 'packages/foo/src/foo.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeUndefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -940,8 +940,8 @@ describe('tsdown build delegation', () => {
         JSON.stringify({ name: 'foo', exports: { '.': './dist/index.mjs' } }),
       )
       touch(root, 'packages/foo/src/index.ts')
-      const result = await callCreateNodes([ts], { tsdown: false }, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], { tsdown: false }, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeUndefined()
       expect(proj.targets?.['build:watch']).toBeUndefined()
     } finally {
@@ -955,11 +955,11 @@ describe('tsdown build delegation', () => {
       const ts = touch(root, 'packages/foo/tsconfig.json')
       touch(root, 'packages/foo/tsdown.config.ts')
       // Invalid JSON makes the config-free heuristic false, so the
-      // assertion proves the explicit config path inferred the target.
+      // Assertion proves the explicit config path inferred the target.
       writeFileSync(join(root, 'packages/foo/package.json'), '{')
       touch(root, 'packages/foo/src/index.ts')
-      const result = await callCreateNodes([ts], {}, root)
-      const proj = firstProject(result, 'packages/foo')
+      const result = await callCreateNodes([ts], {}, root),
+       proj = firstProject(result, 'packages/foo')
       expect(proj.targets?.build).toBeDefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -980,9 +980,9 @@ describe('mega scenario — all targets from one plugin', () => {
       touch(root, 'packages/foo/.oxlintrc.json')
       touch(root, 'packages/foo/biome.json')
       touch(root, 'packages/foo/tsdown.config.ts')
-      const result = await callCreateNodes([ts], { tap: true, coverage: true }, root)
-      const proj = firstProject(result, 'packages/foo')
-      const targets = Object.keys(proj.targets ?? {}).sort()
+      const result = await callCreateNodes([ts], { tap: true, coverage: true }, root),
+       proj = firstProject(result, 'packages/foo'),
+       targets = Object.keys(proj.targets ?? {}).sort()
       expect(targets).toEqual(
         expect.arrayContaining([
           'typecheck',
@@ -995,13 +995,13 @@ describe('mega scenario — all targets from one plugin', () => {
           'build',
         ]),
       )
-      // oxlint owns lint
-      const lint = proj.targets?.lint as Record<string, unknown>
-      const lintOpts = lint.options as Record<string, unknown>
+      // Oxlint owns lint
+      const lint = proj.targets?.lint as Record<string, unknown>,
+       lintOpts = lint.options as Record<string, unknown>
       expect(lintOpts.command).toContain('oxlint')
-      // native test runner (no vitest)
-      const test = proj.targets?.test as Record<string, unknown>
-      const testOpts = test.options as Record<string, unknown>
+      // Native test runner (no vitest)
+      const test = proj.targets?.test as Record<string, unknown>,
+       testOpts = test.options as Record<string, unknown>
       expect(testOpts.command).toContain('node --test')
     } finally {
       rmSync(root, { recursive: true, force: true })

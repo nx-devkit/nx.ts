@@ -11,10 +11,10 @@ export function globMatch(rootDir: string, pattern: string): boolean {
     const matches = globSync(pattern, {
       cwd: rootDir,
       // `exclude` receives path strings (withFileTypes is unsupported on
-      // some runtimes). node_modules is pruned at any depth (vendored
-      // files are never sources); dist/coverage only at the project
-      // root so legitimately-named source dirs and explicit
-      // testGlob/specGlob paths still match.
+      // Some runtimes). node_modules is pruned at any depth (vendored
+      // Files are never sources); dist/coverage only at the project
+      // Root so legitimately-named source dirs and explicit
+      // TestGlob/specGlob paths still match.
       exclude: (entry) => {
         const segments = entry.split(/[\\/]/)
         return (
@@ -22,9 +22,9 @@ export function globMatch(rootDir: string, pattern: string): boolean {
         )
       },
     })
-    // globSync can return directories that match the pattern (e.g. a
+    // GlobSync can return directories that match the pattern (e.g. a
     // `foo.test.ts/` directory). Only count real files as matches so we
-    // don't infer a native test target for a matching directory name.
+    // Don't infer a native test target for a matching directory name.
     return matches.some((m) => {
       try {
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by globSync under the project root
@@ -36,7 +36,7 @@ export function globMatch(rootDir: string, pattern: string): boolean {
   } catch (error) {
     // Only swallow ENOENT (directory missing). Surface other errors
     // (permission denied, invalid pattern, missing fs.globSync) so
-    // callers don't silently treat real failures as "no test files".
+    // Callers don't silently treat real failures as "no test files".
     if (
       error instanceof Error &&
       'code' in error &&
@@ -57,10 +57,10 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
     const matches = glob(pattern, {
       cwd: rootDir,
       // `exclude` receives path strings (withFileTypes is unsupported on
-      // some runtimes). node_modules is pruned at any depth (vendored
-      // files are never sources); dist/coverage only at the project
-      // root so legitimately-named source dirs and explicit
-      // testGlob/specGlob paths still match.
+      // Some runtimes). node_modules is pruned at any depth (vendored
+      // Files are never sources); dist/coverage only at the project
+      // Root so legitimately-named source dirs and explicit
+      // TestGlob/specGlob paths still match.
       exclude: (entry) => {
         const segments = entry.split(/[\\/]/)
         return (
@@ -68,9 +68,9 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
         )
       },
     })
-    // glob can return directories that match the pattern (e.g. a
+    // Glob can return directories that match the pattern (e.g. a
     // `foo.test.ts/` directory). Only count real files as matches so we
-    // don't infer a native test target for a matching directory name.
+    // Don't infer a native test target for a matching directory name.
     for await (const m of matches) {
       try {
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by glob under the project root
@@ -83,7 +83,7 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
   } catch (error) {
     // Only swallow ENOENT (directory missing). Surface other errors
     // (permission denied, invalid pattern, missing fs.promises.glob) so
-    // callers don't silently treat real failures as "no test files".
+    // Callers don't silently treat real failures as "no test files".
     if (
       error instanceof Error &&
       'code' in error &&
@@ -98,10 +98,10 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
 // --- Backward-compat re-exports for the old hand-rolled glob engine ---
 // These are preserved so consumers importing `globToRegExp` or
 // `expandBraces` from `@nx-devkit/typescript` continue to work. The
-// preset itself now uses `fs.promises.glob` internally.
+// Preset itself now uses `fs.promises.glob` internally.
 
-const MAX_BRACE_DEPTH = 3
-const MAX_BRACE_OPTIONS = 20
+const MAX_BRACE_DEPTH = 3,
+ MAX_BRACE_OPTIONS = 20
 
 export function expandBraces(pattern: string, depth = 0): string[] {
   if (depth >= MAX_BRACE_DEPTH) return [pattern]
@@ -109,9 +109,9 @@ export function expandBraces(pattern: string, depth = 0): string[] {
   if (!match) return [pattern]
   const options = match[1].split(',')
   if (options.length > MAX_BRACE_OPTIONS) return [pattern]
-  const prefix = pattern.slice(0, match.index)
-  const suffix = pattern.slice((match.index ?? 0) + match[0].length)
-  const results: string[] = []
+  const prefix = pattern.slice(0, match.index),
+   suffix = pattern.slice((match.index ?? 0) + match[0].length),
+   results: string[] = []
   for (const opt of options) {
     results.push(...expandBraces(prefix + opt + suffix, depth + 1))
   }
@@ -119,8 +119,8 @@ export function expandBraces(pattern: string, depth = 0): string[] {
 }
 
 function globSegmentToRegex(pattern: string): string {
-  let result = ''
-  let i = 0
+  let result = '',
+   i = 0
   while (i < pattern.length) {
     const char = pattern.charAt(i)
     if (char === '*') {
@@ -136,9 +136,9 @@ function globSegmentToRegex(pattern: string): string {
       result += '[^/]'
       i++
     } else if (char === '.') {
-      result += '\\.'
+      result += String.raw`\.`
       i++
-    } else if ('+()^$|[]\\{}'.includes(char)) {
+    } else if (String.raw`+()^$|[]\{}`.includes(char)) {
       result += `\\${char}`
       i++
     } else {
@@ -155,9 +155,9 @@ function compileRegex(source: string): RegExp {
 }
 
 export function globToRegExp(pattern: string): RegExp {
-  const expanded = expandBraces(pattern)
-  const sources = expanded.map((p) => `^${globSegmentToRegex(p)}$`)
-  const source = sources.join('|')
+  const expanded = expandBraces(pattern),
+   sources = expanded.map((p) => `^${globSegmentToRegex(p)}$`),
+   source = sources.join('|')
   if (source.length > 10_000) {
     return /$^/
   }

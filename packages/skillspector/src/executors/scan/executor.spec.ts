@@ -53,8 +53,8 @@ function makeFindings(overrides: Partial<Record<string, unknown>>[] = []): strin
         start_line: 42,
       },
     },
-  ]
-  const merged = defaultFindings.map((f, i) => ({ ...f, ...overrides[i] }))
+  ],
+   merged = defaultFindings.map((f, i) => ({ ...f, ...overrides[i] }))
   return JSON.stringify(merged)
 }
 
@@ -116,8 +116,8 @@ describe('scanExecutor', () => {
 
   it('writes SARIF report when sarif option is set', async () => {
     execFileResponse.stdout = makeFindings()
-    const sarifRelPath = 'reports/scan-test.sarif'
-    const sarifAbsPath = join(workspace, sarifRelPath)
+    const sarifRelPath = 'reports/scan-test.sarif',
+     sarifAbsPath = join(workspace, sarifRelPath)
 
     await scanExecutor({
       options: {
@@ -128,8 +128,8 @@ describe('scanExecutor', () => {
       workspaceRoot: workspace,
     })
 
-    const sarifContent = readFileSync(sarifAbsPath, 'utf8')
-    const sarif = JSON.parse(sarifContent) as Record<string, unknown>
+    const sarifContent = readFileSync(sarifAbsPath, 'utf8'),
+     sarif = JSON.parse(sarifContent) as Record<string, unknown>
     expect(sarif.$schema).toBe(
       'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/Schemata/sarif-schema-2.1.0.json',
     )
@@ -143,8 +143,8 @@ describe('scanExecutor', () => {
     expect(result.level).toBe('error')
     const message = result.message as { text: string }
     expect(message.text).toBe('Dangerous eval usage detected')
-    const locations = result.locations as Array<Record<string, unknown>>
-    const physLoc = locations[0]!.physicalLocation as {
+    const locations = result.locations as Array<Record<string, unknown>>,
+     physLoc = locations[0]!.physicalLocation as {
       artifactLocation: { uri: string }
       region: { startLine: number }
     }
@@ -154,9 +154,9 @@ describe('scanExecutor', () => {
 
   it('rejects SARIF path that escapes workspace via sibling prefix', async () => {
     execFileResponse.stdout = makeFindings()
-    const escapePath = '../workspace-evil/report.sarif'
+    const escapePath = '../workspace-evil/report.sarif',
 
-    const result = await scanExecutor({
+     result = await scanExecutor({
       options: {
         path: 'skills/code-review/act',
         sarif: escapePath,
@@ -190,8 +190,8 @@ describe('scanExecutor', () => {
       },
     ])
     // Create a symlink inside workspace pointing outside
-    const outsideDir = mkdtempSync(join(tmpdir(), 'outside-'))
-    const linkDir = join(workspace, 'link')
+    const outsideDir = mkdtempSync(join(tmpdir(), 'outside-')),
+     linkDir = join(workspace, 'link')
     symlinkSync(outsideDir, linkDir, 'dir')
 
     const result = await scanExecutor({
@@ -241,12 +241,12 @@ describe('scanExecutor', () => {
       workspaceRoot: workspace,
     })
 
-    const _annotationsPath = join(workspace, 'annotations-code-review-act.txt')
+    const _annotationsPath = join(workspace, 'annotations-code-review-act.txt'),
     // The annotations file name includes the projectName hash; check it exists
     // by scanning the workspace for any annotations-*.txt file
-    const { readdirSync } = await import('node:fs')
-    const files = readdirSync(workspace)
-    const annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
+     { readdirSync } = await import('node:fs'),
+     files = readdirSync(workspace),
+     annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
     expect(annotationsFile).toBeDefined()
     const content = readFileSync(join(workspace, annotationsFile!), 'utf8')
     expect(content).toContain('SKILL-CODE')
@@ -276,15 +276,15 @@ describe('scanExecutor', () => {
       workspaceRoot: workspace,
     })
 
-    const { readdirSync } = await import('node:fs')
-    const files = readdirSync(workspace)
-    const annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
+    const { readdirSync } = await import('node:fs'),
+     files = readdirSync(workspace),
+     annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
     expect(annotationsFile).toBeDefined()
     const content = readFileSync(join(workspace, annotationsFile!), 'utf8')
     // % should be encoded as %25
     expect(content).toContain('100%25')
     // Newlines should be literal \n
-    expect(content).toContain('\\n')
+    expect(content).toContain(String.raw`\n`)
     // Should NOT contain raw newline in the message portion
     expect(content).not.toContain('100% exceeded\n')
   })
@@ -310,12 +310,12 @@ describe('scanExecutor', () => {
       workspaceRoot: workspace,
     })
 
-    const { readdirSync } = await import('node:fs')
-    const files = readdirSync(workspace)
-    const annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
+    const { readdirSync } = await import('node:fs'),
+     files = readdirSync(workspace),
+     annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
     expect(annotationsFile).toBeDefined()
     const content = readFileSync(join(workspace, annotationsFile!), 'utf8')
-    // file= value should be escaped (no raw :: or % unescaped)
+    // File= value should be escaped (no raw :: or % unescaped)
     // The path itself has no special chars, but verify the format is correct
     expect(content).toContain('file=skills/code-review/act/agent.ts')
   })
@@ -341,9 +341,9 @@ describe('scanExecutor', () => {
       workspaceRoot: workspace,
     })
 
-    const { readdirSync } = await import('node:fs')
-    const files = readdirSync(workspace)
-    const annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
+    const { readdirSync } = await import('node:fs'),
+     files = readdirSync(workspace),
+     annotationsFile = files.find((f) => f.startsWith('annotations-') && f.endsWith('.txt'))
     expect(annotationsFile).toBeDefined()
     const content = readFileSync(join(workspace, annotationsFile!), 'utf8')
     // % in file path should be encoded as %25
@@ -444,8 +444,8 @@ describe('scanExecutor', () => {
       workspaceRoot: workspace,
     })
 
-    const call = execFileCalls[0]!
-    const opts = call.options as { shell?: boolean }
+    const call = execFileCalls[0]!,
+     opts = call.options as { shell?: boolean }
     expect(opts.shell).not.toBe(true)
   })
 })

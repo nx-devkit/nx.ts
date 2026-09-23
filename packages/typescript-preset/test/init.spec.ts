@@ -5,9 +5,9 @@ function createTree(files: Record<string, string> = {}): {
   tree: import('@nx/devkit').Tree
   files: Map<string, string>
 } {
-  const fileMap = new Map<string, string>(Object.entries(files))
+  const fileMap = new Map<string, string>(Object.entries(files)),
 
-  const tree: import('@nx/devkit').Tree = {
+   tree: import('@nx/devkit').Tree = {
     exists: (path: string) => fileMap.has(path),
     read: (path: string) => fileMap.get(path) ?? null,
     write: (path: string, content: string) => {

@@ -6,8 +6,8 @@ export interface NxTypescriptInitOptions {
   skipInstall?: boolean
 }
 
-const DEFAULT_PLUGIN_PATH = '@nx-devkit/typescript'
-const NX_DEVKIT_SCOPE = '@nx-devkit/'
+const DEFAULT_PLUGIN_PATH = '@nx-devkit/typescript',
+ NX_DEVKIT_SCOPE = '@nx-devkit/'
 
 function readJson(tree: Tree, path: string): Record<string, unknown> | null {
   if (!tree.exists(path)) {
@@ -64,18 +64,18 @@ function getPluginOptions(entry: unknown): Record<string, unknown> {
 }
 
 function registerPlugin(tree: Tree, pluginPath: string): Record<string, unknown> {
-  const nxJson = readJson(tree, 'nx.json') ?? {}
-  const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : []
+  const nxJson = readJson(tree, 'nx.json') ?? {},
+   plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : [],
 
   // Remove @nx-devkit/* standalone entries (not the preset — it gets normalized)
-  const filtered = plugins.filter((entry) => !isNxDevkitStandalone(entry, pluginPath))
+   filtered = plugins.filter((entry) => !isNxDevkitStandalone(entry, pluginPath)),
 
   // Normalize or add the preset in object form, preserving existing options
-  const presetIndex = filtered.findIndex((entry) => isPresetEntry(entry, pluginPath))
+   presetIndex = filtered.findIndex((entry) => isPresetEntry(entry, pluginPath)),
   // eslint-disable-next-line security/detect-object-injection -- index is a bounded findIndex result
-  const existingOptions = presetIndex >= 0 ? getPluginOptions(filtered[presetIndex]) : {}
-  const presetEntry = { options: existingOptions, plugin: pluginPath }
-  if (presetIndex >= 0) {
+   existingOptions = presetIndex !== -1 ? getPluginOptions(filtered[presetIndex]) : {},
+   presetEntry = { options: existingOptions, plugin: pluginPath }
+  if (presetIndex !== -1) {
     // eslint-disable-next-line security/detect-object-injection -- index is a bounded findIndex result
     filtered[presetIndex] = presetEntry
   } else {
@@ -152,9 +152,9 @@ interface DetectedConfigs {
 
 // Keep in sync with the preset's default testGlob/specGlob
 // (**/*.{test,spec}.{ts,js,mts,mjs}) — cts/cjs files are not detected
-// as native test targets by the plugin, so init must not report them.
-const TEST_FILE_PATTERN = /\.(test|spec)\.(ts|js|mts|mjs)$/
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'coverage'])
+// As native test targets by the plugin, so init must not report them.
+const TEST_FILE_PATTERN = /\.(test|spec)\.(ts|js|mts|mjs)$/,
+ SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'coverage'])
 
 function detectConfigs(
   tree: Tree,
@@ -204,7 +204,7 @@ const PROJECT_CONTAINER_DIRS = new Set(['packages', 'apps', 'libs', 'projects'])
 function detectConfigsAtRoot(tree: Tree, configFile = 'tsconfig.json'): DetectedConfigs {
   const result = detectConfigs(tree, { ...CONFIG_FILES, tsconfig: [configFile] }, '')
   // Scan root for test files but skip the project container dirs — their
-  // tests belong to the nested projects, not the root.
+  // Tests belong to the nested projects, not the root.
   result.tests = hasTestFiles(tree, '', 0, PROJECT_CONTAINER_DIRS)
   return result
 }
@@ -214,8 +214,8 @@ function detectConfigsAtProjectRoot(
   projectRoot: string,
   configFile = 'tsconfig.json',
 ): DetectedConfigs {
-  const prefix = projectRoot.endsWith('/') ? projectRoot : `${projectRoot}/`
-  const result = detectConfigs(tree, { ...CONFIG_FILES, tsconfig: [configFile] }, prefix)
+  const prefix = projectRoot.endsWith('/') ? projectRoot : `${projectRoot}/`,
+   result = detectConfigs(tree, { ...CONFIG_FILES, tsconfig: [configFile] }, prefix)
   result.tests = hasTestFiles(tree, projectRoot)
   return result
 }
@@ -238,7 +238,7 @@ function findNestedProjectRoots(
     if (SKIP_DIRS.has(child)) continue
     const childPath = `${dir}/${child}`
     // A project root is a directory with a package.json or the configured
-    // tsconfig name — the preset infers a project from either signal.
+    // Tsconfig name — the preset infers a project from either signal.
     if (tree.exists(`${childPath}/package.json`) || tree.exists(`${childPath}/${configFile}`)) {
       roots.push(childPath)
     }
@@ -247,11 +247,11 @@ function findNestedProjectRoots(
 }
 
 // Mirrors the preset's nested-project check: the plugin glob matches
-// config files in ANY directory at ANY depth, not only the container
-// dirs scanned above — a tools/tsconfig.json suppresses root inference
-// just the same. Skipped dirs never become projects and must not count
-// either. Deliberately unbounded: a depth cap would diverge from the
-// plugin and misreport root targets in the summary.
+// Config files in ANY directory at ANY depth, not only the container
+// Dirs scanned above — a tools/tsconfig.json suppresses root inference
+// Just the same. Skipped dirs never become projects and must not count
+// Either. Deliberately unbounded: a depth cap would diverge from the
+// Plugin and misreport root targets in the summary.
 function hasNestedConfigFile(tree: Tree, fileName: string, dir = ''): boolean {
   let children: string[]
   try {
@@ -285,20 +285,20 @@ function getMissingDevDeps(
   configs: DetectedConfigs[],
   presetOptions: Record<string, unknown> = {},
 ): Record<string, string> {
-  const pkg = readJson(tree, 'package.json') ?? {}
-  const existing = {
+  const pkg = readJson(tree, 'package.json') ?? {},
+   existing = {
     ...(pkg.dependencies as Record<string, string> | undefined),
     ...(pkg.devDependencies as Record<string, string> | undefined),
-  }
+  },
 
   // eslint-disable-next-line security/detect-object-injection -- key is a DetectedConfigs union member
-  const hasAny = (key: keyof DetectedConfigs) => configs.some((c) => c[key])
-  const needed: Record<string, string> = {}
+   hasAny = (key: keyof DetectedConfigs) => configs.some((c) => c[key]),
+   needed: Record<string, string> = {},
 
   // Default `tsgo: true` typecheck runs the tsgo binary from
   // @typescript/native-preview — install it alongside typescript so a
   // freshly bootstrapped workspace's typecheck target works.
-  const DEP_RULES: ReadonlyArray<{
+   DEP_RULES: ReadonlyArray<{
     when: keyof DetectedConfigs
     dep: keyof typeof DEP_VERSIONS
     /** Preset option that disables this tool when explicitly false. */
@@ -314,7 +314,7 @@ function getMissingDevDeps(
   ]
   for (const { when, dep, option } of DEP_RULES) {
     // An existing preset registration may disable a tool — don't
-    // install its dependency (matches what the preset will infer).
+    // Install its dependency (matches what the preset will infer).
     // eslint-disable-next-line security/detect-object-injection -- option is a literal DEP_RULES field
     if (option !== undefined && presetOptions[option] === false) continue
     // eslint-disable-next-line security/detect-object-injection -- dep keys come from the literal DEP_RULES table
@@ -325,8 +325,8 @@ function getMissingDevDeps(
 }
 
 function hasPackageDep(tree: Tree, name: string): boolean {
-  const pkg = readJson(tree, 'package.json') ?? {}
-  const deps = {
+  const pkg = readJson(tree, 'package.json') ?? {},
+   deps = {
     ...(pkg.dependencies as Record<string, string> | undefined),
     ...(pkg.devDependencies as Record<string, string> | undefined),
   }
@@ -351,14 +351,14 @@ function targetLabel(
   presetOptions: Record<string, unknown> = {},
 ): string[] {
   // eslint-disable-next-line security/detect-object-injection -- option is a literal preset-option name
-  const enabled = (option: string) => presetOptions[option] !== false
+  const enabled = (option: string) => presetOptions[option] !== false,
   // Lint-family configs fall back to the workspace root, matching the
   // preset's root-config fallback for lint/format inference.
-  const hasOxlint = enabled('oxlint') && (configs.oxlint || (rootConfigs?.oxlint ?? false))
-  const hasEslint = enabled('eslint') && (configs.eslint || (rootConfigs?.eslint ?? false))
-  const hasBiome = enabled('biome') && (configs.biome || (rootConfigs?.biome ?? false))
+   hasOxlint = enabled('oxlint') && (configs.oxlint || (rootConfigs?.oxlint ?? false)),
+   hasEslint = enabled('eslint') && (configs.eslint || (rootConfigs?.eslint ?? false)),
+   hasBiome = enabled('biome') && (configs.biome || (rootConfigs?.biome ?? false)),
 
-  const targets: string[] = []
+   targets: string[] = []
   if (configs.tsconfig) targets.push('typecheck')
   if (configs.vitest) targets.push('test', 'test:watch', 'test:coverage')
   else if (configs.tests) targets.push('test')
@@ -381,20 +381,20 @@ function printSummary(
   hasNestedConfig = false,
   pluginInstalled = false,
 ): void {
-  const isLocalPath = pluginPath.startsWith('.') || pluginPath.startsWith('/')
-  const installCmd =
+  const isLocalPath = pluginPath.startsWith('.') || pluginPath.startsWith('/'),
+   installCmd =
     packageManager === 'bun'
       ? 'bun add -D'
       : packageManager === 'pnpm'
         ? 'pnpm add -D'
         : packageManager === 'yarn'
           ? 'yarn add -D'
-          : 'npm install -D'
-  const installStep = isLocalPath
+          : 'npm install -D',
+   installStep = isLocalPath
     ? `1. The plugin is registered from a local path: ${pluginPath}`
-    : pluginInstalled
+    : (pluginInstalled
       ? `1. The plugin is installed: ${pluginPath}`
-      : `1. Install the plugin: ${installCmd} ${pluginPath}`
+      : `1. Install the plugin: ${installCmd} ${pluginPath}`)
 
   console.log(installStep)
   console.log('')
@@ -405,15 +405,15 @@ function printSummary(
     .map(([k]) => k)
   if (rootDetected.length > 0) {
     // The workspace root is itself a project when includeRoot is set
-    // explicitly, or when no nested config file exists anywhere — matching
-    // the plugin's single-package auto-detection, which keys off the
-    // tsconfig glob, not only the container dirs. Otherwise root configs
-    // are only lint/format fallbacks for nested projects.
+    // Explicitly, or when no nested config file exists anywhere — matching
+    // The plugin's single-package auto-detection, which keys off the
+    // Tsconfig glob, not only the container dirs. Otherwise root configs
+    // Are only lint/format fallbacks for nested projects.
     const rootIsProject =
       rootConfigs.tsconfig &&
       (presetOptions.includeRoot === true ||
-        (presetOptions.includeRoot !== false && !hasNestedConfig))
-    const rootTargets = rootIsProject ? targetLabel(rootConfigs, rootConfigs, presetOptions) : []
+        (presetOptions.includeRoot !== false && !hasNestedConfig)),
+     rootTargets = rootIsProject ? targetLabel(rootConfigs, rootConfigs, presetOptions) : []
     if (rootTargets.length > 0) {
       console.log(`  . (workspace root) → ${rootTargets.join(', ')}`)
     } else {
@@ -462,23 +462,23 @@ export async function initGenerator(
   tree: Tree,
   options: NxTypescriptInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath ?? DEFAULT_PLUGIN_PATH
-  const skipInstall = options.skipInstall ?? false
+  const pluginPath = options.pluginPath ?? DEFAULT_PLUGIN_PATH,
+   skipInstall = options.skipInstall ?? false
 
   // 1. Ensure package.json exists
   ensurePackageJson(tree)
 
   // 2. Register plugin first (removes standalone @nx-devkit/* entries) —
-  // preserved options like `configFile` steer detection below.
-  const presetOptions = registerPlugin(tree, pluginPath)
-  const configFileName =
-    typeof presetOptions.configFile === 'string' ? presetOptions.configFile : 'tsconfig.json'
+  // Preserved options like `configFile` steer detection below.
+  const presetOptions = registerPlugin(tree, pluginPath),
+   configFileName =
+    typeof presetOptions.configFile === 'string' ? presetOptions.configFile : 'tsconfig.json',
 
   // 3. Detect configs at workspace root
-  const rootConfigs = detectConfigsAtRoot(tree, configFileName)
+   rootConfigs = detectConfigsAtRoot(tree, configFileName),
 
   // 4. Detect configs in nested project directories
-  const nestedRoots: string[] = []
+   nestedRoots: string[] = []
   for (const dir of ['packages', 'apps', 'libs', 'projects']) {
     findNestedProjectRoots(tree, dir, 0, nestedRoots, configFileName)
   }
@@ -491,8 +491,8 @@ export async function initGenerator(
   }
 
   // 5. Install missing peer deps
-  let installedDeps: Record<string, string> = {}
-  let installCallback: GeneratorCallback = () => {}
+  let installedDeps: Record<string, string> = {},
+   installCallback: GeneratorCallback = () => {}
 
   if (!skipInstall) {
     const allConfigs = [rootConfigs, ...projectConfigs.map((p) => p.configs)]

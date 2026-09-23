@@ -44,16 +44,16 @@ export const DIAGRAM_TYPES: Record<string, string> = {
 
 // Each letter expands to a [lL] char class so the Nx trigger glob matches
 // .PUML/.ExCaLiDrAw on case-sensitive filesystems. Char classes are used
-// instead of {l,L} braces — nested braces hit the expander depth limit.
+// Instead of {l,L} braces — nested braces hit the expander depth limit.
 const caseGlob = (ext: string) =>
-  ext.replace(/[a-z]/gi, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`)
+  ext.replace(/[a-z]/gi, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`),
 // .md joins the glob — fenced diagram blocks inside Markdown are extracted
 // at inference time and get one atomized target per block.
-const DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).map(caseGlob).join(',')},.[mM][dD]}`
+ DEFAULT_GLOB = `**/*{${Object.keys(DIAGRAM_TYPES).map(caseGlob).join(',')},.[mM][dD]}`
 
 export function diagramTypeFor(file: string): string | undefined {
-  const lower = file.toLowerCase()
-  const ext = Object.keys(DIAGRAM_TYPES).find((e) => lower.endsWith(e))
+  const lower = file.toLowerCase(),
+   ext = Object.keys(DIAGRAM_TYPES).find((e) => lower.endsWith(e))
   // eslint-disable-next-line security/detect-object-injection -- ext comes from Object.keys(DIAGRAM_TYPES), a fixed registry
   return ext ? DIAGRAM_TYPES[ext] : undefined
 }
@@ -78,9 +78,9 @@ export function outputPathFor(
 ): string {
   // All tokens are workspace-relative: {fileDir} is the source file's directory,
   // {projectRoot} the owning project root ('' for the root project).
-  const fileDir = dirname(file)
-  const fileName = basename(file).replace(/\.[a-z0-9]+$/i, '') + nameSuffix
-  const expanded = (outputDir ?? '{fileDir}')
+  const fileDir = dirname(file),
+   fileName = basename(file).replace(/\.[a-z0-9]+$/i, '') + nameSuffix,
+   expanded = (outputDir ?? '{fileDir}')
     .replaceAll('{fileDir}', fileDir === '.' ? '' : fileDir)
     .replaceAll('{fileName}', fileName)
     .replaceAll('{projectRoot}', projectRoot === '.' ? '' : projectRoot)
@@ -119,12 +119,12 @@ function findProjectRoot(workspaceRoot: string, fileDir: string): string {
 export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
   DEFAULT_GLOB,
   (configFiles, options = {}, context) => {
-    const format = options.format ?? 'svg'
-    const aggregateName = options.targetName ?? 'diagrams'
-    const include = options.include ?? []
-    const exclude = options.exclude ?? []
+    const format = options.format ?? 'svg',
+     aggregateName = options.targetName ?? 'diagrams',
+     include = options.include ?? [],
+     exclude = options.exclude ?? [],
 
-    const sharedOptions = {
+     sharedOptions = {
       commands: options.commands ?? {},
       dryRun: options.dryRun ?? false,
       format,
@@ -144,8 +144,8 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
     const perProject = new Map<string, DiagramFile[]>()
 
     for (const configFile of configFiles) {
-      const file = configFile.replace(/\\/g, '/')
-      const isMd = file.toLowerCase().endsWith('.md')
+      const file = configFile.replace(/\\/g, '/'),
+       isMd = file.toLowerCase().endsWith('.md')
       if (!isMd && !diagramTypeFor(file)) {
         continue
       }
@@ -156,18 +156,18 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         continue
       }
 
-      const projectRoot = findProjectRoot(context.workspaceRoot, dirname(file))
-      const rel = projectRoot === '.' ? file : relative(projectRoot, file).replace(/\\/g, '/')
-      const baseSlug = slugify(rel)
-      const entries = perProject.get(projectRoot) ?? []
+      const projectRoot = findProjectRoot(context.workspaceRoot, dirname(file)),
+       rel = projectRoot === '.' ? file : relative(projectRoot, file).replace(/\\/g, '/'),
+       baseSlug = slugify(rel),
+       entries = perProject.get(projectRoot) ?? []
 
       if (isMd) {
         // Block count and ordinals are declared at inference time — outputs
-        // must be known statically for Nx's cache contract. The executor
-        // re-extracts the block source by index when it runs.
-        const abs = join(context.workspaceRoot, file)
+        // Must be known statically for Nx's cache contract. The executor
+        // Re-extracts the block source by index when it runs.
+        const abs = join(context.workspaceRoot, file),
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
-        const blocks = extractDiagramBlocks(readFileSync(abs, 'utf8'))
+         blocks = extractDiagramBlocks(readFileSync(abs, 'utf8'))
         for (const block of blocks) {
           entries.push({
             block: block.index,
@@ -205,27 +205,27 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
         outputCounts.set(e.output, (outputCounts.get(e.output) ?? 0) + 1)
       }
     }
-    const takenOutputs = new Set<string>()
+    const takenOutputs = new Set<string>(),
 
-    const results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
+     results: (readonly [string, { projects: Record<string, ProjectConfiguration> }])[] = []
     // Project roots sorted so cross-project output allocation is deterministic.
     for (const projectRoot of [...perProject.keys()].sort()) {
       const entries = perProject.get(projectRoot) ?? []
       // Byte-order + block ordinal: localeCompare can tie on canonically
-      // equivalent Unicode names, which would make aggregate order depend
-      // on the caller's configFiles order.
+      // Equivalent Unicode names, which would make aggregate order depend
+      // On the caller's configFiles order.
       entries.sort((a, b) =>
-        a.file === b.file ? (a.block ?? -1) - (b.block ?? -1) : a.file < b.file ? -1 : 1,
+        a.file === b.file ? (a.block ?? -1) - (b.block ?? -1) : (a.file < b.file ? -1 : 1),
       )
 
       // Files whose slugs or outputs collide get deterministic type/hash suffixes.
       const slugDup = new Set(
         entries.map((e) => e.slug).filter((s, i, all) => all.indexOf(s) !== i),
-      )
-      const takenNames = new Set<string>()
-      const projectOutputs: string[] = []
+      ),
+       takenNames = new Set<string>(),
+       projectOutputs: string[] = [],
 
-      const targets: Record<string, TargetConfiguration> = {}
+       targets: Record<string, TargetConfiguration> = {}
       for (const e of entries) {
         let name = `diagram-${e.slug}`
         if (slugDup.has(e.slug)) {
@@ -241,8 +241,8 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
           output = suffixOutput(output, `-${e.type}`)
         }
         // Keep allocating until the candidate is unused — a type/hash
-        // fallback can itself collide (e.g. two same-named files of the
-        // same type under different roots writing to one outputDir).
+        // Fallback can itself collide (e.g. two same-named files of the
+        // Same type under different roots writing to one outputDir).
         for (let n = 0; takenOutputs.has(output); n++) {
           const hash = `-${e.type}-h${shortHash(e.file)}`
           output = suffixOutput(e.output, n ? `${hash}-${n + 1}` : hash)
@@ -276,8 +276,8 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
       targets[aggregateName] = {
         cache: true,
         executor: `${PLUGIN_NAME}:render`,
-        // files repeat for multi-block Markdown — dedupe for inputs only;
-        // the blocks array keeps outputs↔files↔block alignment for the executor.
+        // Files repeat for multi-block Markdown — dedupe for inputs only;
+        // The blocks array keeps outputs↔files↔block alignment for the executor.
         inputs: [...new Set(files)].map((f) => `{workspaceRoot}/${f}`),
         outputs: projectOutputs.map((o) => `{workspaceRoot}/${o}`),
         options: {

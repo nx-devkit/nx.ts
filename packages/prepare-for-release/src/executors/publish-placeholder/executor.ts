@@ -35,15 +35,15 @@ export interface PublishPlaceholderResult {
   trustCommands: string[]
 }
 
-const DEFAULT_REGISTRY = 'https://registry.npmjs.org/'
-const DEFAULT_TAG = 'placeholder'
-const DEFAULT_VERSION = '0.0.0'
-const TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
-const NPM_SUBPROCESS_TIMEOUT_MS = 120_000
+const DEFAULT_REGISTRY = 'https://registry.npmjs.org/',
+ DEFAULT_TAG = 'placeholder',
+ DEFAULT_VERSION = '0.0.0',
+ TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/,
+ NPM_SUBPROCESS_TIMEOUT_MS = 120_000,
 
-const EOTP_RE = /\bEOTP\b|one-time password/i
-const WEB_AUTH_TIMEOUT_MS = 5 * 60_000
-const WEB_AUTH_POLL_MS = 4_000
+ EOTP_RE = /\bEOTP\b|one-time password/i,
+ WEB_AUTH_TIMEOUT_MS = 5 * 60_000,
+ WEB_AUTH_POLL_MS = 4000
 const WEB_AUTH_FETCH_TIMEOUT_MS = 15_000
 
 interface ResolvedOptions {
@@ -159,18 +159,18 @@ async function buildPlaceholderTarball(
   placeholderVersion: string,
   registry: string,
 ): Promise<{ tarballPath: string; tempDir: string }> {
-  const tempDir = await mkdtemp(join(tmpdir(), 'nx-prepare-placeholder-'))
-  const stagedPkgRoot = join(tempDir, pkgName)
+  const tempDir = await mkdtemp(join(tmpdir(), 'nx-prepare-placeholder-')),
+   stagedPkgRoot = join(tempDir, pkgName)
 
   try {
     await mkdir(stagedPkgRoot, { recursive: true })
 
-    const original = await readPackageJson(pkgRoot)
+    const original = await readPackageJson(pkgRoot),
     // Minimal metadata-only placeholder. Do NOT spread `original`: lifecycle
     // Scripts (prepare/prepack/prepublishOnly) from the source package would
     // Run during `npm pack` and crash because the staged dir has no sources
     // Or node_modules.
-    const placeholder = {
+     placeholder = {
       author: original.author,
       bugs: original.bugs,
       description: `Placeholder for ${pkgName} published by @nx-devkit/prepare-for-release.`,
@@ -184,13 +184,13 @@ async function buildPlaceholderTarball(
       repository: original.repository,
       type: typeof original.type === 'string' ? original.type : undefined,
       version: placeholderVersion,
-    }
+    },
 
-    const placeholderJson = JSON.stringify(placeholder, null, 2)
+     placeholderJson = JSON.stringify(placeholder, null, 2)
     await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf8')
 
-    const npmCmd = resolveNpmCommand()
-    const packResult = spawnWithTimeout(npmCmd, packArgs(tempDir), {
+    const npmCmd = resolveNpmCommand(),
+     packResult = spawnWithTimeout(npmCmd, packArgs(tempDir), {
       cwd: stagedPkgRoot,
       encoding: 'utf8',
     })
@@ -201,8 +201,8 @@ async function buildPlaceholderTarball(
       )
     }
 
-    const stdout = (packResult.stdout ?? '').toString().trim()
-    const tarballName = stdout.split('\n').pop()?.trim()
+    const stdout = (packResult.stdout ?? '').toString().trim(),
+     tarballName = stdout.split('\n').pop()?.trim()
     if (!tarballName) {
       throw new Error(`npm pack produced no tarball name for ${pkgName}`)
     }
@@ -217,8 +217,8 @@ async function buildPlaceholderTarball(
 }
 
 function isPublished(pkgName: string, registry: string): boolean {
-  const npmCmd = resolveNpmCommand()
-  const result = spawnWithTimeout(npmCmd, viewArgs(pkgName, registry), {
+  const npmCmd = resolveNpmCommand(),
+   result = spawnWithTimeout(npmCmd, viewArgs(pkgName, registry), {
     encoding: 'utf8',
   })
   if (result.status !== 0) {
@@ -276,10 +276,10 @@ function trustArgs(pkgName: string, trustRepo: string, registry?: string): strin
 function runTrustFor(pkgName: string, trustRepo: string, registry?: string): Promise<void> {
   const npmCmd = resolveNpmCommand()
   return new Promise((resolvePromise, rejectPromise) => {
-    // stderr is piped but forwarded live: npm writes the interactive MFA/OTP
-    // prompt to stderr, so a plain 'pipe' would hide the prompt while the
-    // child blocks on stdin. Tee keeps the prompt visible AND retains a copy
-    // for "already trusted" detection.
+    // Stderr is piped but forwarded live: npm writes the interactive MFA/OTP
+    // Prompt to stderr, so a plain 'pipe' would hide the prompt while the
+    // Child blocks on stdin. Tee keeps the prompt visible AND retains a copy
+    // For "already trusted" detection.
     const child = spawn(npmCmd, trustArgs(pkgName, trustRepo, registry), {
       stdio: ['inherit', 'inherit', 'pipe'],
     })
@@ -319,14 +319,14 @@ function runTrustFor(pkgName: string, trustRepo: string, registry?: string): Pro
  * are never returned — sending one to the wrong host would leak it.
  */
 function readNpmAuthToken(registry: string, cwd: string): string | null {
-  const url = new URL(registry)
+  const url = new URL(registry),
   // Npmrc keys mirror the registry origin+path: //host/path/:_authToken.
   // A bare host has pathname "/", yielding "//host".
-  const registryKey = `//${url.host}${url.pathname.replace(/\/+$/, '')}`
-  const keyRe = new RegExp(
+   registryKey = `//${url.host}${url.pathname.replace(/\/+$/, '')}`,
+   keyRe = new RegExp(
     `${registryKey.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/:_authToken=(\\S+)`,
-  )
-  const candidates = [join(cwd, '.npmrc'), join(homedir(), '.npmrc')]
+  ),
+   candidates = [join(cwd, '.npmrc'), join(homedir(), '.npmrc')]
   for (const rcPath of candidates) {
     let text: string
     try {
@@ -334,9 +334,9 @@ function readNpmAuthToken(registry: string, cwd: string): string | null {
     } catch {
       continue
     }
-    const hostMatch = text.match(keyRe)
-    const unscopedMatch = text.match(/^\s*_authToken\s*=\s*(\S+)/m)
-    const match = hostMatch ?? unscopedMatch
+    const hostMatch = text.match(keyRe),
+     unscopedMatch = text.match(/^\s*_authToken\s*=\s*(\S+)/m),
+     match = hostMatch ?? unscopedMatch
     if (match) return match[1]
   }
   return null
@@ -348,7 +348,7 @@ interface WebAuthUrls {
 }
 
 /**
- * npm masks the EOTP auth URL in non-TTY output. Replicating the publish
+ * Npm masks the EOTP auth URL in non-TTY output. Replicating the publish
  * PUT with `npm-auth-type: web` makes the registry return the real
  * authUrl/doneUrl pair in the 401 body.
  */
@@ -357,8 +357,8 @@ async function requestWebAuthUrls(
   registry: string,
   token: string,
 ): Promise<WebAuthUrls> {
-  const base = registry.endsWith('/') ? registry.slice(0, -1) : registry
-  const res = await fetch(`${base}/${pkgName.replace('/', '%2f')}`, {
+  const base = registry.endsWith('/') ? registry.slice(0, -1) : registry,
+   res = await fetch(`${base}/${pkgName.replace('/', '%2f')}`, {
     body: '{}',
     headers: {
       authorization: `Bearer ${token}`,
@@ -368,8 +368,8 @@ async function requestWebAuthUrls(
     },
     method: 'PUT',
     signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
-  })
-  const text = await res.text()
+  }),
+   text = await res.text()
   let parsed: Partial<WebAuthUrls> = {}
   try {
     const body: unknown = JSON.parse(text)
@@ -377,7 +377,7 @@ async function requestWebAuthUrls(
       parsed = body as Partial<WebAuthUrls>
     }
   } catch {
-    // fall through to the error below
+    // Fall through to the error below
   }
   if (!parsed.authUrl || !parsed.doneUrl) {
     throw new Error(
@@ -416,7 +416,7 @@ function runNpmPublish(
   if (otp) args.push('--otp', otp)
   const result = spawnWithTimeout(npmCmd, args, { encoding: 'utf8' })
   // Output is piped (for EOTP detection) then teed so npm notices and
-  // warnings still reach the user's terminal.
+  // Warnings still reach the user's terminal.
   if (result.stdout) process.stdout.write(result.stdout)
   if (result.stderr) process.stderr.write(result.stderr)
   return result
@@ -521,7 +521,7 @@ export async function publishPlaceholderExecutor(
   detectPackageManager()
 
   // Per-package mode (inferred `prepare-for-release` targets) processes a
-  // single manifest; the tools-project mode scans `packages/*` as before.
+  // Single manifest; the tools-project mode scans `packages/*` as before.
   const pkgDirs = resolved.packageJson
     ? [
         isAbsolute(resolved.packageJson)
@@ -532,9 +532,9 @@ export async function publishPlaceholderExecutor(
         absolute: true,
         cwd: context.root,
         onlyFiles: true,
-      })
+      }),
 
-  const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] }
+   acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] }
   for (const pkgJsonPath of pkgDirs) {
     await processPackage(pkgJsonPath, resolved, acc, context.root)
   }
