@@ -1,47 +1,31 @@
 ---
-title: "Running the Rust-native TypeScript toolchain inside Nx — tsdown, Biome, tsgo"
-description: "Nx has no official plugins for tsdown builds, Biome formatting, or tsgo typecheck. These inference plugins cover them — targets derived from config files, no project.json."
+title: "@nx/js vs zero-config inference — an honest look at both sides of the Nx toolchain"
+description: "What the official Nx plugins give you, where they stop, and what a config-inference preset (tsdown, Biome, oxlint, tsgo) does differently. Fair trade-offs, not a pitch."
 tags: [nx, typescript, monorepo, webdev]
 published: false
 ---
 
-# Running the Rust-native TypeScript toolchain inside Nx — tsdown, Biome, tsgo
+# `@nx/js` vs zero-config inference — an honest look at both sides of the Nx toolchain
 
-The TypeScript toolchain is quietly being rewritten in Rust: oxlint for linting, Biome for lint+format, tsdown (Rolldown) for builds, tsgo for typecheck. It's fast and it composes — but if your monorepo runs on Nx, there's a gap: **Nx's official plugin set barely covers this stack.**
+The TypeScript toolchain is quietly being rewritten in Rust: oxlint for linting, Biome for lint+format, tsdown (Rolldown) for builds, tsgo for typecheck. I wanted that stack inside an Nx monorepo — and discovered the official plugin set barely covers it:
 
 - `@nx/oxlint` exists — experimental, single-tool
-- Biome — community plugins only, no official one
+- Biome — community plugins only; official support is an open request (nrwl/nx discussions #35462, #23347)
 - tsdown/Rolldown — nothing (official builds are webpack/esbuild/rollup/rspack/vite)
 - tsgo — nothing (`@nx/js` typechecks with tsc only)
 
-So adopting the modern stack inside Nx means hand-writing `project.json` targets per package — the same `build`, `lint`, `format`, `typecheck` declarations, copy-pasted with slightly different paths:
+So I built `@nx-devkit/*` — inference plugins that derive targets from config files instead of generating `project.json`. This post is the honest comparison: where the official approach wins, where it doesn't reach, and who should pick what.
 
-```jsonc
-// packages/lib-a/project.json — and again in lib-b, lib-c, ...
-{
-  "targets": {
-    "build":     { "executor": "...", "options": {} /* … */ },
-    "test":      { "executor": "...", "options": {} /* … */ },
-    "lint":      { "executor": "...", "options": {} /* … */ },
-    "typecheck": { "executor": "...", "options": {} /* … */ }
-  }
-}
-```
+## Two different models
 
-I wanted Nx's project graph, caching, and `affected` *on* that toolchain — so I built inference plugins that derive targets from the config files that already exist:
+**Official plugins are generator-first.** `nx g @nx/js:lib` scaffolds a package, writes config files, registers executors, wires lint/test integration. The plugin's executors then *own* how the tool runs — options flow through Nx's executor schema into the tool.
+
+**nx-devkit is inference-only.** No generators, no scaffolding. `createNodesV2` globs for config files you already keep and turns them into cacheable targets:
 
 ```jsonc
 // nx.json — that's the whole configuration
 { "plugins": ["@nx-devkit/typescript"] }
 ```
-
-```bash
-npx @nx-devkit/typescript init   # installs nx if missing, registers the plugin in nx.json
-```
-
-## What "zero-config" actually means
-
-Each package in the workspace is defined by the config files it *already has*:
 
 | File on disk | Targets you get |
 |---|---|
@@ -53,9 +37,36 @@ Each package in the workspace is defined by the config files it *already has*:
 | `biome.json` | `format`, `format-check` (+ `lint` fallback) |
 | `tsdown.config.ts` | `build`, `build:watch` |
 
-One prerequisite: the preset anchors on `**/tsconfig*.json`, so a directory needs a TypeScript config to become a project — a bare `vitest.config.ts` alone won't infer one.
+Add `tsdown.config.ts` to a package → `build` appears on the next `nx run`, cacheable, with `dependsOn: ^build`. Delete it → gone. `nx show project` reflects reality, not a file you maintain. One prerequisite: the preset anchors on `**/tsconfig*.json` — a bare `vitest.config.ts` alone won't create a project.
 
-Add `tsdown.config.ts` to a package → `build` appears on the next `nx run`, cacheable, with `dependsOn: ^build`. Delete it → the target disappears. `nx show project lib-a` reflects reality, not a file you have to remember to update. The project graph is derived state, not maintained state.
+```bash
+npx @nx-devkit/typescript init   # installs nx if missing, registers the plugin
+```
+
+## Where official `@nx/*` wins — for real
+
+Fairness means saying this plainly:
+
+- **Generators.** `@nx/js:lib`, `@nx/react:app`, `@nx/nest:app` scaffold complete, correctly-wired projects. nx-devkit generates nothing — if you want `nx g` to produce a new library with everything configured, official is the only option.
+- **`enforce-module-boundaries`.** The architectural rule ("libs in `domain/` can't import from `app/`-layer") is an official-only feature — and it's the deepest reason teams adopt Nx. nx-devkit has no equivalent; the official `@nx/oxlint` plugin ships it as an oxlint JS plugin, which tells you where the ecosystem's center of gravity is.
+- **Migrations.** `nx migrate` rewrites your workspace on upgrades. A three-file inference plugin doesn't need that machinery — because it doesn't generate code to migrate.
+- **Battle-testing.** Official plugins carry years of edge cases across Angular/React/Next workspaces, Jest setups, webpack configs. nx-devkit is pre-1.0 with a small user base.
+- **Framework gravity.** If your repo is Angular or Next, the official plugins aren't optional — they're the integration.
+
+## Where nx-devkit wins — and it's a real gap, not a niche
+
+- **The Rust-native stack has no official coverage.** tsdown, Biome, tsgo — zero official plugins; oxlint only experimental. If your toolchain is already these tools, official plugins offer you ESLint/Jest/webpack executors you'll immediately rip out.
+- **Zero maintained state.** No `project.json` to copy-paste, no drift between "what targets exist" and "what configs exist". The graph is derived.
+- **Thinner abstraction.** Targets run the tool's own CLI the way you'd type it — no executor option schema to learn, debug, or fight. What you see in `nx show project` is a plain command.
+- **Single-tool granularity.** `@nx-devkit/oxlint` alone works if that's all you want; the preset just composes the same inference.
+
+## The honest verdict
+
+They're not really competitors — they overlap on "turn a package into Nx targets" and diverge on everything else.
+
+- **Pick official `@nx/*`** if you're building apps with framework generators, need module-boundary enforcement, or run the established toolchain (Jest, ESLint, webpack/vite). That's the supported, batteries-included path.
+- **Pick nx-devkit** if your monorepo is TypeScript libraries on the modern stack (tsdown/oxlint/Biome/tsgo/Vitest) and you want Nx's graph+cache without adopting a second toolchain's opinions.
+- **Compose them** — inference adds targets, it doesn't remove them. `@nx/react` generators and `@nx-devkit/*` inference coexist in one workspace; that hybrid is probably the most common real setup.
 
 ## The part that was harder than it looks
 
@@ -66,18 +77,13 @@ Add `tsdown.config.ts` to a package → `build` appears on the next `nx run`, ca
 - **Executors beat `run-commands` for the heavy tools.** `execFile` on the tool's Node entry — no shell, bounded timeouts, large maxBuffer for compiler output.
 - **Single-package repos are the edge case.** A lone `tsconfig` at the root becomes the root project; when any nested config exists, the root is skipped unless `includeRoot: true` explicitly includes it (`includeRoot: false` always excludes it).
 
-## vs. the official plugins
+## Caveats
 
-Different bet, not a hostile one. The official plugins infer targets that call *their* executors with *their* conventions — and they're only published per-tool, which is why half the Rust-native stack has no coverage at all. nx-devkit's layer is dumber and thinner: your configs are the source of truth, one preset translates all of them into cacheable targets, and the tools run exactly as if you'd typed the command. And it composes — inference adds targets, it doesn't remove them, so `@nx/react` generators and `@nx-devkit/*` inference can coexist in one workspace.
-
-## Trade-offs, honestly
-
-- **Pre-1.0.** Minor versions may add or change inferred targets; pin versions if your CI needs reproducible graphs.
-- **Toolchain-covered, not ecosystem-covered.** If you need `@nx/js` generators (library scaffolding) or framework integrations (Angular, React, Next), official plugins still earn their place.
-- **Opinionated tool set.** If your stack is Jest + webpack, this preset isn't for you.
+- **Pre-1.0.** Minor versions may add or change inferred targets; pin versions for reproducible CI.
+- **Opinionated tool set.** Jest + webpack stacks should stay on official plugins — that's literally what they're for.
 
 ## What's next
 
-The preset is on npm as `@nx-devkit/typescript` (`npx @nx-devkit/typescript init` installs nx if missing and registers the plugin in `nx.json`). The standalone plugins — `@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome` — exist for single-tool consumers. There's also `@nx-devkit/diagrams` (renders `.mmd`/`.puml`/`.d2` into cached, atomized targets — `nx affected` re-renders only the diagrams that changed) and `@nx-devkit/prepare-for-release` (OIDC trusted-publishing bootstrap).
+The preset is on npm as `@nx-devkit/typescript`. The standalone plugins — `@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome` — exist for single-tool consumers. There's also `@nx-devkit/diagrams` (renders `.mmd`/`.puml`/`.d2` into cached, atomized targets) and `@nx-devkit/prepare-for-release` (OIDC trusted-publishing bootstrap).
 
-Repo: https://github.com/nx-devkit/nx.ts — issues and PRs welcome. If you've wanted Nx's graph on the Rust-native toolchain, this is that.
+Repo: https://github.com/nx-devkit/nx.ts — issues and PRs welcome.
