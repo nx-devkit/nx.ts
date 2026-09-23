@@ -2,9 +2,24 @@
   "name": "@nx-devkit/typescript",
   "version": "0.2.6",
   "license": "MIT",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "nx-preset",
+    "typescript",
+    "monorepo",
+    "zero-config",
+    "typecheck",
+    "vitest",
+    "oxlint",
+    "eslint",
+    "biome",
+    "tsdown",
+    "tsgo"
+  ],
   "private": false,
   "type": "module",
-  "description": "Preset Nx plugin that infers typecheck, test, lint, format, and build targets from config files you already keep \u2014 no project.json required. One-command bootstrap: npx @nx-devkit/typescript init",
+  "description": "Preset Nx plugin that infers typecheck, test, lint, format, and build targets from config files you already keep — no project.json required. One-command bootstrap: npx @nx-devkit/typescript init",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
   "types": "./dist/plugin.d.mts",
@@ -86,5 +101,9 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/typescript-preset"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/typescript-preset"
 }

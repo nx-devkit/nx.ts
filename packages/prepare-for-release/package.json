@@ -2,6 +2,17 @@
   "name": "@nx-devkit/prepare-for-release",
   "version": "0.1.9",
   "license": "MIT",
+  "description": "Nx plugin for bootstrapping npm packages: publishes a 0.0.0 placeholder for unpublished workspace packages and wires up OIDC trusted publishing.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "npm",
+    "npm-publish",
+    "oidc",
+    "trusted-publishing",
+    "release",
+    "monorepo"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",
@@ -55,5 +66,9 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/prepare-for-release"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/prepare-for-release"
 }

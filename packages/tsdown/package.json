@@ -2,6 +2,18 @@
   "name": "@nx-devkit/tsdown",
   "version": "0.1.5",
   "license": "MIT",
+  "description": "Standalone Nx plugin: infers a cached build target from tsdown.config.ts — no project.json required.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "tsdown",
+    "rolldown",
+    "build",
+    "bundler",
+    "typescript",
+    "monorepo",
+    "zero-config"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",
@@ -44,5 +56,9 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/tsdown"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/tsdown"
 }

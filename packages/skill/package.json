@@ -2,6 +2,17 @@
   "name": "@nx-devkit/skill",
   "version": "0.1.7",
   "license": "MIT",
+  "description": "Nx plugin for agent skills: any SKILL.md becomes a project with build, lint, validate, os-check, and size-check targets — no project.json required.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "agent-skills",
+    "claude-skills",
+    "ai-agent",
+    "agentskills",
+    "llm",
+    "skill"
+  ],
   "private": false,
   "type": "module",
   "main": "./dist/index.mjs",
@@ -46,5 +57,9 @@
     "type": "git",
     "url": "https://github.com/nx-devkit/nx.ts",
     "directory": "packages/skill"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skill"
 }
