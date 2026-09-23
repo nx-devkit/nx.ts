@@ -50,7 +50,7 @@ bun add -D @nx-devkit/typescript
 { "plugins": ["@nx-devkit/typescript"] }
 ```
 
-Requires `@nx/devkit` and `typescript` (required peers). The remaining tools are optional peers — install only what your configs use:
+Depends on `@nx/devkit` `^22 || ^23` (installed automatically); `typescript` is the one required peer. The remaining tools are optional peers — install only what your configs use:
 
 ```bash
 bun add -D vitest oxlint eslint @biomejs/biome tsdown

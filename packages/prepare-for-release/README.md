@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/prepare-for-release
 ```
 
-Requires `@nx/devkit` `^22 || ^23` (peer).
+Depends on `@nx/devkit` `^22 || ^23` — installed automatically.
 
 ## Bootstrap
 
