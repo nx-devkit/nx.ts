@@ -17,7 +17,7 @@ I wanted Nx's project graph, caching, and `affected` — with *my* toolchain: ts
 ```
 
 ```bash
-npx @nx-devkit/typescript init   # or this, if you don't even want to edit nx.json
+npx @nx-devkit/typescript init   # installs nx if missing, registers the plugin in nx.json
 ```
 
 ## What "zero-config" actually means
@@ -34,6 +34,8 @@ Each package in the workspace is defined by the config files it *already has*:
 | `biome.json` | `format`, `format-check` (+ `lint` fallback) |
 | `tsdown.config.ts` | `build`, `build:watch` |
 
+One prerequisite: the preset anchors on `**/tsconfig*.json`, so a directory needs a TypeScript config to become a project — a bare `vitest.config.ts` alone won't infer one.
+
 Add `vitest.config.ts` to a package → `test` appears on the next `nx run`. Delete it → the target disappears. The project graph is derived state, not maintained state.
 
 ## The part that was harder than it looks
@@ -43,7 +45,7 @@ Add `vitest.config.ts` to a package → `test` appears on the next `nx run`. Del
 - **Lint precedence has to be explicit.** oxlint > eslint > biome — each gated on both its option *and* its config file. "Which tool owns `lint`" is a real UX decision; implicit last-write-wins produces flaky diffs.
 - **Binaries must resolve like a user would invoke them.** `node_modules/.bin` walk-up resolution, because hoisted monorepo installs (pnpm, bun) break naive `require.resolve`.
 - **Executors beat `run-commands` for the heavy tools.** `execFile` on the tool's Node entry — no shell, bounded timeouts, large maxBuffer for compiler output.
-- **Single-package repos are the edge case.** A lone `tsconfig` at the root should make the *root* a project — but the moment a nested package appears, that must self-correct (`includeRoot` forces it either way).
+- **Single-package repos are the edge case.** A lone `tsconfig` at the root becomes the root project; when any nested config exists, the root is skipped unless `includeRoot: true` explicitly includes it (`includeRoot: false` always excludes it).
 
 ## Why not just use `@nx/js` + friends?
 
@@ -51,7 +53,7 @@ You can — it works. The difference is where the abstraction sits. The official
 
 ## What's next
 
-The preset is on npm as `@nx-devkit/typescript` (`npx @nx-devkit/typescript init` bootstraps everything, including nx itself in a non-Nx repo). The standalone plugins — `@nx-devkit/tsdown`, `oxlint`, `biome` — exist for single-tool consumers. There's also `@nx-devkit/diagrams` (renders `.mmd`/`.puml`/`.d2` into cached, atomized targets — `nx affected` re-renders only the diagrams that changed) and `@nx-devkit/prepare-for-release` (OIDC trusted-publishing bootstrap).
+The preset is on npm as `@nx-devkit/typescript` (`npx @nx-devkit/typescript init` installs nx if missing and registers the plugin in `nx.json`). The standalone plugins — `@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome` — exist for single-tool consumers. There's also `@nx-devkit/diagrams` (renders `.mmd`/`.puml`/`.d2` into cached, atomized targets — `nx affected` re-renders only the diagrams that changed) and `@nx-devkit/prepare-for-release` (OIDC trusted-publishing bootstrap).
 
 Repo: https://github.com/nx-devkit/nx.ts — issues and PRs welcome. If you've wanted Nx's graph without its toolchain opinions, this is that.
 
