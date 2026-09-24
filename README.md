@@ -68,6 +68,14 @@ The preset subsumes the standalone tsdown/oxlint/biome plugins; they stay availa
 
 All `@nx-devkit/*` packages are pre-1.0: minor versions may add or change inferred targets and option defaults; patches are fixes only. Check per-package `CHANGELOG.md` files before upgrading, and pin exact versions if your CI needs reproducible graphs.
 
+**What 1.0 means here.** A package graduates to 1.0 when all of these hold:
+
+- **Inferred contract frozen** — target names, `inputs`/`outputs`, and `dependsOn` wiring stop changing in minor versions (new *targets* may still be added).
+- **Options schema frozen** — option renames/removals require a major bump; additions stay minor.
+- **Verified compat range** — CI exercises the packed plugin against every supported Nx major (`e2e-packed` matrix), not just the newest.
+- **Naming settled** — the `packages/typescript-preset` → `@nx-devkit/typescript` directory/package split is either accepted as documented or renamed once, before 1.0.
+- **Migrations shipped for breaks** — any change that alters consumer `nx.json` or project layout comes with an `nx migrate` entry (the preset already ships `migrations.json`).
+
 ## When to use — and when not
 
 Use nx-devkit if your Nx workspace is a modern TypeScript toolchain and you want the project graph, caching, and `affected` without maintaining `project.json` targets per package — `tsconfig.json`, `vitest.config.ts`, `biome.json`, and friends *are* the project definition.
