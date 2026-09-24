@@ -1,3 +1,7 @@
+## 0.1.7 (2026-09-24)
+
+This was a version bump only for @nx-devkit/tsdown to align it with other projects, there were no code changes.
+
 ## 0.1.6 (2026-09-23)
 
 ### 🩹 Fixes
