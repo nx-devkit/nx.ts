@@ -2,7 +2,7 @@
 
 ## Why
 
-`@nx/enforce-module-boundaries` is the deepest reason teams adopt Nx — declaring that `type:app` may import `type:feature` but never the reverse, and having CI actually enforce it. Today it is ESLint-only (`@nx/eslint` rule), with an experimental port inside the official `@nx/oxlint` package as an oxlint JS plugin (unstable API surface).
+`@nx/enforce-module-boundaries` is the deepest reason teams adopt Nx — declaring that `type:app` may import `type:feature` but never the reverse, and having CI actually enforce it. Today it is ESLint-only (`@nx/eslint-plugin` rule), with an experimental port inside the official `@nx/oxlint` package as an oxlint JS plugin (unstable API surface).
 
 A workspace running the nx-devkit stack — oxlint or Biome, no ESLint — has **no boundary enforcement at all**. This is the single largest capability gap between nx-devkit and the official plugin set.
 
@@ -23,17 +23,21 @@ The goal: a linter-agnostic `check-boundaries` Nx target that works regardless o
 
 ```jsonc
 {
-  "plugin": "@nx-devkit/boundaries",
-  "options": {
-    "depConstraints": [
-      { "sourceTag": "type:app", "onlyDependOnLibsWithTags": ["type:feature", "type:util"] },
-      { "sourceTag": "type:feature", "onlyDependOnLibsWithTags": ["type:feature", "type:util"] }
-    ]
-  }
+  "plugins": [
+    {
+      "plugin": "@nx-devkit/boundaries",
+      "options": {
+        "depConstraints": [
+          { "sourceTag": "type:app", "onlyDependOnLibsWithTags": ["type:feature", "type:util"] },
+          { "sourceTag": "type:feature", "onlyDependOnLibsWithTags": ["type:feature", "type:util"] }
+        ]
+      }
+    }
+  ]
 }
 ```
 
-- Semantics mirror the official rule: `sourceTag` matches the importing project's tags; `onlyDependOnLibsWithTags` whitelists target project tags; unconstrained sources/targets are allowed by default (permissive default matching ESLint rule behavior).
+- Semantics mirror the official rule for tagged projects: `sourceTag` matches the importing project's tags; `onlyDependOnLibsWithTags` whitelists target project tags. **Deliberate divergence on untagged projects:** with `depConstraints` configured, the official rule errors on untagged sources ("project without tags cannot have dependencies") and flags imports into untagged targets. This design keeps untagged projects unconstrained — tags are opt-in, and a `strictUntagged` escape hatch can come later. An empty `onlyDependOnLibsWithTags: []` mirrors the official rule's tagless-only meaning: tagged targets violate, untagged targets pass.
 
 ## Non-goals
 

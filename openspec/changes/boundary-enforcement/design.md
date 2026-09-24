@@ -2,7 +2,7 @@
 
 ## Package shape
 
-```
+```text
 packages/boundaries/
 ├── package.json              # @nx-devkit/boundaries
 ├── executors.json            # check-boundaries executor
@@ -39,6 +39,7 @@ TypeScript compiler API over regexes — regexes choke on comments, template lit
 ## Resolution
 
 Order per specifier:
+
 1. Relative specifier → resolve against importing file → walk up to nearest project root.
 2. Bare specifier matching a workspace package name (`package.json` `name` of a project) → that project.
 3. tsconfig `paths` match → resolve → nearest project root.
@@ -46,13 +47,16 @@ Order per specifier:
 
 ## Constraint evaluation
 
-```
+```text
 for each (sourceProject, import, targetProject):
+  if sourceProject == targetProject → allow            # self-import
+  if sourceProject.tags = ∅ → allow                    # permissive untagged source
+  if targetProject.tags = ∅ → allow                    # permissive untagged target (covers [] "tagless-only")
   for each constraint where sourceTag ∈ sourceProject.tags:
     if targetProject.tags ∩ onlyDependOnLibsWithTags = ∅ → violation
 ```
 
-Self-imports (source == target project) always allowed. Projects with no tags: unconstrained (permissive) — matches the official rule's default; a `strictUntagged` option can come later if requested.
+Self-imports (source == target project) always allowed. Untagged projects are unconstrained (permissive) — a **deliberate divergence** from the official rule, which errors on untagged sources and flags imports into untagged targets once `depConstraints` are configured; tags stay opt-in here, with a `strictUntagged` option possible later. Empty `onlyDependOnLibsWithTags: []` mirrors the official tagless-only meaning: tagged targets violate, untagged targets pass.
 
 ## Options
 
@@ -65,4 +69,4 @@ export interface NxBoundariesOptions {
 
 ## Performance
 
-Graph + one pass of `ts.createSourceFile` per file. For a mid-size monorepo (~1k files) this is single-digit seconds; cacheable as an Nx target keyed on source + package.json inputs. No incremental mode in v1 — `affected` already bounds how often it runs.
+Graph + one pass of `ts.createSourceFile` per file. For a mid-size monorepo (~1k files) this is single-digit seconds; cacheable as an Nx target. Cache `inputs` must cover everything the executor reads: project sources, `package.json` files (`nx.tags`), `project.json` files (alternate tag channel), and `tsconfig*.json` (resolution step 3 consults `paths`) — a `paths` or tag edit must never leave a stale result green. No incremental mode in v1 — `affected` already bounds how often it runs.
