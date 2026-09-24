@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/tsdown",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "license": "MIT",
   "description": "Standalone Nx plugin: infers a cached build target from tsdown.config.ts — no project.json required.",
   "keywords": [

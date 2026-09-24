@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/nx-cloud",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "license": "MIT",
   "description": "Nx plugin that adds an nx-cloud-rotate target to the workspace root — rolls over to a fresh Nx Cloud organization when quota is exhausted.",
   "keywords": [

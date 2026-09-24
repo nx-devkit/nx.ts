@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/diagrams",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "license": "MIT",
   "description": "Nx plugin that renders text-diagram sources (PlantUML, Mermaid, D2, Graphviz, BPMN, Excalidraw) into cached, atomized targets via Kroki or local renderers.",
   "keywords": [
