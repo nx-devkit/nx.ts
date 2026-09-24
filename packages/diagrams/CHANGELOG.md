@@ -1,3 +1,15 @@
+## 0.0.8 (2026-09-24)
+
+### 🚀 Features
+
+- dogfood own plugins — skill lifecycle, SkillSpector scans, diagrams in CI ([#87](https://github.com/nx-devkit/nx.ts/pull/87))
+
+### ❤️ Thank You
+
+- codefactor-io @codefactor-io
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.7 (2026-09-23)
 
 ### 🩹 Fixes

@@ -113,12 +113,14 @@ describe('@nx-devkit/skill build executor', () => {
     const [cmd, args, opts] = mockExecFile.mock.calls[0]!
     expect(cmd).toBe('skills-compiler')
     expect(args).toEqual([
+      '--project',
+      'skills/my-skill',
       '--target',
       'claude',
-      '--out',
+      '--out-dir',
       '.build/skills/my-skill',
-      '--skill',
-      'skills/my-skill',
+      '--workspace-root',
+      process.cwd(),
     ])
     // Must NOT use shell: true
     expect(opts).not.toHaveProperty('shell', true)

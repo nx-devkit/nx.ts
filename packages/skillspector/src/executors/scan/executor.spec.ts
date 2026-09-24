@@ -15,6 +15,13 @@ let execFileResponse: { error: Error | null; stdout: string; stderr: string } = 
   stderr: '',
 }
 
+// Per-call responses take precedence over execFileResponse (FIFO).
+let execFileResponseQueue: {
+  error: Error | null
+  stdout: string
+  stderr: string
+}[] = []
+
 vi.mock('node:child_process', () => ({
   execFile: (
     command: string,
@@ -25,7 +32,8 @@ vi.mock('node:child_process', () => ({
     execFileCalls.push({ args, command, options })
     // Simulate async execution
     setTimeout(() => {
-      callback(execFileResponse.error, execFileResponse.stdout, execFileResponse.stderr)
+      const r = execFileResponseQueue.length ? execFileResponseQueue.shift()! : execFileResponse
+      callback(r.error, r.stdout, r.stderr)
     }, 0)
   },
 }))
@@ -65,6 +73,7 @@ describe('scanExecutor', () => {
     workspace = makeWorkspace()
     execFileCalls.length = 0
     execFileResponse = { error: null, stdout: '', stderr: '' }
+    execFileResponseQueue = []
   })
 
   afterEach(() => {
@@ -74,10 +83,7 @@ describe('scanExecutor', () => {
   it('default invocation spawns skillspector scan <path> --no-llm --format json', async () => {
     execFileResponse.stdout = makeFindings()
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act' },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor({ path: 'skills/code-review/act' }, { root: workspace })
 
     expect(execFileCalls).toHaveLength(1)
     const call = execFileCalls[0]!
@@ -92,10 +98,7 @@ describe('scanExecutor', () => {
   it('LLM enabled does NOT pass --no-llm', async () => {
     execFileResponse.stdout = makeFindings()
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act', noLlm: false },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor({ path: 'skills/code-review/act', noLlm: false }, { root: workspace })
 
     const call = execFileCalls[0]!
     expect(call.args).not.toContain('--no-llm')
@@ -104,10 +107,10 @@ describe('scanExecutor', () => {
   it('baseline is passed through to skillspector', async () => {
     execFileResponse.stdout = makeFindings()
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act', baseline: 'baselines/skills.json' },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor(
+      { path: 'skills/code-review/act', baseline: 'baselines/skills.json' },
+      { root: workspace },
+    )
 
     const call = execFileCalls[0]!
     expect(call.args).toContain('--baseline')
@@ -119,14 +122,14 @@ describe('scanExecutor', () => {
     const sarifRelPath = 'reports/scan-test.sarif'
     const sarifAbsPath = join(workspace, sarifRelPath)
 
-    await scanExecutor({
-      options: {
+    await scanExecutor(
+      {
         path: 'skills/code-review/act',
         sarif: sarifRelPath,
         annotations: false,
       },
-      workspaceRoot: workspace,
-    })
+      { root: workspace },
+    )
 
     const sarifContent = readFileSync(sarifAbsPath, 'utf8')
     const sarif = JSON.parse(sarifContent) as Record<string, unknown>
@@ -156,15 +159,15 @@ describe('scanExecutor', () => {
     execFileResponse.stdout = makeFindings()
     const escapePath = '../workspace-evil/report.sarif'
 
-    const result = await scanExecutor({
-      options: {
+    const result = await scanExecutor(
+      {
         path: 'skills/code-review/act',
         sarif: escapePath,
         annotations: false,
         failOnError: false,
       },
-      workspaceRoot: workspace,
-    })
+      { root: workspace },
+    )
 
     expect(result.success).toBe(false)
   })
@@ -190,19 +193,19 @@ describe('scanExecutor', () => {
       },
     ])
     // Create a symlink inside workspace pointing outside
-    const outsideDir = mkdtempSync(join(tmpdir(), 'outside-'))
-    const linkDir = join(workspace, 'link')
+    const outsideDir = mkdtempSync(join(tmpdir(), 'outside-')),
+      linkDir = join(workspace, 'link')
     symlinkSync(outsideDir, linkDir, 'dir')
 
-    const result = await scanExecutor({
-      options: {
+    const result = await scanExecutor(
+      {
         path: 'skills/code-review/act',
         sarif: 'link/report.sarif',
         annotations: false,
         failOnError: false,
       },
-      workspaceRoot: workspace,
-    })
+      { root: workspace },
+    )
 
     expect(result.success).toBe(false)
     rmSync(outsideDir, { recursive: true, force: true })
@@ -236,10 +239,7 @@ describe('scanExecutor', () => {
       },
     ])
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act', annotations: true },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor({ path: 'skills/code-review/act', annotations: true }, { root: workspace })
 
     const _annotationsPath = join(workspace, 'annotations-code-review-act.txt')
     // The annotations file name includes the projectName hash; check it exists
@@ -271,10 +271,7 @@ describe('scanExecutor', () => {
       },
     ])
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act', annotations: true },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor({ path: 'skills/code-review/act', annotations: true }, { root: workspace })
 
     const { readdirSync } = await import('node:fs')
     const files = readdirSync(workspace)
@@ -305,10 +302,7 @@ describe('scanExecutor', () => {
       },
     ])
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act', annotations: true },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor({ path: 'skills/code-review/act', annotations: true }, { root: workspace })
 
     const { readdirSync } = await import('node:fs')
     const files = readdirSync(workspace)
@@ -336,10 +330,7 @@ describe('scanExecutor', () => {
       },
     ])
 
-    await scanExecutor({
-      options: { path: 'skills/100%', annotations: true },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor({ path: 'skills/100%', annotations: true }, { root: workspace })
 
     const { readdirSync } = await import('node:fs')
     const files = readdirSync(workspace)
@@ -356,20 +347,20 @@ describe('scanExecutor', () => {
 
     // Should not crash; should parse the JSON portion
     // With failOnError false and a HIGH finding, success should be true
-    const result = await scanExecutor({
-      options: { path: 'skills/code-review/act', annotations: false, failOnError: false },
-      workspaceRoot: workspace,
-    })
+    const result = await scanExecutor(
+      { path: 'skills/code-review/act', annotations: false, failOnError: false },
+      { root: workspace },
+    )
     expect(result.success).toBe(true)
   })
 
   it('handles non-JSON stdout with object wrapper (findings key)', async () => {
     execFileResponse.stdout = `LOG: scanning\n${JSON.stringify({ findings: JSON.parse(makeFindings()) })}`
 
-    const result = await scanExecutor({
-      options: { path: 'skills/code-review/act', annotations: false, failOnError: true },
-      workspaceRoot: workspace,
-    })
+    const result = await scanExecutor(
+      { path: 'skills/code-review/act', annotations: false, failOnError: true },
+      { root: workspace },
+    )
 
     // HIGH finding should cause failure
     expect(result.success).toBe(false)
@@ -378,10 +369,10 @@ describe('scanExecutor', () => {
   it('HIGH finding fails with failOnError', async () => {
     execFileResponse.stdout = makeFindings([{ severity: 'HIGH' }])
 
-    const result = await scanExecutor({
-      options: { path: 'skills/code-review/act', failOnError: true, annotations: false },
-      workspaceRoot: workspace,
-    })
+    const result = await scanExecutor(
+      { path: 'skills/code-review/act', failOnError: true, annotations: false },
+      { root: workspace },
+    )
 
     expect(result.success).toBe(false)
   })
@@ -389,10 +380,10 @@ describe('scanExecutor', () => {
   it('CRITICAL finding fails with failOnError', async () => {
     execFileResponse.stdout = makeFindings([{ severity: 'CRITICAL' }])
 
-    const result = await scanExecutor({
-      options: { path: 'skills/code-review/act', failOnError: true, annotations: false },
-      workspaceRoot: workspace,
-    })
+    const result = await scanExecutor(
+      { path: 'skills/code-review/act', failOnError: true, annotations: false },
+      { root: workspace },
+    )
 
     expect(result.success).toBe(false)
   })
@@ -400,10 +391,10 @@ describe('scanExecutor', () => {
   it('LOW finding succeeds with failOnError', async () => {
     execFileResponse.stdout = makeFindings([{ severity: 'LOW' }])
 
-    const result = await scanExecutor({
-      options: { path: 'skills/code-review/act', failOnError: true, annotations: false },
-      workspaceRoot: workspace,
-    })
+    const result = await scanExecutor(
+      { path: 'skills/code-review/act', failOnError: true, annotations: false },
+      { root: workspace },
+    )
 
     expect(result.success).toBe(true)
   })
@@ -411,10 +402,10 @@ describe('scanExecutor', () => {
   it('splits custom skillspectorBin into cmd and args', async () => {
     execFileResponse.stdout = makeFindings()
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act', skillspectorBin: 'npx skillspector' },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor(
+      { path: 'skills/code-review/act', skillspectorBin: 'npx skillspector' },
+      { root: workspace },
+    )
 
     const call = execFileCalls[0]!
     expect(call.command).toBe('npx')
@@ -426,23 +417,98 @@ describe('scanExecutor', () => {
   it('handles skillspectorBin with extra whitespace', async () => {
     execFileResponse.stdout = makeFindings()
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act', skillspectorBin: '  npx   skillspector  ' },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor(
+      { path: 'skills/code-review/act', skillspectorBin: '  npx   skillspector  ' },
+      { root: workspace },
+    )
 
     const call = execFileCalls[0]!
     expect(call.command).toBe('npx')
     expect(call.args).toContain('skillspector')
   })
 
+  it('falls back to PATH skillspector when a configured bin path fails with ENOENT', async () => {
+    execFileResponseQueue = [
+      {
+        error: Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }),
+        stdout: '',
+        stderr: '',
+      },
+    ]
+    execFileResponse.stdout = makeFindings()
+
+    await scanExecutor(
+      {
+        path: 'skills/code-review/act',
+        skillspectorBin: '.tools/skillspector-venv/bin/skillspector',
+      },
+      { root: workspace },
+    )
+
+    expect(execFileCalls).toHaveLength(2)
+    expect(execFileCalls[0]!.command).toBe('.tools/skillspector-venv/bin/skillspector')
+    expect(execFileCalls[1]!.command).toBe('skillspector')
+    expect(execFileCalls[1]!.args).toEqual(execFileCalls[0]!.args)
+  })
+
+  it('does not retry on ENOENT for a bare command name', async () => {
+    execFileResponseQueue = [
+      {
+        error: Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }),
+        stdout: '',
+        stderr: '',
+      },
+    ]
+
+    const result = await scanExecutor(
+      { path: 'skills/code-review/act', skillspectorBin: 'skillspector' },
+      { root: workspace },
+    )
+
+    expect(result.success).toBe(false)
+    expect(execFileCalls).toHaveLength(1)
+  })
+
+  it('does not retry on non-ENOENT failures for a configured path', async () => {
+    execFileResponseQueue = [
+      {
+        error: Object.assign(new Error('exit 1'), { code: 1 }),
+        stdout: '',
+        stderr: '',
+      },
+    ]
+
+    const result = await scanExecutor(
+      {
+        path: 'skills/code-review/act',
+        skillspectorBin: '.tools/skillspector-venv/bin/skillspector',
+      },
+      { root: workspace },
+    )
+
+    expect(result.success).toBe(false)
+    expect(execFileCalls).toHaveLength(1)
+  })
+
+  it('uses a configured bin path when it exists', async () => {
+    execFileResponse.stdout = makeFindings()
+
+    await scanExecutor(
+      {
+        path: 'skills/code-review/act',
+        skillspectorBin: '.tools/skillspector-venv/bin/skillspector',
+      },
+      { root: workspace },
+    )
+
+    const call = execFileCalls[0]!
+    expect(call.command).toBe('.tools/skillspector-venv/bin/skillspector')
+  })
+
   it('does not use shell: true when spawning', async () => {
     execFileResponse.stdout = makeFindings()
 
-    await scanExecutor({
-      options: { path: 'skills/code-review/act' },
-      workspaceRoot: workspace,
-    })
+    await scanExecutor({ path: 'skills/code-review/act' }, { root: workspace })
 
     const call = execFileCalls[0]!
     const opts = call.options as { shell?: boolean }

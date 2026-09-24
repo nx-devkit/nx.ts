@@ -1,0 +1,13 @@
+{
+  "root": true,
+  "ignorePatterns": ["tools/skills-compiler/**", "scripts/**"],
+  "rules": {
+    "one-var": "off",
+    "capitalized-comments": "off",
+    "prefer-template": "off",
+    "complexity": "off",
+    "node/no-sync": "off",
+    "node/callback-return": "off",
+    "unicorn/catch-error-name": "off"
+  }
+}

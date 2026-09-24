@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/skill",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "description": "Nx plugin for agent skills: any SKILL.md becomes a project with build, lint, validate, os-check, and size-check targets — no project.json required.",
   "keywords": [

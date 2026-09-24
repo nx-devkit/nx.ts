@@ -10,6 +10,7 @@ Infer Nx `format`, `format-check`, and `lint` targets from `biome.json` or `biom
 ## When to Use
 
 Use this skill when:
+
 - You have a monorepo managed by Nx
 - Projects use [Biome](https://biomejs.dev/) for formatting and linting
 - You want Nx to automatically detect biome configs and generate targets

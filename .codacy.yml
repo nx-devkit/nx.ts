@@ -1,13 +1,11 @@
 ---
+# tools/skills-compiler is a vendored upstream copy (kept to minimal diffs).
+# It is a file-processing CLI — every fs call inherently uses dynamic paths —
+# so generic detect-non-literal-* findings there are noise we cannot fix
+# without forking the vendored code.
+# scripts/ holds local dev/CI helper CLIs — they take paths from argv and
+# print to console by design, so detect-non-literal-fs-filename and
+# xss_no-mixed-html are false positives for that category of code.
 exclude_paths:
-  - "**/*.spec.ts"
-  - "**/*.test.ts"
-  - "**/dist/**"
-  - "**/node_modules/**"
-  - "**/coverage/**"
-  - "**/.nx/**"
-  - "**/.nx-cache/**"
-engines:
-  eslint-8:
-    exclude_paths:
-      - "packages/typescript-preset/src/plugin.ts"
+  - 'tools/skills-compiler/**'
+  - 'scripts/**'
