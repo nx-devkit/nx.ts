@@ -53,6 +53,30 @@ export function emitPluginManifest(pluginDir: string, manifest: Record<string, u
   )
 }
 
+// Extract the suffix of a markdown link destination (query, fragment and
+// optional title) so rewrites preserve them. Handles <angle-bracket>
+// destinations, which may themselves contain spaces.
+export function linkSuffix(raw: string): string {
+  const open = raw.indexOf('('),
+    close = raw.lastIndexOf(')')
+  if (open === -1 || close <= open) return ''
+  const inner = raw.slice(open + 1, close).trim()
+  let dest: string, rest: string
+  if (inner.startsWith('<')) {
+    const gt = inner.indexOf('>')
+    if (gt === -1) return ''
+    dest = inner.slice(1, gt)
+    rest = inner.slice(gt + 1)
+  } else {
+    const match = /^([^\s]+)([\s\S]*)$/.exec(inner)
+    if (!match) return ''
+    dest = match[1]
+    rest = match[2] ?? ''
+  }
+  const q = dest.search(/[?#]/)
+  return (q === -1 ? '' : dest.slice(q)) + rest
+}
+
 export function linksForFile(skill: Skill, relFile: string): SkillLink[] {
   return skill.links.filter((l) => l.sourceFile === relFile || l.sourceFile === undefined)
 }

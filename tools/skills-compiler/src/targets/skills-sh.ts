@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stringify as stringifyYaml } from 'yaml'
-import { copySkillDirectory, linksForFile, rewriteBody } from './common.js'
+import { copySkillDirectory, linkSuffix, linksForFile, rewriteBody } from './common.js'
 import type { CompilerOptions, Skill, SkillLink } from '../types.js'
 
 const DEFAULT_CANONICAL_SOURCE = 'theplenkov-ai/skills'
@@ -195,21 +195,6 @@ function rewriteFileLinks(
     fs.rmSync(filePath, { force: true }) // unlink a copied symlink before writing
     fs.writeFileSync(filePath, result, 'utf8')
   }
-}
-
-// Extract the suffix of a markdown link destination (query, fragment and
-// optional title) so rewrites preserve them.
-function linkSuffix(raw: string): string {
-  const open = raw.indexOf('('),
-    close = raw.lastIndexOf(')')
-  if (open === -1 || close <= open) return ''
-  const inner = raw.slice(open + 1, close).trim(),
-    match = /^<?([^>\s]+)>?([\s\S]*)$/.exec(inner)
-  if (!match) return ''
-  const dest = match[1],
-    rest = match[2] ?? '',
-    q = dest.search(/[?#]/)
-  return (q === -1 ? '' : dest.slice(q)) + rest
 }
 
 function emitSkill(

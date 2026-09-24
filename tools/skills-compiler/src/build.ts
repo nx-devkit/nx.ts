@@ -79,6 +79,11 @@ export function build(options: CompilerOptions): void {
     description = sourceSkill.description
   }
 
+  // A plugin manifest may omit `description` and its `name` may differ from
+  // every included skill — fall back to the first included skill's
+  // description so plugin.json never gets a bogus or empty one.
+  description ??= skillsByName.get(include[0])?.description
+
   const closure = resolveClosure(include, skillsByName, true)
   if (closure.length === 0) {
     throw new Error(`No skills resolved for project ${options.projectRoot}`)

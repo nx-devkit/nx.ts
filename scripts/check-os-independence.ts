@@ -52,7 +52,7 @@ const PATTERNS: { re: RegExp; label: string; altRe?: RegExp }[] = [
   {
     re: /\bwinget\b/i,
     label: 'winget (Windows-only)',
-    altRe: /\b(brew|apt|apt-get|dnf|yum|pacman|zypper|apk|choco|nix)\b/i,
+    altRe: /\b(brew|apt|apt-get|dnf|yum|pacman|zypper|apk|nix)\b/i,
   },
   {
     re: /\bbrew (install|upgrade)\b/,
