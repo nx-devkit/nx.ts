@@ -10,6 +10,7 @@ Infer Nx `lint` targets from `.oxlintrc` config files without writing `project.j
 ## When to Use
 
 Use this skill when:
+
 - You have a monorepo managed by Nx
 - Projects use [oxlint](https://oxc.rs/) for linting
 - You want Nx to automatically detect and run `lint` for every project that has a `.oxlintrc` config
@@ -77,6 +78,7 @@ npx nx lint packages/foo
 ## Inputs
 
 Each lint target hashes:
+
 - `{projectRoot}/src/**/*`
 - `{projectRoot}/.oxlintrc.*`
 - `{projectRoot}/package.json`

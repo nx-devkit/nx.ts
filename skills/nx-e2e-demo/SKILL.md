@@ -10,6 +10,7 @@ Validate that all `@nx-devkit` plugins work together in a real Nx workspace.
 ## When to Use
 
 Use this skill when:
+
 - You want to verify all plugins work together in a real workspace
 - You are adding a new plugin and need to validate integration
 - You need to run the full build/lint/typecheck/test pipeline across all plugins
@@ -54,6 +55,7 @@ Initialize a workspace with `nx.json`:
 ### 2. Add config files to trigger each plugin
 
 In `packages/demo/`, add:
+
 - `tsdown.config.ts` — triggers the build target
 - `.oxlintrc.json` — triggers the lint target
 - `biome.json` — triggers format/lint targets
@@ -79,6 +81,7 @@ npx nx typecheck packages/demo
 ## Verifying Individual Plugins
 
 See the individual plugin skills for detailed verification:
+
 - `nx-devkit-tsdown` — build target inference
 - `nx-devkit-oxlint` — lint target inference
 - `nx-devkit-biome` — format/lint target inference

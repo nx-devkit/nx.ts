@@ -22,16 +22,56 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '22'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.13'
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Lint (biome)
         run: bun run lint
       - name: Build plugins (for executor dist)
+        # Inferred targets invoke executors from packages/*/dist, so every
+        # plugin that contributes an executor must be built before run-many.
         run: |
           cd packages/typescript-preset && bun run build
           cd ../skill && bun run build
+          cd ../skillspector && bun run build
+          cd ../diagrams && bun run build
       - name: Lint, Build, Test, Typecheck (Nx inferred targets)
-        run: bun --bun node_modules/.bin/nx run-many -t lint,build,test,typecheck --verbose
+        # packages/* only — skills-* build must not run concurrently with a
+        # packages/skill rebuild: the executor is loaded from packages/skill/dist
+        # and tsdown rewrites it mid-build.
+        run: bun --bun node_modules/.bin/nx run-many -t lint,build,test,typecheck --exclude 'skills-*' --verbose
+      - name: Skill lint + build (Nx inferred targets)
+        # Runs after all plugin dists are stable; covers skills lint via
+        # markdownlint and skills build via skills-compiler.
+        run: bun --bun node_modules/.bin/nx run-many -t lint,build --projects 'skills-*' --verbose
+      - name: Render diagrams
+        # docs/diagrams/*.mmd → SVG via @nx-devkit/diagrams (Kroki backend).
+        # Kroki is an external service — retry transient timeouts.
+        run: |
+          for i in 1 2 3; do
+            bun --bun node_modules/.bin/nx run-many -t diagrams --verbose && exit 0
+            [ "$i" -eq 3 ] && exit 1
+            echo "diagrams render attempt $i failed — retrying"
+            sleep 5
+          done
+      - name: Skill validation targets
+        run: bun --bun node_modules/.bin/nx run-many -t validate,os-check,size-check --projects 'skills-*' --verbose
+      - name: Install SkillSpector
+        # Not published to PyPI — install the pinned tag into the venv path
+        # referenced by nx.json (skillspectorBin).
+        run: |
+          python3 -m venv .tools/skillspector-venv
+          .tools/skillspector-venv/bin/pip install \
+            "git+https://github.com/NVIDIA/skillspector.git@v2.11.2"
+      - name: SkillSpector scans
+        run: bun --bun node_modules/.bin/nx run-many -t scan --projects 'skills-*' --verbose
+      - name: Emit scan annotations
+        # The scan executor writes annotations-<project>.txt files with GitHub
+        # workflow commands; printing them surfaces findings as PR annotations.
+        if: always()
+        run: cat annotations-*.txt 2>/dev/null || true
 
   e2e-packed:
     name: Packed-tarball e2e

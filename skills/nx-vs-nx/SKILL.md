@@ -12,6 +12,7 @@ The `@nx-devkit` plugins are **additive extensions** to [Nx](https://nx.dev/). T
 ## What Nx Provides
 
 Nx is a full-featured monorepo toolchain:
+
 - Project graph and dependency analysis
 - Task scheduling and parallelization
 - Distributed computation caching
@@ -36,11 +37,13 @@ Without these plugins, you would need to manually define targets in `project.jso
 
 1. Install a plugin: `bun add -D @nx-devkit/tsdown`
 2. Register it in `nx.json`:
+
    ```json
    {
      "plugins": ["@nx-devkit/tsdown"]
    }
    ```
+
 3. Nx calls the plugin's `createNodesV2` function during project graph creation
 4. The plugin returns project configurations for any matching config files
 5. Nx merges these into the project graph as if you had written `project.json`
@@ -48,6 +51,7 @@ Without these plugins, you would need to manually define targets in `project.jso
 ## Key Principle: Plugins Are Nx-Native
 
 These plugins:
+
 - Use the official `@nx/devkit` API (`CreateNodesV2`)
 - Follow Nx plugin conventions (glob-based triggers, project configuration format)
 - Work with all Nx features (caching, affected, task graph, etc.)
@@ -56,11 +60,13 @@ These plugins:
 ## When to Use @nx-devkit Plugins
 
 Use them when:
+
 - You have projects using tsdown, oxlint, biome, or TypeScript/vitest
 - You want to avoid writing `project.json` boilerplate
 - You want Nx to "just work" with your tool choices
 
 Do **not** use them when:
+
 - You already have well-maintained `project.json` files
 - You need custom executor logic beyond what `nx:run-commands` provides
 - Your project structure doesn't match the trigger file patterns

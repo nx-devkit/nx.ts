@@ -1,6 +1,14 @@
 import { execFile } from 'node:child_process'
 import { mkdir, writeFile, realpath } from 'node:fs/promises'
-import { dirname, join, relative, resolve as resolvePath, isAbsolute, sep } from 'node:path'
+import {
+  basename,
+  dirname,
+  join,
+  relative,
+  resolve as resolvePath,
+  isAbsolute,
+  sep,
+} from 'node:path'
 import { createHash } from 'node:crypto'
 
 export interface ScanExecutorOptions {
@@ -21,8 +29,8 @@ export interface ScanExecutorOptions {
 }
 
 export interface ScanExecutorContext {
-  workspaceRoot: string
-  options: ScanExecutorOptions
+  /** Workspace root — `context.root` when invoked by Nx. */
+  root: string
 }
 
 export interface ScanExecutorResult {
@@ -190,14 +198,16 @@ function spawnSkillspector(
   })
 }
 
-export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecutorResult> {
-  const opts = ctx.options
+export async function scanExecutor(
+  options: ScanExecutorOptions,
+  ctx: ScanExecutorContext,
+): Promise<ScanExecutorResult> {
+  const opts = options
   const noLlm = opts.noLlm ?? true
   const annotations = opts.annotations ?? true
   const failOnError = opts.failOnError ?? true
   const skillspectorBin = opts.skillspectorBin ?? 'skillspector'
   const { cmd: binCmd, args: binArgs } = parseBin(skillspectorBin)
-
   const args: string[] = [...binArgs, 'scan', opts.path, '--format', 'json']
   if (noLlm) {
     args.push('--no-llm')
@@ -208,12 +218,26 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
 
   let stdout: string
   try {
-    const result = await spawnSkillspector(binCmd, args, ctx.workspaceRoot)
+    const result = await spawnSkillspector(binCmd, args, ctx.root)
     stdout = result.stdout
   } catch (error) {
-    // If skillspector exits non-zero, treat as failure
-    console.error(`skillspector scan failed: ${(error as Error).message}`)
-    return { success: false }
+    // A configured filesystem path that does not exist (e.g. the CI-only
+    // `.tools/skillspector-venv` outside CI) fails execFile with ENOENT —
+    // retry once via `skillspector` on PATH. Bare command names do not
+    // retry: a missing PATH binary has no fallback.
+    const missingConfiguredPath =
+      (error as NodeJS.ErrnoException).code === 'ENOENT' && basename(binCmd) !== binCmd
+    if (!missingConfiguredPath) {
+      console.error(`skillspector scan failed: ${(error as Error).message}`)
+      return { success: false }
+    }
+    try {
+      const retry = await spawnSkillspector('skillspector', args, ctx.root)
+      stdout = retry.stdout
+    } catch (retryError) {
+      console.error(`skillspector scan failed: ${(retryError as Error).message}`)
+      return { success: false }
+    }
   }
 
   let issues: SkillIssue[] = []
@@ -234,7 +258,7 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
 
   // Write SARIF report if option is set
   if (opts.sarif) {
-    const workspaceRoot = resolvePath(ctx.workspaceRoot)
+    const workspaceRoot = resolvePath(ctx.root)
     const sarifPath = resolvePath(workspaceRoot, opts.sarif)
     const relSarif = relative(workspaceRoot, sarifPath)
     if (relSarif === '..' || relSarif.startsWith(`..${sep}`) || isAbsolute(relSarif)) {
@@ -244,25 +268,25 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
     // The SARIF file itself doesn't exist yet, so we validate the parent
     // directory after mkdir resolves all symlinks in the path.
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- workspaceRoot is the trusted Nx workspace root
-    const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot)
-    const sarifDir = dirname(sarifPath)
+    const realWorkspaceRoot = await realpath(workspaceRoot).catch(() => workspaceRoot),
+      sarifDir = dirname(sarifPath)
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is contained within workspaceRoot, validated via relative()
     await mkdir(sarifDir, { recursive: true })
     // After mkdir, resolve the real path of the directory to catch symlinks
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifDir is validated above
-    const realSarifDir = await realpath(sarifDir).catch(() => sarifDir)
-    const realRel = relative(realWorkspaceRoot, realSarifDir)
+    const realSarifDir = await realpath(sarifDir).catch(() => sarifDir),
+      realRel = relative(realWorkspaceRoot, realSarifDir)
     if (realRel === '..' || realRel.startsWith(`..${sep}`) || isAbsolute(realRel)) {
       return { success: false }
     }
     // Also check if the SARIF file itself is an existing symlink pointing outside
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is validated above
-    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath)
-    const realFileRel = relative(realWorkspaceRoot, realSarifPath)
+    const realSarifPath = await realpath(sarifPath).catch(() => sarifPath),
+      realFileRel = relative(realWorkspaceRoot, realSarifPath)
     if (realFileRel === '..' || realFileRel.startsWith(`..${sep}`) || isAbsolute(realFileRel)) {
       return { success: false }
     }
-    const sarifReport = buildSarifReport(issues, ctx.workspaceRoot)
+    const sarifReport = buildSarifReport(issues, ctx.root)
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- sarifPath is contained within workspaceRoot, validated via relative() + realpath()
     await writeFile(sarifPath, JSON.stringify(sarifReport, null, 2), 'utf8')
   }
@@ -271,7 +295,7 @@ export async function scanExecutor(ctx: ScanExecutorContext): Promise<ScanExecut
   if (annotations) {
     const projectName = computeProjectName(opts.path)
     const annotationsFileName = `annotations-${projectName}.txt`
-    const annotationsPath = join(ctx.workspaceRoot, annotationsFileName)
+    const annotationsPath = join(ctx.root, annotationsFileName)
     const annotationLines = buildAnnotations(issues, projectName)
     if (annotationLines.length > 0) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- annotationsPath is derived from the trusted workspaceRoot

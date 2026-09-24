@@ -31,29 +31,41 @@ function resolveBin(name: string, workspaceRoot: string): string {
 /**
  * Build executor for `@nx-devkit/skill:build`.
  *
- * Wraps the `skills-compiler` CLI. Invokes the binary directly via `execFile`
- * (no shell) so the command is not vulnerable to shell injection.
+ * Wraps the `skills-compiler` CLI (`--project <path> --target <target>
+ * --out-dir <dir> --workspace-root <root>`). Invokes the binary directly via
+ * `execFile` (no shell) so the command is not vulnerable to shell injection.
  */
-export async function buildExecutor(options: BuildExecutorOptions): Promise<BuildExecutorResult> {
+export async function buildExecutor(
+  options: BuildExecutorOptions,
+  context?: { root?: string },
+): Promise<BuildExecutorResult> {
   const target = options.target ?? 'skills-sh'
   if (!VALID_TARGETS.includes(target)) {
     return { success: false }
   }
-  const outDir = options.outDir
-  const skillPath = options.path
-  const bin = resolveBin('skills-compiler', process.cwd())
+  const outDir = options.outDir,
+    skillPath = options.path,
+    workspaceRoot = context?.root ?? process.cwd(),
+    bin = resolveBin('skills-compiler', workspaceRoot)
 
   return new Promise((resolvePromise) => {
     execFile(
       bin,
-      ['--target', target, '--out', outDir, '--skill', skillPath],
+      [
+        '--project',
+        skillPath,
+        '--target',
+        target,
+        '--out-dir',
+        outDir,
+        '--workspace-root',
+        workspaceRoot,
+      ],
       { shell: false, timeout: 300_000 },
-      (err, _stdout, _stderr) => {
-        if (err) {
-          resolvePromise({ success: false })
-          return
-        }
-        resolvePromise({ success: true })
+      (err, stdout, stderr) => {
+        if (stdout) process.stdout.write(stdout)
+        if (stderr) process.stderr.write(stderr)
+        resolvePromise({ success: !err })
       },
     )
   })
