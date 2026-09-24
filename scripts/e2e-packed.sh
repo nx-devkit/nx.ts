@@ -72,7 +72,9 @@ JSON
 # explicitly at the declared support range — otherwise the init bin's own
 # bootstrap would install registry-latest Nx and the e2e would lose its
 # Nx-compatibility signal (and re-run default peer resolution anyway).
-npm install --save-dev --legacy-peer-deps "${TARBALLS[@]}" 'nx@^22 || ^23' '@nx/devkit@^22 || ^23'
+# E2E_NX_RANGE narrows the install to a single major for the CI matrix.
+NX_RANGE="${E2E_NX_RANGE:-^22 || ^23}"
+npm install --save-dev --legacy-peer-deps "${TARBALLS[@]}" "nx@${NX_RANGE}" "@nx/devkit@${NX_RANGE}"
 
 echo "==> Running the packed bootstrap bin"
 ./node_modules/.bin/nx-devkit-typescript init
