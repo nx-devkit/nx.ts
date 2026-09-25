@@ -4,6 +4,12 @@ import { logger } from '@nx/devkit'
 
 export { detectIndent, parseJsonObject } from './jsonc.ts'
 export { readJson, registerPlugin, resolveRootProjectName } from './init-generator.ts'
+export {
+  VITEST_CONFIG_NAMES,
+  findConfigFile,
+  findVitestConfig,
+} from './config-discovery.ts'
+export { inferVitestTargets } from './vitest-targets.ts'
 
 export function isVerbose(): boolean {
   if (process.argv.includes('--verbose')) {
