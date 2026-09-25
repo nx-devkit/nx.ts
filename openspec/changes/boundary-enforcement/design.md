@@ -20,7 +20,7 @@ packages/boundaries/
 
 The plugin registers on `**/package.json` but emits **one** `check-boundaries` target on the workspace-root project only — boundaries are graph-global, per-project targets would duplicate work and produce partial answers.
 
-Target inferred only when at least one non-root project has `nx.tags` — a tagless workspace has nothing to constrain, and silently passing would be a false green.
+Target inferred only when at least one non-root project has a non-empty `nx.tags` array — `"tags": []` counts as untagged, a tagless workspace has nothing to constrain, and silently passing would be a false green.
 
 ## Tags
 

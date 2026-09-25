@@ -4,16 +4,16 @@
 
 ### Requirement: Root check-boundaries target inference
 
-The plugin MUST infer exactly one `check-boundaries` target on the workspace-root project when at least one non-root project declares `nx.tags` in its `package.json`. A workspace with no tagged projects MUST NOT get the target — a vacuous pass is a false green.
+The plugin MUST infer exactly one `check-boundaries` target on the workspace-root project when at least one non-root project declares a non-empty `nx.tags` array in its `package.json`. A workspace with no tagged projects MUST NOT get the target — a vacuous pass is a false green. A `tags` field that is missing or an empty array counts as untagged.
 
 #### Scenario: Tagged workspace gets the target
 
-- **WHEN** at least one project has `"nx": {"tags": [...]}` in `package.json`
+- **WHEN** at least one project has `"nx": {"tags": ["type:app"]}` in `package.json`
 - **THEN** the plugin infers a `check-boundaries` target on the root project
 
 #### Scenario: Tagless workspace gets nothing
 
-- **WHEN** no project declares `nx.tags`
+- **WHEN** no project declares `nx.tags`, or every declaration is an empty array
 - **THEN** no `check-boundaries` target is inferred
 
 ### Requirement: Constraint evaluation
