@@ -15,6 +15,7 @@ export const createNodesV2: CreateNodesV2 = [
       logger.info(`[${PLUGIN_SCOPE}] Processing ${configFiles.length} vitest config files`)
     }
 
+    const seen = new Set<string>()
     return configFiles
       .map((configFile) => {
         const dir = dirname(configFile)
@@ -23,9 +24,10 @@ export const createNodesV2: CreateNodesV2 = [
           return null
         }
         const projectRoot = relative(workspaceRootAbs, dirAbs).replace(/\\/g, '/')
-        if (shouldSkipPath(projectRoot, workspaceRootAbs)) {
+        if (shouldSkipPath(projectRoot, workspaceRootAbs) || seen.has(projectRoot)) {
           return null
         }
+        seen.add(projectRoot)
         logDebug(PLUGIN_SCOPE, `Found vitest config in ${projectRoot}`)
 
         return [

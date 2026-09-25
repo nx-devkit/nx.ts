@@ -1,12 +1,13 @@
 import { access } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
+// Order mirrors Vitest's own config lookup: ts, mts, cts, js, mjs, cjs.
 export const VITEST_CONFIG_NAMES = [
   'vitest.config.ts',
-  'vitest.config.js',
   'vitest.config.mts',
-  'vitest.config.mjs',
   'vitest.config.cts',
+  'vitest.config.js',
+  'vitest.config.mjs',
   'vitest.config.cjs',
 ]
 

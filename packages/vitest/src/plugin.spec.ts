@@ -81,6 +81,13 @@ describe('@nx-devkit/vitest createNodesV2', () => {
     expect(test.outputs).toEqual(['{projectRoot}/coverage'])
     expect(test.cache).toBe(true)
     expect(test.dependsOn).toEqual(['^build'])
+    expect(test.inputs).toEqual(
+      expect.arrayContaining([
+        'default',
+        '{projectRoot}/vitest.config.ts',
+        '{workspaceRoot}/vitest.config.ts',
+      ]),
+    )
   })
 
   it('test:watch is uncached, test:coverage runs vitest run --coverage', async () => {
@@ -90,10 +97,27 @@ describe('@nx-devkit/vitest createNodesV2', () => {
 
     expect(targets['test:watch']!.cache).toBe(false)
     expect(targets['test:watch']!.options).toEqual({ command: 'vitest', cwd: 'project-a' })
+    expect(targets['test:watch']!.inputs).toEqual(
+      expect.arrayContaining(['default', '{projectRoot}/vitest.config.ts']),
+    )
     expect(targets['test:coverage']!.options).toEqual({
       command: 'vitest run --coverage',
       cwd: 'project-a',
     })
+    expect(targets['test:coverage']!.inputs).toEqual(
+      expect.arrayContaining(['default', '{projectRoot}/vitest.config.ts']),
+    )
+  })
+
+  it('deduplicates multiple vitest configs in one directory', async () => {
+    const [, fn] = createNodesV2
+    const results = await fn(
+      ['project-a/vitest.config.ts', 'project-a/vitest.config.mts'],
+      {},
+      makeContext(),
+    )
+    expect(results).toHaveLength(1)
+    expect(results[0]![0]).toBe('project-a/vitest.config.ts')
   })
 
   it('skips the workspace root (configFile at ./)', async () => {

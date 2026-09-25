@@ -6,7 +6,7 @@ This repository extends Nx with a minimal, **config-file-inference-only** plugin
 
 ## Architecture
 
-Five workspace packages under `packages/`:
+Six workspace packages under `packages/`:
 
 | Package | Scope | Role |
 |---|---|---|
