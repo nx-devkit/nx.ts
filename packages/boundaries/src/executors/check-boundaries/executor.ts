@@ -41,8 +41,17 @@ function scanProject(
   const violations: string[] = []
   for (const file of files) {
     const fileAbs = join(absRoot, file)
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace source file under an inferred project root
-    const records = collectImports(fileAbs, readFileSync(fileAbs, 'utf8'))
+    let source: string
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace source file under an inferred project root
+      source = readFileSync(fileAbs, 'utf8')
+    } catch (error) {
+      logger.warn(
+        `check-boundaries: skipping unreadable file ${fileAbs}: ${(error as Error).message}`,
+      )
+      continue
+    }
+    const records = collectImports(fileAbs, source)
     for (const record of records) {
       const target = resolveImport(
         record.specifier,

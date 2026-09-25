@@ -4,7 +4,7 @@ Agent guide for working in `packages/boundaries/`. Touch ONLY this directory unl
 
 ## File layout
 
-```
+```text
 packages/boundaries/
 ├── package.json
 ├── tsdown.config.ts          # entries: index, plugin, executors/check-boundaries/executor

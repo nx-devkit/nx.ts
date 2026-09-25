@@ -59,7 +59,14 @@ export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
                 [targetName]: {
                   executor: `${PLUGIN_NAME}:check-boundaries`,
                   cache: true,
-                  inputs: ['{projectRoot}/package.json', '{workspaceRoot}/nx.json'],
+                  // The check is graph-global: every project source file is an
+                  // input, or edits would hit a stale cache entry.
+                  inputs: [
+                    '{workspaceRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+                    '{workspaceRoot}/**/package.json',
+                    '{workspaceRoot}/tsconfig*.json',
+                    '{workspaceRoot}/nx.json',
+                  ],
                   options: {
                     depConstraints: options.depConstraints ?? [],
                   },
