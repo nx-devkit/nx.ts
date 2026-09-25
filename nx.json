@@ -10,7 +10,15 @@
     "./packages/typescript-preset/src/plugin.ts",
     "./packages/prepare-for-release/src/plugin.ts",
     "./packages/nx-cloud/src/plugin.ts",
-    "./packages/diagrams/src/plugin.ts"
+    "./packages/skill/src/plugin.ts",
+    {
+      "plugin": "./packages/skillspector/src/plugin.ts",
+      "options": { "skillspectorBin": ".tools/skillspector-venv/bin/skillspector" }
+    },
+    {
+      "plugin": "./packages/diagrams/src/plugin.ts",
+      "options": { "outputDir": "{fileDir}/dist", "timeout": 120000 }
+    }
   ],
   "release": {
     "projects": [
@@ -22,9 +30,9 @@
       "packages/prepare-for-release",
       "packages/skill",
       "packages/skillspector",
+      "packages/diagrams",
       "packages/release",
-      "packages/nx-cloud",
-      "packages/diagrams"
+      "packages/nx-cloud"
     ],
     "projectsRelationship": "independent",
     "version": {

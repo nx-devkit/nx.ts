@@ -326,7 +326,11 @@ function readNpmAuthToken(registry: string, cwd: string): string | null {
   const keyRe = new RegExp(
     `${registryKey.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/:_authToken=(\\S+)`,
   )
-  const candidates = [join(cwd, '.npmrc'), join(homedir(), '.npmrc')]
+  // Prefer $HOME over os.homedir(). Bun captures homedir() at process start.
+  // Later process.env.HOME overrides are ignored, which breaks test isolation
+  // (and any caller that intentionally remaps HOME).
+  const home = process.env.HOME || homedir(),
+    candidates = [join(cwd, '.npmrc'), join(home, '.npmrc')]
   for (const rcPath of candidates) {
     let text: string
     try {

@@ -1,0 +1,20 @@
+{
+  "name": "@nx-devkit/skills-compiler",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vendored skills-compiler (from ThePlenkov/skills tools/compiler) providing the `skills-compiler` bin for @nx-devkit/skill build targets. Not published.",
+  "bin": {
+    "skills-compiler": "./bin/skills-compiler.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^6.0.3"
+  }
+}

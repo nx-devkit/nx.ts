@@ -10,6 +10,7 @@ Infer Nx `build` targets from `tsdown.config.ts` without writing `project.json`.
 ## When to Use
 
 Use this skill when:
+
 - You have a monorepo managed by Nx
 - Projects use [tsdown](https://tsdown.dev/) as their bundler
 - You want Nx to automatically detect and run `build` for every project that has a `tsdown.config.ts`
@@ -23,6 +24,7 @@ The plugin scans for `**/tsdown.config.ts`. For each match (outside the workspac
 | `**/tsdown.config.ts` | `build` | `nx:run-commands` |
 
 The inferred target:
+
 - Runs `npx tsdown` with `cwd` set to the project root
 - Caches output in `{projectRoot}/dist`
 - Depends on `^build` so dependencies build first
@@ -79,6 +81,7 @@ npx nx build packages/foo
 ## Verbose Logging
 
 Enable debug output with any of:
+
 - `nx ... --verbose`
 - `NX_VERBOSE_LOGGING=true` in the environment
 - `NX_VERBOSE_LOGGING=true` in `<workspaceRoot>/.env`

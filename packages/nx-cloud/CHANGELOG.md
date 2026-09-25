@@ -1,3 +1,7 @@
+## 0.0.8 (2026-09-24)
+
+This was a version bump only for @nx-devkit/nx-cloud to align it with other projects, there were no code changes.
+
 ## 0.0.7 (2026-09-23)
 
 ### 🩹 Fixes

@@ -24,3 +24,12 @@ tmp/
 
 # Operational artifacts
 review_scores.csv
+
+# Compiled skill output
+/.build/
+
+# Local tool venvs (skillspector etc.)
+/.tools/
+
+# SkillSpector scan annotations (executor output)
+/annotations-*.txt

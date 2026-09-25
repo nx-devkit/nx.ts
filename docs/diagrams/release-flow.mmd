@@ -1,0 +1,7 @@
+flowchart LR
+  PR["push to main"] --> CI["ci.yml: lint, build, test, typecheck, skills, diagrams"]
+  PR --> REL["release.yml (not gated on CI)"]
+  REL --> VER["nx release version (conventional commits)"]
+  VER --> PUB["nx release publish (OIDC trusted publishing)"]
+  PUB --> TAG["push commit + tags"]
+  TAG --> CH["project changelogs + GitHub releases"]

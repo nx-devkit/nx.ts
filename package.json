@@ -7,33 +7,37 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "skills/*"
+    "tools/*"
   ],
   "scripts": {
     "build": "bun run --filter='./packages/*' build",
     "test": "bun run --filter='./packages/*' test",
-    "lint": "biome lint . && oxlint .",
+    "lint": "node scripts/biome.mjs lint . && oxlint .",
     "lint:oxlint": "oxlint .",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
+    "format": "node scripts/biome.mjs format --write .",
+    "format:check": "node scripts/biome.mjs format .",
     "spec:check": "bun run scripts/spec-check.ts",
     "check:spec": "bun run scripts/spec-check.ts",
-    "spec:validate": "openspec validate",
+    "spec:validate": "openspec validate --changes --strict",
     "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
     "@fission-ai/openspec": "^1.4.1",
+    "@nx-devkit/skills-compiler": "workspace:*",
     "@nx/devkit": "23.2.1",
     "@nx/js": "23.2.1",
     "@types/node": "^20.19.0",
     "@typescript/native-preview": "^7.0.0-dev.20260622.1",
     "husky": "^9.1.7",
+    "markdownlint-cli2": "^0.23.3",
     "nx": "23.2.1",
     "oxlint": "^1.70.0",
     "tsdown": "^0.22.3",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "yaml": "^2.9.0"
   },
   "engines": {
     "node": ">=22.18.0",
