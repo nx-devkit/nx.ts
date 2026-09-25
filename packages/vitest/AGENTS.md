@@ -4,7 +4,7 @@ Agent guide for working in `packages/vitest/`. Touch ONLY this directory unless 
 
 ## File layout
 
-```
+```text
 packages/vitest/
 ├── package.json
 ├── tsdown.config.ts          # entry: src/index.ts, src/plugin.ts
