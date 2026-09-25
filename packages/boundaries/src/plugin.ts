@@ -24,8 +24,8 @@ export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
     const targetName = options.targetName ?? 'check-boundaries'
 
     // Boundary checks are graph-global — a vacuous target in a tagless
-    // workspace would be a false green. The trigger is at least one
-    // non-root package.json carrying nx.tags.
+    // workspace would be a false green. A non-root package.json carrying
+    // nx.tags is the trigger.
     const anyTagged = configFiles.some((file) => {
       const normalized = file.replace(/\\/g, '/')
       if (dirname(normalized) === '.') {

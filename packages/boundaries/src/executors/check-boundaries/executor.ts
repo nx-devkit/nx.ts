@@ -17,70 +17,89 @@ interface CheckBoundariesOptions {
   depConstraints?: DepConstraint[]
 }
 
+interface ScanContext {
+  workspaceRoot: string
+  index: ReturnType<typeof projectIndex>
+  tsPaths: ReturnType<typeof loadTsPaths>
+  tags: Map<string, string[]>
+  constraints: DepConstraint[]
+}
+
 const SOURCE_GLOB = '**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'
 const EXCLUDES = ['node_modules/**', 'dist/**', '**/*.d.ts']
+
+function scanProject(
+  projectName: string,
+  sourceTags: string[],
+  root: string,
+  ctx: ScanContext,
+): string[] {
+  const absRoot = join(ctx.workspaceRoot, root)
+  const files = globSync(SOURCE_GLOB, { cwd: absRoot, exclude: EXCLUDES })
+  logDebug('nx-devkit/boundaries', `${projectName}: scanning ${files.length} files`)
+
+  const violations: string[] = []
+  for (const file of files) {
+    const fileAbs = join(absRoot, file)
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace source file under an inferred project root
+    const records = collectImports(fileAbs, readFileSync(fileAbs, 'utf8'))
+    for (const record of records) {
+      const target = resolveImport(
+        record.specifier,
+        fileAbs,
+        ctx.index,
+        ctx.tsPaths,
+        ctx.workspaceRoot,
+      )
+      if (!target || target === projectName) {
+        continue
+      }
+      const targetTags = ctx.tags.get(target) ?? []
+      if (!isAllowed(sourceTags, targetTags, ctx.constraints)) {
+        const relFile = relative(ctx.workspaceRoot, fileAbs)
+        violations.push(
+          `${relFile}:${record.line} — ${projectName} (${sourceTags.join(',')}) cannot depend on ${target} (${targetTags.join(',') || 'untagged'}) via "${record.specifier}"`,
+        )
+      }
+    }
+  }
+  return violations
+}
 
 export default async function checkBoundaries(
   options: CheckBoundariesOptions,
   context: ExecutorContext,
 ): Promise<{ success: boolean }> {
-  const workspaceRoot = context.root
   const graph: ProjectGraph = context.projectGraph ?? (await createProjectGraphAsync())
-  const constraints = options.depConstraints ?? []
-  const tags = projectTags(graph)
-  const index = projectIndex(graph)
-  const tsPaths = loadTsPaths(workspaceRoot)
+  const ctx: ScanContext = {
+    workspaceRoot: context.root,
+    index: projectIndex(graph),
+    tsPaths: loadTsPaths(context.root),
+    tags: projectTags(graph),
+    constraints: options.depConstraints ?? [],
+  }
 
   const violations: string[] = []
-
   for (const [projectName, node] of Object.entries(graph.nodes)) {
-    const sourceTags = tags.get(projectName) ?? []
-    if (sourceTags.length === 0) {
-      continue // Untagged projects are unconstrained (permissive default)
-    }
+    const sourceTags = ctx.tags.get(projectName) ?? []
     const root = node.data.root
-    if (root === '.' || root === '') {
-      continue // The root project is not a boundary citizen
+    // Untagged projects are unconstrained (permissive default).
+    // The root project is excluded — it is not a boundary citizen.
+    if (sourceTags.length === 0 || root === '.' || root === '') {
+      continue
     }
-    const absRoot = join(workspaceRoot, root)
-    const files = globSync(SOURCE_GLOB, {
-      cwd: absRoot,
-      exclude: EXCLUDES,
-    })
-    logDebug('nx-devkit/boundaries', `${projectName}: scanning ${files.length} files`)
-
-    for (const file of files) {
-      const fileAbs = join(absRoot, file)
-      const records = collectImports(
-        fileAbs,
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace source file under an inferred project root
-        readFileSync(fileAbs, 'utf8'),
-      )
-      for (const record of records) {
-        const target = resolveImport(record.specifier, fileAbs, index, tsPaths, workspaceRoot)
-        if (!target || target === projectName) {
-          continue
-        }
-        const targetTags = tags.get(target) ?? []
-        if (!isAllowed(sourceTags, targetTags, constraints)) {
-          const relFile = relative(workspaceRoot, fileAbs)
-          violations.push(
-            `${relFile}:${record.line} — ${projectName} (${sourceTags.join(',')}) cannot depend on ${target} (${targetTags.join(',') || 'untagged'}) via "${record.specifier}"`,
-          )
-        }
-      }
-    }
+    violations.push(...scanProject(projectName, sourceTags, root, ctx))
   }
 
-  if (violations.length > 0) {
-    logger.error(`check-boundaries: ${violations.length} violation(s)`)
-    for (const v of violations) {
-      logger.error(`  ${v}`)
+  if (violations.length === 0) {
+    if (isVerbose()) {
+      logger.info('check-boundaries: no violations')
     }
-    return { success: false }
+    return { success: true }
   }
-  if (isVerbose()) {
-    logger.info('check-boundaries: no violations')
+  logger.error(`check-boundaries: ${violations.length} violation(s)`)
+  for (const v of violations) {
+    logger.error(`  ${v}`)
   }
-  return { success: true }
+  return { success: false }
 }
