@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts). If you want the full Ty
 bun add -D @nx-devkit/vitest vitest
 ```
 
-Depends on `@nx/devkit` `^22 || ^23` (installed automatically). Requires the `vitest` `^4` peer — the targets shell out to it via `nx:run-commands`.
+Depends on `@nx/devkit` `^22 || ^23` (installed automatically). `vitest` `^4` is an optional peer — install it in projects that have a vitest config; the inferred targets shell out to it via `nx:run-commands`.
 
 ## Register
 
