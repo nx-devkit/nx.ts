@@ -1,0 +1,64 @@
+{
+  "name": "@nx-devkit/boundaries",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "Linter-agnostic Nx plugin: enforces module-boundary depConstraints between tagged projects — no ESLint, no project.json required.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "module-boundaries",
+    "enforce-module-boundaries",
+    "architecture",
+    "typescript",
+    "monorepo",
+    "zero-config"
+  ],
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.mts",
+      "default": "./dist/plugin.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "executors.json",
+    "README.md",
+    "src/executors"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepublishOnly": "npm run build -- --clean",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "typescript": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@nx-devkit/internal": "workspace:*",
+    "@types/node": "^26.0.0",
+    "memfs": "^4.50.0",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/boundaries"
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/boundaries"
+}

@@ -45,6 +45,7 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/tsdown`](./packages/tsdown/README.md) | `**/tsdown.config.ts` | Standalone `build` target |
 | [`@nx-devkit/oxlint`](./packages/oxlint/README.md) | `**/.oxlintrc.*` | Standalone `lint` target |
 | [`@nx-devkit/biome`](./packages/biome/README.md) | `**/biome.json{,c}` | Standalone `format`, `format-check`, `lint` |
+| [`@nx-devkit/boundaries`](./packages/boundaries/README.md) | `**/package.json` with `nx.tags` | Root `check-boundaries` target — `@nx/enforce-module-boundaries` semantics, no ESLint required |
 | [`@nx-devkit/skill`](./packages/skill/README.md) | `**/SKILL.md` | Skill lifecycle: `build`, `lint`, `validate`, `os-check`, `size-check` |
 | [`@nx-devkit/skillspector`](./packages/skillspector/README.md) | `**/SKILL.md` | `scan` target — SkillSpector security scans with SARIF + CI annotations |
 | [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{mmd,puml,dot,d2,bpmn,excalidraw,…}` | `diagrams` target — renders diagram sources via Kroki or local command overrides |

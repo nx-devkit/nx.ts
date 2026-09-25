@@ -13,6 +13,7 @@ Five workspace packages under `packages/`:
 | `packages/tsdown` | `@nx-devkit/tsdown` | Tool plugin. Owns `build` target inference. |
 | `packages/oxlint` | `@nx-devkit/oxlint` | Tool plugin. Owns `lint` target inference. |
 | `packages/biome` | `@nx-devkit/biome` | Tool plugin. Owns `format`, `format-check`, `lint` inference. |
+| `packages/boundaries` | `@nx-devkit/boundaries` | Boundary plugin. Owns the `check-boundaries` executor — linter-agnostic module-boundary enforcement via `nx.tags` + `depConstraints`. |
 | `packages/typescript-preset` | `@nx-devkit/typescript` | Preset plugin. Owns `typecheck`, `test`, `test:watch`, `test:coverage`. Exports reusable helpers. |
 | `packages/prepare-for-release` | `@nx-devkit/prepare-for-release` | Tool plugin. Owns the `prepare-for-release` executor + `init` generator that bootstraps a workspace of packages onto npm. |
 
@@ -29,6 +30,7 @@ Tool plugins emit `nx:run-commands` executors (no custom executor packages), wra
 | `**/vitest.config.{ts,js,mts,mjs,cts,cjs}` | `@nx-devkit/typescript` | `test`, `test:watch`, `test:coverage` | `nx:run-commands` (`npx vitest run`) | true (test) / false (watch) | `test` dependsOn `^build` |
 | `**/.oxlintrc.{json,yaml,yml,js,mjs,cjs}` | `@nx-devkit/oxlint` | `lint` | `nx:run-commands` (`npx oxlint .`) | true | inputs include `.oxlintrc.*`, `src/**/*` |
 | `**/biome.json`, `biome.jsonc` | `@nx-devkit/biome` | `format`, `format-check`, `lint` | `nx:run-commands` (`npx biome ...`) | false (format) / true (check, lint) | format has side effects |
+| `**/package.json` with `nx.tags` (non-root) | `@nx-devkit/boundaries` | `check-boundaries` (on the root project) | `@nx-devkit/boundaries:check-boundaries` | true | target inferred only when ≥1 project declares tags |
 
 Workspace root is skipped by every plugin.
 

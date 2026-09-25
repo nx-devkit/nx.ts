@@ -1,0 +1,9 @@
+{
+  "executors": {
+    "check-boundaries": {
+      "implementation": "./dist/executors/check-boundaries/executor.mjs",
+      "schema": "./src/executors/check-boundaries/schema.json",
+      "description": "Enforces depConstraints between tagged projects: scans imports (static, dynamic, require, export-from), resolves them to workspace projects, and fails on forbidden edges."
+    }
+  }
+}

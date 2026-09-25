@@ -25,6 +25,7 @@
       "packages/tsdown",
       "packages/oxlint",
       "packages/biome",
+      "packages/boundaries",
       "packages/typescript-preset",
       "packages/prepare-for-release",
       "packages/skill",

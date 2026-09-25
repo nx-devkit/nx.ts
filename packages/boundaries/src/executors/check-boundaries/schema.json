@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "title": "check-boundaries executor",
+  "description": "Enforces depConstraints between tagged projects",
+  "type": "object",
+  "properties": {
+    "depConstraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sourceTag": { "type": "string" },
+          "onlyDependOnLibsWithTags": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["sourceTag", "onlyDependOnLibsWithTags"]
+      }
+    }
+  },
+  "additionalProperties": false
+}
