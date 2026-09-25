@@ -7,7 +7,7 @@
 
 ## Plugin (inference)
 
-- [ ] `src/plugin.ts`: `createNodesV2` on `**/package.json`, emit root `check-boundaries` target only when ≥1 project declares `nx.tags`
+- [ ] `src/plugin.ts`: `createNodesV2` on `**/package.json`, emit root `check-boundaries` target only when ≥1 project declares a non-empty `nx.tags` array (`"tags": []` counts as untagged)
 - [ ] `src/plugin.spec.ts`: tagless workspace → no target; tagged workspace → exactly one root target; node_modules/root-skip rules; input-order determinism — the same `**/package.json` set supplied in different orders produces identical `createNodesV2` output
 
 ## Executor

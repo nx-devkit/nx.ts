@@ -12,7 +12,7 @@ The goal: a linter-agnostic `check-boundaries` Nx target that works regardless o
 
 ### New package: `@nx-devkit/boundaries`
 
-- **ADD** a `createNodesV2` plugin that infers a single workspace-root `check-boundaries` target when any project in the graph declares `tags` (via the standard `"nx": {"tags": [...]}` field in `package.json` — no `project.json` required, matching nx-devkit's inference philosophy).
+- **ADD** a `createNodesV2` plugin that infers a single workspace-root `check-boundaries` target when any project in the graph declares a non-empty `tags` array (via the standard `"nx": {"tags": [...]}` field in `package.json` — no `project.json` required, matching nx-devkit's inference philosophy). `"tags": []` counts as untagged.
 - **ADD** a `check-boundaries` executor that:
   1. Loads the project graph via `createProjectGraphAsync`.
   2. Collects each project's `tags` (Nx merges `package.json` `nx` metadata into inferred projects).
