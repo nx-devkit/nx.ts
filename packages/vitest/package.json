@@ -44,6 +44,11 @@
   "peerDependencies": {
     "vitest": "^4.0.0"
   },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@nx-devkit/internal": "workspace:*",
     "@types/node": "^26.0.0",

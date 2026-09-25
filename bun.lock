@@ -234,6 +234,9 @@
       "peerDependencies": {
         "vitest": "^4.0.0",
       },
+      "optionalPeers": [
+        "vitest",
+      ],
     },
     "tools/skills-compiler": {
       "name": "@nx-devkit/skills-compiler",
