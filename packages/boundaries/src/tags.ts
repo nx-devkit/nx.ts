@@ -23,7 +23,10 @@ export function projectIndex(graph: ProjectGraph): {
     if (typeof npmName === 'string') {
       byName.set(npmName, name)
     }
-    byName.set(name, name)
+    // A project name must not overwrite another project's npm package alias.
+    if (!byName.has(name)) {
+      byName.set(name, name)
+    }
   }
   // Longest root first so nested projects win on prefix matches.
   roots.sort((a, b) => b.root.length - a.root.length)

@@ -8,6 +8,11 @@ vi.mock('fs', async () => {
   return { ...memfs.fs, default: memfs.fs }
 })
 
+vi.mock('node:fs', async () => {
+  const memfs = await import('memfs')
+  return { ...memfs.fs, default: memfs.fs }
+})
+
 vi.mock('fs/promises', async () => {
   const memfs = await import('memfs')
   return { ...memfs.fs.promises, default: memfs.fs.promises }

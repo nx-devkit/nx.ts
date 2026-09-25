@@ -26,7 +26,13 @@ interface ScanContext {
 }
 
 const SOURCE_GLOB = '**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'
-const EXCLUDES = ['node_modules/**', 'dist/**', '**/*.d.ts']
+
+// Node's globSync `exclude` semantics for pattern arrays vary by version —
+// a segment callback is unambiguous everywhere.
+const isExcluded = (p: string): boolean => {
+  const segs = p.split(/[\\/]/)
+  return segs.includes('node_modules') || segs.includes('dist') || p.endsWith('.d.ts')
+}
 
 function scanProject(
   projectName: string,
@@ -35,7 +41,7 @@ function scanProject(
   ctx: ScanContext,
 ): string[] {
   const absRoot = join(ctx.workspaceRoot, root)
-  const files = globSync(SOURCE_GLOB, { cwd: absRoot, exclude: EXCLUDES })
+  const files = globSync(SOURCE_GLOB, { cwd: absRoot, exclude: isExcluded })
   logDebug('nx-devkit/boundaries', `${projectName}: scanning ${files.length} files`)
 
   const violations: string[] = []

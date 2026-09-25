@@ -26,6 +26,16 @@ const t = \`import tplFake from './templates'\`
     expect(collectImports(FILE, src)).toEqual([])
   })
 
+  it('collects import-equals and template-literal specifiers', () => {
+    const src = `
+import dep = require('./eq')
+const m = await import(\`./tpl\`)
+const r = require(\`./tplreq\`)
+`
+    const specs = collectImports(FILE, src).map((r) => r.specifier)
+    expect(specs).toEqual(['./eq', './tpl', './tplreq'])
+  })
+
   it('reports 1-based line numbers', () => {
     const src = `const x = 1\nimport y from './y'\n`
     const [record] = collectImports(FILE, src)

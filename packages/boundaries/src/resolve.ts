@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { parseJsonObject } from '@nx-devkit/internal'
 
 export interface ProjectIndex {
   byName: Map<string, string>
@@ -9,6 +10,8 @@ export interface ProjectIndex {
 export interface PathMapping {
   pattern: string
   targets: string[]
+  /** Directory `paths` targets resolve against — tsconfig dir + baseUrl. */
+  baseDir: string
 }
 
 const EXTENSIONS = [
@@ -25,26 +28,49 @@ const EXTENSIONS = [
   '/index.js',
 ]
 
+// TypeScript resolves `./foo.js` to `./foo.ts` — apply the same substitution
+// so Node-style source imports cannot bypass boundary checks.
+const JS_TO_TS: Record<string, string> = {
+  '.js': '.ts',
+  '.jsx': '.tsx',
+  '.mjs': '.mts',
+  '.cjs': '.cts',
+}
+
+function* candidatePaths(absPath: string): Generator<string> {
+  yield absPath
+  const ext = Object.keys(JS_TO_TS).find((e) => absPath.endsWith(e))
+  if (ext) {
+    yield absPath.slice(0, -ext.length) + (JS_TO_TS[ext] ?? ext)
+  }
+}
+
 function fileToProject(
   absPath: string,
   roots: { name: string; root: string }[],
   workspaceRoot: string,
 ): string | null {
-  for (const candidate of EXTENSIONS.map((ext) => absPath + ext)) {
-    if (!existsSync(candidate)) {
-      continue
-    }
-    const rel = candidate.slice(workspaceRoot.length).replace(/\\/g, '/').replace(/^\//, '')
-    // Roots are sorted longest-first — nested projects win
-    for (const { name, root } of roots) {
-      if (root === '.' || root === '') {
-        continue // Root project would swallow everything; skip
+  for (const base of candidatePaths(absPath)) {
+    for (const ext of EXTENSIONS) {
+      const candidate = base + ext
+      if (!existsSync(candidate)) {
+        continue
       }
-      if (rel === root || rel.startsWith(`${root}/`)) {
-        return name
+      const rel = relative(workspaceRoot, candidate).replace(/\\/g, '/')
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        return null // Outside the workspace — no project owns it
       }
+      // Roots are sorted longest-first — nested projects win
+      for (const { name, root } of roots) {
+        if (root === '.' || root === '') {
+          continue // Root project would swallow everything; skip
+        }
+        if (rel === root || rel.startsWith(`${root}/`)) {
+          return name
+        }
+      }
+      return null
     }
-    return null
   }
   return null
 }
@@ -68,21 +94,26 @@ export function resolveImport(
   if (byName) {
     return byName
   }
-  for (const mapping of tsPaths) {
-    const resolved = matchPathMapping(specifier, mapping, workspaceRoot)
-    if (resolved) {
-      const project = fileToProject(resolved, index.roots, workspaceRoot)
-      if (project) {
-        return project
-      }
+  // Longest-prefix-first: a broad alias must not shadow a narrower one.
+  const ordered = [...tsPaths].sort((a, b) => prefixLength(b) - prefixLength(a))
+  for (const mapping of ordered) {
+    const project = matchPathMapping(specifier, mapping, index.roots, workspaceRoot)
+    if (project) {
+      return project
     }
   }
   return null
 }
 
+function prefixLength(mapping: PathMapping): number {
+  const star = mapping.pattern.indexOf('*')
+  return star === -1 ? mapping.pattern.length : star
+}
+
 function matchPathMapping(
   specifier: string,
   mapping: PathMapping,
+  roots: { name: string; root: string }[],
   workspaceRoot: string,
 ): string | null {
   const star = mapping.pattern.indexOf('*')
@@ -90,8 +121,14 @@ function matchPathMapping(
     if (specifier !== mapping.pattern) {
       return null
     }
-    const target = mapping.targets[0]
-    return target ? join(workspaceRoot, target) : null
+    // Exact alias: try every fallback target until one resolves.
+    for (const target of mapping.targets) {
+      const project = fileToProject(join(mapping.baseDir, target), roots, workspaceRoot)
+      if (project) {
+        return project
+      }
+    }
+    return null
   }
   const [prefix, suffix] = [mapping.pattern.slice(0, star), mapping.pattern.slice(star + 1)]
   if (!specifier.startsWith(prefix) || !specifier.endsWith(suffix)) {
@@ -99,9 +136,10 @@ function matchPathMapping(
   }
   const matched = specifier.slice(prefix.length, specifier.length - suffix.length)
   for (const target of mapping.targets) {
-    const resolved = join(workspaceRoot, target.replace('*', matched))
-    if (EXTENSIONS.some((ext) => existsSync(resolved + ext))) {
-      return resolved
+    const resolved = join(mapping.baseDir, target.replace('*', matched))
+    const project = fileToProject(resolved, roots, workspaceRoot)
+    if (project) {
+      return project
     }
   }
   return null
@@ -110,16 +148,17 @@ function matchPathMapping(
 export function loadTsPaths(workspaceRoot: string): PathMapping[] {
   const out: PathMapping[] = []
   for (const file of ['tsconfig.base.json', 'tsconfig.json']) {
+    const tsconfigPath = join(workspaceRoot, file)
+    let raw: { compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> } }
     try {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed candidate basenames under the Nx workspace root
-      const raw = JSON.parse(readFileSync(join(workspaceRoot, file), 'utf8')) as {
-        compilerOptions?: { paths?: Record<string, string[]> }
-      }
-      for (const [pattern, targets] of Object.entries(raw.compilerOptions?.paths ?? {})) {
-        out.push({ pattern, targets })
-      }
+      raw = parseJsonObject(readFileSync(tsconfigPath, 'utf8'), tsconfigPath) as typeof raw
     } catch {
-      // No tsconfig at root — paths simply absent
+      continue // No readable tsconfig — paths simply absent
+    }
+    const baseDir = resolve(workspaceRoot, raw.compilerOptions?.baseUrl ?? '.')
+    for (const [pattern, targets] of Object.entries(raw.compilerOptions?.paths ?? {})) {
+      out.push({ pattern, targets, baseDir })
     }
   }
   return out

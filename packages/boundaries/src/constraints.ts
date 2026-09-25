@@ -3,8 +3,9 @@ import type { DepConstraint } from './types.ts'
 /**
  * Official-rule semantics: every constraint whose `sourceTag` matches the
  * importing project's tags must be satisfied — the target project must share
- * at least one tag with `onlyDependOnLibsWithTags`. No matching constraint →
- * allowed (permissive default).
+ * at least one tag with `onlyDependOnLibsWithTags`. An empty allowlist means
+ * "may depend only on untagged projects". No matching constraint → allowed
+ * (permissive default).
  */
 export function isAllowed(
   sourceTags: string[],
@@ -13,5 +14,9 @@ export function isAllowed(
 ): boolean {
   return constraints
     .filter((c) => sourceTags.includes(c.sourceTag))
-    .every((c) => targetTags.some((t) => c.onlyDependOnLibsWithTags.includes(t)))
+    .every((c) =>
+      c.onlyDependOnLibsWithTags.length === 0
+        ? targetTags.length === 0
+        : targetTags.some((t) => c.onlyDependOnLibsWithTags.includes(t)),
+    )
 }

@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname as pathDirname, join } from 'node:path'
-import type { ExecutorContext, ProjectGraph } from '@nx/devkit'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { logger, type ExecutorContext, type ProjectGraph } from '@nx/devkit'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import checkBoundaries from './executor.ts'
 
 interface ProjectFixture {
@@ -88,8 +88,15 @@ describe('check-boundaries executor', () => {
         files: { 'src/main.ts': 'export const a = 1\n' },
       },
     ])
+    const spy = vi.spyOn(logger, 'error').mockImplementation(() => {})
     const res = await checkBoundaries({ depConstraints: CONSTRAINTS }, ctx)
     expect(res.success).toBe(false)
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'libs/feature/src/index.ts:1 — @acme/feature (type:feature) cannot depend on @acme/app (type:app) via "@acme/app"',
+      ),
+    )
+    spy.mockRestore()
   })
 
   it('resolves relative cross-project imports', async () => {

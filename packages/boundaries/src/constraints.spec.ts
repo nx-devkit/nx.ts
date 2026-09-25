@@ -26,6 +26,12 @@ describe('isAllowed', () => {
     expect(isAllowed([], ['type:app'], constraints)).toBe(true)
   })
 
+  it('an empty allowlist permits only untagged targets', () => {
+    const tagless = [{ sourceTag: 'type:app', onlyDependOnLibsWithTags: [] }]
+    expect(isAllowed(['type:app'], [], tagless)).toBe(true)
+    expect(isAllowed(['type:app'], ['type:util'], tagless)).toBe(false)
+  })
+
   it('requires every matching constraint to pass', () => {
     const strict = [
       { sourceTag: 'a', onlyDependOnLibsWithTags: ['x'] },

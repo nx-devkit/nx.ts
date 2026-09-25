@@ -6,7 +6,7 @@ This repository extends Nx with a minimal, **config-file-inference-only** plugin
 
 ## Architecture
 
-Five workspace packages under `packages/`:
+Six workspace packages under `packages/`:
 
 | Package | Scope | Role |
 |---|---|---|
@@ -32,7 +32,7 @@ Tool plugins emit `nx:run-commands` executors (no custom executor packages), wra
 | `**/biome.json`, `biome.jsonc` | `@nx-devkit/biome` | `format`, `format-check`, `lint` | `nx:run-commands` (`npx biome ...`) | false (format) / true (check, lint) | format has side effects |
 | `**/package.json` with `nx.tags` (non-root) | `@nx-devkit/boundaries` | `check-boundaries` (on the root project) | `@nx-devkit/boundaries:check-boundaries` | true | target inferred only when ≥1 project declares tags |
 
-Workspace root is skipped by every plugin.
+Workspace root is skipped by every plugin *as an inference source*; `@nx-devkit/boundaries` is the exception that deliberately attaches its graph-global `check-boundaries` target to the root project — it skips the root only as a boundary *citizen*.
 
 ## Demo workspace plan
 

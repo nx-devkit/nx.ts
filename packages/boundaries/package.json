@@ -29,11 +29,12 @@
     },
     "./package.json": "./package.json"
   },
+  "executors": "./executors.json",
   "files": [
     "dist",
     "executors.json",
     "README.md",
-    "src/executors"
+    "src/executors/check-boundaries/schema.json"
   ],
   "scripts": {
     "build": "tsdown",
