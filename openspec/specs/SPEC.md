@@ -13,10 +13,11 @@ Five workspace packages under `packages/`:
 | `packages/tsdown` | `@nx-devkit/tsdown` | Tool plugin. Owns `build` target inference. |
 | `packages/oxlint` | `@nx-devkit/oxlint` | Tool plugin. Owns `lint` target inference. |
 | `packages/biome` | `@nx-devkit/biome` | Tool plugin. Owns `format`, `format-check`, `lint` inference. |
+| `packages/vitest` | `@nx-devkit/vitest` | Tool plugin. Owns `test`, `test:watch`, `test:coverage` inference for standalone consumers. |
 | `packages/typescript-preset` | `@nx-devkit/typescript` | Preset plugin. Owns `typecheck`, `test`, `test:watch`, `test:coverage`. Exports reusable helpers. |
 | `packages/prepare-for-release` | `@nx-devkit/prepare-for-release` | Tool plugin. Owns the `prepare-for-release` executor + `init` generator that bootstraps a workspace of packages onto npm. |
 
-Per-tool plugins (tsdown, oxlint, biome) consume the preset via workspace dependency so they do not duplicate typecheck/test inference.
+Per-tool plugins (tsdown, oxlint, biome, vitest) consume `@nx-devkit/internal` (private, bundled at build) for shared helpers, so they do not duplicate inference logic.
 
 Tool plugins emit `nx:run-commands` executors (no custom executor packages), wrapped with `cache: true` and `dependsOn: ['^build']` where appropriate.
 
@@ -26,7 +27,7 @@ Tool plugins emit `nx:run-commands` executors (no custom executor packages), wra
 |---|---|---|---|---|---|
 | `**/tsdown.config.ts` | `@nx-devkit/tsdown` | `build` | `nx:run-commands` (`npx tsdown`) | true | outputs `{projectRoot}/dist`; dependsOn `^build` |
 | `**/tsconfig.json` | `@nx-devkit/typescript` | `typecheck` | `nx:run-commands` (`npx tsgo --build ${configFile}`) | true | `tsgo: boolean` option; inputs include `tsconfig.base.json` |
-| `**/vitest.config.{ts,js,mts,mjs,cts,cjs}` | `@nx-devkit/typescript` | `test`, `test:watch`, `test:coverage` | `nx:run-commands` (`npx vitest run`) | true (test) / false (watch) | `test` dependsOn `^build` |
+| `**/vitest.config.{ts,js,mts,mjs,cts,cjs}` | `@nx-devkit/typescript` (preset) / `@nx-devkit/vitest` (standalone) | `test`, `test:watch`, `test:coverage` | `nx:run-commands` (`npx vitest run`) | true (test) / false (watch) | `test` dependsOn `^build` |
 | `**/.oxlintrc.{json,yaml,yml,js,mjs,cjs}` | `@nx-devkit/oxlint` | `lint` | `nx:run-commands` (`npx oxlint .`) | true | inputs include `.oxlintrc.*`, `src/**/*` |
 | `**/biome.json`, `biome.jsonc` | `@nx-devkit/biome` | `format`, `format-check`, `lint` | `nx:run-commands` (`npx biome ...`) | false (format) / true (check, lint) | format has side effects |
 

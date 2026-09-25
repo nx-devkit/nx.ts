@@ -8,6 +8,7 @@ import {
   isVerbose,
   resetCachedEnv,
   mapWithConcurrency,
+  inferVitestTargets,
 } from '@nx-devkit/internal'
 import { globMatchAsync } from './glob.js'
 import {
@@ -20,7 +21,6 @@ import {
   findVitestConfig,
 } from './config.js'
 import { inferTypecheckTarget } from './targets/typecheck.js'
-import { inferVitestTargets } from './targets/vitest.js'
 import { inferNativeTestTargets } from './targets/native-test.js'
 import { inferOxlintTarget, inferEslintTarget } from './targets/lint.js'
 import { inferBiomeTargets } from './targets/format.js'
@@ -35,7 +35,7 @@ export type { NxDevkitTypescriptOptions }
 export { shouldSkipPath, isVerbose, resetCachedEnv, logDebug }
 export { globMatch, globMatchAsync, globToRegExp, expandBraces } from './glob.js'
 export { inferTypecheckTarget } from './targets/typecheck.js'
-export { inferVitestTargets } from './targets/vitest.js'
+export { inferVitestTargets } from '@nx-devkit/internal'
 export { inferNativeTestTargets } from './targets/native-test.js'
 export { inferOxlintTarget, inferEslintTarget } from './targets/lint.js'
 export { inferBiomeTargets } from './targets/format.js'

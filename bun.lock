@@ -36,7 +36,7 @@
     },
     "packages/biome": {
       "name": "@nx-devkit/biome",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
@@ -53,7 +53,7 @@
     },
     "packages/diagrams": {
       "name": "@nx-devkit/diagrams",
-      "version": "0.0.6",
+      "version": "0.0.7",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
         "jsonc-parser": "^3.3.1",
@@ -78,7 +78,7 @@
     },
     "packages/nx-cloud": {
       "name": "@nx-devkit/nx-cloud",
-      "version": "0.0.6",
+      "version": "0.0.7",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
         "jsonc-parser": "^3.3.1",
@@ -93,7 +93,7 @@
     },
     "packages/oxlint": {
       "name": "@nx-devkit/oxlint",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
@@ -112,7 +112,7 @@
     },
     "packages/prepare-for-release": {
       "name": "@nx-devkit/prepare-for-release",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
         "tinyglobby": "^0.2.0",
@@ -127,7 +127,7 @@
     },
     "packages/release": {
       "name": "@nx-devkit/release",
-      "version": "0.0.9",
+      "version": "0.0.10",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
@@ -140,7 +140,7 @@
     },
     "packages/skill": {
       "name": "@nx-devkit/skill",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
@@ -155,7 +155,7 @@
     },
     "packages/skillspector": {
       "name": "@nx-devkit/skillspector",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
@@ -170,7 +170,7 @@
     },
     "packages/tsdown": {
       "name": "@nx-devkit/tsdown",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
         "tsdown": "^0.22.3",
@@ -185,7 +185,7 @@
     },
     "packages/typescript-preset": {
       "name": "@nx-devkit/typescript",
-      "version": "0.2.6",
+      "version": "0.2.7",
       "bin": {
         "nx-devkit-typescript": "./dist/bin/init.mjs",
       },
@@ -212,6 +212,24 @@
         "tsdown",
         "vitest",
       ],
+    },
+    "packages/vitest": {
+      "name": "@nx-devkit/vitest",
+      "version": "0.0.0",
+      "dependencies": {
+        "@nx/devkit": "^22.0.0 || ^23.0.0",
+      },
+      "devDependencies": {
+        "@nx-devkit/internal": "workspace:*",
+        "@types/node": "^26.0.0",
+        "memfs": "^4.50.0",
+        "tsdown": "^0.22.3",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.9",
+      },
+      "peerDependencies": {
+        "vitest": "^4.0.0",
+      },
     },
   },
   "packages": {
@@ -592,6 +610,8 @@
     "@nx-devkit/tsdown": ["@nx-devkit/tsdown@workspace:packages/tsdown"],
 
     "@nx-devkit/typescript": ["@nx-devkit/typescript@workspace:packages/typescript-preset"],
+
+    "@nx-devkit/vitest": ["@nx-devkit/vitest@workspace:packages/vitest"],
 
     "@nx/devkit": ["@nx/devkit@23.2.1", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 22 <= 24 || ^23.0.0-0" } }, "sha512-uMGbMJpCi+y7eHBEWqygA8JITNgzFZdzVmcKX17EXnFreu14aWZ1kyo6Qh9pKIcbJigO3F46w6ANlYp6wgCovQ=="],
 
@@ -1377,6 +1397,8 @@
 
     "@nx-devkit/tsdown/@types/node": ["@types/node@26.0.0", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-vf2YFi1iY9lHGwNJMs01biZFbKJkrZR1T6/MlzjhJLPdntOHLhTrDSnSVcdtvjihi4VQNlrFRIxLsDBlQpAipA=="],
 
+    "@nx-devkit/vitest/@types/node": ["@types/node@26.0.0", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-vf2YFi1iY9lHGwNJMs01biZFbKJkrZR1T6/MlzjhJLPdntOHLhTrDSnSVcdtvjihi4VQNlrFRIxLsDBlQpAipA=="],
+
     "@nx/js/chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
 
     "@nx/js/jsonc-parser": ["jsonc-parser@3.2.0", "", {}, "sha512-gfFQZrcTc8CnKXp6Y4/CBT3fTc0OVuDofpre4aEeEpSBPV5X5v4+Vmx+8snU7RLPrNHPKSgLxGo9YuQzz20o+w=="],
@@ -1488,6 +1510,8 @@
     "@nx-devkit/skillspector/@types/node/undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
 
     "@nx-devkit/tsdown/@types/node/undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
+
+    "@nx-devkit/vitest/@types/node/undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
 
     "@rolldown/binding-wasm32-wasi/@emnapi/core/@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.2", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA=="],
 
