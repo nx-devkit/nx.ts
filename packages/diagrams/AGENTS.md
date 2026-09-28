@@ -8,7 +8,7 @@ Infers cached, atomized render targets for text-diagram files (`*.puml`, `*.mmd`
 
 ## File layout
 
-```
+```text
 packages/diagrams/
 ├── package.json            # executors/generators fields → manifests below
 ├── executors.json          # render executor manifest

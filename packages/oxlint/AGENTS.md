@@ -4,7 +4,7 @@ Agent guide for working in `packages/oxlint/`. Touch ONLY this directory unless 
 
 ## File layout
 
-```
+```text
 packages/oxlint/
 ├── package.json
 ├── tsdown.config.ts

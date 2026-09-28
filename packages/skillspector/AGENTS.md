@@ -4,7 +4,7 @@ Agent guide for working in `packages/skillspector/`. Touch ONLY this directory u
 
 ## File layout
 
-```
+```text
 packages/skillspector/
 ├── package.json
 ├── executors.json

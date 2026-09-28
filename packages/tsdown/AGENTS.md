@@ -4,7 +4,7 @@ Agent guide for working in `packages/tsdown/`. Touch ONLY this directory unless 
 
 ## File layout
 
-```
+```text
 packages/tsdown/
 ├── package.json
 ├── tsdown.config.ts          # entry: src/index.ts, src/plugin.ts

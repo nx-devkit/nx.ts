@@ -4,7 +4,7 @@ Agent guide for working in `packages/biome/`. Touch ONLY this directory unless t
 
 ## File layout
 
-```
+```text
 packages/biome/
 ├── package.json
 ├── tsdown.config.ts

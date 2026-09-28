@@ -4,7 +4,7 @@ Agent guide for working in `packages/nx-cloud/`. Touch ONLY this directory unles
 
 ## File layout
 
-```
+```text
 packages/nx-cloud/
 ├── package.json            # @nx-devkit/nx-cloud
 ├── tsdown.config.ts        # entry: index, plugin, executors/rotate/executor, generators/init/generator

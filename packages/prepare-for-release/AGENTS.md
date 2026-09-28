@@ -4,7 +4,7 @@ Agent guide for working in `packages/prepare-for-release/`. Touch ONLY this dire
 
 ## File layout
 
-```
+```text
 packages/prepare-for-release/
 ├── package.json            # @nx-devkit/prepare-for-release
 ├── tsdown.config.ts        # entry: index, plugin, executors/publish-placeholder/executor, generators/init/generator
