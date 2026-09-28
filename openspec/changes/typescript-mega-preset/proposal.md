@@ -48,18 +48,22 @@ Each opt-out flag gates its inference path: `nativeTest: false` skips native tes
 ### Priority rules
 
 When multiple test configs exist:
+
 1. `vitest.config.*` → vitest targets (test, test:watch, test:coverage)
 2. No vitest config + test files present → native node targets (test, test:tap if tap:true, test:coverage if coverage:true)
 3. No test files → no test targets
 
 When multiple lint configs exist:
+
 1. `.oxlintrc.*` → `lint` target via oxlint (oxlint wins; biome only adds `format`/`format-check`)
 2. `biome.json` + no oxlint → `lint` target via biome
 
 When multiple format configs exist:
+
 1. `biome.json` → `format`, `format-check` targets
 
 When multiple build configs exist:
+
 1. `tsdown.config.ts` → `build` target via tsdown
 
 ## Capabilities

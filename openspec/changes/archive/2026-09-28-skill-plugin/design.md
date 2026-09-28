@@ -2,7 +2,7 @@
 
 ## Architecture
 
-```
+```text
 packages/skill/
 ├── package.json              # @nx-devkit/skill
 ├── tsdown.config.ts          # entry: src/index.ts

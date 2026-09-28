@@ -2,7 +2,7 @@
 
 ## Architecture
 
-```
+```text
 packages/skillspector/
 ├── package.json              # @nx-devkit/skillspector
 ├── tsdown.config.ts          # entry: src/index.ts
@@ -120,6 +120,7 @@ The executor runs SkillSpector on a single skill directory:
 ### SARIF mapping
 
 Each SkillSpector issue maps to a SARIF result:
+
 - `ruleId` ← `issue.id`
 - `level` ← severity mapping (HIGH/CRITICAL → error, MEDIUM/WARNING → warning, else → note)
 - `message.text` ← `issue.explanation`
@@ -135,7 +136,7 @@ Code findings become `::error file=<path>,line=<n>::<rule_id>: <message>` workfl
 
 Both plugins trigger on `**/SKILL.md`. Nx merges targets from multiple plugins for the same project. Result:
 
-```
+```text
 project: skills-code-review-act-<hash>
 targets:
   build:       @nx-devkit/skill:build

@@ -69,6 +69,7 @@ The trigger file is fixed at `**/SKILL.md` (not configurable) — `createNodesV2
 - `theplenkov-ai/skills/tools/nx-skill/` is removed (source moves to nx.ts monorepo).
 - `ThePlenkov/skills` adds `"@nx-devkit/skill"` as devDependency.
 - Both repos update `nx.json`:
+
   ```json
   { "plugins": [{ "plugin": "@nx-devkit/skill" }] }
   ```

@@ -1,11 +1,14 @@
 # boundaries Specification
 
 ## Purpose
+
 Defines linter-agnostic module-boundary enforcement: the `@nx-devkit/boundaries`
 plugin infers a root-level check target and the executor evaluates
 `depConstraints` over the project graph, matching
 `@nx/enforce-module-boundaries` semantics.
+
 ## Requirements
+
 ### Requirement: Root check-boundaries target inference
 
 The plugin MUST infer exactly one `check-boundaries` target (the default name; configurable via the `targetName` option) on the workspace-root project when at least one non-root project declares a non-empty `nx.tags` array in its `package.json`. A workspace with no tagged projects MUST NOT get the target — a vacuous pass is a false green. A `tags` field that is missing or an empty array counts as untagged.
@@ -61,4 +64,3 @@ Specifiers MUST resolve as: relative path → nearest enclosing project; bare wo
 
 - **WHEN** a file imports `@acme/util` and a project named `@acme/util` exists
 - **THEN** the import resolves to that project and constraints are checked
-

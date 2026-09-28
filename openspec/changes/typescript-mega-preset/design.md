@@ -4,7 +4,7 @@
 
 The mega-preset extends `packages/typescript-preset/src/plugin.ts` with three new inference paths, all triggered by file presence:
 
-```
+```text
 tsconfig.json found
   ├── typecheck target (existing — tsgo or tsc)
   ├── vitest.config.* found?
