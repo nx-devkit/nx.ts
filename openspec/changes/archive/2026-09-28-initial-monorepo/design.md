@@ -15,7 +15,7 @@
   openspec/
     config.yaml         # schema: spec-driven, project context
     specs/SPEC.md       # architecture + matrix + workflow
-    changes/initial-monoreo/  # this change folder
+    changes/initial-monorepo/  # this change folder
   packages/             # (empty in this bead; populated by per-plugin beads)
   apps/                 # (empty; populated by demo bead)
   skills/               # (empty; populated by skills bead)
@@ -34,7 +34,7 @@
 ## OpenSpec workflow
 
 - `openspec/config.yaml` extends `spec-driven` schema with project context (bun, Nx 22, latest-version discipline, two-PR strategy).
-- Change folder `initial-monoreo/` uses the artifact layout: `proposal.md`, `specs/`, `design.md`, `tasks.md`.
+- Change folder `initial-monorepo/` uses the artifact layout: `proposal.md`, `specs/`, `design.md`, `tasks.md`.
 - `tasks.md` maps 1:1 to convoy beads so progress is traceable per bead.
 - `scripts/spec-check.ts` runs as `bun run spec:check`; complements `openspec validate`.
 

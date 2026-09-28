@@ -24,6 +24,7 @@ This is a **separate package** from `@nx-devkit/skill` (the discovery plugin). T
 ### Custom executor: `scan`
 
 The `scan` executor:
+
 1. Runs `skillspector scan <skill-dir> --no-llm --format json` (configurable)
 2. Maps JSON findings to GitHub Actions annotations (`::error file=...`)
 3. Builds SARIF 2.1.0 report preserving per-issue metadata
@@ -76,6 +77,7 @@ The trigger file is fixed at `**/SKILL.md` (same as `@nx-devkit/skill`) — `cre
 - `theplenkov-ai/skills/actions/skillspector/nx-skillspector/` is removed (source moves to nx.ts monorepo).
 - `ThePlenkov/skills` adds `"@nx-devkit/skillspector"` as devDependency.
 - Both repos update `nx.json`:
+
   ```json
   {
     "plugins": [
