@@ -1,3 +1,13 @@
+## 0.1.13 (2026-09-28)
+
+### 🩹 Fixes
+
+- **prepare-for-release:** read OTP from `token` field, enrich placeholder tarball ([#101](https://github.com/nx-devkit/nx.ts/pull/101))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.12 (2026-09-28)
 
 This was a version bump only for @nx-devkit/prepare-for-release to align it with other projects, there were no code changes.
