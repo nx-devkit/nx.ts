@@ -1,3 +1,7 @@
+## 0.1.12 (2026-09-28)
+
+This was a version bump only for @nx-devkit/prepare-for-release to align it with other projects, there were no code changes.
+
 ## 0.1.11 (2026-09-24)
 
 ### 🚀 Features

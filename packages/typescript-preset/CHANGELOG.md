@@ -1,3 +1,14 @@
+## 0.2.9 (2026-09-28)
+
+### 🚀 Features
+
+- **vitest:** standalone @nx-devkit/vitest plugin ([#92](https://github.com/nx-devkit/nx.ts/pull/92))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.2.8 (2026-09-24)
 
 This was a version bump only for @nx-devkit/typescript to align it with other projects, there were no code changes.
