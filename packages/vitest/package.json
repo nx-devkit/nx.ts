@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/vitest",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "MIT",
   "description": "Standalone Nx plugin: infers cached test, test:watch, and test:coverage targets from vitest.config.* — no project.json required.",
   "keywords": [
