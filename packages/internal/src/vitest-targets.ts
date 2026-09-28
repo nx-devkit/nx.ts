@@ -1,4 +1,5 @@
 import { basename } from 'node:path'
+import { VITEST_CONFIG_NAMES } from './config-discovery.ts'
 
 export function inferVitestTargets(
   projectRoot: string,
@@ -29,19 +30,12 @@ export function inferVitestTargets(
   }
 } {
   const configName = basename(vitestConfigFile)
-  const workspaceVitestInputs = [
-    '{workspaceRoot}/vitest.config.ts',
-    '{workspaceRoot}/vitest.config.js',
-    '{workspaceRoot}/vitest.config.mts',
-    '{workspaceRoot}/vitest.config.mjs',
-    '{workspaceRoot}/vitest.config.cts',
-    '{workspaceRoot}/vitest.config.cjs',
-  ]
+  const workspaceVitestInputs = VITEST_CONFIG_NAMES.map((n) => `{workspaceRoot}/${n}`)
   const baseInputs = [
-    '{projectRoot}/src/**/*',
-    '{projectRoot}/tests/**/*',
+    // 'default' covers every project file — Vitest also discovers tests
+    // outside src/ and tests/ (e.g. test/, __tests__/).
+    'default',
     `{projectRoot}/${configName}`,
-    '{projectRoot}/package.json',
     ...workspaceVitestInputs,
   ]
 

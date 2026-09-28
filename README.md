@@ -45,6 +45,7 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/tsdown`](./packages/tsdown/README.md) | `**/tsdown.config.ts` | Standalone `build` target |
 | [`@nx-devkit/oxlint`](./packages/oxlint/README.md) | `**/.oxlintrc.*` | Standalone `lint` target |
 | [`@nx-devkit/biome`](./packages/biome/README.md) | `**/biome.json{,c}` | Standalone `format`, `format-check`, `lint` |
+| [`@nx-devkit/vitest`](./packages/vitest/README.md) | `**/vitest.config.{ts,js,mts,mjs,cts,cjs}` | Standalone `test`, `test:watch`, `test:coverage` |
 | [`@nx-devkit/skill`](./packages/skill/README.md) | `**/SKILL.md` | Skill lifecycle: `build`, `lint`, `validate`, `os-check`, `size-check` |
 | [`@nx-devkit/skillspector`](./packages/skillspector/README.md) | `**/SKILL.md` | `scan` target — SkillSpector security scans with SARIF + CI annotations |
 | [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{mmd,puml,dot,d2,bpmn,excalidraw,…}` | `diagrams` target — renders diagram sources via Kroki or local command overrides |
@@ -55,7 +56,7 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/nx-cloud`](./packages/nx-cloud/README.md) | `nx.json` at workspace root | `nx-cloud-rotate` target on the root project — roll over to a fresh Nx Cloud org when quota runs out |
 | [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` + diagram fences in `*.md` | Cached, atomized `diagram-*` render targets via Kroki, Docker, or local renderers |
 
-The preset subsumes the standalone tsdown/oxlint/biome plugins; they stay available for single-tool consumers.
+The preset subsumes the standalone tsdown/oxlint/biome/vitest plugins; they stay available for single-tool consumers.
 
 ## Requirements
 
