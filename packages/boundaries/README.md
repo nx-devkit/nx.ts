@@ -47,7 +47,7 @@ Nx merges `nx.*` metadata into the project whether it was inferred or declared, 
 - The executor loads the project graph, scans each tagged project's sources with the TypeScript parser (`import`, `export ... from`, `import()`, `require()` — comments and strings can't produce false positives), resolves specifiers to workspace projects (relative paths, package names, tsconfig `paths`), and evaluates `depConstraints`.
 - Violations print `file:line — source (tags) cannot depend on target (tags) via "specifier"` and fail the target.
 
-Semantics match the official rule: constraints apply when `sourceTag` is in the importing project's tags; the target must share a tag with `onlyDependOnLibsWithTags`; untagged sources are permissive; self-imports are always allowed.
+Semantics match the official rule: constraints apply when `sourceTag` matches the importing project's tags; the target must share a tag with `onlyDependOnLibsWithTags`; untagged sources are permissive; self-imports are always allowed. Tag patterns support wildcards — `*` matches any project carrying at least one tag, and partial globs like `scope:*` expand `*`; in `onlyDependOnLibsWithTags`, `*` means "the target must be tagged".
 
 ## Run
 
