@@ -1,7 +1,7 @@
 # spec-conflict-detector Specification
 
 ## Purpose
-TBD - created by archiving change initial-monoreo. Update Purpose after archive.
+TBD - created by archiving change initial-monorepo. Update Purpose after archive.
 ## Requirements
 ### Requirement: Detector scans openspec + plugin sources
 The script `scripts/spec-check.ts` MUST scan every `.ts` and `.md` file under `openspec/` and `packages/*/src/plugin.ts` for target/inference definitions.

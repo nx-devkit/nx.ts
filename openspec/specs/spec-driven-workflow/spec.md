@@ -1,7 +1,7 @@
 # spec-driven-workflow Specification
 
 ## Purpose
-TBD - created by archiving change initial-monoreo. Update Purpose after archive.
+TBD - created by archiving change initial-monorepo. Update Purpose after archive.
 ## Requirements
 ### Requirement: OpenSpec initialized with kilocode tool
 The repository MUST be initialized with OpenSpec using the `kilocode` tool flag so that the agent receives the matching slash-command set.
@@ -20,9 +20,9 @@ The file `openspec/specs/SPEC.md` MUST describe purpose, architecture (4 tool pl
 ### Requirement: Change folder proposal-design-specs-tasks layout
 Every OpenSpec change folder MUST contain `proposal.md`, `design.md`, `tasks.md`, and a `specs/` subdirectory with capability delta files.
 
-#### Scenario: initial-monoreo has all four artifacts
+#### Scenario: initial-monorepo has all four artifacts
 - **WHEN** `openspec validate` runs
-- **THEN** it reports no missing-artifact errors for `openspec/changes/initial-monoreo/`
+- **THEN** it reports no missing-artifact errors for `openspec/changes/initial-monorepo/`
 
 ### Requirement: tasks.md maps 1:1 to convoy beads
 The `tasks.md` file MUST include a Bead traceability table mapping each section of the file to a convoy bead ID.

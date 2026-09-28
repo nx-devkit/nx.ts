@@ -1,7 +1,7 @@
 # monorepo-skeleton Specification
 
 ## Purpose
-TBD - created by archiving change initial-monoreo. Update Purpose after archive.
+TBD - created by archiving change initial-monorepo. Update Purpose after archive.
 ## Requirements
 ### Requirement: Root package is private bun workspace
 The repository root `package.json` MUST be `private: true` and MUST declare `workspaces` containing the three glob patterns `packages/*`, `apps/*`, `skills/*`.

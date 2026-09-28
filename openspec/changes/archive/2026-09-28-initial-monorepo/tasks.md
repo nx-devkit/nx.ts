@@ -34,7 +34,7 @@ Tasks map 1:1 to convoy beads. Status icons: `[ ]` pending, `[x]` done.
 
 - [x] Create `openspec/specs/SPEC.md` with purpose, architecture, file-trigger matrix, demo plan, skills catalog, TDD workflow, two-PR strategy, quality gates.
 
-## 5. Author initial-monoreo change artifacts
+## 5. Author initial-monorepo change artifacts
 
 - [x] `proposal.md` (why, what changes, capabilities, impact).
 - [x] `design.md` (workspace topology, tooling, OpenSpec workflow, risks).

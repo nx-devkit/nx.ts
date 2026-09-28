@@ -11,7 +11,7 @@ We need a single home for the four `@nx-devkit/*` Nx plugins (tsdown, oxlint, bi
 - **NEW** `.husky/pre-commit` runs `bunx biome format --write .` on every commit.
 - **NEW** `scripts/spec-check.ts` scans `openspec/` and `packages/*/src/plugin.ts` for duplicate target/inference definitions; exits non-zero on conflict.
 - **NEW** `openspec/specs/SPEC.md` captures purpose, architecture, file-trigger matrix, demo plan, skills catalog, TDD workflow, two-PR strategy.
-- **NEW** `openspec/changes/initial-monoreo/` with `proposal.md` (this file), `specs/`, `design.md`, `tasks.md` mapped 1:1 to convoy beads.
+- **NEW** `openspec/changes/initial-monorepo/` with `proposal.md` (this file), `specs/`, `design.md`, `tasks.md` mapped 1:1 to convoy beads.
 - **NEW** `openspec/config.yaml` extended with project context.
 - **NEW** dev-deps installed at root via `bun add -d` (latest): `@fission-ai/openspec`, `@nx/devkit@22.7.1`, `nx@22.7.1`, `@biomejs/biome`, `oxlint`, `tsdown`, `vitest`, `typescript`, `@types/node`, `husky`.
 
@@ -22,7 +22,7 @@ This bead creates only the workspace shell + SPEC + OpenSpec change folder. No p
 ### New Capabilities
 
 - `monorepo-skeleton`: bun workspaces, root tooling config, husky pre-commit biome format, nx.json with plugin scopes and empty plugins array.
-- `spec-driven-workflow`: OpenSpec change folder `initial-monoreo` with proposal, specs, design, tasks; SPEC.md at openspec/specs root.
+- `spec-driven-workflow`: OpenSpec change folder `initial-monorepo` with proposal, specs, design, tasks; SPEC.md at openspec/specs root.
 - `spec-conflict-detector`: scripts/spec-check.ts that fails CI if two sources define the same target/inference key.
 
 ### Modified Capabilities
