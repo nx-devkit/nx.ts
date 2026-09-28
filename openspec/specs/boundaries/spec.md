@@ -1,11 +1,14 @@
 # boundaries Specification
 
 ## Purpose
-TBD - created by archiving change boundary-enforcement. Update Purpose after archive.
+Defines linter-agnostic module-boundary enforcement: the `@nx-devkit/boundaries`
+plugin infers a root-level check target and the executor evaluates
+`depConstraints` over the project graph, matching
+`@nx/enforce-module-boundaries` semantics.
 ## Requirements
 ### Requirement: Root check-boundaries target inference
 
-The plugin MUST infer exactly one `check-boundaries` target on the workspace-root project when at least one non-root project declares a non-empty `nx.tags` array in its `package.json`. A workspace with no tagged projects MUST NOT get the target — a vacuous pass is a false green. A `tags` field that is missing or an empty array counts as untagged.
+The plugin MUST infer exactly one `check-boundaries` target (the default name; configurable via the `targetName` option) on the workspace-root project when at least one non-root project declares a non-empty `nx.tags` array in its `package.json`. A workspace with no tagged projects MUST NOT get the target — a vacuous pass is a false green. A `tags` field that is missing or an empty array counts as untagged.
 
 #### Scenario: Tagged workspace gets the target
 

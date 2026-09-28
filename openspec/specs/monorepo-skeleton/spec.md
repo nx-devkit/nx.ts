@@ -1,7 +1,9 @@
 # monorepo-skeleton Specification
 
 ## Purpose
-TBD - created by archiving change initial-monorepo. Update Purpose after archive.
+Defines the baseline workspace layout: a private bun-workspaces root, shared
+tooling configs (`tsconfig.base.json`, `biome.json`, `.oxlintrc.json`,
+`nx.json`), and the husky pre-commit hook that formats staged changes.
 ## Requirements
 ### Requirement: Root package is private bun workspace
 The repository root `package.json` MUST be `private: true` and MUST declare `workspaces` containing the three glob patterns `packages/*`, `apps/*`, `skills/*`.
@@ -17,8 +19,8 @@ The repository root MUST ship `tsconfig.base.json`, `biome.json`, `.oxlintrc.jso
 - **WHEN** any package extends `tsconfig.base.json`
 - **THEN** `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, and `exactOptionalPropertyTypes` are all `true`
 
-### Requirement: Nx 22.7.1 with bun package manager
-The repository's `nx.json` MUST pin Nx to `22.7.1` and declare `packageManager: "bun@1.3.14"`. The `pluginsConfig` field MUST list all four plugin scopes (`@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome`, `@nx-devkit/typescript`) with empty options, and the `plugins` array MUST register each of the four `@nx-devkit/*` plugin entry points (their `src/index.ts`) so Nx actually loads them.
+### Requirement: Nx with bun package manager
+The repository's `nx.json` MUST declare `packageManager: "bun@…"` and a `plugins` array registering the workspace's in-repo plugins via their `src/plugin.ts` paths (entries MAY carry an `options` object). The installed Nx major version is tracked by `package.json`, not pinned in `nx.json`.
 
 #### Scenario: nx.json schema is valid
 - **WHEN** a developer runs `bunx nx show project .`

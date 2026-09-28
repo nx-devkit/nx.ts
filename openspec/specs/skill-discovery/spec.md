@@ -1,14 +1,16 @@
 # skill-discovery Specification
 
 ## Purpose
-TBD - created by archiving change skill-plugin. Update Purpose after archive.
+Defines the `@nx-devkit/skill` inference plugin: every `SKILL.md` in a
+subdirectory becomes a project with build/lint/validate/os-check/size-check
+targets produced by the skills compiler.
 ## Requirements
 ### Requirement: SKILL.md triggers project inference
-The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found, a project is inferred with a collision-resistant name derived from the full relative path (slashes replaced with dashes, plus the first 8 hex chars of SHA-256 of the full path as a suffix) and the skill directory as project root.
+The plugin MUST use `createNodesV2` with trigger file `**/SKILL.md`. For each `SKILL.md` found (excluding the workspace root and anything under `node_modules/`), a project is inferred with a collision-resistant name derived from the full relative path (slashes replaced with dashes, plus the first 12 hex chars of SHA-256 of the full path as a suffix) and the skill directory as project root.
 
 #### Scenario: Skill discovered
 - **WHEN** a workspace contains `skills/code-review/act/SKILL.md`
-- **THEN** a project named `skills-code-review-act-<hash>` is inferred with root `skills/code-review/act`, where `<hash>` is the first 8 hex chars of SHA-256 of `skills/code-review/act`
+- **THEN** a project named `skills-code-review-act-<hash>` is inferred with root `skills/code-review/act`, where `<hash>` is the first 12 hex chars of SHA-256 of `skills/code-review/act`
 
 #### Scenario: Collision-resistant naming — same dashed form, different paths
 - **WHEN** a workspace contains both `skills/a-b/SKILL.md` and `skills/a/b/SKILL.md`
@@ -22,11 +24,11 @@ The plugin MUST infer a `build` target for each skill project using the `@nx-dev
 - **THEN** a `build` target exists with executor `@nx-devkit/skill:build`, cache enabled, outputs `{workspaceRoot}/.build/skills/{projectName}`
 
 ### Requirement: Lint target inferred
-The plugin MUST infer a `lint` target using `npx markdownlint-cli2` with markdownlint config.
+The plugin MUST infer a `lint` target using `markdownlint-cli2` with markdownlint config.
 
 #### Scenario: Lint target
 - **WHEN** a skill project is discovered
-- **THEN** a `lint` target exists with command `npx markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`, cache enabled
+- **THEN** a `lint` target exists with command `markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`, cache enabled
 
 ### Requirement: Validate target inferred
 The plugin MUST infer a `validate` target that checks SKILL.md frontmatter and metadata schemas.
@@ -69,6 +71,13 @@ The plugin MUST accept options to override default target names (`buildTargetNam
 #### Scenario: Custom build target name
 - **WHEN** `buildTargetName: "compile"` is set
 - **THEN** the build target is named `compile` instead of `build`
+
+### Requirement: Custom build inputs via options
+The plugin MUST accept a `skillInputs` option: an array of additional input globs appended to the `build` target's `inputs`, so consumers can declare extra files that invalidate the build cache.
+
+#### Scenario: Additional inputs wired in
+- **WHEN** `skillInputs: ["{projectRoot}/extra/**"]` is set
+- **THEN** the inferred `build` target's `inputs` include `{projectRoot}/extra/**` in addition to the defaults
 
 ### Requirement: Build executor compiles skills
 The `@nx-devkit/skill:build` executor MUST compile a skill directory to a specified distribution target (skills-sh, claude, codex, agents, obsidian).

@@ -1,10 +1,12 @@
 # spec-conflict-detector Specification
 
 ## Purpose
-TBD - created by archiving change initial-monorepo. Update Purpose after archive.
+Defines the `spec-check` script that statically scans plugin sources and
+canonical specs for duplicate target/inference definitions, so two plugins
+cannot silently claim the same target name.
 ## Requirements
-### Requirement: Detector scans openspec + plugin sources
-The script `scripts/spec-check.ts` MUST scan every `.ts` and `.md` file under `openspec/` and `packages/*/src/plugin.ts` for target/inference definitions.
+### Requirement: Detector scans openspec specs + plugin sources
+The script `scripts/spec-check.ts` MUST scan every `.ts` and `.md` file under `openspec/specs/` and `packages/*/src/plugin.ts` for target/inference definitions (`openspec/changes/` is excluded — deltas there may intentionally overlap with canonical specs).
 
 #### Scenario: Scan coverage
 - **WHEN** a new file is added under `openspec/specs/`
@@ -13,8 +15,8 @@ The script `scripts/spec-check.ts` MUST scan every `.ts` and `.md` file under `o
 ### Requirement: Detector exits non-zero on duplicate target keys
 The detector MUST exit with code `1` (and print a human-readable conflict report) when the same target key (`build`, `test`, `lint`, `format`, `format-check`, `typecheck`, `test:watch`, `test:coverage`) is defined in more than one file.
 
-#### Scenario: Two plugins both define `lint`
-- **WHEN** `@nx-devkit/oxlint` and `@nx-devkit/biome` both define a `lint` target in their respective `plugin.ts` files
+#### Scenario: Duplicate target key across files
+- **WHEN** two different files each declare the same target key (e.g. `'lint'`) adjacent to a recognized inference pattern (`createNodesV2`, `infer*Target*`, `*Target:` declarations)
 - **THEN** `bun run spec:check` exits 1 and reports both files with line numbers
 
 #### Scenario: Single-file definition is OK
