@@ -85,7 +85,10 @@ describe('extractDiagramBlocks', () => {
     ).join('')
     const start = performance.now()
     const blocks = extractDiagramBlocks(evil)
-    expect(performance.now() - start).toBeLessThan(1000)
+    // Generous bound: this guards against super-linear blowup, not speed —
+    // a backtracking regex takes minutes here; a linear scan takes <1s even
+    // on a loaded CI runner.
+    expect(performance.now() - start).toBeLessThan(10_000)
     // Line 0's ````not-a-lang opens a non-diagram 4-backtick fence that
     // never closes — the ```mermaid lines are nested body text, and the
     // unclosed fence leaves no blocks at EOF.
