@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { dirname, relative, resolve } from 'node:path'
+import { existsSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
 import {
   type CreateNodesResult,
   type CreateNodesV2,
@@ -74,50 +75,49 @@ function inferBuildTarget(projectRoot: string, projectName: string, additionalIn
   }
 }
 
-function inferLintTarget() {
+function inferLintTarget(workspaceRoot: string) {
+  // --config only when the workspace actually has one — consumers without a
+  // .markdownlint.json get markdownlint's built-in defaults instead of an
+  // error about a missing config file.
+  const hasConfig = existsSync(join(workspaceRoot, '.markdownlint.json'))
   return {
     executor: 'nx:run-commands',
     cache: true,
     options: {
-      command: `markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`,
+      command: hasConfig
+        ? `markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`
+        : `markdownlint-cli2 '{projectRoot}/**/*.md'`,
       cwd: '{workspaceRoot}',
     },
-    inputs: ['{projectRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json'],
+    inputs: hasConfig
+      ? ['{projectRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json']
+      : ['{projectRoot}/**/*.md'],
   }
 }
 
-function inferValidateTarget() {
+function inferValidateTarget(projectRoot: string) {
   return {
-    executor: 'nx:run-commands',
+    executor: '@nx-devkit/skill:validate',
     cache: true,
-    options: {
-      command: "tsx scripts/validate-skill.ts --skill '{projectRoot}'",
-      cwd: '{workspaceRoot}',
-    },
+    options: { path: projectRoot },
     inputs: ['{projectRoot}/SKILL.md', '{projectRoot}/agents/openai.yaml'],
   }
 }
 
-function inferOsCheckTarget() {
+function inferOsCheckTarget(projectRoot: string) {
   return {
-    executor: 'nx:run-commands',
+    executor: '@nx-devkit/skill:os-check',
     cache: true,
-    options: {
-      command: "tsx scripts/check-os-independence.ts --skill '{projectRoot}'",
-      cwd: '{workspaceRoot}',
-    },
+    options: { path: projectRoot },
     inputs: ['{projectRoot}/**/*'],
   }
 }
 
-function inferSizeCheckTarget() {
+function inferSizeCheckTarget(projectRoot: string) {
   return {
-    executor: 'nx:run-commands',
+    executor: '@nx-devkit/skill:size-check',
     cache: true,
-    options: {
-      command: "tsx scripts/check-skill-size.ts --skill '{projectRoot}'",
-      cwd: '{workspaceRoot}',
-    },
+    options: { path: projectRoot },
     inputs: ['{projectRoot}/**/*'],
   }
 }
@@ -168,10 +168,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
 
         const targets: Record<string, TargetConfiguration> = {
           [buildTargetName]: inferBuildTarget(projectRoot, projectName, additionalInputs),
-          [lintTargetName]: inferLintTarget(),
-          [validateTargetName]: inferValidateTarget(),
-          [osCheckTargetName]: inferOsCheckTarget(),
-          [sizeCheckTargetName]: inferSizeCheckTarget(),
+          [lintTargetName]: inferLintTarget(workspaceRoot),
+          [validateTargetName]: inferValidateTarget(projectRoot),
+          [osCheckTargetName]: inferOsCheckTarget(projectRoot),
+          [sizeCheckTargetName]: inferSizeCheckTarget(projectRoot),
         }
 
         const result: [string, CreateNodesResult] = [

@@ -33,39 +33,44 @@ The plugin MUST infer a `build` target for each skill project using the `@nx-dev
 
 ### Requirement: Lint target inferred
 
-The plugin MUST infer a `lint` target using `markdownlint-cli2` with markdownlint config.
+The plugin MUST infer a `lint` target using `markdownlint-cli2`. The `--config .markdownlint.json` flag is added only when that file exists at the workspace root — consumers without one get markdownlint defaults instead of a missing-config error.
 
-#### Scenario: Lint target
+#### Scenario: Lint target with workspace config
 
-- **WHEN** a skill project is discovered
+- **WHEN** a skill project is discovered and `{workspaceRoot}/.markdownlint.json` exists
 - **THEN** a `lint` target exists with command `markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json`, cache enabled
+
+#### Scenario: Lint target without workspace config
+
+- **WHEN** a skill project is discovered and no `.markdownlint.json` exists at the workspace root
+- **THEN** the `lint` command is `markdownlint-cli2 '{projectRoot}/**/*.md'` with no `--config` flag
 
 ### Requirement: Validate target inferred
 
-The plugin MUST infer a `validate` target that checks SKILL.md frontmatter and metadata schemas.
+The plugin MUST infer a `validate` target that checks SKILL.md frontmatter and metadata schemas, backed by the `@nx-devkit/skill:validate` executor bundled in the package (no workspace-level script required).
 
 #### Scenario: Validate target
 
 - **WHEN** a skill project is discovered
-- **THEN** a `validate` target exists with cache enabled, inputs including `SKILL.md` and `agents/openai.yaml`
+- **THEN** a `validate` target exists with executor `@nx-devkit/skill:validate`, the skill directory passed via the `path` option, cache enabled, inputs including `SKILL.md` and `agents/openai.yaml`
 
 ### Requirement: OS-check target inferred
 
-The plugin MUST infer an `os-check` target that verifies no hardcoded absolute paths or OS-specific commands.
+The plugin MUST infer an `os-check` target that verifies no hardcoded absolute paths or OS-specific commands, backed by the bundled `@nx-devkit/skill:os-check` executor.
 
 #### Scenario: OS-check target
 
 - **WHEN** a skill project is discovered
-- **THEN** an `os-check` target exists with cache enabled
+- **THEN** an `os-check` target exists with executor `@nx-devkit/skill:os-check`, cache enabled
 
 ### Requirement: Size-check target inferred
 
-The plugin MUST infer a `size-check` target that verifies the skill stays within a size budget.
+The plugin MUST infer a `size-check` target that verifies the skill stays within a size budget, backed by the bundled `@nx-devkit/skill:size-check` executor.
 
 #### Scenario: Size-check target
 
 - **WHEN** a skill project is discovered
-- **THEN** a `size-check` target exists with cache enabled
+- **THEN** a `size-check` target exists with executor `@nx-devkit/skill:size-check`, cache enabled
 
 ### Requirement: Workspace root skipped
 

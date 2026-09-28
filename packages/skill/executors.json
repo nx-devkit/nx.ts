@@ -4,6 +4,21 @@
       "implementation": "./dist/executors/build/executor.mjs",
       "schema": "./src/executors/build/schema.json",
       "description": "Compile a skill to a distribution target"
+    },
+    "validate": {
+      "implementation": "./dist/executors/validate/executor.mjs",
+      "schema": "./src/executors/validate/schema.json",
+      "description": "Validate a skill directory structure and frontmatter"
+    },
+    "os-check": {
+      "implementation": "./dist/executors/os-check/executor.mjs",
+      "schema": "./src/executors/os-check/schema.json",
+      "description": "Flag platform-specific content in a skill directory"
+    },
+    "size-check": {
+      "implementation": "./dist/executors/size-check/executor.mjs",
+      "schema": "./src/executors/size-check/schema.json",
+      "description": "Enforce skill size budgets"
     }
   }
 }

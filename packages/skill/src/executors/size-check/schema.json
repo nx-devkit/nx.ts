@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "title": "Skill Size-Check Executor",
+  "description": "Enforce skill size budgets: SKILL.md <= 500 lines / 50 KiB, skill directory <= 1 MiB.",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Relative path (from workspace root) to the skill directory.",
+      "x-prompt": "What is the path to the skill directory?"
+    }
+  },
+  "required": ["path"],
+  "additionalProperties": false
+}
