@@ -41,16 +41,16 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "markdownlint-cli2": "^0.20.0"
+    "markdownlint-cli2": "^0.20.0 || ^0.21.0 || ^0.22.0 || ^0.23.0"
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.0.0",
-    "markdownlint-cli2": "^0.20.0",
+    "markdownlint-cli2": "0.23.2",
     "memfs": "^4.57.8",
     "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   },
   "repository": {
     "type": "git",
