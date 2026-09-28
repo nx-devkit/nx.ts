@@ -50,7 +50,7 @@
     "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9",
-    "@nx-devkit/internal": "workspace:*"
+    "@nx-devkit/internal": "0.0.0"
   },
   "repository": {
     "type": "git",
