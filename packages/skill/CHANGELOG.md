@@ -1,3 +1,13 @@
+## 0.1.11 (2026-09-28)
+
+### 🚀 Features
+
+- **skill:** bundle validate/os-check/size-check as executors, conditional markdownlint config ([#104](https://github.com/nx-devkit/nx.ts/pull/104))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.10 (2026-09-28)
 
 This was a version bump only for @nx-devkit/skill to align it with other projects, there were no code changes.

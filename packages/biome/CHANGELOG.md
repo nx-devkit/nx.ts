@@ -1,3 +1,7 @@
+## 0.1.10 (2026-09-28)
+
+This was a version bump only for @nx-devkit/biome to align it with other projects, there were no code changes.
+
 ## 0.1.9 (2026-09-28)
 
 This was a version bump only for @nx-devkit/biome to align it with other projects, there were no code changes.
