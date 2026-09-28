@@ -105,6 +105,7 @@ rm migrations.json
 ```
 
 **Rules:**
+
 - `nx migrate latest` fetches registry metadata and can take 2–5 minutes — run it in the background (`timeout=0`) and continue with other work.
 - Never skip `--run-migrations` — package.json bumps alone don't apply codemods.
 - If a migration fails, read the error, fix the specific file, and re-run `--run-migrations`.

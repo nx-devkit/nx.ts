@@ -4,7 +4,7 @@ Agent guide for working in `packages/release/`. Touch ONLY this directory unless
 
 ## File layout
 
-```
+```text
 packages/release/
 ├── package.json
 ├── tsdown.config.ts

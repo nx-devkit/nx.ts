@@ -4,7 +4,7 @@ Agent guide for working in `packages/typescript-preset/`. Touch ONLY this direct
 
 ## File layout
 
-```
+```text
 packages/typescript-preset/
 ├── package.json
 ├── tsdown.config.ts          # entry: src/plugin.ts
@@ -70,6 +70,7 @@ export interface NxDevkitTypescriptOptions {
 ### Lint precedence
 
 When both `.oxlintrc.*` and `biome.json` exist:
+
 - `oxlint: true` (default) → oxlint owns `lint`, biome only provides `format`/`format-check`
 - `oxlint: false` → eslint owns `lint` if `eslint.config.*` exists and `eslint: true`
 - `oxlint: false` + `eslint: false` → biome owns `lint`

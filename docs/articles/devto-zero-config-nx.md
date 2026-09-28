@@ -5,8 +5,6 @@ tags: [nx, typescript, monorepo, webdev]
 published: false
 ---
 
-# `@nx/js` vs zero-config inference — an honest look at both sides of the Nx toolchain
-
 The TypeScript toolchain is quietly being rewritten in Rust: oxlint for linting, Biome for lint+format, tsdown (Rolldown) for builds, tsgo for typecheck. I wanted that stack inside an Nx monorepo — and discovered the official plugin set barely covers it:
 
 - `@nx/oxlint` exists — experimental, single-tool
@@ -86,4 +84,4 @@ They're not really competitors — they overlap on "turn a package into Nx targe
 
 The preset is on npm as `@nx-devkit/typescript`. The standalone plugins — `@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome` — exist for single-tool consumers. There's also `@nx-devkit/diagrams` (renders `.mmd`/`.puml`/`.d2` into cached, atomized targets) and `@nx-devkit/prepare-for-release` (OIDC trusted-publishing bootstrap).
 
-Repo: https://github.com/nx-devkit/nx.ts — issues and PRs welcome.
+Repo: <https://github.com/nx-devkit/nx.ts> — issues and PRs welcome.

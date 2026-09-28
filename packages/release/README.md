@@ -54,6 +54,7 @@ gh workflow run release.yml -f version=patch -f dry-run=false
 ## How it works
 
 The `init` generator creates:
+
 - `tools/project.json` with a `release` target using the `@nx-devkit/release:publish` executor
 - `.github/workflows/release.yml` that runs build → typecheck → lint → test → release
 - Registers the plugin in `nx.json`

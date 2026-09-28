@@ -4,7 +4,7 @@ Agent guide for working in `packages/skill/`. Touch ONLY this directory unless t
 
 ## File layout
 
-```
+```text
 packages/skill/
 ├── package.json
 ├── tsdown.config.ts          # entry: src/index.ts, src/plugin.ts

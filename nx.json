@@ -18,7 +18,8 @@
     {
       "plugin": "./packages/diagrams/src/plugin.ts",
       "options": { "outputDir": "{fileDir}/dist", "timeout": 120000 }
-    }
+    },
+    "./packages/markdownlint/src/plugin.ts"
   ],
   "release": {
     "projects": [

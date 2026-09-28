@@ -29,7 +29,7 @@ Slugs are lowercase kebab-case. Keep them short and descriptive (`feat/biome-for
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```text
 feat(biome): add formatCache option
 fix(oxlint): skip workspace root correctly on Windows
 docs(readme): split audience-scoped READMEs
