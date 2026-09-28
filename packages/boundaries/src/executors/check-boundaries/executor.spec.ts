@@ -188,4 +188,53 @@ describe('check-boundaries executor', () => {
     const res = await checkBoundaries({ depConstraints: CONSTRAINTS }, ctx)
     expect(res.success).toBe(true)
   })
+
+  it('skips files owned by a nested project during the parent scan', async () => {
+    const ctx = scaffold([
+      {
+        name: '@acme/feature',
+        root: 'libs/feature',
+        tags: ['type:feature'],
+        files: { 'src/index.ts': 'export const f = 1\n' },
+      },
+      {
+        name: '@acme/nested',
+        root: 'libs/feature/nested',
+        tags: ['type:app'],
+        // Relative self-import resolves to the nested project — under the
+        // parent's scan it would false-positive as a type:feature→type:app edge.
+        files: {
+          'src/x.ts': "import { y } from './y'\n",
+          'src/y.ts': 'export const y = 1\n',
+        },
+      },
+    ])
+    const res = await checkBoundaries({ depConstraints: CONSTRAINTS }, ctx)
+    expect(res.success).toBe(true)
+  })
+
+  it('attributes nested-project violations to the nested project', async () => {
+    const spy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+    try {
+      const ctx = scaffold([
+        {
+          name: '@acme/app',
+          root: 'apps/app',
+          tags: ['type:app'],
+          files: { 'src/main.ts': 'export const a = 1\n' },
+        },
+        {
+          name: '@acme/nested',
+          root: 'apps/app/nested',
+          tags: ['type:feature'],
+          files: { 'src/x.ts': "import { a } from '@acme/app'\n" },
+        },
+      ])
+      const res = await checkBoundaries({ depConstraints: CONSTRAINTS }, ctx)
+      expect(res.success).toBe(false)
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('@acme/nested (type:feature)'))
+    } finally {
+      spy.mockRestore()
+    }
+  })
 })
