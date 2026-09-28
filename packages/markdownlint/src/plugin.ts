@@ -78,6 +78,39 @@ function inferTarget(command: string, inputs: string[] | null): TargetConfigurat
   }
 }
 
+function inferDirectory(
+  dir: string,
+  files: string[],
+  workspaceRoot: string,
+  targetName: string,
+  fixTargetName: string | null,
+  ignoreGlobs: string[],
+): readonly [string, { projects: Record<string, ProjectConfiguration> }] | null {
+  const projectRoot = dir === '.' ? '' : dir
+  if (shouldSkipConfig(projectRoot, workspaceRoot)) return null
+
+  const rulesConfig = pickByPrecedence(files, RULES_PRECEDENCE)
+  const cli2Config = pickByPrecedence(files, CLI2_PRECEDENCE)
+  const anchor = cli2Config ?? rulesConfig
+  if (anchor === undefined) return null
+
+  const prefix = projectRoot ? '{projectRoot}' : '{workspaceRoot}'
+  // Inputs cover every config under the linted tree: cli2 applies nested
+  // per-directory configs, and gitignore:true reads .gitignore files —
+  // any such edit must bust the lint cache.
+  const inputs = [`${prefix}/**/*.md`, `${prefix}/**/.markdownlint*`, `${prefix}/**/.gitignore`]
+
+  const targets: Record<string, TargetConfiguration> = {
+    [targetName]: inferTarget(buildCommand(rulesConfig ?? null, ignoreGlobs, false), inputs),
+  }
+  if (fixTargetName !== null) {
+    targets[fixTargetName] = inferTarget(buildCommand(rulesConfig ?? null, ignoreGlobs, true), null)
+  }
+
+  const anchorPath = dir === '.' ? anchor : `${dir}/${anchor}`
+  return [anchorPath, { projects: { [projectRoot]: { root: projectRoot, targets } } }]
+}
+
 export const createNodesV2: CreateNodesV2<NxMarkdownlintPluginOptions> = [
   MARKDOWNLINT_GLOB,
   (configFiles, options = {}, context) => {
@@ -99,32 +132,15 @@ export const createNodesV2: CreateNodesV2<NxMarkdownlintPluginOptions> = [
 
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> = []
     for (const [dir, files] of byDir) {
-      const projectRoot = dir === '.' ? '' : dir
-      if (shouldSkipConfig(projectRoot, workspaceRoot)) continue
-
-      const rulesConfig = pickByPrecedence(files, RULES_PRECEDENCE)
-      const cli2Config = pickByPrecedence(files, CLI2_PRECEDENCE)
-      const anchor = cli2Config ?? rulesConfig
-      if (anchor === undefined) continue
-
-      const prefix = projectRoot ? '{projectRoot}' : '{workspaceRoot}'
-      // Inputs cover every config under the linted tree: cli2 applies nested
-      // per-directory configs, and gitignore:true reads .gitignore files —
-      // any such edit must bust the lint cache.
-      const inputs = [`${prefix}/**/*.md`, `${prefix}/**/.markdownlint*`, `${prefix}/**/.gitignore`]
-
-      const targets: Record<string, TargetConfiguration> = {
-        [targetName]: inferTarget(buildCommand(rulesConfig ?? null, ignoreGlobs, false), inputs),
-      }
-      if (fixTargetName !== null) {
-        targets[fixTargetName] = inferTarget(
-          buildCommand(rulesConfig ?? null, ignoreGlobs, true),
-          null,
-        )
-      }
-
-      const anchorPath = dir === '.' ? anchor : `${dir}/${anchor}`
-      results.push([anchorPath, { projects: { [projectRoot]: { root: projectRoot, targets } } }])
+      const entry = inferDirectory(
+        dir,
+        files,
+        workspaceRoot,
+        targetName,
+        fixTargetName,
+        ignoreGlobs,
+      )
+      if (entry) results.push(entry)
     }
     return results
   },
