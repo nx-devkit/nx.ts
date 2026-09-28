@@ -1,3 +1,13 @@
+## 0.2.10 (2026-09-28)
+
+### 🩹 Fixes
+
+- resolve open CodeQL scanning alerts ([#102](https://github.com/nx-devkit/nx.ts/pull/102))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.2.9 (2026-09-28)
 
 ### 🚀 Features
