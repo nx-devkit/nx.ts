@@ -4,7 +4,8 @@
 
 Defines the baseline workspace layout: a private bun-workspaces root, shared
 tooling configs (`tsconfig.base.json`, `biome.json`, `.oxlintrc.json`,
-`nx.json`), and the husky pre-commit hook that formats staged changes.
+`nx.json`), and the husky pre-commit hook that formats the repository with
+Biome before restaging tracked files.
 
 ## Requirements
 

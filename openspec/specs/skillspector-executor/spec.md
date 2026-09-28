@@ -2,8 +2,9 @@
 
 ## Purpose
 
-Defines the `@nx-devkit/skillspector` inference plugin: each `SKILL.md` gets a
-`scan` target that runs the SkillSpector CLI and reports findings.
+Defines the `@nx-devkit/skillspector` inference plugin: each non-root
+`SKILL.md` gets a `scan` target that runs the SkillSpector CLI and reports
+findings.
 
 ## Requirements
 
