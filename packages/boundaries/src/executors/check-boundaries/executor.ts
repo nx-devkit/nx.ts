@@ -47,6 +47,13 @@ function scanProject(
   const violations: string[] = []
   for (const file of files) {
     const fileAbs = join(absRoot, file)
+    // globSync sweeps nested project roots too — index.roots is sorted
+    // longest-first, so the owning project is the deepest root containing the
+    // file. Files belonging to a nested project are checked under their own
+    // tags during that project's scan, not under the parent's.
+    const rel = relative(ctx.workspaceRoot, fileAbs).replace(/\\/g, '/')
+    const owner = ctx.index.roots.find((r) => rel === r.root || rel.startsWith(`${r.root}/`))
+    if (owner && owner.name !== projectName) continue
     let source: string
     try {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace source file under an inferred project root
@@ -71,9 +78,8 @@ function scanProject(
       }
       const targetTags = ctx.tags.get(target) ?? []
       if (!isAllowed(sourceTags, targetTags, ctx.constraints)) {
-        const relFile = relative(ctx.workspaceRoot, fileAbs)
         violations.push(
-          `${relFile}:${record.line} — ${projectName} (${sourceTags.join(',')}) cannot depend on ${target} (${targetTags.join(',') || 'untagged'}) via "${record.specifier}"`,
+          `${rel}:${record.line} — ${projectName} (${sourceTags.join(',')}) cannot depend on ${target} (${targetTags.join(',') || 'untagged'}) via "${record.specifier}"`,
         )
       }
     }
