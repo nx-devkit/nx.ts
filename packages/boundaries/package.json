@@ -61,5 +61,8 @@
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"
   },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/boundaries"
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/boundaries",
+  "publishConfig": {
+    "access": "public"
+  }
 }
