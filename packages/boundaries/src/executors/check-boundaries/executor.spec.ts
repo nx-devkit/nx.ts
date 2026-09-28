@@ -218,6 +218,12 @@ describe('check-boundaries executor', () => {
     try {
       const ctx = scaffold([
         {
+          name: '@acme/root-app',
+          root: 'apps/root-app',
+          tags: ['type:app'],
+          files: { 'src/main.ts': 'export const a = 1\n' },
+        },
+        {
           name: '@acme/app',
           root: 'apps/app',
           tags: ['type:app'],
@@ -225,14 +231,19 @@ describe('check-boundaries executor', () => {
         },
         {
           name: '@acme/nested',
-          root: 'apps/app/nested',
+          root: 'apps/root-app/nested',
           tags: ['type:feature'],
+          // Imports @acme/app (type:app) — under the parent's type:app scan this
+          // edge is also forbidden (type:app may not depend on type:app), so a
+          // missing owner-skip would report it under root-app's name too.
           files: { 'src/x.ts': "import { a } from '@acme/app'\n" },
         },
       ])
       const res = await checkBoundaries({ depConstraints: CONSTRAINTS }, ctx)
       expect(res.success).toBe(false)
+      // Only the owning nested project may report this edge; the parent must not.
       expect(spy).toHaveBeenCalledWith(expect.stringContaining('@acme/nested (type:feature)'))
+      expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('@acme/root-app ('))
     } finally {
       spy.mockRestore()
     }
