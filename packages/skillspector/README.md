@@ -14,6 +14,12 @@ Depends on `@nx/devkit` `^22 || ^23` (installed automatically) and a `skillspect
 
 ## Register
 
+```bash
+nx add @nx-devkit/skillspector   # runs the init generator — registers the plugin in nx.json
+```
+
+Or manually:
+
 ```jsonc
 // nx.json
 { "plugins": ["@nx-devkit/skillspector"] }

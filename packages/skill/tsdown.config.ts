@@ -2,6 +2,7 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   entry: {
+    'generators/init/generator': 'src/generators/init/generator.ts',
     index: 'src/index.ts',
     plugin: 'src/plugin.ts',
     'executors/build/executor': 'src/executors/build/executor.ts',

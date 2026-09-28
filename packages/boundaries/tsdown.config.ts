@@ -10,6 +10,7 @@ export default defineConfig({
   },
   dts: true,
   entry: {
+    'generators/init/generator': 'src/generators/init/generator.ts',
     'executors/check-boundaries/executor': 'src/executors/check-boundaries/executor.ts',
     index: 'src/index.ts',
     plugin: 'src/plugin.ts',
