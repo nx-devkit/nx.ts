@@ -8,6 +8,7 @@ import type { DepConstraint } from './types.ts'
 function hasTag(tags: string[], pattern: string): boolean {
   if (pattern === '*') return tags.length > 0
   if (!pattern.includes('*')) return tags.includes(pattern)
+  // Nosemgrep: javascript_dos_rule-non-literal-regexp -- pattern is workspace-authored config; every literal segment is regex-escaped and only '*' becomes .*
   const re = new RegExp(
     `^${pattern
       .split('*')
