@@ -1,0 +1,12 @@
+# Socket.dev configuration — https://docs.socket.dev/docs/socket-yml
+version: 2
+
+# Run pull-request alert scans only when a dependency manifest changes.
+# Patterns are gitignore-style and match files modified in the PR.
+triggerPaths:
+  - 'package.json'
+  - 'package-lock.json'
+  - 'bun.lock'
+  - 'bun.lockb'
+  - 'pnpm-lock.yaml'
+  - 'yarn.lock'
