@@ -77,6 +77,8 @@ describe('extractDiagramBlocks', () => {
     expect(extractDiagramBlocks('plain text')).toEqual([])
   })
 
+  // Per-test timeout must exceed the assertion bound — vitest's default
+  // testTimeout (5s) would fire before a 5–10s scan reaches the expect.
   it('scans adversarial input without pathological backtracking', () => {
     // Thousands of backtick-heavy lines with no closing fence — the scanner
     // must stay linear (regex implementations blew up here).
@@ -86,14 +88,14 @@ describe('extractDiagramBlocks', () => {
     const start = performance.now()
     const blocks = extractDiagramBlocks(evil)
     // Generous bound: this guards against super-linear blowup, not speed —
-    // a backtracking regex takes minutes here; a linear scan takes <1s even
-    // on a loaded CI runner.
+    // a backtracking regex takes minutes here; the linear scan measures
+    // ~1.6s under `nx run-many` on a loaded CI runner.
     expect(performance.now() - start).toBeLessThan(10_000)
     // Line 0's ````not-a-lang opens a non-diagram 4-backtick fence that
     // never closes — the ```mermaid lines are nested body text, and the
     // unclosed fence leaves no blocks at EOF.
     expect(blocks).toEqual([])
-  })
+  }, 15_000)
 
   it('drops an unclosed fence at EOF', () => {
     expect(extractDiagramBlocks('```mermaid\ngraph TD;\n')).toEqual([])
