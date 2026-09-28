@@ -1,3 +1,7 @@
+## 0.2.14 (2026-09-28)
+
+This was a version bump only for @nx-devkit/typescript to align it with other projects, there were no code changes.
+
 ## 0.2.13 (2026-09-28)
 
 ### 🚀 Features

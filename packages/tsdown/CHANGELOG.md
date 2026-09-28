@@ -1,3 +1,7 @@
+## 0.1.13 (2026-09-28)
+
+This was a version bump only for @nx-devkit/tsdown to align it with other projects, there were no code changes.
+
 ## 0.1.12 (2026-09-28)
 
 ### 🚀 Features
