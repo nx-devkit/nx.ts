@@ -46,7 +46,7 @@
       },
       "devDependencies": {
         "@biomejs/biome": "^2.0.0",
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "tsdown": "^0.22.3",
         "typescript": "^6.0.3",
         "vitest": "^4.1.9",
@@ -63,7 +63,7 @@
         "typescript": ">=5.0.0",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
         "tsdown": "^0.22.3",
@@ -79,7 +79,7 @@
         "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "@types/node": "^20.19.0",
         "memfs": "^4.50.0",
         "minimatch": "^10.2.4",
@@ -104,7 +104,7 @@
         "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "@types/node": "^20.19.0",
         "tsdown": "^0.22.3",
         "typescript": "^6.0.3",
@@ -118,7 +118,7 @@
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "@types/node": "^26.0.0",
         "memfs": "^4.57.8",
         "oxlint": "^1.0.0",
@@ -166,7 +166,7 @@
         "yaml": "^2.9.0",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
         "tsdown": "^0.22.3",
@@ -181,7 +181,7 @@
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
         "tsdown": "^0.22.3",
@@ -197,7 +197,7 @@
         "tsdown": "^0.22.3",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "@types/node": "^26.0.0",
         "memfs": "^4.50.0",
         "typescript": "^6.0.3",
@@ -214,7 +214,7 @@
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
       "devDependencies": {
-        "@nx-devkit/internal": "workspace:*",
+        "@nx-devkit/internal": "0.0.0",
         "tsdown": "^0.22.3",
         "vitest": "^4.1.9",
       },

@@ -92,7 +92,7 @@
     }
   },
   "devDependencies": {
-    "@nx-devkit/internal": "workspace:*",
+    "@nx-devkit/internal": "0.0.0",
     "tsdown": "^0.22.3",
     "vitest": "^4.1.9"
   },

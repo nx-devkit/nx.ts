@@ -57,7 +57,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@nx-devkit/internal": "workspace:*",
+    "@nx-devkit/internal": "0.0.0",
     "@types/node": "^20.19.0",
     "memfs": "^4.50.0",
     "minimatch": "^10.2.4",

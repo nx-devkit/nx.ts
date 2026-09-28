@@ -37,7 +37,7 @@
     "oxlint": "^1.0.0"
   },
   "devDependencies": {
-    "@nx-devkit/internal": "workspace:*",
+    "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.0.0",
     "memfs": "^4.57.8",
     "oxlint": "^1.0.0",
