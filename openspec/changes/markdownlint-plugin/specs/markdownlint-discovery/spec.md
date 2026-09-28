@@ -9,10 +9,16 @@ The plugin MUST use `createNodesV2` with trigger glob
 the owning project (the directory containing the file, including the workspace
 root) gets a `lint-md` target that runs `markdownlint-cli2` via `nx:run-commands`
 with `cwd` at the config's own directory (`{projectRoot}`), `cache: true`, and
-inputs covering the Markdown glob plus every config file in that directory.
-Inputs MUST be valid Nx filesets (prefixed with `{workspaceRoot}` or
-`{projectRoot}`). By default the command carries the `'#**/node_modules/**'`
-negation glob; the `ignoreGlobs` option MAY replace that default list.
+inputs covering the Markdown glob, every `.markdownlint*` config and every
+`.gitignore` under the linted tree (cli2 applies nested per-directory configs
+and `gitignore: true` reads ignore files). Inputs MUST be valid Nx filesets
+(prefixed with `{workspaceRoot}` or `{projectRoot}`). By default the command
+carries the `'#**/node_modules/**'` negation glob; the `ignoreGlobs` option
+MAY replace that default list. Config basenames are classified per the cli2
+documentation: `.markdownlint-cli2.{jsonc,yaml,cjs,mjs}` are runner configs and
+`.markdownlint.{jsonc,json,yaml,yml,cjs,mjs}` are rules configs; any other
+matched name is neither auto-discovered nor a valid `--config` target, so a
+directory containing only such names MUST NOT infer a target.
 
 #### Scenario: Root config infers repo-wide target
 
@@ -37,8 +43,10 @@ negation glob; the `ignoreGlobs` option MAY replace that default list.
 
 The plugin MUST NOT pass `.markdownlint-cli2.*` files to `--config` — they are
 markdownlint-cli2 runner options (globs, gitignore, frontMatter) auto-discovered
-by the CLI. Only `.markdownlint.*` rules configs go to `--config`. When both
-coexist in one directory, a single `lint-md`/`lint-md:fix` pair is inferred.
+by the CLI. Only `.markdownlint.*` rules configs go to `--config`, selected by
+the documented cli2 precedence (`jsonc > json > yaml > yml > cjs > mjs`). When
+both coexist in one directory, a single `lint-md`/`<targetName>:fix` pair is
+inferred.
 
 #### Scenario: cli2 config alone infers target without --config
 
@@ -63,6 +71,12 @@ unless disabled via the `fixTargetName` option set to `false`.
 
 - **WHEN** the plugin option `fixTargetName` is `false` and a config file exists
 - **THEN** only `lint-md` is inferred, with no `lint-md:fix`
+
+#### Scenario: fix target name derives from targetName
+
+- **WHEN** the plugin option `targetName` is `"md-lint"` and `fixTargetName` is
+  not set
+- **THEN** the inferred targets are `md-lint` and `md-lint:fix`
 
 ### Requirement: Custom target names and ignore globs
 

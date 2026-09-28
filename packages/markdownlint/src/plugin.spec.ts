@@ -32,7 +32,11 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
       `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '.markdownlint.json'`,
     )
     expect(lint.options!.cwd).toBe('{projectRoot}')
-    expect(lint.inputs).toEqual(['{workspaceRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json'])
+    expect(lint.inputs).toEqual([
+      '{workspaceRoot}/**/*.md',
+      '{workspaceRoot}/**/.markdownlint*',
+      '{workspaceRoot}/**/.gitignore',
+    ])
   })
 
   it('nested config infers a project lint-md target', async () => {
@@ -46,7 +50,11 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
       `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '.markdownlint.json'`,
     )
     expect(lint.options!.cwd).toBe('{projectRoot}')
-    expect(lint.inputs).toEqual(['{projectRoot}/**/*.md', '{projectRoot}/.markdownlint.json'])
+    expect(lint.inputs).toEqual([
+      '{projectRoot}/**/*.md',
+      '{projectRoot}/**/.markdownlint*',
+      '{projectRoot}/**/.gitignore',
+    ])
   })
 
   it('infers lint-md:fix with cache disabled', async () => {
@@ -73,7 +81,18 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
     const results = await infer(['.markdownlint.json'], { targetName: 'lint-docs' })
     const targets = results[0]![1].projects!['']!.targets!
     expect(targets).toHaveProperty('lint-docs')
+    expect(targets).toHaveProperty('lint-docs:fix')
     expect(targets).not.toHaveProperty('lint-md')
+  })
+
+  it('keeps an explicit fixTargetName over the derived default', async () => {
+    const results = await infer(['.markdownlint.json'], {
+      targetName: 'lint-docs',
+      fixTargetName: 'fix-docs',
+    })
+    const targets = results[0]![1].projects!['']!.targets!
+    expect(targets).toHaveProperty('fix-docs')
+    expect(targets).not.toHaveProperty('lint-docs:fix')
   })
 
   it('disables the fix target with fixTargetName: false', async () => {
@@ -95,12 +114,21 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
     expect(results).toHaveLength(1)
     const lint = results[0]![1].projects!['']!.targets!['lint-md']!
     expect(lint.options!.command).toContain("--config '.markdownlint.json'")
-    // Both config families are inputs so either edit busts the cache.
-    expect(lint.inputs).toEqual([
-      '{workspaceRoot}/**/*.md',
-      '{workspaceRoot}/.markdownlint-cli2.jsonc',
-      '{workspaceRoot}/.markdownlint.json',
-    ])
+  })
+
+  it('selects rules configs by cli2 precedence, not filename order', async () => {
+    // Alphabetical order would pick .markdownlint.cjs over .markdownlint.jsonc;
+    // cli2 precedence is jsonc > json > yaml > yml > cjs > mjs.
+    const results = await infer(['.markdownlint.cjs', '.markdownlint.jsonc'])
+    const lint = results[0]![1].projects!['']!.targets!['lint-md']!
+    expect(lint.options!.command).toContain("--config '.markdownlint.jsonc'")
+  })
+
+  it('infers nothing for config names cli2 never honors', async () => {
+    // .markdownlint-cli2.json and .markdownlint-cli2.yml are not auto-discovered
+    // nor valid rules configs — a directory with only those gets no target.
+    const results = await infer(['docs/.markdownlint-cli2.json', 'docs/.markdownlint-cli2.yml'])
+    expect(results).toHaveLength(0)
   })
 
   it('produces deterministic output regardless of configFiles order', async () => {

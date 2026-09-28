@@ -23,14 +23,16 @@ packages/markdownlint/
 
 - Configs grouped by owning directory — a directory with both `.markdownlint.*`
   and `.markdownlint-cli2.*` gets ONE `lint-md`/`lint-md:fix` pair.
-- `--config` is emitted ONLY for `.markdownlint.*` rules configs.
-  `.markdownlint-cli2.*` files hold cli2 options (globs/gitignore/frontMatter)
-  and are auto-discovered — passing them to `--config` breaks rules parsing.
+- `--config` is emitted ONLY for `.markdownlint.*` rules configs, chosen by
+  cli2 precedence (jsonc > json > yaml > yml > cjs > mjs). Recognized cli2
+  runner configs (`.markdownlint-cli2.{jsonc,yaml,cjs,mjs}`) are
+  auto-discovered — never passed to `--config`. Names outside both lists
+  (`.markdownlint-cli2.json`, `.markdownlint-cli2.yml`, …) infer nothing.
 - Commands carry `'#**/node_modules/**'` negation by default (`ignoreGlobs`
   option); markdownlint-cli2 does NOT honor `.markdownlintignore` (removed in
   cli2; use `gitignore: true` in `.markdownlint-cli2.jsonc` instead).
 - Inputs must start with `{workspaceRoot}` or `{projectRoot}` — bare `**/*.md`
-  is an invalid Nx fileset. All config files in the directory are inputs.
+  is an invalid Nx fileset. Inputs cover `**/*.md`, `**/.markdownlint*`, `**/.gitignore` under the linted tree.
 - The workspace-root config IS a valid owner (repo-wide lint is the primary
   use). `node_modules` and `..`-escaping configs are skipped.
 - `lint-md:fix` is never cached.
