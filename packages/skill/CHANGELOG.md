@@ -1,3 +1,13 @@
+## 0.1.12 (2026-09-28)
+
+### 🩹 Fixes
+
+- **deps:** replace workspace:* devDep specs with 0.0.0 for @nx-devkit/internal ([#105](https://github.com/nx-devkit/nx.ts/pull/105), [#74](https://github.com/nx-devkit/nx.ts/issues/74))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.11 (2026-09-28)
 
 ### 🚀 Features
