@@ -1,3 +1,13 @@
+## 0.1.13 (2026-09-28)
+
+### 🚀 Features
+
+- init generators (nx add) for tsdown/oxlint/biome/skill/skillspector/boundaries/vitest ([#107](https://github.com/nx-devkit/nx.ts/pull/107))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.12 (2026-09-28)
 
 ### 🩹 Fixes
