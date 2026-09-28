@@ -1,3 +1,14 @@
+## 0.1.13 (2026-09-28)
+
+### 🚀 Features
+
+- **markdownlint:** @nx-devkit/markdownlint plugin + repo-wide md lint dogfooding ([#108](https://github.com/nx-devkit/nx.ts/pull/108))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.12 (2026-09-28)
 
 ### 🚀 Features
