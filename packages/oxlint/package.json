@@ -24,10 +24,16 @@
       "types": "./dist/plugin.d.mts",
       "default": "./dist/plugin.mjs"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
+    }
   },
   "files": [
-    "dist"
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json"
   ],
   "scripts": {
     "build": "tsdown",
@@ -56,5 +62,6 @@
   "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/oxlint",
   "dependencies": {
     "@nx/devkit": "^22.0.0 || ^23.0.0"
-  }
+  },
+  "generators": "./generators.json"
 }

@@ -8,6 +8,6 @@ export default defineConfig({
     neverBundle: ['nx', '@nx/devkit', 'axios', 'enquirer'],
   },
   dts: true,
-  entry: ['src/plugin.ts'],
+  entry: ['src/generators/init/generator.ts', 'src/plugin.ts'],
   format: 'esm',
 })

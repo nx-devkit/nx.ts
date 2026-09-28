@@ -14,6 +14,12 @@ Depends on `@nx/devkit` `^22 || ^23` (installed automatically — `nx` itself co
 
 ## Register
 
+```bash
+nx add @nx-devkit/oxlint   # runs the init generator — registers the plugin in nx.json
+```
+
+Or manually:
+
 ```jsonc
 // nx.json
 { "plugins": ["@nx-devkit/oxlint"] }

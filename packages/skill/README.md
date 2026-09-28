@@ -18,6 +18,12 @@ bun add -D markdownlint-cli2   # plus the skills-compiler tool for `build`
 
 ## Register
 
+```bash
+nx add @nx-devkit/skill   # runs the init generator — registers the plugin in nx.json
+```
+
+Or manually:
+
 ```jsonc
 // nx.json
 { "plugins": ["@nx-devkit/skill"] }

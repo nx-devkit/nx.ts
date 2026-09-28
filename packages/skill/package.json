@@ -27,7 +27,11 @@
       "types": "./dist/plugin.d.mts",
       "default": "./dist/plugin.mjs"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
+    }
   },
   "executors": "./executors.json",
   "files": [
@@ -37,7 +41,9 @@
     "src/executors/validate/schema.json",
     "src/executors/os-check/schema.json",
     "src/executors/size-check/schema.json",
-    "README.md"
+    "README.md",
+    "generators.json",
+    "src/generators/init/schema.json"
   ],
   "scripts": {
     "build": "tsdown",
@@ -64,5 +70,6 @@
   "dependencies": {
     "@nx/devkit": "^22.0.0 || ^23.0.0",
     "yaml": "^2.9.0"
-  }
+  },
+  "generators": "./generators.json"
 }
