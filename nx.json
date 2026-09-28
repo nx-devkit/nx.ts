@@ -26,6 +26,7 @@
       "packages/oxlint",
       "packages/biome",
       "packages/vitest",
+      "packages/boundaries",
       "packages/typescript-preset",
       "packages/prepare-for-release",
       "packages/skill",
