@@ -110,7 +110,7 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
       'packages/a/.markdownlint-cli2.yaml',
     ]
     const forward = await infer(files)
-    const reverse = await infer([...files].reverse())
+    const reverse = await infer(files.toReversed())
     expect(forward).toEqual(reverse)
     expect(forward.map(([f]) => f)).toEqual([
       '.markdownlint.json',
