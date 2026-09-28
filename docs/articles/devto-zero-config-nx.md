@@ -84,4 +84,4 @@ They're not really competitors — they overlap on "turn a package into Nx targe
 
 The preset is on npm as `@nx-devkit/typescript`. The standalone plugins — `@nx-devkit/tsdown`, `@nx-devkit/oxlint`, `@nx-devkit/biome` — exist for single-tool consumers. There's also `@nx-devkit/diagrams` (renders `.mmd`/`.puml`/`.d2` into cached, atomized targets) and `@nx-devkit/prepare-for-release` (OIDC trusted-publishing bootstrap).
 
-Repo: <<https://github.com/nx-devkit/nx.ts>> — issues and PRs welcome.
+Repo: <https://github.com/nx-devkit/nx.ts> — issues and PRs welcome.

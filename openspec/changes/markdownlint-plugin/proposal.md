@@ -23,4 +23,4 @@ own root config on every md file, not just skills.
 ## Non-goals
 
 - No custom executor — `nx:run-commands` is sufficient.
-- No markdown-it config programmability; we shell out to markdownlint-cli2.
+- No markdownlint config programmability; we shell out to markdownlint-cli2.

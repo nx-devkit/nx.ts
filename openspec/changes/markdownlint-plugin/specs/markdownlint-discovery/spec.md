@@ -8,23 +8,25 @@ The plugin MUST use `createNodesV2` with trigger glob
 `**/.markdownlint*.{json,jsonc,yaml,yml,cjs,mjs}`. For each config file found,
 the owning project (the directory containing the file, including the workspace
 root) gets a `lint-md` target that runs `markdownlint-cli2` via `nx:run-commands`
-with `cwd` at the workspace root, `cache: true`, and inputs covering the
-Markdown glob plus the config file. Inputs MUST be valid Nx filesets (prefixed
-with `{workspaceRoot}` or `{projectRoot}`). The command MUST always carry the
-`'#**/node_modules/**'` negation glob so vendored dependencies are never linted.
+with `cwd` at the config's own directory (`{projectRoot}`), `cache: true`, and
+inputs covering the Markdown glob plus every config file in that directory.
+Inputs MUST be valid Nx filesets (prefixed with `{workspaceRoot}` or
+`{projectRoot}`). By default the command carries the `'#**/node_modules/**'`
+negation glob; the `ignoreGlobs` option MAY replace that default list.
 
 #### Scenario: Root config infers repo-wide target
 
 - **WHEN** the workspace root contains `.markdownlint.json`
 - **THEN** the root project has a `lint-md` target running
-  `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config .markdownlint.json`
+  `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '.markdownlint.json'`
   with inputs `{workspaceRoot}/**/*.md` and `{workspaceRoot}/.markdownlint.json`
 
 #### Scenario: Nested config infers project target
 
 - **WHEN** `packages/foo/.markdownlint.json` exists
 - **THEN** the `packages/foo` project has a `lint-md` target running
-  `markdownlint-cli2 '{projectRoot}/**/*.md' '#**/node_modules/**' --config packages/foo/.markdownlint.json`
+  `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '.markdownlint.json'`
+  run with `cwd` = `{projectRoot}`
 
 #### Scenario: node_modules config ignored
 

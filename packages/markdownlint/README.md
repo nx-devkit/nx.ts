@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/markdownlint markdownlint-cli2
 ```
 
-Depends on `@nx/devkit` `^22 || ^23`. Requires `markdownlint-cli2` `^0.23` as the lint engine.
+Depends on `@nx/devkit` `^22 || ^23`. Requires `markdownlint-cli2` `^0.20` as the lint engine.
 
 ## Register
 
@@ -31,8 +31,8 @@ Or manually:
 
 | Trigger | Target | Command | Cacheable | Inputs |
 |---|---|---|---|---|
-| `.markdownlint.{json,jsonc,yaml,yml,cjs,mjs}` (rules config) | `lint-md` | `markdownlint-cli2 '<root>/**/*.md' '#**/node_modules/**' --config <file>` | yes | `<root>/**/*.md`, config file |
-| `.markdownlint-cli2.*` (cli2 options config) | `lint-md` | same, without `--config` (cli2 auto-discovers it) | yes | same |
+| `.markdownlint.{json,jsonc,yaml,yml,cjs,mjs}` (rules config) | `lint-md` | `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '<name>'` (cwd = `{projectRoot}`) | yes | `<root>/**/*.md`, config file |
+| `.markdownlint-cli2.*` (cli2 options config) | `lint-md` | same, without `--config` — cli2 auto-discovers it because cwd is the config's directory | yes | same |
 | either of the above | `lint-md:fix` | `markdownlint-cli2 --fix …` | no | — |
 
 ### Config types

@@ -26,24 +26,28 @@ function shouldSkipConfig(configDir: string, workspaceRoot: string): boolean {
 
 /**
  * `.markdownlint-cli2.*` is the cli2 options file (globs/gitignore/customModules) —
- * auto-discovered, never passed to `--config`. `.markdownlint.*` is the rules
- * config — passed via `--config` because cli2 does not auto-discover that name.
+ * auto-discovered from cwd, never passed to `--config`. `.markdownlint.*` is the
+ * rules config — passed via `--config` because cli2 does not auto-discover it.
  */
 function isCli2Config(name: string): boolean {
   return name.startsWith('.markdownlint-cli2.')
 }
 
-function buildCommand(
-  projectRoot: string,
-  rulesConfig: string | null,
-  ignoreGlobs: string[],
-  fix: boolean,
-): string {
-  const mdGlob = projectRoot ? '{projectRoot}/**/*.md' : '**/*.md'
+/** POSIX single-quote escaping for values interpolated into the shell command. */
+function sq(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`
+}
+
+/**
+ * The command runs with cwd = the config's own directory (`{projectRoot}` or
+ * `{workspaceRoot}`) so cli2 auto-discovers nested `.markdownlint-cli2.*`
+ * runner configs. All paths are therefore relative to that directory.
+ */
+function buildCommand(rulesConfigName: string | null, ignoreGlobs: string[], fix: boolean): string {
   const parts = ['markdownlint-cli2']
   if (fix) parts.push('--fix')
-  parts.push(`'${mdGlob}'`, ...ignoreGlobs.map((g) => `'#${g}'`))
-  if (rulesConfig) parts.push('--config', rulesConfig)
+  parts.push(sq('**/*.md'), ...ignoreGlobs.map((g) => sq(`#${g}`)))
+  if (rulesConfigName) parts.push('--config', sq(rulesConfigName))
   return parts.join(' ')
 }
 
@@ -52,7 +56,7 @@ function inferTarget(command: string, inputs: string[] | null): TargetConfigurat
     executor: 'nx:run-commands',
     cache: inputs !== null,
     ...(inputs ? { inputs } : {}),
-    options: { command, cwd: '{workspaceRoot}' },
+    options: { command, cwd: '{projectRoot}' },
   }
 }
 
@@ -66,9 +70,10 @@ export const createNodesV2: CreateNodesV2<NxMarkdownlintPluginOptions> = [
     const ignoreGlobs = options.ignoreGlobs ?? ['**/node_modules/**']
 
     // Group by owning directory: one project gets a single target set even when
-    // both a cli2 config and a rules config coexist.
+    // both a cli2 config and a rules config coexist. Sorted for deterministic
+    // output regardless of glob expansion order.
     const byDir = new Map<string, string[]>()
-    for (const configFile of configFiles) {
+    for (const configFile of [...configFiles].sort()) {
       const dir = dirname(configFile).replace(/\\/g, '/')
       const list = byDir.get(dir) ?? []
       list.push(configFile)
@@ -80,23 +85,26 @@ export const createNodesV2: CreateNodesV2<NxMarkdownlintPluginOptions> = [
       const projectRoot = dir === '.' ? '' : dir
       if (shouldSkipConfig(projectRoot, workspaceRoot)) continue
 
-      const rulesConfig = files.find((f) => !isCli2Config(basename(f))) ?? null
-      const anchor = files.find((f) => isCli2Config(basename(f))) ?? rulesConfig ?? files[0]
+      const rulesConfig = files.find((f) => !isCli2Config(basename(f)))
+      const anchor = files.find((f) => isCli2Config(basename(f))) ?? files[0]
       if (anchor === undefined) continue
-      const configInput = projectRoot
-        ? `{projectRoot}/${basename(anchor)}`
-        : `{workspaceRoot}/${basename(anchor)}`
-      const mdInput = projectRoot ? '{projectRoot}/**/*.md' : '{workspaceRoot}/**/*.md'
 
+      const prefix = projectRoot ? '{projectRoot}' : '{workspaceRoot}'
+      // Every config file in the directory is an input — editing either family
+      // must invalidate the lint cache.
+      const inputs = [`${prefix}/**/*.md`, ...files.map((f) => `${prefix}/${basename(f)}`)]
+
+      // cwd {projectRoot} expands to the workspace root for the root project,
+      // so both cases resolve to the config's own directory.
       const targets: Record<string, TargetConfiguration> = {
-        [targetName]: inferTarget(buildCommand(projectRoot, rulesConfig, ignoreGlobs, false), [
-          mdInput,
-          configInput,
-        ]),
+        [targetName]: inferTarget(
+          buildCommand(rulesConfig ? basename(rulesConfig) : null, ignoreGlobs, false),
+          inputs,
+        ),
       }
       if (fixTargetName !== null) {
         targets[fixTargetName] = inferTarget(
-          buildCommand(projectRoot, rulesConfig, ignoreGlobs, true),
+          buildCommand(rulesConfig ? basename(rulesConfig) : null, ignoreGlobs, true),
           null,
         )
       }
@@ -109,4 +117,4 @@ export const createNodesV2: CreateNodesV2<NxMarkdownlintPluginOptions> = [
 
 export default createNodesV2
 
-export const __testing = { buildCommand, MARKDOWNLINT_GLOB }
+export const __testing = { buildCommand, isCli2Config, MARKDOWNLINT_GLOB }

@@ -30,10 +30,15 @@ packages/markdownlint/
   option); markdownlint-cli2 does NOT honor `.markdownlintignore` (removed in
   cli2; use `gitignore: true` in `.markdownlint-cli2.jsonc` instead).
 - Inputs must start with `{workspaceRoot}` or `{projectRoot}` — bare `**/*.md`
-  is an invalid Nx fileset.
+  is an invalid Nx fileset. All config files in the directory are inputs.
 - The workspace-root config IS a valid owner (repo-wide lint is the primary
   use). `node_modules` and `..`-escaping configs are skipped.
 - `lint-md:fix` is never cached.
+- Commands run with `cwd` = `{projectRoot}` (the config's own directory) so
+  nested `.markdownlint-cli2.*` runner configs auto-discover; `--config`
+  args use basenames. All interpolated values go through `sq()` POSIX
+  single-quote escaping. `configFiles` are sorted before grouping for
+  deterministic output order.
 
 ## TDD workflow
 

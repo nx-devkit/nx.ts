@@ -1,6 +1,6 @@
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
 import { describe, expect, it } from 'vitest'
-import { createNodesV2 } from './plugin.ts'
+import { createNodesV2, __testing } from './plugin.ts'
 
 function makeContext(): CreateNodesContextV2 {
   return {
@@ -29,9 +29,9 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
     expect(lint.executor).toBe('nx:run-commands')
     expect(lint.cache).toBe(true)
     expect(lint.options!.command).toBe(
-      `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config .markdownlint.json`,
+      `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '.markdownlint.json'`,
     )
-    expect(lint.options!.cwd).toBe('{workspaceRoot}')
+    expect(lint.options!.cwd).toBe('{projectRoot}')
     expect(lint.inputs).toEqual(['{workspaceRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json'])
   })
 
@@ -40,9 +40,12 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
     const project = results[0]![1].projects!['packages/foo']!
     const lint = project.targets!['lint-md']!
 
+    // cwd {projectRoot} + basename config: nested .markdownlint-cli2.* runner
+    // configs are auto-discovered from the config's own directory.
     expect(lint.options!.command).toBe(
-      `markdownlint-cli2 '{projectRoot}/**/*.md' '#**/node_modules/**' --config packages/foo/.markdownlint.json`,
+      `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '.markdownlint.json'`,
     )
+    expect(lint.options!.cwd).toBe('{projectRoot}')
     expect(lint.inputs).toEqual(['{projectRoot}/**/*.md', '{projectRoot}/.markdownlint.json'])
   })
 
@@ -52,7 +55,7 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
 
     expect(fix.cache).toBe(false)
     expect(fix.options!.command).toBe(
-      `markdownlint-cli2 --fix '**/*.md' '#**/node_modules/**' --config .markdownlint.json`,
+      `markdownlint-cli2 --fix '**/*.md' '#**/node_modules/**' --config '.markdownlint.json'`,
     )
   })
 
@@ -83,7 +86,7 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
   it('accepts .markdownlint-cli2.* configs without --config flag', async () => {
     const results = await infer(['docs/.markdownlint-cli2.cjs'])
     const lint = results[0]![1].projects!.docs!.targets!['lint-md']!
-    expect(lint.options!.command).toContain("'{projectRoot}/**/*.md'")
+    expect(lint.options!.command).toContain("'**/*.md'")
     expect(lint.options!.command).not.toContain('--config')
   })
 
@@ -91,6 +94,43 @@ describe('@nx-devkit/markdownlint createNodesV2', () => {
     const results = await infer(['.markdownlint.json', '.markdownlint-cli2.jsonc'])
     expect(results).toHaveLength(1)
     const lint = results[0]![1].projects!['']!.targets!['lint-md']!
-    expect(lint.options!.command).toContain('--config .markdownlint.json')
+    expect(lint.options!.command).toContain("--config '.markdownlint.json'")
+    // Both config families are inputs so either edit busts the cache.
+    expect(lint.inputs).toEqual([
+      '{workspaceRoot}/**/*.md',
+      '{workspaceRoot}/.markdownlint-cli2.jsonc',
+      '{workspaceRoot}/.markdownlint.json',
+    ])
+  })
+
+  it('produces deterministic output regardless of configFiles order', async () => {
+    const files = [
+      'packages/b/.markdownlint.json',
+      '.markdownlint.json',
+      'packages/a/.markdownlint-cli2.yaml',
+    ]
+    const forward = await infer(files)
+    const reverse = await infer([...files].reverse())
+    expect(forward).toEqual(reverse)
+    expect(forward.map(([f]) => f)).toEqual([
+      '.markdownlint.json',
+      'packages/a/.markdownlint-cli2.yaml',
+      'packages/b/.markdownlint.json',
+    ])
+  })
+
+  it('emits custom ignoreGlobs as #-negations', async () => {
+    const results = await infer(['.markdownlint.json'], {
+      ignoreGlobs: ['**/node_modules/**', 'docs/drafts/**'],
+    })
+    const lint = results[0]![1].projects!['']!.targets!['lint-md']!
+    expect(lint.options!.command).toContain("'#docs/drafts/**'")
+  })
+
+  it('escapes single quotes in interpolated values', () => {
+    const command = __testing.buildCommand(".weird'cfg.json", ["it's-a-dir/**"], false)
+    expect(command).toBe(
+      `markdownlint-cli2 '**/*.md' '#it'\\''s-a-dir/**' --config '.weird'\\''cfg.json'`,
+    )
   })
 })
