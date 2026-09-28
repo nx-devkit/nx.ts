@@ -176,6 +176,7 @@ async function buildPlaceholderTarball(
       description: `Placeholder for ${pkgName} published by @nx-devkit/prepare-for-release.`,
       homepage: original.homepage,
       license: typeof original.license === 'string' ? original.license : 'MIT',
+      keywords: Array.isArray(original.keywords) ? original.keywords : undefined,
       name: pkgName,
       publishConfig: {
         access: 'public',
@@ -188,6 +189,13 @@ async function buildPlaceholderTarball(
 
     const placeholderJson = JSON.stringify(placeholder, null, 2)
     await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf8')
+    // A README in the tarball makes the placeholder look like a real package —
+    // bare-manifest publishes get tombstoned by npm's abuse detection.
+    await writeFile(
+      join(stagedPkgRoot, 'README.md'),
+      `# ${pkgName}\n\n${placeholder.description}\n`,
+      'utf8',
+    )
 
     const npmCmd = resolveNpmCommand()
     const packResult = spawnWithTimeout(npmCmd, packArgs(tempDir), {
@@ -402,8 +410,13 @@ async function pollForWebAuthOtp(doneUrl: string, token: string): Promise<string
       signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
     }).catch(() => null)
     if (res?.ok) {
-      const body = (await res.json().catch(() => null)) as { otp?: string } | null
-      if (body?.otp) return body.otp
+      const body = (await res.json().catch(() => null)) as {
+        otp?: string
+        token?: string
+      } | null
+      // The registry returns the approved OTP as `token` (not `otp`).
+      const otp = body?.otp ?? body?.token
+      if (otp) return otp
     }
     await sleep(WEB_AUTH_POLL_MS)
   }

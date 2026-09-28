@@ -454,7 +454,8 @@ describe('publishPlaceholderExecutor', () => {
     globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
       fetchCalls.push({ url: String(url), init })
       if (String(url).includes('done')) {
-        return new Response(JSON.stringify({ otp: '654321' }), { status: 200 })
+        // Real registry response shape: { token: <otp> }
+        return new Response(JSON.stringify({ token: '654321' }), { status: 200 })
       }
       return new Response(
         JSON.stringify({
@@ -561,7 +562,7 @@ describe('publishPlaceholderExecutor', () => {
     globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
       fetchCalls.push({ url: String(url), init })
       if (String(url).includes('done')) {
-        return Response.json({ otp: '654321' })
+        return Response.json({ token: '654321' })
       }
       return Response.json(
         {
