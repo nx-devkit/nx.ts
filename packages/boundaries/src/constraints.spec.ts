@@ -40,4 +40,24 @@ describe('isAllowed', () => {
     expect(isAllowed(['a', 'b'], ['x'], strict)).toBe(false) // 'b' constraint fails
     expect(isAllowed(['a', 'b'], ['x', 'y'], strict)).toBe(true)
   })
+
+  it('sourceTag "*" applies to tagged sources but keeps untagged sources permissive', () => {
+    const star = [{ sourceTag: '*', onlyDependOnLibsWithTags: ['type:util'] }]
+    expect(isAllowed(['type:app'], ['type:util'], star)).toBe(true)
+    expect(isAllowed(['type:app'], ['type:feature'], star)).toBe(false)
+    expect(isAllowed([], ['type:feature'], star)).toBe(true) // untagged source: no constraint
+  })
+
+  it('onlyDependOnLibsWithTags "*" requires the target to carry at least one tag', () => {
+    const star = [{ sourceTag: 'type:app', onlyDependOnLibsWithTags: ['*'] }]
+    expect(isAllowed(['type:app'], ['anything'], star)).toBe(true)
+    expect(isAllowed(['type:app'], [], star)).toBe(false)
+  })
+
+  it('supports partial globs like "scope:*"', () => {
+    const glob = [{ sourceTag: 'scope:*', onlyDependOnLibsWithTags: ['scope:*'] }]
+    expect(isAllowed(['scope:a'], ['scope:b'], glob)).toBe(true)
+    expect(isAllowed(['scope:a'], ['other:b'], glob)).toBe(false)
+    expect(isAllowed(['other:a'], ['scope:b'], glob)).toBe(true) // source doesn't match
+  })
 })

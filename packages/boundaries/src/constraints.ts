@@ -1,6 +1,23 @@
 import type { DepConstraint } from './types.ts'
 
 /**
+ * Official @nx/enforce-module-boundaries tag matching: `*` matches a project
+ * carrying at least one tag (untagged projects stay unconstrained), and
+ * partial globs like `scope:*` match by `*` wildcard expansion.
+ */
+function hasTag(tags: string[], pattern: string): boolean {
+  if (pattern === '*') return tags.length > 0
+  if (!pattern.includes('*')) return tags.includes(pattern)
+  const re = new RegExp(
+    `^${pattern
+      .split('*')
+      .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*')}$`,
+  )
+  return tags.some((t) => re.test(t))
+}
+
+/**
  * Official-rule semantics: every constraint whose `sourceTag` matches the
  * importing project's tags must be satisfied — the target project must share
  * at least one tag with `onlyDependOnLibsWithTags`. An empty allowlist means
@@ -13,10 +30,10 @@ export function isAllowed(
   constraints: DepConstraint[],
 ): boolean {
   return constraints
-    .filter((c) => sourceTags.includes(c.sourceTag))
+    .filter((c) => hasTag(sourceTags, c.sourceTag))
     .every((c) =>
       c.onlyDependOnLibsWithTags.length === 0
         ? targetTags.length === 0
-        : targetTags.some((t) => c.onlyDependOnLibsWithTags.includes(t)),
+        : c.onlyDependOnLibsWithTags.some((t) => hasTag(targetTags, t)),
     )
 }
