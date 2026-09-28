@@ -4,7 +4,7 @@ import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createNodesV2 } from './plugin.ts'
 
-vi.mock('fs', async () => {
+vi.mock('node:fs', async () => {
   const memfs = await import('memfs')
   return {
     ...memfs.fs,
@@ -12,7 +12,7 @@ vi.mock('fs', async () => {
   }
 })
 
-vi.mock('fs/promises', async () => {
+vi.mock('node:fs/promises', async () => {
   const memfs = await import('memfs')
   return {
     ...memfs.fs.promises,
@@ -45,6 +45,7 @@ describe('@nx-devkit/skill createNodesV2', () => {
         '/workspace/skills/a/b/SKILL.md': '# Skill a/b',
         '/workspace/SKILL.md': '# Root skill',
         '/workspace/node_modules/some-pkg/SKILL.md': '# node_modules skill',
+        '/workspace/.markdownlint.json': '{}',
         '/workspace/package.json': '{}',
       },
       '/',
@@ -164,46 +165,51 @@ describe('@nx-devkit/skill createNodesV2', () => {
     expect(lint.inputs).toEqual(['{projectRoot}/**/*.md', '{workspaceRoot}/.markdownlint.json'])
   })
 
-  it('validate target uses nx:run-commands with validate-skill.ts', async () => {
+  it('lint target omits --config when workspace has no .markdownlint.json', async () => {
+    vol.unlinkSync('/workspace/.markdownlint.json')
+    const [, fn] = createNodesV2
+    const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
+    const projectRoot = 'skills/code-review/act'
+    const lint = results[0]![1].projects![projectRoot]!.targets!.lint!
+
+    expect(lint.executor).toBe('nx:run-commands')
+    expect(lint.options!.command).toBe(`markdownlint-cli2 '{projectRoot}/**/*.md'`)
+    expect(lint.inputs).toEqual(['{projectRoot}/**/*.md'])
+  })
+
+  it('validate target uses the @nx-devkit/skill:validate executor', async () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
     const validate = results[0]![1].projects![projectRoot]!.targets!.validate!
 
-    expect(validate.executor).toBe('nx:run-commands')
+    expect(validate.executor).toBe('@nx-devkit/skill:validate')
     expect(validate.cache).toBe(true)
-    expect(validate.options!.command).toBe(`tsx scripts/validate-skill.ts --skill '{projectRoot}'`)
-    expect(validate.options!.cwd).toBe('{workspaceRoot}')
+    expect(validate.options).toEqual({ path: projectRoot })
     expect(validate.inputs).toEqual(['{projectRoot}/SKILL.md', '{projectRoot}/agents/openai.yaml'])
   })
 
-  it('os-check target uses nx:run-commands with check-os-independence.ts', async () => {
+  it('os-check target uses the @nx-devkit/skill:os-check executor', async () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
     const osCheck = results[0]![1].projects![projectRoot]!.targets!['os-check']!
 
-    expect(osCheck.executor).toBe('nx:run-commands')
+    expect(osCheck.executor).toBe('@nx-devkit/skill:os-check')
     expect(osCheck.cache).toBe(true)
-    expect(osCheck.options!.command).toBe(
-      `tsx scripts/check-os-independence.ts --skill '{projectRoot}'`,
-    )
-    expect(osCheck.options!.cwd).toBe('{workspaceRoot}')
+    expect(osCheck.options).toEqual({ path: projectRoot })
     expect(osCheck.inputs).toEqual(['{projectRoot}/**/*'])
   })
 
-  it('size-check target uses nx:run-commands with check-skill-size.ts', async () => {
+  it('size-check target uses the @nx-devkit/skill:size-check executor', async () => {
     const [, fn] = createNodesV2
     const results = await fn(['skills/code-review/act/SKILL.md'], {}, makeContext())
     const projectRoot = 'skills/code-review/act'
     const sizeCheck = results[0]![1].projects![projectRoot]!.targets!['size-check']!
 
-    expect(sizeCheck.executor).toBe('nx:run-commands')
+    expect(sizeCheck.executor).toBe('@nx-devkit/skill:size-check')
     expect(sizeCheck.cache).toBe(true)
-    expect(sizeCheck.options!.command).toBe(
-      `tsx scripts/check-skill-size.ts --skill '{projectRoot}'`,
-    )
-    expect(sizeCheck.options!.cwd).toBe('{workspaceRoot}')
+    expect(sizeCheck.options).toEqual({ path: projectRoot })
     expect(sizeCheck.inputs).toEqual(['{projectRoot}/**/*'])
   })
 

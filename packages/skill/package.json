@@ -34,6 +34,9 @@
     "dist",
     "executors.json",
     "src/executors/build/schema.json",
+    "src/executors/validate/schema.json",
+    "src/executors/os-check/schema.json",
+    "src/executors/size-check/schema.json",
     "README.md"
   ],
   "scripts": {
@@ -59,6 +62,7 @@
   },
   "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skill",
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "yaml": "^2.9.0"
   }
 }

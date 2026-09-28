@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "title": "Skill OS-Check Executor",
+  "description": "Flag platform-specific content in a skill directory: user paths, drive letters, and OS-only commands without cross-platform alternatives.",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Relative path (from workspace root) to the skill directory.",
+      "x-prompt": "What is the path to the skill directory?"
+    }
+  },
+  "required": ["path"],
+  "additionalProperties": false
+}
