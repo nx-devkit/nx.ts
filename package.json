@@ -18,7 +18,7 @@
     "format:check": "node scripts/biome.mjs format .",
     "spec:check": "bun run scripts/spec-check.ts",
     "check:spec": "bun run scripts/spec-check.ts",
-    "spec:validate": "openspec validate --changes --strict",
+    "spec:validate": "nx run nx-devkit-plugins:spec-validate",
     "prepare": "husky"
   },
   "devDependencies": {
