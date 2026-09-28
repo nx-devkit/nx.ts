@@ -18,7 +18,8 @@ interface Resolved {
 
 function resolveOptions(options: RenderExecutorSchema): Resolved {
   const format = options.format ?? 'svg'
-  const krokiUrl = (options.krokiUrl ?? 'https://kroki.io').replace(/\/+$/, '')
+  let krokiUrl = options.krokiUrl ?? 'https://kroki.io'
+  while (krokiUrl.endsWith('/')) krokiUrl = krokiUrl.slice(0, -1)
   if (krokiUrl && krokiUrl !== 'docker' && !/^https?:\/\//.test(krokiUrl)) {
     throw new Error(
       `krokiUrl must be an absolute http(s) URL or "docker", got "${options.krokiUrl}"`,
