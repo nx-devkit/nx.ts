@@ -3,8 +3,8 @@
 ## Purpose
 
 Defines the `@nx-devkit/skill` inference plugin: every `SKILL.md` in a
-subdirectory becomes a project with build/lint/validate/os-check/size-check
-targets produced by the skills compiler.
+subdirectory becomes a project with plugin-inferred `build` (the skills
+compiler), `lint`, `validate`, `os-check`, and `size-check` targets.
 
 ## Requirements
 
