@@ -136,7 +136,7 @@ function matchPathMapping(
   }
   const matched = specifier.slice(prefix.length, specifier.length - suffix.length)
   for (const target of mapping.targets) {
-    const resolved = join(mapping.baseDir, target.replace('*', matched))
+    const resolved = join(mapping.baseDir, target.replaceAll('*', matched))
     const project = fileToProject(resolved, roots, workspaceRoot)
     if (project) {
       return project

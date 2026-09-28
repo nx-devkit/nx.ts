@@ -105,12 +105,14 @@ const MAX_BRACE_OPTIONS = 20
 
 export function expandBraces(pattern: string, depth = 0): string[] {
   if (depth >= MAX_BRACE_DEPTH) return [pattern]
-  const match = pattern.match(/\{([^}]+)\}/)
-  if (!match) return [pattern]
-  const options = match[1].split(',')
+  // Find the first {..} group without a regex — CodeQL js/polynomial-redos
+  const open = pattern.indexOf('{')
+  const close = open === -1 ? -1 : pattern.indexOf('}', open + 1)
+  if (open === -1 || close === -1 || close === open + 1) return [pattern]
+  const options = pattern.slice(open + 1, close).split(',')
   if (options.length > MAX_BRACE_OPTIONS) return [pattern]
-  const prefix = pattern.slice(0, match.index)
-  const suffix = pattern.slice((match.index ?? 0) + match[0].length)
+  const prefix = pattern.slice(0, open)
+  const suffix = pattern.slice(close + 1)
   const results: string[] = []
   for (const opt of options) {
     results.push(...expandBraces(prefix + opt + suffix, depth + 1))

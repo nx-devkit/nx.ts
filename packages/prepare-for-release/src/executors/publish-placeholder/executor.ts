@@ -370,7 +370,7 @@ async function requestWebAuthUrls(
   token: string,
 ): Promise<WebAuthUrls> {
   const base = registry.endsWith('/') ? registry.slice(0, -1) : registry
-  const res = await fetch(`${base}/${pkgName.replace('/', '%2f')}`, {
+  const res = await fetch(`${base}/${pkgName.replaceAll('/', '%2f')}`, {
     body: '{}',
     headers: {
       authorization: `Bearer ${token}`,

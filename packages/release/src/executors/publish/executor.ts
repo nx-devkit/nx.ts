@@ -414,6 +414,19 @@ function createGithubRelease(resolved: ResolvedOptions, tag: string, result: Pub
   }
 }
 
+// User-controlled values flow into git argv; reject anything that could
+// inject a git option (e.g. `--upload-pack=cmd` under `git fetch`).
+function assertSafeGitRef(value: string, name: string): string {
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(value) ||
+    value.includes('..') ||
+    value.includes('@{')
+  ) {
+    throw new Error(`Invalid ${name}: "${value}" — expected a plain git ref name`)
+  }
+  return value
+}
+
 function resolveOptions(
   options: NxReleasePublishOptions,
   pkg: { name: string; version: string },
@@ -425,7 +438,7 @@ function resolveOptions(
     mode: options.mode ?? 'full',
     dryRun: options.dryRun ?? false,
     registry: options.registry ?? DEFAULT_REGISTRY,
-    branch: options.branch ?? DEFAULT_BRANCH,
+    branch: assertSafeGitRef(options.branch ?? DEFAULT_BRANCH, 'branch'),
     generateNotes: options.generateNotes ?? true,
     provenance: options.provenance ?? true,
   }

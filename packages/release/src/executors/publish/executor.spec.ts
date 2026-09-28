@@ -262,6 +262,16 @@ describe('publishExecutor', () => {
     expect(result.version).toBe('1.0.0')
   })
 
+  it('rejects a branch that could inject a git option (--upload-pack)', async () => {
+    const dir = makePkgDir('@test/pkg', '0.4.1')
+    await expect(
+      publishExecutor({ packagePath: dir, branch: '--upload-pack=touch /tmp/pwned' }),
+    ).rejects.toThrow(/Invalid branch/)
+    await expect(publishExecutor({ packagePath: dir, branch: 'feat/../escape' })).rejects.toThrow(
+      /Invalid branch/,
+    )
+  })
+
   it('mode=bump creates a release branch + PR, never publishes or tags', async () => {
     const dir = makePkgDir('@test/pkg', '0.4.1')
     const calls = mockFlow({

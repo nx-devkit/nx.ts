@@ -60,12 +60,30 @@ export function diagramTypeFor(file: string): string | undefined {
   return ext ? DIAGRAM_TYPES[ext] : undefined
 }
 
+function isAlnum(code: number): boolean {
+  return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+}
+
+// Char-wise slug — regexes over uncontrolled paths trip js/polynomial-redos.
+function slugSegment(seg: string): string {
+  const out: string[] = []
+  for (const c of seg) {
+    if (isAlnum(c.charCodeAt(0))) {
+      out.push(c)
+    } else if (out.length > 0 && out[out.length - 1] !== '-') {
+      out.push('-')
+    }
+  }
+  if (out[out.length - 1] === '-') out.pop()
+  return out.join('')
+}
+
 export function slugify(relPath: string): string {
   const noExt = relPath.replace(/\.[a-z0-9]+$/i, '')
   return noExt
-    .replace(/\\/g, '/')
+    .replaceAll('\\', '/')
     .split('/')
-    .map((seg) => seg.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, ''))
+    .map(slugSegment)
     .filter(Boolean)
     .join('-')
     .toLowerCase()
