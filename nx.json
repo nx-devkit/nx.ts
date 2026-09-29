@@ -35,7 +35,9 @@
       "packages/skillspector",
       "packages/diagrams",
       "packages/release",
-      "packages/nx-cloud"
+      "packages/nx-cloud",
+      "packages/markdownlint",
+      "packages/openspec"
     ],
     "projectsRelationship": "independent",
     "version": {
