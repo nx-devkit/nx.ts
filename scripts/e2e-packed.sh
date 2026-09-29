@@ -62,6 +62,30 @@ JSON
 cat > tsconfig.json <<'JSON'
 {"compilerOptions":{"strict":true}}
 JSON
+# Test/lint inputs exist BEFORE init so the bootstrap generator detects
+# vitest + oxlint configs and installs the matching dev deps itself.
+cat > vitest.config.ts <<'TS'
+export default { test: { include: ['*.spec.ts'] } }
+TS
+cat > index.spec.ts <<'TS'
+import { expect, it } from 'vitest'
+import { ok } from './index'
+it('ok', () => expect(ok()).toBe(true))
+TS
+cat > .oxlintrc.json <<'JSON'
+{}
+JSON
+# A real consumer always has .gitignore — oxlint/eslint honour it and skip node_modules.
+cat > .gitignore <<'TXT'
+node_modules
+dist
+TXT
+# The init generator's install task runs bare `npm install` — .npmrc keeps
+# the peer policy consistent (legacy) so CI's npm version doesn't crash
+# arborist on the optional-peer chain (vite-plus → vitest@5).
+cat > .npmrc <<'TXT'
+legacy-peer-deps=true
+TXT
 # --legacy-peer-deps: npm's default peer auto-install pulls *optional* peers
 # too, and upstream optional-peer chains can conflict with each other (seen:
 # oxlint → vite-plus → vitest@5 vs our vitest@^4 optional peer → ERESOLVE).
@@ -107,5 +131,11 @@ TS
 # pointing at files absent from the tarball. A real run catches missing
 # executors and unresolved plugin paths — `nx show projects` alone cannot.
 ./node_modules/.bin/nx run e2e-packed-consumer:typecheck
+
+echo "==> Running inferred test + lint targets against the installed tarballs"
+# vitest + oxlint were installed by the init generator (configs above) —
+# these targets come from the packed preset, not local source.
+./node_modules/.bin/nx run e2e-packed-consumer:test
+./node_modules/.bin/nx run e2e-packed-consumer:lint
 
 echo "==> Packed-tarball e2e passed"
