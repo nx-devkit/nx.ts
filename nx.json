@@ -20,7 +20,8 @@
       "options": { "outputDir": "{fileDir}/dist", "timeout": 120000 }
     },
     "./packages/markdownlint/src/plugin.ts",
-    "./packages/openspec/src/plugin.ts"
+    "./packages/openspec/src/plugin.ts",
+    "./packages/knip/src/plugin.ts"
   ],
   "release": {
     "projects": [
@@ -37,7 +38,8 @@
       "packages/release",
       "packages/nx-cloud",
       "packages/markdownlint",
-      "packages/openspec"
+      "packages/openspec",
+      "packages/knip"
     ],
     "projectsRelationship": "independent",
     "version": {
