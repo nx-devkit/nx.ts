@@ -112,7 +112,7 @@ When `oxlint: true` (default) and a project has `.oxlintrc.*`, the plugin MUST i
 
 ### Requirement: Biome format and lint targets
 
-When `biome: true` (default) and a project has `biome.json` or `biome.jsonc`, the plugin MUST infer `format` and `format-check` targets using `npx biome`. A `lint` target via biome is inferred ONLY when oxlint is effectively disabled (`oxlint: false`) or no `.oxlintrc.*` is present — i.e. biome provides `lint` when oxlint is not providing it.
+When `biome: true` (default) and a project has `biome.json` or `biome.jsonc`, the plugin MUST infer `format` and `format-check` targets using `npx biome`. A `lint` target via biome is inferred only when neither enabled oxlint nor enabled eslint provides `lint`.
 
 #### Scenario: Biome format targets inferred
 
@@ -126,8 +126,13 @@ When `biome: true` (default) and a project has `biome.json` or `biome.jsonc`, th
 
 #### Scenario: Oxlint disabled, biome provides lint
 
-- **WHEN** `oxlint: false` is set and a project has both `biome.json` and `.oxlintrc.json`
+- **WHEN** `oxlint: false` is set, no `eslint.config.*` is present, and a project has both `biome.json` and `.oxlintrc.json`
 - **THEN** the plugin infers `format` and `format-check` from biome, and `lint` from biome (no oxlint `lint` target)
+
+#### Scenario: ESLint wins over biome for lint
+
+- **WHEN** `eslint: true`, a project has `eslint.config.*` and `biome.json`, and oxlint is not providing `lint`
+- **THEN** the plugin infers `format` and `format-check` from biome, and `lint` from eslint (no biome `lint` target)
 
 ### Requirement: Tsdown build target
 
