@@ -1,7 +1,24 @@
 import type { Tree } from '@nx/devkit'
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { installPeerDeps } from './init-generator.ts'
+
+// The returned callback triggers a real package-manager install. Keep the
+// real addDependenciesToPackageJson (it mutates the tree synchronously) but
+// stub the install-spawning callback so specs exercise the full lifecycle
+// without spawning npm.
+vi.mock('@nx/devkit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nx/devkit')>()
+  return {
+    ...actual,
+    addDependenciesToPackageJson: vi.fn(
+      (tree: Tree, deps: Record<string, string>, devDeps: Record<string, string>) => {
+        actual.addDependenciesToPackageJson(tree, deps, devDeps)
+        return () => Promise.resolve()
+      },
+    ),
+  }
+})
 
 function createTree(pkg: Record<string, unknown> = {}): Tree {
   const tree = createTreeWithEmptyWorkspace({ formatter: 'none' })
@@ -20,7 +37,7 @@ describe('installPeerDeps', () => {
   it('adds missing deps to devDependencies', async () => {
     const tree = createTree()
 
-    installPeerDeps(tree, { oxlint: '^1.0.0' })
+    await installPeerDeps(tree, { oxlint: '^1.0.0' })()
 
     expect(readPkg(tree).devDependencies?.oxlint).toBe('^1.0.0')
   })
@@ -31,7 +48,7 @@ describe('installPeerDeps', () => {
       devDependencies: { eslint: '^9.0.0' },
     })
 
-    installPeerDeps(tree, { eslint: '^9.0.0', knip: '^6.0.0', oxlint: '^1.0.0' })
+    await installPeerDeps(tree, { eslint: '^9.0.0', knip: '^6.0.0', oxlint: '^1.0.0' })()
 
     const pkg = readPkg(tree)
     expect(pkg.devDependencies?.knip).toBe('^6.0.0')
@@ -40,13 +57,12 @@ describe('installPeerDeps', () => {
     expect('oxlint' in (pkg.devDependencies ?? {})).toBe(false)
   })
 
-  it('returns a no-op callback when nothing is missing', () => {
+  it('returns a no-op callback when nothing is missing', async () => {
     const tree = createTree({ devDependencies: { oxlint: '^1.0.0' } })
     const before = tree.read('package.json', 'utf8')
 
-    const cb = installPeerDeps(tree, { oxlint: '^1.0.0' })
+    await installPeerDeps(tree, { oxlint: '^1.0.0' })()
 
     expect(tree.read('package.json', 'utf8')).toBe(before)
-    expect(() => cb()).not.toThrow()
   })
 })
