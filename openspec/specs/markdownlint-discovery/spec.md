@@ -1,8 +1,11 @@
 # markdownlint-discovery Specification
 
 ## Purpose
+
 TBD - created by archiving change markdownlint-plugin. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Config file triggers lint-md target inference
 
 The plugin MUST use `createNodesV2` with trigger glob
@@ -102,4 +105,3 @@ optional `pluginPath` override.
 - **WHEN** a consumer runs `nx add @nx-devkit/markdownlint`
 - **THEN** `nx.json` gains `"@nx-devkit/markdownlint"` under `plugins` exactly
   once, and a JSONC `nx.json` keeps its comments intact
-

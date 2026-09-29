@@ -1,8 +1,11 @@
 # openspec-discovery Specification
 
 ## Purpose
+
 TBD - created by archiving change openspec-plugin. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: openspec/config.yaml triggers spec-validate inference
 
 The plugin MUST use `createNodesV2` with trigger glob `**/openspec/config.yaml`.
@@ -72,4 +75,3 @@ optional `pluginPath` override.
 
 - **WHEN** a consumer runs `nx add @nx-devkit/openspec`
 - **THEN** `nx.json` gains `"@nx-devkit/openspec"` under `plugins` exactly once
-
