@@ -4,7 +4,6 @@
 
 Infers `spec-validate` (owner) plus per-change `spec-validate:<id>` targets — one edited change does not revalidate the rest.
 
-
 ## Requirements
 
 ### Requirement: openspec/config.yaml triggers spec-validate inference

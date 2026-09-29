@@ -5,6 +5,7 @@
 Infers a `commitlint` Nx target on the project owning a commitlint config — conventional-commit checking without project.json.
 
 ## Requirements
+
 ### Requirement: Commitlint config discovery
 
 The plugin SHALL watch commitlint config files matching the glob `**/{commitlint.config.{js,ts,mjs,cjs,cts},.commitlintrc,.commitlintrc.{json,yaml,yml,js,ts,mjs,cjs,cts},package.json}` via `createNodesV2`.
@@ -60,4 +61,3 @@ The plugin SHALL skip directories inside `node_modules` or escaping the workspac
 
 - **WHEN** a config file resolves under `node_modules/**` or outside the workspace
 - **THEN** no target is inferred for it
-

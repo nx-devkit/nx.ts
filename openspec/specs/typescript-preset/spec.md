@@ -4,7 +4,6 @@
 
 The preset plugin composes the standalone detectors — one nx.json entry infers typecheck, test, lint, format, and build targets from existing config files.
 
-
 ## Requirements
 
 ### Requirement: Config-free tsdown build inference

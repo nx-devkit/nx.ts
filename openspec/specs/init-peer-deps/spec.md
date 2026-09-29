@@ -5,6 +5,7 @@
 Plugin init generators install their tool peer dependency into the consumer devDependencies — `nx add` leaves a runnable setup.
 
 ## Requirements
+
 ### Requirement: Peer dependency installation on init
 
 Each standalone plugin init generator SHALL install its declared tool dependency into the consumer's `devDependencies` when missing.
@@ -27,4 +28,3 @@ Each standalone plugin init generator SHALL install its declared tool dependency
 
 - **WHEN** all requested deps already exist in the consumer package.json
 - **THEN** the callback performs no write and resolves cleanly
-

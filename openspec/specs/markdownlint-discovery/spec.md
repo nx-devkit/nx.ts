@@ -4,7 +4,6 @@
 
 Infers a `lint-md` Nx target on the project owning a .markdownlint config — Markdown linting without project.json.
 
-
 ## Requirements
 
 ### Requirement: Config file triggers lint-md target inference

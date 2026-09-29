@@ -5,6 +5,7 @@
 Infers a `spell` Nx target on the project owning a cspell config — spell-checking without project.json.
 
 ## Requirements
+
 ### Requirement: Cspell config discovery
 
 The plugin SHALL watch cspell config files matching `**/{cspell.json,cspell.config.{js,cjs,mjs,ts,json},.cspell.json,cspell.{yaml,yml},.cspell.{yaml,yml},package.json}` via `createNodesV2`.
@@ -60,4 +61,3 @@ The plugin SHALL skip directories inside `node_modules` or escaping the workspac
 
 - **WHEN** a config file resolves under `node_modules/**` or outside the workspace
 - **THEN** no target is inferred for it
-
