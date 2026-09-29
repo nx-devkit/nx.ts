@@ -22,7 +22,8 @@
     "./packages/markdownlint/src/plugin.ts",
     "./packages/openspec/src/plugin.ts",
     "./packages/knip/src/plugin.ts",
-    "./packages/playwright/src/plugin.ts"
+    "./packages/playwright/src/plugin.ts",
+    "./packages/eslint/src/plugin.ts"
   ],
   "release": {
     "projects": [
@@ -41,7 +42,8 @@
       "packages/markdownlint",
       "packages/openspec",
       "packages/knip",
-      "packages/playwright"
+      "packages/playwright",
+      "packages/eslint"
     ],
     "projectsRelationship": "independent",
     "version": {
