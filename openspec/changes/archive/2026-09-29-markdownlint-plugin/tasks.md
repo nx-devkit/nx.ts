@@ -15,4 +15,4 @@
 - [x] tests green, lint/format/spec-check/validate clean
 - [x] README + AGENTS.md
 - [x] register in root nx.json, verify `nx run <root>:lint-md`
-- [ ] PR + merge
+- [x] PR + merge
