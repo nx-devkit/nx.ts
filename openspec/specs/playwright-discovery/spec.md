@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change playwright-plugin. Update Purpose after archive.
+How `@nx-devkit/playwright` discovers `playwright.config.*` files and infers cached `e2e` plus uncached `e2e:ui`/`e2e:update-snapshots` targets on the owning project.
 
 ## Requirements
 

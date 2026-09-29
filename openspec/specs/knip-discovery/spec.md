@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change knip-plugin. Update Purpose after archive.
+How `@nx-devkit/knip` discovers knip configs (standalone files and `package.json` `"knip"` keys) and infers `knip`/`knip:fix` targets on the owning project.
 
 ## Requirements
 

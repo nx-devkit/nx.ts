@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change eslint-plugin. Update Purpose after archive.
+How `@nx-devkit/eslint` discovers flat configs and infers `lint`/`lint:fix` targets on the owning project.
 
 ## Requirements
 
