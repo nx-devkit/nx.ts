@@ -1,3 +1,14 @@
+## 0.0.14 (2026-09-29)
+
+### 🚀 Features
+
+- connect socket.dev + fix supply-chain findings ([#109](https://github.com/nx-devkit/nx.ts/pull/109))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.13 (2026-09-28)
 
 This was a version bump only for @nx-devkit/nx-cloud to align it with other projects, there were no code changes.
