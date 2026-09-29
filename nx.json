@@ -13,17 +13,23 @@
     "./packages/skill/src/plugin.ts",
     {
       "plugin": "./packages/skillspector/src/plugin.ts",
-      "options": { "skillspectorBin": ".tools/skillspector-venv/bin/skillspector" }
+      "options": {
+        "skillspectorBin": ".tools/skillspector-venv/bin/skillspector"
+      }
     },
     {
       "plugin": "./packages/diagrams/src/plugin.ts",
-      "options": { "outputDir": "{fileDir}/dist", "timeout": 120000 }
+      "options": {
+        "outputDir": "{fileDir}/dist",
+        "timeout": 120000
+      }
     },
     "./packages/markdownlint/src/plugin.ts",
     "./packages/openspec/src/plugin.ts",
     "./packages/knip/src/plugin.ts",
     "./packages/playwright/src/plugin.ts",
-    "./packages/eslint/src/plugin.ts"
+    "./packages/eslint/src/plugin.ts",
+    "./packages/commitlint/src/plugin.ts"
   ],
   "release": {
     "projects": [
@@ -43,7 +49,8 @@
       "packages/openspec",
       "packages/knip",
       "packages/playwright",
-      "packages/eslint"
+      "packages/eslint",
+      "packages/commitlint"
     ],
     "projectsRelationship": "independent",
     "version": {
