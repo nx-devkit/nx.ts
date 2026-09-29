@@ -81,11 +81,9 @@ When `tsdown: true` (default) and a project has `tsdown.config.ts`, the plugin M
 - **WHEN** a project has `tsconfig.json` and `tsdown.config.ts`
 - **THEN** the plugin infers a `build` target with command `npx tsdown`, outputs `{projectRoot}/dist`, and `dependsOn: ['^build']`
 
-## MODIFIED Requirements
+### Requirement: Combined mega-preset target inference
 
-### Requirement: TypeScript preset infers typecheck and test targets
-
-The plugin MUST infer `typecheck` from `tsconfig.json` (existing). Test target inference now supports BOTH vitest (when `vitest.config.*` exists) AND native Node test runner (when test files exist without vitest config).
+The plugin MUST infer `typecheck` from `tsconfig.json`. Test target inference MUST support BOTH vitest (when `vitest.config.*` exists) AND the native Node test runner (when test files exist without vitest config).
 
 #### Scenario: All targets from one plugin
 

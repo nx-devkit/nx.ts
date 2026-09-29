@@ -10,7 +10,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 - [x] Add `test:tap` target when `tap: true`: `node --test --test-reporter tap "<testGlob>" > test-results.tap` (outputs: `{projectRoot}/test-results.tap`)
 - [x] Add `test:coverage` target when `coverage: true`: `node --test --experimental-test-coverage "<testGlob>"`
 - [x] Derive target `inputs` from `testGlob` (e.g. `{projectRoot}/{testGlob}`) so the cache hashes exactly the executed files
-- [ ] Document Node >= 22.18.0 requirement for native TypeScript tests (or >= 22.6.0 with `--experimental-strip-types`)
+- [x] Document Node >= 22.18.0 requirement for native TypeScript tests (or >= 22.6.0 with `--experimental-strip-types`)
 - [x] Write tests: project with test files, no vitest config → native targets inferred
 - [x] Write tests: project with vitest config → vitest targets, NOT native
 - [x] Write tests: project with no test files → no test targets
@@ -39,7 +39,7 @@ Tasks map to independent beads. Status: `[ ]` pending, `[x]` done.
 
 - [x] Extend `NxDevkitTypescriptOptions` interface with new options
 - [x] Update `packages/typescript-preset/README.md` with mega-preset usage
-- [ ] Update `openspec/specs/SPEC.md` file-trigger matrix
+- [x] Update `openspec/specs/SPEC.md` file-trigger matrix
 - [x] Update `packages/typescript-preset/AGENTS.md` with new inference rules
 - [x] Run `bun run check:spec` — no conflicts with standalone plugins
 
