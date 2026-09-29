@@ -32,7 +32,7 @@ jobs:
           fi
       - name: Install Socket CLI
         if: steps.key.outputs.present == 'true'
-        run: npm install -g socket
+        run: npm install -g socket@1.2.1
       - name: Socket scan
         if: steps.key.outputs.present == 'true'
         # `socket ci` = `socket scan create --report`; uses the API token's
