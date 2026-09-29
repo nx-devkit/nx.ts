@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change openspec-plugin. Update Purpose after archive.
+Infers `spec-validate` (owner) plus per-change `spec-validate:<id>` targets — one edited change does not revalidate the rest.
+
 
 ## Requirements
 

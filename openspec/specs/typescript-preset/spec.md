@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change config-free-tsdown-build. Update Purpose after archive.
+The preset plugin composes the standalone detectors — one nx.json entry infers typecheck, test, lint, format, and build targets from existing config files.
+
 
 ## Requirements
 
