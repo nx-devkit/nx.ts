@@ -63,4 +63,14 @@ describe('initGenerator', () => {
       '{\n  // keep me\n  "plugins": [\n    "other-plugin",\n    {\n      "options": {},\n      "plugin": "@nx-devkit/knip"\n    }\n  ]\n}\n',
     )
   })
+
+  it('installs the peer dependency into devDependencies', async () => {
+    const tree = createTree()
+    tree.write('package.json', JSON.stringify({ name: 'x' }))
+
+    await initGenerator(tree, {})
+
+    const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}')
+    expect(pkg.devDependencies['knip']).toBe('^6.0.0')
+  })
 })

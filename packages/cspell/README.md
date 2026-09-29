@@ -8,11 +8,7 @@ Zero-config Nx plugin: a [cspell](https://cspell.org/) config file in your works
 nx add @nx-devkit/cspell
 ```
 
-The init generator registers the plugin in `nx.json`. Install the peer dependency yourself:
-
-```bash
-npm i -D cspell
-```
+The init generator registers the plugin in `nx.json` and installs the missing peer dependency (`cspell`) into devDependencies.
 
 ## Usage
 

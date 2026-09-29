@@ -1,9 +1,11 @@
 import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit'
-import { registerPlugin, resolveRootProjectName } from '@nx-devkit/internal'
+import { installPeerDeps, registerPlugin, resolveRootProjectName } from '@nx-devkit/internal'
 
 export interface NxPlaywrightInitOptions {
   pluginPath?: string
 }
+
+const PEER_DEPS: Record<string, string> = { '@playwright/test': '^1.40.0' }
 
 const DEFAULT_PLUGIN_PATH = '@nx-devkit/playwright'
 
@@ -15,6 +17,7 @@ export async function initGenerator(
   const projectName = resolveRootProjectName(tree) ?? '{root-project}'
 
   registerPlugin(tree, pluginPath)
+  const installDeps = installPeerDeps(tree, PEER_DEPS)
 
   const checklist = [
     `1. The plugin is registered (${pluginPath}) — projects containing a playwright config now have playwright targets.`,
@@ -27,9 +30,7 @@ export async function initGenerator(
   }
   await formatFiles(tree)
 
-  return () => {
-    /* No-op */
-  }
+  return () => installDeps()
 }
 
 export default initGenerator
