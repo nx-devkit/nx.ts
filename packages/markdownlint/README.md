@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/markdownlint markdownlint-cli2
 ```
 
-Depends on `@nx/devkit` `^22 || ^23`. Requires `markdownlint-cli2` `^0.20` as the lint engine.
+Depends on `@nx/devkit` `^22 || ^23`. Requires `markdownlint-cli2` `^0.23.2` as the lint engine.
 
 ## Register
 
