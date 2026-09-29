@@ -80,6 +80,12 @@ cat > .gitignore <<'TXT'
 node_modules
 dist
 TXT
+# The init generator's install task runs bare `npm install` — .npmrc keeps
+# the peer policy consistent (legacy) so CI's npm version doesn't crash
+# arborist on the optional-peer chain (vite-plus → vitest@5).
+cat > .npmrc <<'TXT'
+legacy-peer-deps=true
+TXT
 # --legacy-peer-deps: npm's default peer auto-install pulls *optional* peers
 # too, and upstream optional-peer chains can conflict with each other (seen:
 # oxlint → vite-plus → vitest@5 vs our vitest@^4 optional peer → ERESOLVE).
