@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change markdownlint-plugin. Update Purpose after archive.
+Infers a `lint-md` Nx target on the project owning a .markdownlint config — Markdown linting without project.json.
 
 ## Requirements
 
