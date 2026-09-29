@@ -2,7 +2,7 @@
   "name": "@nx-devkit/oxlint",
   "version": "0.1.16",
   "license": "MIT",
-  "description": "Standalone Nx plugin: infers a cached lint target from .oxlintrc config files — no project.json required.",
+  "description": "Standalone Nx plugin: infers a cached lint target from .oxlintrc config files \u2014 no project.json required.",
   "keywords": [
     "nx",
     "nx-plugin",
@@ -45,7 +45,6 @@
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.0.0",
-    "memfs": "^4.57.8",
     "oxlint": "^1.0.0",
     "tsdown": "^0.22.3",
     "typescript": "^6.0.3",

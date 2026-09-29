@@ -2,7 +2,7 @@
   "name": "@nx-devkit/release",
   "version": "0.0.19",
   "license": "MIT",
-  "description": "Zero-config Nx plugin for automated npm releases via CI — version bump, OIDC publish, git tag, and GitHub Release, fully idempotent.",
+  "description": "Zero-config Nx plugin for automated npm releases via CI \u2014 version bump, OIDC publish, git tag, and GitHub Release, fully idempotent.",
   "keywords": [
     "nx",
     "nx-plugin",
@@ -49,7 +49,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.0",
-    "memfs": "^4.50.0",
     "tsdown": "^0.22.3",
     "vitest": "^5.0.0"
   },

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "rules": {
+    "duplicates": "off"
+  },
+  "ignoreWorkspaces": ["tools/skills-compiler"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*"],
+      "ignoreDependencies": [
+        "@nx/devkit",
+        "@nx-devkit/skills-compiler",
+        "@typescript/native-preview",
+        "@fission-ai/openspec",
+        "markdownlint-cli2",
+        "tsdown"
+      ]
+    },
+    "apps/demo": {
+      "entry": ["projects/**/*"],
+      "ignoreDependencies": [
+        "@nx-devkit/biome",
+        "@nx-devkit/oxlint",
+        "@nx-devkit/tsdown",
+        "@nx-devkit/typescript",
+        "@nx/devkit",
+        "@typescript/native-preview"
+      ]
+    },
+    "packages/*": {
+      "entry": [
+        "src/index.ts",
+        "src/plugin.ts",
+        "src/bin/*.ts",
+        "src/generators/*/generator.ts",
+        "src/executors/*/executor.ts",
+        "src/migrations/**/*.ts"
+      ],
+      "ignore": ["dist/**"],
+      "ignoreDependencies": [
+        "@nx/devkit",
+        "@biomejs/biome",
+        "oxlint",
+        "eslint",
+        "markdownlint-cli2",
+        "@fission-ai/openspec",
+        "typescript",
+        "knip",
+        "@playwright/test"
+      ]
+    }
+  }
+}

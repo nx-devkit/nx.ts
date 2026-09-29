@@ -17,8 +17,7 @@ packages/prepare-for-release/
 │   │   └── publish-placeholder/
 │   │       ├── executor.ts
 │   │       ├── publish-placeholder.spec.ts
-│   │       ├── schema.json
-│   │       └── schema.d.ts
+│   │       └── schema.json
 │   └── generators/
 │       └── init/
 │           ├── generator.ts
