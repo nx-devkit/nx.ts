@@ -29,7 +29,8 @@
     "./packages/knip/src/plugin.ts",
     "./packages/playwright/src/plugin.ts",
     "./packages/eslint/src/plugin.ts",
-    "./packages/commitlint/src/plugin.ts"
+    "./packages/commitlint/src/plugin.ts",
+    "./packages/cspell/src/plugin.ts"
   ],
   "release": {
     "projects": [
@@ -50,7 +51,8 @@
       "packages/knip",
       "packages/playwright",
       "packages/eslint",
-      "packages/commitlint"
+      "packages/commitlint",
+      "packages/cspell"
     ],
     "projectsRelationship": "independent",
     "version": {
@@ -84,7 +86,9 @@
   "targetDefaults": {
     "build": {
       "cache": true,
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "typecheck": {
       "cache": true
