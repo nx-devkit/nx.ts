@@ -15,5 +15,13 @@
   "dependencies": {
     "@nx/devkit": "^22.0.0 || ^23.0.0",
     "jsonc-parser": "^3.3.1"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11",
+    "@types/node": "^26.0.0",
+    "typescript": "^6.0.3"
   }
 }

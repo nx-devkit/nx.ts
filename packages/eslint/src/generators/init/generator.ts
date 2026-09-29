@@ -1,9 +1,11 @@
 import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit'
-import { registerPlugin, resolveRootProjectName } from '@nx-devkit/internal'
+import { installPeerDeps, registerPlugin, resolveRootProjectName } from '@nx-devkit/internal'
 
 export interface NxEslintInitOptions {
   pluginPath?: string
 }
+
+const PEER_DEPS: Record<string, string> = { eslint: '^9.0.0' }
 
 const DEFAULT_PLUGIN_PATH = '@nx-devkit/eslint'
 
@@ -15,6 +17,7 @@ export async function initGenerator(
   const projectName = resolveRootProjectName(tree) ?? '{root-project}'
 
   registerPlugin(tree, pluginPath)
+  const installDeps = installPeerDeps(tree, PEER_DEPS)
 
   const checklist = [
     `1. The plugin is registered (${pluginPath}) — projects containing a eslint config now have eslint targets.`,
@@ -27,9 +30,7 @@ export async function initGenerator(
   }
   await formatFiles(tree)
 
-  return () => {
-    /* No-op */
-  }
+  return () => installDeps()
 }
 
 export default initGenerator

@@ -1,4 +1,4 @@
-import type { Tree } from '@nx/devkit'
+import { addDependenciesToPackageJson, type GeneratorCallback, type Tree } from '@nx/devkit'
 import { applyEdits, modify } from 'jsonc-parser'
 import { detectIndent, parseJsonObject } from './jsonc.ts'
 
@@ -62,4 +62,25 @@ export function resolveRootProjectName(tree: Tree): string | undefined {
     }
   }
   return undefined
+}
+
+/**
+ * Returns a GeneratorCallback that installs `deps` as devDependencies in the
+ * consumer's package.json, skipping deps already declared in dependencies or
+ * devDependencies. Returns a no-op callback when nothing is missing.
+ */
+export function installPeerDeps(tree: Tree, deps: Record<string, string>): GeneratorCallback {
+  const pkg = readJson(tree, 'package.json') ?? {}
+  const existing = {
+    ...(pkg.dependencies as Record<string, string> | undefined),
+    ...(pkg.devDependencies as Record<string, string> | undefined),
+  }
+  const missing: Record<string, string> = {}
+  for (const [name, range] of Object.entries(deps)) {
+    if (!(name in existing)) missing[name] = range
+  }
+  if (Object.keys(missing).length === 0) {
+    return () => {}
+  }
+  return addDependenciesToPackageJson(tree, {}, missing)
 }

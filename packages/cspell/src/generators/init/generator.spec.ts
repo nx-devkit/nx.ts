@@ -53,4 +53,14 @@ describe('initGenerator', () => {
     const plugins = readPlugins(tree) as Array<{ plugin: string }>
     expect(plugins.some((p) => p.plugin === './local/plugin.ts')).toBe(true)
   })
+
+  it('installs the peer dependency into devDependencies', async () => {
+    const tree = createTree()
+    tree.write('package.json', JSON.stringify({ name: 'x' }))
+
+    await initGenerator(tree, {})
+
+    const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}')
+    expect(pkg.devDependencies['cspell']).toBe('^9.0.0')
+  })
 })

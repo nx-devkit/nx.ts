@@ -3,7 +3,12 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { logger } from '@nx/devkit'
 
 export { detectIndent, parseJsonObject } from './jsonc.ts'
-export { readJson, registerPlugin, resolveRootProjectName } from './init-generator.ts'
+export {
+  installPeerDeps,
+  readJson,
+  registerPlugin,
+  resolveRootProjectName,
+} from './init-generator.ts'
 export {
   VITEST_CONFIG_NAMES,
   findConfigFile,

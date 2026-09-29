@@ -8,11 +8,7 @@ Zero-config Nx plugin: a [commitlint](https://commitlint.js.org/) config file in
 nx add @nx-devkit/commitlint
 ```
 
-The init generator registers the plugin in `nx.json`. Install the peer dependency yourself:
-
-```bash
-npm i -D @commitlint/cli @commitlint/config-conventional
-```
+The init generator registers the plugin in `nx.json` and installs the missing peer dependency (`@commitlint/cli`) into devDependencies.
 
 ## Usage
 
