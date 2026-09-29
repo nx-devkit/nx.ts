@@ -12,7 +12,8 @@
         "@nx-devkit/skills-compiler",
         "@typescript/native-preview",
         "@fission-ai/openspec",
-        "markdownlint-cli2"
+        "markdownlint-cli2",
+        "tsdown"
       ]
     },
     "apps/demo": {

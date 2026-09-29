@@ -34,7 +34,8 @@
     "nx": "23.2.1",
     "oxlint": "^1.70.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "tsdown": "^0.22.3"
   },
   "overrides": {
     "brace-expansion": "5.0.12",
