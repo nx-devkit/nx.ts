@@ -72,10 +72,11 @@ export const createNodesV2: CreateNodesV2<NxKnipPluginOptions> = [
     for (const [dir, files] of [...byDir.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       if (shouldSkipDir(dir, workspaceRoot)) continue
 
-      const sorted = files.sort(
+      const sorted = files.toSorted(
         (a, b) => configRank(a.split('/').pop() ?? '') - configRank(b.split('/').pop() ?? ''),
       )
-      const winner = sorted[0]
+      const winner = sorted.at(0)
+      if (winner === undefined) continue
       const winnerName = winner.split('/').pop() ?? ''
       if (winnerName === 'package.json' && !hasKnipKey(resolve(workspaceRoot, winner))) continue
 

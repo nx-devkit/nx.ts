@@ -56,7 +56,7 @@ describe('@nx-devkit/knip createNodesV2', () => {
     const results = await createNodesV2[1](['packages/a/package.json'], {}, makeContext(root))
 
     const project = results[0]![1].projects!['packages/a']!
-    expect(project.targets!.knip.options.command).toBe('npx knip')
+    expect(project.targets!.knip!.options.command).toBe('npx knip')
   })
 
   it('skips package.json without a "knip" key', async () => {
@@ -72,7 +72,7 @@ describe('@nx-devkit/knip createNodesV2', () => {
     expect(results).toHaveLength(1)
     const targets = results[0]![1].projects!['']!.targets!
     expect(Object.keys(targets).sort()).toEqual(['knip', 'knip:fix'])
-    expect(targets.knip.inputs).toContain('{workspaceRoot}/knip.ts')
+    expect(targets.knip!.inputs).toContain('{workspaceRoot}/knip.ts')
   })
 
   it('honors targetName and fixTarget options', async () => {
