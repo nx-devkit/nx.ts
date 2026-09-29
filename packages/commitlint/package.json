@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/commitlint",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "MIT",
   "description": "Nx plugin: commitlint config files infer a commitlint target — conventional-commit linting without project.json.",
   "keywords": [

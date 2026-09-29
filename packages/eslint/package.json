@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/eslint",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "description": "Nx plugin: eslint.config files infer a cached lint target (plus lint:fix) — ESLint without project.json.",
   "keywords": [

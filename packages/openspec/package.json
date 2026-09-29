@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/openspec",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "description": "Nx plugin: openspec/config.yaml infers a cached spec-validate target plus per-change spec-validate:<id> targets — no project.json needed.",
   "keywords": [
