@@ -89,4 +89,23 @@ grep -q '"@nx-devkit/typescript"' nx.json
 echo "==> Verifying plugin resolution + inferred project"
 ./node_modules/.bin/nx show projects | grep -q e2e-packed-consumer
 
+echo "==> Checking published manifests for workspace-protocol leaks"
+# Regression guard (#74): a `workspace:*` spec in a published manifest breaks
+# `npm install` for consumers. Tarball package.json files must not contain one.
+if grep -rl '"workspace:' node_modules/@nx-devkit/*/package.json; then
+  echo "ERROR: workspace:* spec leaked into a published manifest" >&2
+  exit 1
+fi
+
+echo "==> Running an inferred target against the installed tarballs"
+# The init generator already installed typescript + native-preview; give
+# typecheck a real input so tsc/tsgo has something to check.
+cat > index.ts <<'TS'
+export const ok = (): boolean => true
+TS
+# #74 regression class: inference that works in the monorepo but ships targets
+# pointing at files absent from the tarball. A real run catches missing
+# executors and unresolved plugin paths — `nx show projects` alone cannot.
+./node_modules/.bin/nx run e2e-packed-consumer:typecheck
+
 echo "==> Packed-tarball e2e passed"
