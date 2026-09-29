@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 export {
-  VITEST_CONFIG_NAMES,
   findConfigFile,
   findVitestConfig,
 } from '@nx-devkit/internal'

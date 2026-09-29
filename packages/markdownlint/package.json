@@ -2,7 +2,7 @@
   "name": "@nx-devkit/markdownlint",
   "version": "0.0.2",
   "license": "MIT",
-  "description": "Nx plugin: .markdownlint config files infer a cached lint-md target — Markdown linting without project.json.",
+  "description": "Nx plugin: .markdownlint config files infer a cached lint-md target \u2014 Markdown linting without project.json.",
   "keywords": [
     "nx",
     "nx-plugin",
@@ -47,7 +47,6 @@
     "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.0.0",
     "markdownlint-cli2": "^0.23.2",
-    "memfs": "^4.57.8",
     "tsdown": "^0.22.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
