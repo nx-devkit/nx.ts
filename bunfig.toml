@@ -1,0 +1,5 @@
+[install]
+# Supply-chain policy: never resolve a package version younger than 7 days.
+# Replaces manual version pinning for socket.dev `recentlyPublished` alerts —
+# ranges stay loose, the resolver enforces the freshness window.
+minimumReleaseAge = 604800
