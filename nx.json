@@ -21,7 +21,8 @@
     },
     "./packages/markdownlint/src/plugin.ts",
     "./packages/openspec/src/plugin.ts",
-    "./packages/knip/src/plugin.ts"
+    "./packages/knip/src/plugin.ts",
+    "./packages/playwright/src/plugin.ts"
   ],
   "release": {
     "projects": [
@@ -39,7 +40,8 @@
       "packages/nx-cloud",
       "packages/markdownlint",
       "packages/openspec",
-      "packages/knip"
+      "packages/knip",
+      "packages/playwright"
     ],
     "projectsRelationship": "independent",
     "version": {
