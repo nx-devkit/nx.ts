@@ -65,7 +65,7 @@ bun add -D vitest oxlint eslint @biomejs/biome tsdown
 |---|---|---|
 | `tsconfig.json` (or `configFile` option) | `typecheck` | `@nx-devkit/typescript:typecheck` executor — `tsgo --build` or `tsc --build`, shell-free, 10-min bounded |
 | `vitest.config.*` | `test`, `test:watch`, `test:coverage` | `vitest run` / `vitest` / `vitest run --coverage` |
-| `*.test.*`/`*.spec.*` without Vitest | `test` (+ `test:tap`, `test:coverage` when enabled) | native `node --test` |
+| `*.test.*`/`*.spec.*` without Vitest | `test` (+ `test:tap`, `test:coverage` when enabled) | native `node --test` (requires Node ≥ 22.18) |
 | `.oxlintrc.*` + `oxlint: true` | `lint` | `oxlint .` |
 | `eslint.config.*` + `eslint: true` | `lint` (if oxlint did not provide it) | `eslint .` |
 | `biome.json{,c}` + `biome: true` | `format`, `format-check` (+ `lint` if no earlier tool provided it) | `biome format --write .` / `biome format .` / `biome lint .` |
@@ -73,6 +73,8 @@ bun add -D vitest oxlint eslint @biomejs/biome tsdown
 | publishable `package.json` + `src/index.ts` (no `tsdown.config.*`) | `build`, `build:watch` | config-free tsdown — same executor; publishable = `exports` or `bin` field, or `main` + `files` |
 
 All `nx:run-commands` targets run with `cwd` = the project root and resolve binaries from `node_modules/.bin`. The executors resolve the tool's Node entry directly and walk up ancestor `node_modules` directories — hoisted monorepo installs work, on Windows too.
+
+Native `test` targets run `node --test` directly on `.ts` test files and require **Node ≥ 22.18** (unflagged type stripping). Node 22.6–22.17 works with `NODE_OPTIONS=--experimental-strip-types`. If vitest is configured (`vitest.config.*`), its targets take priority and no native targets are inferred.
 
 ### Lint precedence
 

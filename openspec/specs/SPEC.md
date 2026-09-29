@@ -31,7 +31,16 @@ Tool plugins emit `nx:run-commands` executors (no custom executor packages), wra
 | `**/vitest.config.{ts,js,mts,mjs,cts,cjs}` | `@nx-devkit/typescript` (preset) / `@nx-devkit/vitest` (standalone) | `test`, `test:watch`, `test:coverage` | `nx:run-commands` (`npx vitest run`) | true (test) / false (watch) | `test` dependsOn `^build` |
 | `**/.oxlintrc.{json,yaml,yml,js,mjs,cjs}` | `@nx-devkit/oxlint` | `lint` | `nx:run-commands` (`npx oxlint .`) | true | inputs include `.oxlintrc.*`, `src/**/*` |
 | `**/biome.json`, `biome.jsonc` | `@nx-devkit/biome` | `format`, `format-check`, `lint` | `nx:run-commands` (`npx biome ...`) | false (format) / true (check, lint) | format has side effects |
+| `**/eslint.config.*` | `@nx-devkit/typescript` (preset) | `lint` | `nx:run-commands` (`npx eslint .`) | true | owns `lint` only when oxlint does not |
+| `**/*.{test,spec}.{ts,js,mts,mjs}` under a project with no `vitest.config.*` | `@nx-devkit/typescript` (preset) | `test` (+ `test:tap`, `test:coverage` opt-in) | `nx:run-commands` (`node --test`) | true | native runner — requires Node ≥ 22.18 for `.ts` |
+| publishable `**/package.json` + `src/index.ts` (no `tsdown.config.*`) | `@nx-devkit/typescript` (preset) | `build`, `build:watch` | `@nx-devkit/typescript:build` | true | config-free tsdown; publishable = `exports`/`bin`, or `main` + `files` |
 | `**/package.json` with `nx.tags` (non-root) | `@nx-devkit/boundaries` | `check-boundaries` (on the root project) | `@nx-devkit/boundaries:check-boundaries` | true | target inferred only when ≥1 project declares tags |
+| `**/SKILL.md` | `@nx-devkit/skill` (+ `@nx-devkit/skillspector` adds `scan`) | `build`, `lint`, `validate`, `os-check`, `size-check` (+`scan`) | executors + `nx:run-commands` | true (build) / varies | project name `skills-<slug>-<hash>` |
+| `**/.markdownlint*.{json,jsonc,yaml,yml,cjs,mjs}` | `@nx-devkit/markdownlint` | `lint-md`, `lint-md:fix` | `nx:run-commands` (`markdownlint-cli2`) | true (lint) / false (fix) | `.markdownlint-cli2.*` is runner config (auto-discovered via `cwd`), not `--config` |
+| `**/openspec/config.yaml` | `@nx-devkit/openspec` | `spec-validate` + `spec-validate:<change-id>` per active change | `nx:run-commands` (`openspec validate`) | true | change dirs need `proposal.md`; `archive/` excluded |
+| `**/*.{puml,mmd,dot,d2,bpmn,excalidraw,...}` + fenced blocks in `*.md` | `@nx-devkit/diagrams` | `diagrams` + `diagram-<slug>` per file/block | `@nx-devkit/diagrams:render` | true | Kroki by default; `krokiUrl: "docker"` runs an ephemeral container; per-type `commands` overrides |
+| `nx.json` | `@nx-devkit/nx-cloud` | `nx-cloud-rotate` (root project) | `@nx-devkit/nx-cloud:rotate` | false | rebinds the workspace to a fresh Nx Cloud org; deletion of the old org is manual (no public API) |
+| non-root `**/package.json` with `name` + `private !== true` | `@nx-devkit/prepare-for-release` | `prepare-for-release` | `@nx-devkit/prepare-for-release:publish-placeholder` | false | publishes a minimal `0.0.0` placeholder so OIDC trust can be configured |
 
 Workspace root is skipped by every plugin *as an inference source*; `@nx-devkit/boundaries` is the exception that deliberately attaches its graph-global `check-boundaries` target to the root project — it skips the root only as a boundary *citizen*.
 
