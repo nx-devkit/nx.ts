@@ -8,6 +8,7 @@
     ".": {
       "entry": ["scripts/**/*"],
       "ignoreDependencies": [
+        "@nx/js",
         "@nx/devkit",
         "@nx-devkit/skills-compiler",
         "@typescript/native-preview",
