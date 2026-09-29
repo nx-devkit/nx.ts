@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/boundaries",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "license": "MIT",
   "description": "Linter-agnostic Nx plugin: enforces module-boundary depConstraints between tagged projects — no ESLint, no project.json required.",
   "keywords": [
