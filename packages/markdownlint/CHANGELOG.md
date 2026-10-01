@@ -1,3 +1,14 @@
+## 0.0.4 (2026-10-01)
+
+### 🩹 Fixes
+
+- **deps:** declare jsonc-parser on plugins bundling @nx-devkit/internal ([#128](https://github.com/nx-devkit/nx.ts/pull/128))
+
+### ❤️ Thank You
+
+- Devin @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.3 (2026-09-29)
 
 ### 🚀 Features
