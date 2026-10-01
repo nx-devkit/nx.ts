@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/cspell",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "description": "Nx plugin: cspell config files infer a cached spell-check target \u2014 zero-config spelling lint without project.json.",
   "keywords": [
