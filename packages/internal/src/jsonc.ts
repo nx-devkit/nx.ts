@@ -1,9 +1,4 @@
-import {
-  parse,
-  type ParseError,
-  parseTree,
-  printParseErrorCode,
-} from 'jsonc-parser/lib/esm/main.js'
+import { parse, type ParseError, parseTree, printParseErrorCode } from 'jsonc-parser'
 
 export function parseJsonObject(text: string, path: string): Record<string, unknown> {
   const errors: ParseError[] = []

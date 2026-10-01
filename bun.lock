@@ -39,9 +39,10 @@
     },
     "packages/biome": {
       "name": "@nx-devkit/biome",
-      "version": "0.1.16",
+      "version": "0.1.17",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.0.0",
@@ -56,9 +57,10 @@
     },
     "packages/boundaries": {
       "name": "@nx-devkit/boundaries",
-      "version": "0.0.10",
+      "version": "0.0.11",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
         "typescript": ">=5.0.0",
       },
       "devDependencies": {
@@ -71,9 +73,10 @@
     },
     "packages/commitlint": {
       "name": "@nx-devkit/commitlint",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -88,9 +91,10 @@
     },
     "packages/cspell": {
       "name": "@nx-devkit/cspell",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -105,9 +109,10 @@
     },
     "packages/diagrams": {
       "name": "@nx-devkit/diagrams",
-      "version": "0.0.16",
+      "version": "0.0.17",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -121,9 +126,10 @@
     },
     "packages/eslint": {
       "name": "@nx-devkit/eslint",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -152,9 +158,10 @@
     },
     "packages/knip": {
       "name": "@nx-devkit/knip",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -170,9 +177,10 @@
     },
     "packages/markdownlint": {
       "name": "@nx-devkit/markdownlint",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -188,7 +196,7 @@
     },
     "packages/nx-cloud": {
       "name": "@nx-devkit/nx-cloud",
-      "version": "0.0.15",
+      "version": "0.0.16",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
         "jsonc-parser": "^3.3.1",
@@ -203,9 +211,10 @@
     },
     "packages/openspec": {
       "name": "@nx-devkit/openspec",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@fission-ai/openspec": "^1.4.1",
@@ -221,9 +230,10 @@
     },
     "packages/oxlint": {
       "name": "@nx-devkit/oxlint",
-      "version": "0.1.16",
+      "version": "0.1.17",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -239,9 +249,10 @@
     },
     "packages/playwright": {
       "name": "@nx-devkit/playwright",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -256,7 +267,7 @@
     },
     "packages/prepare-for-release": {
       "name": "@nx-devkit/prepare-for-release",
-      "version": "0.1.20",
+      "version": "0.1.21",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
         "tinyglobby": "^0.2.0",
@@ -270,7 +281,7 @@
     },
     "packages/release": {
       "name": "@nx-devkit/release",
-      "version": "0.0.19",
+      "version": "0.0.20",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
@@ -282,9 +293,10 @@
     },
     "packages/skill": {
       "name": "@nx-devkit/skill",
-      "version": "0.1.17",
+      "version": "0.1.18",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
         "yaml": "^2.9.0",
       },
       "devDependencies": {
@@ -298,9 +310,10 @@
     },
     "packages/skillspector": {
       "name": "@nx-devkit/skillspector",
-      "version": "0.1.17",
+      "version": "0.1.18",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -312,9 +325,10 @@
     },
     "packages/tsdown": {
       "name": "@nx-devkit/tsdown",
-      "version": "0.1.15",
+      "version": "0.1.16",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
         "tsdown": "^0.22.3",
       },
       "devDependencies": {
@@ -327,12 +341,13 @@
     },
     "packages/typescript-preset": {
       "name": "@nx-devkit/typescript",
-      "version": "0.2.16",
+      "version": "0.2.17",
       "bin": {
         "nx-devkit-typescript": "./dist/bin/init.mjs",
       },
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -357,9 +372,10 @@
     },
     "packages/vitest": {
       "name": "@nx-devkit/vitest",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
+        "jsonc-parser": "^3.3.1",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -1982,7 +1998,7 @@
 
     "yallist": ["yallist@3.1.1", "", {}, "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g=="],
 
-    "yaml": ["yaml@2.9.0", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA=="],
+    "yaml": ["yaml@2.9.1", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw=="],
 
     "yargs": ["yargs@17.7.2", "", { "dependencies": { "cliui": "^8.0.1", "escalade": "^3.1.1", "get-caller-file": "^2.0.5", "require-directory": "^2.1.1", "string-width": "^4.2.3", "y18n": "^5.0.5", "yargs-parser": "^21.1.1" } }, "sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w=="],
 
@@ -2114,8 +2130,6 @@
 
     "cspell/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
 
-    "cspell-config-lib/yaml": ["yaml@2.9.1", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw=="],
-
     "cspell-glob/picomatch": ["picomatch@4.0.7", "", {}, "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="],
 
     "es-set-tostringtag/hasown": ["hasown@2.0.2", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ=="],
@@ -2140,8 +2154,6 @@
 
     "knip/picomatch": ["picomatch@4.0.7", "", {}, "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="],
 
-    "knip/yaml": ["yaml@2.9.1", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw=="],
-
     "log-symbols/chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
 
     "markdownlint/string-width": ["string-width@8.2.1", "", { "dependencies": { "get-east-asian-width": "^1.5.0", "strip-ansi": "^7.1.2" } }, "sha512-IIaP0g3iy9Cyy18w3M9YcaDudujEAVHKt3a3QJg1+sr/oX96TbaGUubG0hJyCjCBThFH+tFpcIyoUHUn1ogaLA=="],
@@ -2153,6 +2165,8 @@
     "nx/ora": ["ora@5.4.1", "", { "dependencies": { "bl": "^4.1.0", "chalk": "^4.1.0", "cli-cursor": "^3.1.0", "cli-spinners": "^2.5.0", "is-interactive": "^1.0.0", "is-unicode-supported": "^0.1.0", "log-symbols": "^4.1.0", "strip-ansi": "^6.0.0", "wcwidth": "^1.0.1" } }, "sha512-5b6Y85tPxZZ7QytO+BQzysW31HJku27cRIlkbAXaNx+BdcVi+LlRFmVXzeF6a7JCwJpyw5c4b+YSVImQIrBpuQ=="],
 
     "nx/semver": ["semver@7.8.4", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-rUCObTnP32Q08R2uuIrt7r9PlEonuTmtuXYcW6s5kjdlj3xbnwe+21yXptAUYcMAABLkYYTtnmzb3w3EDZfueA=="],
+
+    "nx/yaml": ["yaml@2.9.0", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA=="],
 
     "ora/cli-cursor": ["cli-cursor@5.0.0", "", { "dependencies": { "restore-cursor": "^5.0.0" } }, "sha512-aCj4O5wKyszjMmDT4tZj93kxyydN/K5zPWSCe6/0AV/AA1pqe5ZBIw0a2ZfPQV7lL5/yb5HsUreJ6UFAF1tEQw=="],
 

@@ -2,7 +2,7 @@
   "name": "@nx-devkit/skill",
   "version": "0.1.18",
   "license": "MIT",
-  "description": "Nx plugin for agent skills: any SKILL.md becomes a project with build, lint, validate, os-check, and size-check targets — no project.json required.",
+  "description": "Nx plugin for agent skills: any SKILL.md becomes a project with build, lint, validate, os-check, and size-check targets \u2014 no project.json required.",
   "keywords": [
     "nx",
     "nx-plugin",
@@ -69,6 +69,7 @@
   "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skill",
   "dependencies": {
     "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "jsonc-parser": "^3.3.1",
     "yaml": "^2.9.0"
   },
   "generators": "./generators.json"
