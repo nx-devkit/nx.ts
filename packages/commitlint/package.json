@@ -2,7 +2,7 @@
   "name": "@nx-devkit/commitlint",
   "version": "0.0.1",
   "license": "MIT",
-  "description": "Nx plugin: commitlint config files infer a commitlint target — conventional-commit linting without project.json.",
+  "description": "Nx plugin: commitlint config files infer a commitlint target \u2014 conventional-commit linting without project.json.",
   "keywords": [
     "nx",
     "nx-plugin",
@@ -57,7 +57,8 @@
   },
   "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/commitlint",
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "generators": "./generators.json"
 }

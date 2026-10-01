@@ -19,7 +19,7 @@
   ],
   "private": false,
   "type": "module",
-  "description": "Preset Nx plugin that infers typecheck, test, lint, format, and build targets from config files you already keep — no project.json required. One-command bootstrap: npx @nx-devkit/typescript init",
+  "description": "Preset Nx plugin that infers typecheck, test, lint, format, and build targets from config files you already keep \u2014 no project.json required. One-command bootstrap: npx @nx-devkit/typescript init",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
   "types": "./dist/plugin.d.mts",
@@ -106,6 +106,7 @@
   },
   "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/typescript-preset",
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "jsonc-parser": "^3.3.1"
   }
 }

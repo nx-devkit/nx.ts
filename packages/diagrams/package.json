@@ -71,7 +71,8 @@
     "directory": "packages/diagrams"
   },
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"

@@ -2,7 +2,7 @@
   "name": "@nx-devkit/playwright",
   "version": "0.0.2",
   "license": "MIT",
-  "description": "Nx plugin: playwright.config files infer a cached e2e target (plus e2e:ui and e2e:update-snapshots) — Playwright without project.json.",
+  "description": "Nx plugin: playwright.config files infer a cached e2e target (plus e2e:ui and e2e:update-snapshots) \u2014 Playwright without project.json.",
   "keywords": [
     "nx",
     "nx-plugin",
@@ -58,7 +58,8 @@
   },
   "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/playwright",
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "generators": "./generators.json"
 }

@@ -2,7 +2,7 @@
   "name": "@nx-devkit/eslint",
   "version": "0.0.2",
   "license": "MIT",
-  "description": "Nx plugin: eslint.config files infer a cached lint target (plus lint:fix) — ESLint without project.json.",
+  "description": "Nx plugin: eslint.config files infer a cached lint target (plus lint:fix) \u2014 ESLint without project.json.",
   "keywords": [
     "nx",
     "nx-plugin",
@@ -59,7 +59,8 @@
   },
   "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/eslint",
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "generators": "./generators.json"
 }

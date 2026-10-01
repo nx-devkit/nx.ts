@@ -1,5 +1,5 @@
 import { addDependenciesToPackageJson, type GeneratorCallback, type Tree } from '@nx/devkit'
-import { applyEdits, modify } from 'jsonc-parser/lib/esm/main.js'
+import { applyEdits, modify } from 'jsonc-parser'
 import { detectIndent, parseJsonObject } from './jsonc.ts'
 
 export function readJson(tree: Tree, path: string): Record<string, unknown> | null {
