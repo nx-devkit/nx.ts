@@ -226,7 +226,7 @@ export function publishStepOutputs(
   const runArtifactDir = findRunDir(artifactDir, runId)
 
   for (const operation of step.operations) {
-    const name = outputName(operation)
+    const name = declaredOutputName(operation)
     if (name === undefined) continue
     const destination = publishOperation(operation, step, workspace, runArtifactDir)
     if (!destination) continue
@@ -242,7 +242,7 @@ export function publishStepOutputs(
 }
 
 /** The name of an output operation; `undefined` for the other kinds. */
-function outputName(operation: OperationDefinition): string | undefined {
+function declaredOutputName(operation: OperationDefinition): string | undefined {
   if (
     operation.kind === 'exportStdout' ||
     operation.kind === 'exportOutput' ||
