@@ -86,9 +86,9 @@ async function inferProject(
     graph = await loadDefinitionGraph(absConfig)
   } catch (error) {
     logger.warn(
-      `[${PLUGIN_SCOPE}] could not load ${configFile}: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `[${PLUGIN_SCOPE}] could not load ${logSafe(configFile)}: ${logSafe(
+        error instanceof Error ? error.message : String(error),
+      )}`,
     )
     return null
   }
@@ -195,12 +195,28 @@ function claimTargetName(
   if (owner !== undefined) {
     unique = uniqueName(name, owners)
     logger.warn(
-      `[${PLUGIN_SCOPE}] target name "${name}" is used by both "${owner}" and "${step.id}" in ${configFile} — using "${unique}" for "${step.id}"`,
+      `[${PLUGIN_SCOPE}] target name "${logSafe(name)}" is used by both "${logSafe(owner)}" and "${logSafe(step.id)}" in ${logSafe(configFile)} — using "${logSafe(unique)}" for "${logSafe(step.id)}"`,
     )
   }
   owners.set(unique, step.id)
   return unique
 }
+
+/**
+ * A value from the config file, safe to put into a log message.
+ *
+ * The config is untrusted input: a step id or a file name may carry
+ * control characters, and a log line must stay one line.
+ */
+function logSafe(value: string): string {
+  return value.replace(CONTROL_CHARACTERS, ' ').trim()
+}
+
+/** Control characters — they would break the line of a log message. */
+const CONTROL_CHARACTERS = new RegExp(
+  `[${String.fromCharCode(0)}-${String.fromCharCode(31)}${String.fromCharCode(127)}]`,
+  'g',
+)
 
 /**
  * Pick the config of a directory.
