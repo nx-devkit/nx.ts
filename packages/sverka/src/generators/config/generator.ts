@@ -1,4 +1,5 @@
 import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit'
+import { parse, type ParseError } from 'jsonc-parser'
 import { resolveRootProjectName } from '@nx-devkit/internal'
 import { GITHUB_CHECKS, GITHUB_CHECK_IDS } from './github-checks.js'
 
@@ -48,6 +49,12 @@ export async function configGenerator(
   const projects = readProjects(tree)
   const projectName = options.project ?? resolveRootProjectName(tree)
   const project = projectName ? projects.get(projectName) : undefined
+  if (options.project && !project) {
+    // A typo must not silently produce a config for the wrong project.
+    throw new Error(
+      `project "${options.project}" not found in the workspace — known projects: ${[...projects.keys()].join(', ') || '(none)'}`,
+    )
+  }
   const projectRoot = project?.root ?? ''
 
   const configPath = options.path ?? `${projectRoot}/sverka.config.ts`.replace(/^\//, '')
@@ -161,14 +168,13 @@ function readScripts(tree: Tree, projectRoot: string): Record<string, string> {
 function readJsonFile(tree: Tree, path: string): Record<string, unknown> | null {
   const normalized = path.replace(/^\//, '')
   if (!tree.exists(normalized)) return null
-  try {
-    const parsed = JSON.parse(tree.read(normalized, 'utf8') ?? '{}')
-    return typeof parsed === 'object' && parsed !== null
-      ? (parsed as Record<string, unknown>)
-      : null
-  } catch {
-    return null
-  }
+  const content = tree.read(normalized, 'utf8')
+  if (content === null) return null
+  // Nx metadata is JSONC — comments and trailing commas are valid.
+  const errors: ParseError[] = []
+  const parsed = parse(content, errors, { allowTrailingComma: true })
+  if (errors.length > 0) return null
+  return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null
 }
 
 /** Target names declared by a project's project.json. */
@@ -195,44 +201,48 @@ function readProjects(tree: Tree): Map<string, TreeProject> {
   const projects = new Map<string, TreeProject>()
   for (const path of listFiles(tree)) {
     if (path.endsWith('project.json')) {
-      const content = tree.read(path, 'utf8')
-      if (content === null) continue
-      let parsed: {
-        name?: string
-        projectName?: string
-        root?: string
-        targets?: Record<string, unknown>
-      }
-      try {
-        parsed = JSON.parse(content)
-      } catch {
-        continue
-      }
-      const root = parsed.root ?? dirnameOf(path)
-      const name = parsed.name ?? parsed.projectName ?? basename(root)
+      const parsed = readJsonFile(tree, path)
+      if (!parsed) continue
+      const root = (parsed.root as string | undefined) ?? dirnameOf(path)
+      const name =
+        (parsed.name as string | undefined) ??
+        (parsed.projectName as string | undefined) ??
+        basename(root)
       projects.set(name, {
         root,
-        targets: new Set(Object.keys(parsed.targets ?? {})),
+        targets: new Set(Object.keys((parsed.targets as object) ?? {})),
       })
       continue
     }
 
     if (!path.endsWith('package.json')) continue
-    const content = tree.read(path, 'utf8')
-    if (content === null) continue
-    let parsed: { name?: string }
-    try {
-      parsed = JSON.parse(content)
-    } catch {
-      continue
-    }
-    if (!parsed.name) continue
+    const parsed = readJsonFile(tree, path)
+    const name = parsed?.name as string | undefined
+    if (!name) continue
     const root = dirnameOf(path)
-    if (projects.has(parsed.name)) continue
-    projects.set(parsed.name, { root, targets: new Set() })
+    if (projects.has(name)) continue
+    projects.set(name, { root, targets: new Set() })
   }
   return projects
 }
+
+/**
+ * Directories that never hold a workspace project.
+ *
+ * The scan walks the tree; `node_modules` (and the workspaces linked into
+ * it) must not be mistaken for a project, and `.git`/`.nx`/build output
+ * only make the scan slower.
+ */
+const IGNORED_DIRECTORIES = new Set([
+  'node_modules',
+  '.git',
+  '.nx',
+  '.nx-cache',
+  'dist',
+  'build',
+  'coverage',
+  'tmp',
+])
 
 /** Every file of the tree, relative to the workspace root. */
 function listFiles(tree: Tree, dir = ''): string[] {
@@ -243,6 +253,7 @@ function listFiles(tree: Tree, dir = ''): string[] {
       files.push(path)
       continue
     }
+    if (IGNORED_DIRECTORIES.has(child)) continue
     files.push(...listFiles(tree, path))
   }
   return files
@@ -315,19 +326,19 @@ function renderConfig(input: {
     '',
     `const proj = new Project(${JSON.stringify(input.projectName)})`,
     '',
-    `const ${input.pipeline} = new Pipeline(proj, ${JSON.stringify(input.pipeline)})`,
+    `const ci = new Pipeline(proj, ${JSON.stringify(input.pipeline)})`,
     '',
   ]
 
   for (const check of input.checks) {
     lines.push(
-      `new ShellStep(${input.pipeline}, ${JSON.stringify(check.id)}, { command: ${JSON.stringify(check.command)} })`,
+      `new ShellStep(ci, ${JSON.stringify(check.id)}, { command: ${JSON.stringify(check.command)} })`,
     )
   }
 
   lines.push(
     '',
-    `export const ${camel(input.entry)} = new Entry(${input.pipeline}, ${JSON.stringify(input.entry)}, {`,
+    `export const ${camel(input.entry)} = new Entry(ci, ${JSON.stringify(input.entry)}, {`,
     '  trigger: push(),',
     `  roots: [${input.checks.map((check) => JSON.stringify(check.id)).join(', ')}],`,
     '})',

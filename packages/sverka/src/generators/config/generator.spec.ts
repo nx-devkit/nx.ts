@@ -93,6 +93,55 @@ describe('@nx-devkit/sverka:config', () => {
     expect(config).toContain('"npm run test"')
   })
 
+  it('rejects an unknown project', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'workspace' }))
+
+    await expect(configGenerator(tree, { project: 'nope' })).rejects.toThrow(
+      /not found in the workspace/,
+    )
+  })
+
+  it('ignores node_modules when it looks for projects', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'workspace' }))
+    tree.write(
+      'node_modules/dep/package.json',
+      JSON.stringify({ name: 'dep', scripts: { lint: 'oxlint .' } }),
+    )
+
+    await configGenerator(tree, { project: 'dep' }).catch(() => undefined)
+
+    // The dependency is not a workspace project — the generator must not
+    // have written a config for it.
+    expect(tree.exists('node_modules/dep/sverka.config.ts')).toBe(false)
+  })
+
+  it('emits a valid identifier for a dashed pipeline name', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))
+
+    await configGenerator(tree, { pipeline: 'my-ci' })
+
+    const config = tree.read('sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('const ci = new Pipeline(proj, "my-ci")')
+    expect(config).toContain('new ShellStep(ci, "lint"')
+  })
+
+  it('reads a project.json with comments', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'workspace' }))
+    tree.write(
+      'packages/app/project.json',
+      '{ /* the app */ "name": "app", "root": "packages/app", "targets": { "lint": {} } }',
+    )
+
+    await configGenerator(tree, { project: 'app' })
+
+    const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('"nx run app:lint"')
+  })
+
   it('refuses to overwrite an existing config', async () => {
     const tree = createTreeWithEmptyWorkspace()
     tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))

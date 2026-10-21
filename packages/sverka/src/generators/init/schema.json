@@ -6,7 +6,9 @@
   "properties": {
     "pluginPath": {
       "type": "string",
-      "description": "Plugin path registered in nx.json. Default: @nx-devkit/sverka."
+      "description": "Plugin path registered in nx.json. Default: @nx-devkit/sverka.",
+      "default": "@nx-devkit/sverka",
+      "minLength": 1
     }
   },
   "additionalProperties": false

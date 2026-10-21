@@ -15,16 +15,20 @@
     "pipeline": {
       "type": "string",
       "default": "ci",
-      "description": "Name of the CI pipeline."
+      "description": "Name of the CI pipeline (letters, digits, dashes).",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
     },
     "entry": {
       "type": "string",
       "default": "on-push",
-      "description": "Name of the push entry."
+      "description": "Name of the push entry (letters, digits, dashes).",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
     },
     "checks": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Checks to include. Default: the checks detected in the project."
     },
     "githubChecks": {
