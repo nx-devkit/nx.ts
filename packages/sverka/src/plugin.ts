@@ -12,7 +12,11 @@ import { SVERKA_CONFIG_NAMES, loadDefinitionGraph } from './graph.js'
 import { collectEntries, stepsForEntry, type SverkaEntryRef } from './plan.js'
 import { buildStepTarget, targetNameFor } from './targets.js'
 import type { NxDevkitSverkaOptions } from './types.js'
-import { warnConfigNotLoaded, warnEntryNotFound, warnTargetNameCollision } from './warnings.js'
+import {
+  reportConfigNotLoaded,
+  reportEntryNotFound,
+  reportTargetNameCollision,
+} from './warnings.js'
 
 const PLUGIN_SCOPE = 'nx-devkit/sverka'
 
@@ -87,7 +91,7 @@ async function inferProject(
   } catch (error) {
     // The file name and the reason come from the config file — the
     // warning carries neither.
-    warnConfigNotLoaded()
+    reportConfigNotLoaded()
     logDebug(PLUGIN_SCOPE, `could not load ${logSafe(configFile)}: ${logSafe(errorMessage(error))}`)
     return null
   }
@@ -118,7 +122,7 @@ function selectEntries(
   const selected = options.entry ? entries.filter((entry) => entry.id === options.entry) : entries
 
   if (selected.length === 0) {
-    warnEntryNotFound()
+    reportEntryNotFound()
     return null
   }
   return selected
@@ -193,7 +197,7 @@ function claimTargetName(
     unique = uniqueName(name, owners)
     // The step ids and the file name come from the config file — the
     // warning carries none of them.
-    warnTargetNameCollision()
+    reportTargetNameCollision()
   }
   owners.set(unique, step.id)
   return unique

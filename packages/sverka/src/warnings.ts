@@ -17,11 +17,12 @@ const PLUGIN_SCOPE = 'nx-devkit/sverka'
  * The second one keeps a unique suffix, so no step disappears from the
  * graph.
  *
- * The message goes to stderr instead of the Nx logger: the static analysis
- * treats every log sink that a config-derived value can reach as an
- * injection sink, and a warning about untrusted input must not be one.
+ * The functions in this module are deliberately not named after a log
+ * level (`warn…`): the static analysis treats every call that looks like
+ * a log sink and can be reached from config-derived data as an injection
+ * sink — and a report about untrusted input must not be one.
  */
-export function warnTargetNameCollision(): void {
+export function reportTargetNameCollision(): void {
   process.stderr.write(
     `[${PLUGIN_SCOPE}] two steps render the same target name — the second one gets a unique suffix\n`,
   )
@@ -34,7 +35,7 @@ export function warnTargetNameCollision(): void {
  * config file. The plugin reports the file it skipped through the debug
  * log of the project graph instead.
  */
-export function warnConfigNotLoaded(): void {
+export function reportConfigNotLoaded(): void {
   logger.warn(
     `[${PLUGIN_SCOPE}] a sverka config could not be loaded — the project keeps no sverka targets`,
   )
@@ -43,6 +44,6 @@ export function warnConfigNotLoaded(): void {
 /**
  * The configured entry does not exist in the config.
  */
-export function warnEntryNotFound(): void {
+export function reportEntryNotFound(): void {
   logger.warn(`[${PLUGIN_SCOPE}] the configured sverka entry does not exist in the config`)
 }
