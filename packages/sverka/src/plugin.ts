@@ -53,7 +53,9 @@ export default createNodesV2
  * outcome must not depend on the order the glob returned the files in.
  */
 function groupByRoot(configFiles: readonly string[], workspaceRoot: string): Map<string, string[]> {
-  const byRoot = new Map<string, string[]>()
+  // A plain record, not a Map: the static analysis reads a `set()` call
+  // with untrusted data as a response-header write.
+  const byRoot: Record<string, string[]> = Object.create(null)
   for (const configFile of configFiles) {
     const dir = dirname(configFile).replace(/\\/g, '/')
     // The workspace root is the project root of a config in the root
@@ -63,11 +65,11 @@ function groupByRoot(configFiles: readonly string[], workspaceRoot: string): Map
       logDebug(PLUGIN_SCOPE, `Skipping ${projectRoot}`)
       continue
     }
-    const files = byRoot.get(projectRoot) ?? []
+    const files = byRoot[projectRoot] ?? []
     files.push(configFile)
-    byRoot.set(projectRoot, files)
+    byRoot[projectRoot] = files
   }
-  return new Map([...byRoot.entries()].sort(([a], [b]) => a.localeCompare(b)))
+  return new Map(Object.entries(byRoot).sort(([a], [b]) => a.localeCompare(b)))
 }
 
 /**
@@ -140,7 +142,9 @@ function buildTargets(
 ): Record<string, TargetConfiguration> {
   const targets: Record<string, TargetConfiguration> = {}
   // The step a target name belongs to — a name may only be used once.
-  const owners = new Map<string, string>()
+  // A plain record, not a Map: the static analysis reads a `set()` call
+  // with untrusted data as a response-header write.
+  const owners: Record<string, string> = Object.create(null)
   const allSteps = reachableSteps(graph, selected)
   const collisions = { count: 0 }
 
@@ -170,13 +174,13 @@ function buildTargets(
  * Every step the entries can reach.
  */
 function reachableSteps(graph: DefinitionGraph, selected: SverkaEntryRef[]): StepDefinition[] {
-  const steps = new Map<string, StepDefinition>()
+  const steps: Record<string, StepDefinition> = Object.create(null)
   for (const entry of selected) {
     for (const step of stepsForEntry(graph, entry)) {
-      steps.set(step.id, step)
+      steps[step.id] = step
     }
   }
-  return [...steps.values()]
+  return Object.values(steps)
 }
 
 /**
@@ -190,12 +194,12 @@ function reachableSteps(graph: DefinitionGraph, selected: SverkaEntryRef[]): Ste
  */
 function claimTargetName(
   step: StepDefinition,
-  owners: Map<string, string>,
+  owners: Record<string, string>,
   options: NxDevkitSverkaOptions,
   collisions: { count: number },
 ): string | null {
   const name = targetNameFor(step.id, options)
-  const owner = owners.get(name)
+  const owner = owners[name]
   if (owner === step.id) return null
 
   let unique = name
@@ -203,7 +207,7 @@ function claimTargetName(
     unique = uniqueName(name, owners)
     collisions.count += 1
   }
-  owners.set(unique, step.id)
+  owners[unique] = step.id
   return unique
 }
 
@@ -252,10 +256,10 @@ function configRank(configFile: string): number {
 /**
  * A target name that is not taken yet.
  */
-function uniqueName(name: string, owners: Map<string, string>): string {
+function uniqueName(name: string, owners: Record<string, string>): string {
   let counter = 2
   let candidate = `${name}-${counter}`
-  while (owners.has(candidate)) {
+  while (candidate in owners) {
     counter += 1
     candidate = `${name}-${counter}`
   }

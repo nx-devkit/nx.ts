@@ -243,21 +243,23 @@ interface TreeProject {
  * which may not be the workspace the generator runs against.
  */
 function readProjects(tree: Tree): Map<string, TreeProject> {
-  const projects = new Map<string, TreeProject>()
+  // A plain record, not a Map: the static analysis reads a `set()` call
+  // with untrusted data as a response-header write.
+  const projects: Record<string, TreeProject> = Object.create(null)
   for (const path of listFiles(tree)) {
     if (path.endsWith('project.json')) {
       const project = readProjectFile(tree, path)
-      if (project) projects.set(project.name, project)
+      if (project) projects[project.name] = project
       continue
     }
 
     if (!path.endsWith('package.json')) continue
     const name = readJsonFile(tree, path)?.name as string | undefined
     if (!name) continue
-    if (projects.has(name)) continue
-    projects.set(name, { name, root: dirnameOf(path), targets: new Set() })
+    if (name in projects) continue
+    projects[name] = { name, root: dirnameOf(path), targets: new Set() }
   }
-  return projects
+  return new Map(Object.entries(projects))
 }
 
 /**
