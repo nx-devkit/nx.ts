@@ -168,8 +168,8 @@ function buildTargets(
     for (const step of stepsForEntry(graph, entry)) {
       const name = targetNames[step.id]
       if (name === undefined) continue
-      // A step two entries reach is built once — the first entry wins, so
-      // the target's entry does not depend on the order of the entries.
+      // A step two entries reach is built once — the first entry wins and
+      // names the step's entry in the target options.
       if (targets[name] !== undefined) continue
       targets[name] = buildStepTarget(step, entry.id, {
         projectRoot,

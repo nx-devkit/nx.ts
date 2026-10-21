@@ -78,11 +78,12 @@ function withoutStrings(command: string): string {
 /**
  * A stdout redirection: `> file`, `>> file` or `1> file`.
  *
- * The lookbehind keeps stderr redirections (`2>`, `&>`, `2>>`) out — they
- * write to the error stream, not to a file the step reads back. A match
- * that starts right after another `>` is one of those.
+ * The lookbehind keeps the stderr-only redirections (`2>`, `2>>`) out —
+ * they write to the error stream, not to a file the step reads back. A
+ * match that starts right after another `>` is one of those. `&>` and
+ * `&>>` write both streams, so they count.
  */
-const REDIRECT = /(?<![2>&>])>{1,2}\s*([^\s>|;&]+)/g
+const REDIRECT = /(?<![2>])>{1,2}\s*([^\s>|;&]+)/g
 
 /**
  * Resolve the target name of a step.

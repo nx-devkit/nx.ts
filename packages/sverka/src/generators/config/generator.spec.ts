@@ -186,7 +186,7 @@ describe('@nx-devkit/sverka:config', () => {
 })
 
 describe('the entry identifier', () => {
-  it('rejects a reserved word', async () => {
+  it('emits a valid identifier for a reserved word', async () => {
     const tree = createTreeWithEmptyWorkspace()
     tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))
 

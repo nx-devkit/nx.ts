@@ -211,13 +211,13 @@ describe('stderr appends', () => {
     expect(target.inputs).not.toContain('!{workspaceRoot}/errors.txt')
   })
 
-  it('does not exclude a file written by an explicit stderr append', () => {
+  it('excludes a file written by a combined stdout/stderr append', () => {
     const target = targetFor(
       makeStep({
         operations: [{ kind: 'shell', command: 'tool &>> errors.txt' }],
       }),
     )
 
-    expect(target.inputs).not.toContain('!{workspaceRoot}/errors.txt')
+    expect(target.inputs).toContain('!{workspaceRoot}/errors.txt')
   })
 })
