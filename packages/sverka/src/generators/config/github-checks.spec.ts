@@ -15,6 +15,24 @@ describe('GitHub checks', () => {
     ])
   })
 
+  it('reads the default branch instead of assuming main', () => {
+    const command = GITHUB_CHECKS['main-green']!.command
+    expect(command).toContain('defaultBranchRef')
+    expect(command).not.toContain('commits/main/check-runs')
+  })
+
+  it('passes the branch name alone to gh pr list --head', () => {
+    const command = GITHUB_CHECKS['stale-branches']!.command
+    expect(command).toContain('gh pr list --head "$b"')
+    expect(command).not.toContain('--head "$owner:$b"')
+    expect(command).toContain('headRepositoryOwner')
+  })
+
+  it('fails when the remote cannot be queried', () => {
+    const command = GITHUB_CHECKS['stale-branches']!.command
+    expect(command).toContain('ls-remote failed')
+  })
+
   it.each(GITHUB_CHECK_IDS)('%s is valid POSIX shell', (id) => {
     const check = GITHUB_CHECKS[id]!
     const result = spawnSync('sh', ['-n', '-c', check.command], {

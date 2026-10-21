@@ -49,11 +49,15 @@ export const GITHUB_CHECKS: Record<string, GithubCheck> = {
   'main-green': {
     id: 'main-green',
     description:
-      'Every GitHub Actions check-run on main is green (non-Actions apps are reported, never gated).',
+      'Every GitHub Actions check-run on the default branch is green (non-Actions apps are reported, never gated).',
     command: [
-      `out=$(gh api --paginate 'repos/{owner}/{repo}/commits/main/check-runs' --jq '.check_runs[] | select(.app.slug == "github-actions") | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | "\\(.name) (\\(.conclusion // .status))"')`,
+      `branch=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name') || exit 1;`,
+      `out=$(gh api --paginate "repos/{owner}/{repo}/commits/$branch/check-runs" --jq '.check_runs[] | select(.app.slug == "github-actions") | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | "\\(.name) (\\(.conclusion // .status))"')`,
       '|| { echo "check-runs query failed"; exit 1; };',
-      '[ -z "$out" ] || { echo "non-green checks on main:"; echo "$out"; exit 1; }',
+      '[ -z "$out" ] || { echo "non-green checks on $branch:"; echo "$out"; exit 1; };',
+      `other=$(gh api --paginate "repos/{owner}/{repo}/commits/$branch/check-runs" --jq '.check_runs[] | select(.app.slug != "github-actions") | "\\(.app.slug): \\(.name) (\\(.conclusion // .status))"')`,
+      '|| { echo "check-runs query failed"; exit 1; };',
+      '[ -z "$other" ] || { echo "checks from other apps on $branch (reported, never gated):"; echo "$other"; }',
     ].join(' '),
   },
 
@@ -107,13 +111,18 @@ export const GITHUB_CHECKS: Record<string, GithubCheck> = {
     id: 'stale-branches',
     description: 'No remote branch left behind by a merged PR.',
     command: [
-      "out=$(git ls-remote --heads origin 2>/dev/null | sed 's|.*refs/heads/||')",
-      '|| { echo "ls-remote failed"; exit 1; };',
+      // The status of `git ls-remote` has to be checked before its output
+      // is piped — a pipeline reports the status of its last command.
+      'remote=$(git ls-remote --heads origin 2>&1) || { echo "ls-remote failed: $remote"; exit 1; };',
+      `branches=$(printf '%s\n' "$remote" | sed 's|.*refs/heads/||')`,
       `owner=$(gh repo view --json owner --jq '.owner.login') || exit 1;`,
+      `branch=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name') || exit 1;`,
       'stale="";',
-      'for b in $out; do',
-      '[ "$b" = "main" ] && continue;',
-      'n=$(gh pr list --head "$owner:$b" --state merged --json number --jq length) || exit 1;',
+      'for b in $branches; do',
+      '[ "$b" = "$branch" ] && continue;',
+      // `--head` takes the branch name only — the owner prefix is not
+      // supported, so forks are filtered out by their owner instead.
+      `n=$(gh pr list --head "$b" --state merged --json number,headRepositoryOwner --jq '[.[] | select(.headRepositoryOwner.login == "'"$owner"'")] | length') || exit 1;`,
       '[ "$n" -gt 0 ] && stale="$stale $b";',
       'done;',
       '[ -z "$stale" ] || { echo "stale branches:$stale"; exit 1; }',
