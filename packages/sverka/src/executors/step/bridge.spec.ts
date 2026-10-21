@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
@@ -24,19 +24,11 @@ function step(overrides: Partial<StepDefinition>): StepDefinition {
   } as StepDefinition
 }
 
-function graphWith(producer: StepDefinition): DefinitionGraph {
+function graphWith(...producers: StepDefinition[]): DefinitionGraph {
   return {
     project: {
       id: 'demo',
-      pipelines: [
-        {
-          id: 'ci',
-          inputs: {},
-          entries: [],
-          steps: [producer],
-          outputs: [],
-        },
-      ],
+      pipelines: [{ id: 'ci', inputs: {}, entries: [], steps: producers, outputs: [] }],
     },
   }
 }
@@ -75,6 +67,30 @@ describe('artifact bridge', () => {
         {
           kind: 'importArtifact',
           name: '../../escaped.json',
+          from: 'ci/producer',
+          output: 'report.json',
+        },
+      ],
+    })
+
+    expect(() => materializeImportedArtifacts(consumer, graphWith(producer), workspace)).toThrow(
+      /escapes the project directory/,
+    )
+  })
+
+  it('refuses to follow a symlink out of the project directory', () => {
+    const workspace = makeWorkspace()
+    const outside = mkdtempSync(join(tmpdir(), 'nx-sverka-outside-'))
+    symlinkSync(outside, join(workspace, 'linked'), 'dir')
+    const producer = step({
+      id: 'ci/producer',
+      outputs: [{ name: 'report.json', type: 'artifact', fromStdout: true }],
+    })
+    const consumer = step({
+      operations: [
+        {
+          kind: 'importArtifact',
+          name: 'linked/escaped.json',
           from: 'ci/producer',
           output: 'report.json',
         },
@@ -163,5 +179,38 @@ describe('artifact bridge', () => {
     const values = collectStepValues(consumer, graphWith(producer), workspace)
 
     expect(values).toEqual([{ key: 'producer.version', value: '1.2.3' }])
+  })
+
+  it('picks the producer the command names when several publish the same output', () => {
+    const workspace = makeWorkspace()
+    for (const id of ['a', 'b']) {
+      mkdirSync(join(workspace, '.sverka', 'artifacts', 'ci', id, 'values'), {
+        recursive: true,
+      })
+      writeFileSync(
+        join(workspace, '.sverka', 'artifacts', 'ci', id, 'values', 'version'),
+        id === 'a' ? '1.0.0' : '2.0.0',
+      )
+    }
+
+    const producerA = step({
+      id: 'ci/a',
+      outputs: [{ name: 'version', type: 'string' }],
+    })
+    const producerB = step({
+      id: 'ci/b',
+      outputs: [{ name: 'version', type: 'string' }],
+    })
+    const consumer = step({
+      operations: [{ kind: 'shell', command: 'echo ${b.version}' }],
+      inputs: [
+        { kind: 'step', step: 'a', output: 'version', type: 'string' },
+        { kind: 'step', step: 'b', output: 'version', type: 'string' },
+      ],
+    })
+
+    const values = collectStepValues(consumer, graphWith(producerA, producerB), workspace)
+
+    expect(values).toEqual([{ key: 'b.version', value: '2.0.0' }])
   })
 })

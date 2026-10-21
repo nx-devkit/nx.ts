@@ -114,3 +114,25 @@ describe('declared outputs', () => {
     expect(target.inputs).toContain('!{workspaceRoot}/report.json')
   })
 })
+
+describe('remote state', () => {
+  it('does not cache a step that reads the GitHub state', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'gh api graphql -f query=x' }],
+      }),
+    )
+
+    expect(target.cache).toBe(false)
+  })
+
+  it('caches a step that only reads the project', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'oxlint .' }],
+      }),
+    )
+
+    expect(target.cache).toBe(true)
+  })
+})

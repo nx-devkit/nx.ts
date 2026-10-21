@@ -47,9 +47,14 @@ export function stableOutputPaths(
   stepId: string,
   outputs: readonly { name: string; type: string; path?: string; fromStdout?: boolean }[],
 ): Record<string, string> {
-  const paths: Record<string, string> = {}
+  // A null-prototype record: an output named `__proto__` must stay an own
+  // property of the map instead of hitting the prototype.
+  const paths: Record<string, string> = Object.create(null)
   for (const output of outputs) {
     if (output.path) {
+      // A path that leaves the project is not an output of this project —
+      // the bridge rejects it too (see `resolveInside`).
+      if (!isInsideProject(output.path)) continue
       paths[output.name] = output.path
     } else if (output.fromStdout) {
       paths[output.name] = artifactRelativePath(stepId, output.name)
@@ -58,4 +63,26 @@ export function stableOutputPaths(
     }
   }
   return paths
+}
+
+/**
+ * True when a project-relative path stays inside the project.
+ *
+ * The path is resolved against the project root; `..` segments and
+ * absolute paths leave it.
+ */
+export function isInsideProject(path: string): boolean {
+  if (path.startsWith('/') || path.startsWith('~')) return false
+  const segments = path.split('/')
+  let depth = 0
+  for (const segment of segments) {
+    if (segment === '' || segment === '.') continue
+    if (segment === '..') {
+      depth -= 1
+      if (depth < 0) return false
+      continue
+    }
+    depth += 1
+  }
+  return true
 }

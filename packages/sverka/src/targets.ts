@@ -109,6 +109,11 @@ export function buildStepTarget(
 
   const dependsOn = dependencyProducers(step).map((producer) => targetNameFor(producer, options))
 
+  // A step that reads remote state (the GitHub-side checks) cannot be
+  // cached: a review thread or an alert can change without any file in
+  // the project changing, and a cached result would hide it.
+  const cache = readsRemoteState(step) ? false : (options.cache ?? true)
+
   return {
     executor: '@nx-devkit/sverka:step',
     options: {
@@ -117,9 +122,25 @@ export function buildStepTarget(
     },
     inputs,
     outputs: Object.values(outputs).map((path) => `${prefix}/${path}`),
-    cache: options.cache ?? true,
+    cache,
     ...(dependsOn.length > 0 ? { dependsOn } : {}),
   }
+}
+
+/**
+ * True when the step's command talks to a remote service.
+ *
+ * The GitHub checks the config generator emits read the repository state
+ * on GitHub — a result that depends on state Nx cannot hash.
+ */
+export function readsRemoteState(step: StepDefinition): boolean {
+  for (const operation of step.operations) {
+    if (operation.kind !== 'shell') continue
+    if (/\bgh\s+(api|pr|repo|issue|run|workflow|release|search|secret)\b/.test(operation.command)) {
+      return true
+    }
+  }
+  return false
 }
 
 /**

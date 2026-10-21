@@ -13,7 +13,15 @@
  * - **after** the run: the step's own artifacts and values are copied to
  *   their stable paths, which the target declares as its Nx outputs.
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+} from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
 import { artifactRelativePath, valueRelativePath } from '../../paths.js'
@@ -92,7 +100,43 @@ function resolveInside(workspace: string, path: string): string | undefined {
   const resolved = resolve(workspace, path)
   const rel = relative(workspace, resolved)
   if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return undefined
+  // Lexical containment is not enough: a symlink inside the project can
+  // point outside it. The real path of the deepest existing ancestor has
+  // to stay inside the workspace as well.
+  if (!realPathStaysInside(workspace, resolved)) return undefined
   return resolved
+}
+
+/**
+ * True when the real path of `target` stays inside the workspace.
+ *
+ * The target itself may not exist yet (a file about to be written) — the
+ * deepest existing ancestor decides then.
+ */
+function realPathStaysInside(workspace: string, target: string): boolean {
+  let realWorkspace: string
+  try {
+    realWorkspace = realpathSync(workspace)
+  } catch {
+    return false
+  }
+
+  let existing = target
+  while (!existsSync(existing)) {
+    const parent = dirname(existing)
+    if (parent === existing) return false
+    existing = parent
+  }
+
+  let realExisting: string
+  try {
+    realExisting = realpathSync(existing)
+  } catch {
+    return false
+  }
+
+  const rel = relative(realWorkspace, realExisting)
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
 }
 
 /**
@@ -148,16 +192,19 @@ function findProducerForReference(
   namespace: string,
   field: string,
 ): ProducerRef | undefined {
-  const reference = step.inputs.find((input) => input.kind === 'step' && input.output === field)
-  if (reference?.kind !== 'step') return undefined
+  // The namespace selects the producer: two producers may publish the
+  // same output name, and only the one the command names is consumed.
+  for (const input of step.inputs) {
+    if (input.kind !== 'step' || input.output !== field) continue
 
-  const producerId = resolveProducerId(step.id, reference.step)
-  if (!findStep(graph, producerId)) return undefined
+    const producerId = resolveProducerId(step.id, input.step)
+    const bareId = producerId.split('/').pop() ?? producerId
+    if (namespace !== bareId && namespace !== producerId) continue
+    if (!findStep(graph, producerId)) continue
 
-  const bareId = producerId.split('/').pop() ?? producerId
-  if (namespace !== bareId && namespace !== producerId) return undefined
-
-  return { id: producerId, type: reference.type }
+    return { id: producerId, type: input.type }
+  }
+  return undefined
 }
 
 /**

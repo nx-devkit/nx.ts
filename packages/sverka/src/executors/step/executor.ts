@@ -9,7 +9,7 @@
  */
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { ExecutorContext } from '@nx/devkit'
 import {
   computeGraphId,
@@ -35,7 +35,7 @@ export async function stepExecutor(
   const workspaceRoot = context.root
   const projectDir = resolveProjectDir(context, workspaceRoot)
   const configPath = options.config
-    ? resolve(workspaceRoot, options.config)
+    ? resolveInsideRoot(workspaceRoot, options.config, 'config')
     : findSverkaConfig(projectDir)
   if (!configPath) {
     throw new Error(`no sverka config found in ${projectDir} — expected sverka.config.ts`)
@@ -56,11 +56,16 @@ export async function stepExecutor(
     )
   }
 
-  // The step runs inside the project directory — the same directory the
-  // engine would use for the whole config.
-  const workspace = options.cwd ? resolve(workspaceRoot, options.cwd) : projectDir
+  // Two roots, on purpose:
+  // - `workspace` is where the step's command runs (the engine's
+  //   workspace); an imported artifact is materialized there, because that
+  //   is where the command looks for it.
+  // - `projectDir` is where the stable artifacts and values live — the
+  //   paths the target declares as its Nx outputs. They must not move
+  //   when a step runs with a custom `cwd`.
+  const workspace = options.cwd ? resolveInsideRoot(workspaceRoot, options.cwd, 'cwd') : projectDir
 
-  const plan = buildStepPlan(graph, step, entry, workspace, options)
+  const plan = buildStepPlan(graph, step, entry, projectDir, options)
 
   // Producer artifacts and values come from the tasks that already ran —
   // Nx restored them from the cache.
@@ -83,7 +88,7 @@ export async function stepExecutor(
     // next task (and the Nx cache) can pick them up. This has to happen
     // before the temporary artifact directory is removed.
     try {
-      publishStepOutputs(step, artifactDir, runId, workspace)
+      publishStepOutputs(step, artifactDir, runId, projectDir)
     } catch (error) {
       // A failed publish means the step's outputs are incomplete — report
       // it as a step failure instead of crashing the task runner.
@@ -185,10 +190,12 @@ function buildStepPlan(
   graph: DefinitionGraph,
   step: StepDefinition,
   entry: SverkaEntryRef,
-  workspace: string,
+  projectDir: string,
   options: StepExecutorSchema,
 ): RunPlan {
-  const values = collectStepValues(step, graph, workspace)
+  // The producer's values live under the project directory — the paths the
+  // targets declare as their outputs.
+  const values = collectStepValues(step, graph, projectDir)
   const inputs: Record<string, InputValue> = { ...options.inputs }
   for (const value of values) {
     inputs[value.key] = value.value
@@ -237,6 +244,25 @@ function findEntryById(graph: DefinitionGraph, entryId: string): SverkaEntryRef 
     if (entry) return { id: entry.id, pipeline, entry }
   }
   return undefined
+}
+
+/**
+ * Resolve a workspace-relative option, refusing to leave the workspace.
+ *
+ * The `config` and `cwd` options are workspace-relative by contract —
+ * an absolute or escaping path is a configuration error, not a path to
+ * follow.
+ */
+function resolveInsideRoot(root: string, path: string, option: string): string {
+  if (path.startsWith('/') || path.startsWith('~')) {
+    throw new Error(`the "${option}" option must be workspace-relative, got "${path}"`)
+  }
+  const resolved = resolve(root, path)
+  const rel = relative(root, resolved)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(`the "${option}" option must stay inside the workspace, got "${path}"`)
+  }
+  return resolved
 }
 
 /** Absolute directory of the project the task belongs to. */

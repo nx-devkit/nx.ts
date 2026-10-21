@@ -14,11 +14,13 @@
     },
     "config": {
       "type": "string",
-      "description": "Path to the sverka config, relative to the workspace root. Default: the config found in the project root."
+      "description": "Path to the sverka config, relative to the workspace root (must stay inside it). Default: the config found in the project root.",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$)).*$"
     },
     "cwd": {
       "type": "string",
-      "description": "Directory the step runs in, relative to the workspace root. Default: the project root."
+      "description": "Directory the step runs in, relative to the workspace root (must stay inside it). Default: the project root.",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$)).*$"
     },
     "inputs": {
       "type": "object",
