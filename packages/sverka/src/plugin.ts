@@ -199,9 +199,11 @@ function claimTargetName(
     logger.warn(
       `[${PLUGIN_SCOPE}] two steps render the same target name — the second one gets a unique suffix`,
     )
+    // Only the file name — the step ids come from the config file and
+    // must not reach a log line.
     logDebug(
       PLUGIN_SCOPE,
-      `target name collision in ${logSafe(configFile)}: "${logSafe(owner)}" and "${logSafe(step.id)}" both render as "${logSafe(name)}"`,
+      `target name collision in ${logSafe(configFile)} — the second step got a unique suffix`,
     )
   }
   owners.set(unique, step.id)
