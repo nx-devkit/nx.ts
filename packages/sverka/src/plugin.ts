@@ -194,8 +194,10 @@ function claimTargetName(
   let unique = name
   if (owner !== undefined) {
     unique = uniqueName(name, owners)
+    // The step ids come from the config file — untrusted input. The
+    // warning names the file and the count, not the values.
     logger.warn(
-      `[${PLUGIN_SCOPE}] target name "${logSafe(name)}" is used by both "${logSafe(owner)}" and "${logSafe(step.id)}" in ${logSafe(configFile)} — using "${logSafe(unique)}" for "${logSafe(step.id)}"`,
+      `[${PLUGIN_SCOPE}] two steps of ${logSafe(configFile)} render the same target name — the second one gets a unique suffix`,
     )
   }
   owners.set(unique, step.id)
@@ -209,14 +211,13 @@ function claimTargetName(
  * control characters, and a log line must stay one line.
  */
 function logSafe(value: string): string {
-  return value.replace(CONTROL_CHARACTERS, ' ').trim()
+  let out = ''
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 0
+    out += code < 32 || code === 127 ? ' ' : char
+  }
+  return out.trim()
 }
-
-/** Control characters — they would break the line of a log message. */
-const CONTROL_CHARACTERS = new RegExp(
-  `[${String.fromCharCode(0)}-${String.fromCharCode(31)}${String.fromCharCode(127)}]`,
-  'g',
-)
 
 /**
  * Pick the config of a directory.
