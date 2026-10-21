@@ -161,6 +161,11 @@ Verified behaviour:
 | change the artifact a producer emits | the consumer re-runs |
 | edit the sverka config | every step of the config re-runs |
 
+The very first run of a *consumer* misses once — Nx computes the consumer's
+hash before the producer's output exists. This is stock Nx behaviour for
+every `build → test` chain (reproduced with a plain `nx:run-commands`
+pair), not something the plugin adds; it converges on the next run.
+
 ### Declare your outputs
 
 A step that writes a file into the project invalidates its own cache: the
@@ -175,7 +180,10 @@ new ShellStep(ci, 'lint', {
 })
 ```
 
-Steps that redirect (`tool > report.txt`) are detected automatically.
+Steps that redirect (`tool > report.txt`) are detected automatically. The
+detection is conservative on purpose: only stdout redirections of a command
+without quotes count, so a `>` inside a string and a stderr redirection
+(`2> errors.txt`) never hide a file from the cache.
 
 ## Generate a config
 

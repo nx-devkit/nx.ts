@@ -14,7 +14,7 @@
  *   their stable paths, which the target declares as its Nx outputs.
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
 import { artifactRelativePath, valueRelativePath } from '../../paths.js'
 import { resolveProducerId } from '../../targets.js'
@@ -68,12 +68,31 @@ export function materializeImportedArtifacts(
         `sverka step "${step.id}" imports "${operation.output}" from "${producerId}", but ${source} does not exist — run the producing target first`,
       )
     }
-    const destination = join(workspace, operation.name)
+    const destination = resolveInside(workspace, operation.name)
+    if (!destination) {
+      throw new Error(
+        `sverka step "${step.id}" imports "${operation.output}" as "${operation.name}" — the destination escapes the project directory`,
+      )
+    }
     mkdirSync(dirname(destination), { recursive: true })
     copyFileSync(source, destination)
     materialized.push(destination)
   }
   return materialized
+}
+
+/**
+ * Resolve a path inside the workspace.
+ *
+ * Returns `undefined` when the path escapes it — a config is trusted input
+ * for the *commands* it runs, but never for the *paths* it writes: an
+ * artifact name or an output path must never leave the project directory.
+ */
+function resolveInside(workspace: string, path: string): string | undefined {
+  const resolved = resolve(workspace, path)
+  const rel = relative(workspace, resolved)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return undefined
+  return resolved
 }
 
 /**
@@ -105,7 +124,9 @@ export function collectStepValues(
       const bareId = producerId.split('/').pop() ?? producerId
       if (namespace !== bareId && namespace !== producerId) continue
 
-      const value = readValue(join(workspace, valueRelativePath(producerId, field)), reference.type)
+      const valuePath = resolveInside(workspace, valueRelativePath(producerId, field))
+      if (!valuePath) continue
+      const value = readValue(valuePath, reference.type)
       if (value === undefined) continue
       values.push({ key: `${namespace}.${field}`, value })
     }
@@ -134,7 +155,8 @@ export function publishStepOutputs(
       if (!runArtifactDir) continue
       const source = join(runArtifactDir, step.id, operation.name)
       if (!existsSync(source)) continue
-      const destination = join(workspace, artifactRelativePath(step.id, operation.name))
+      const destination = resolveInside(workspace, artifactRelativePath(step.id, operation.name))
+      if (!destination) continue
       mkdirSync(dirname(destination), { recursive: true })
       copyFileSync(source, destination)
       published.push(destination)
@@ -144,7 +166,8 @@ export function publishStepOutputs(
     if (operation.kind === 'exportOutput') {
       const source = join(workspace, '.sverka', 'workspace', step.id, '.outputs', operation.name)
       if (!existsSync(source)) continue
-      const destination = join(workspace, valueRelativePath(step.id, operation.name))
+      const destination = resolveInside(workspace, valueRelativePath(step.id, operation.name))
+      if (!destination) continue
       mkdirSync(dirname(destination), { recursive: true })
       copyFileSync(source, destination)
       published.push(destination)
@@ -154,7 +177,8 @@ export function publishStepOutputs(
     if (operation.kind === 'exportArtifact') {
       // The step wrote the file into the workspace — that path *is* the
       // stable output.
-      const destination = join(workspace, operation.path)
+      const destination = resolveInside(workspace, operation.path)
+      if (!destination) continue
       if (existsSync(destination)) published.push(destination)
     }
   }
@@ -178,8 +202,8 @@ function producerOutputPath(
   if (!producer) return undefined
   const output = producer.outputs.find((candidate) => candidate.name === outputName)
   if (!output) return undefined
-  if (output.path) return join(workspace, output.path)
-  return join(workspace, artifactRelativePath(producerId, outputName))
+  if (output.path) return resolveInside(workspace, output.path)
+  return resolveInside(workspace, artifactRelativePath(producerId, outputName))
 }
 
 /** Find a step by fully qualified id. */

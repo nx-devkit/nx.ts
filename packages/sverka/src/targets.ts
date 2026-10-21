@@ -38,6 +38,14 @@ export interface TargetContext {
 const UNSAFE_TARGET_CHARS = /[^A-Za-z0-9._:-]+/g
 
 /**
+ * A stdout redirection: `> file` or `>> file`.
+ *
+ * The lookbehind keeps stderr redirections (`2>`, `&>`) out — they write
+ * to the error stream, not to a file the step reads back.
+ */
+const REDIRECT = /(?<![0-9>&])>{1,2}\s*([^\s>|;&]+)/g
+
+/**
  * Resolve the target name of a step.
  *
  * The default template is `{pipeline}:{step}` — `ci/lint` becomes `ci:lint`.
@@ -160,12 +168,18 @@ function collectProjectWrites(steps: StepDefinition[]): Set<string> {
  * otherwise invalidate its own cache: the file is part of the project files
  * the target hashes. Steps that declare their outputs are covered by that
  * declaration — this covers the ones that do not.
+ *
+ * The detection is deliberately conservative: only stdout redirections of
+ * a command without quotes count. A quoted command is not parsed (a `>`
+ * inside a string is not a redirection), and a stderr redirection (`2>`,
+ * `&>`) writes nothing the step reads back.
  */
 function redirectTargets(step: StepDefinition): string[] {
   const targets: string[] = []
   for (const operation of step.operations) {
     if (operation.kind !== 'shell') continue
-    for (const match of operation.command.matchAll(/(?:^|[^>])>>?\s*([^\s>|;&]+)/g)) {
+    if (operation.command.includes('"') || operation.command.includes("'")) continue
+    for (const match of operation.command.matchAll(REDIRECT)) {
       const target = match[1]
       if (!target) continue
       // Only plain relative paths inside the project are excluded.

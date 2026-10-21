@@ -118,7 +118,13 @@ export async function stepExecutor(
     // Publish the step's artifacts and values to their stable paths so the
     // next task (and the Nx cache) can pick them up. This has to happen
     // before the temporary artifact directory is removed.
-    publishStepOutputs(step, artifactDir, runId, workspace)
+    try {
+      publishStepOutputs(step, artifactDir, runId, workspace)
+    } catch (error) {
+      // A failed publish means the step's outputs are incomplete — report
+      // it as a step failure instead of crashing the task runner.
+      failure = failure ?? (error instanceof Error ? error.message : String(error))
+    }
   } finally {
     rmSync(artifactDir, { recursive: true, force: true })
   }

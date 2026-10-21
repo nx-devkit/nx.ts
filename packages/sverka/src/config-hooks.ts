@@ -19,16 +19,29 @@ type NextResolve = (
   context: ResolveContext,
 ) => ResolveResult | Promise<ResolveResult>
 
-let registered = false
+let registration: Promise<void> | undefined
 
 /**
- * Register the `@sverka/*` resolve fallback. Safe to call repeatedly —
- * the hook is registered once per process.
+ * Register the `@sverka/*` resolve fallback.
+ *
+ * The registration happens once per process; concurrent callers (the Nx
+ * daemon may load the project graph in parallel) share the same promise
+ * instead of registering the hook twice.
  */
 export async function registerConfigHooks(): Promise<void> {
-  if (registered) return
-  registered = true
+  if (!registration) {
+    registration = register().catch((error) => {
+      // A failed registration must not be sticky — a later call may
+      // succeed (e.g. a different Node version).
+      registration = undefined
+      throw error
+    })
+  }
+  return registration
+}
 
+/** Register the resolve hook, ignoring an unavailable hook API. */
+async function register(): Promise<void> {
   const registerHooks = (nodeModule as { registerHooks?: unknown }).registerHooks
   if (typeof registerHooks !== 'function') return
 
