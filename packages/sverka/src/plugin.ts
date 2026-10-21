@@ -7,12 +7,12 @@ import type {
   TargetConfiguration,
 } from '@nx/devkit'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
-import { logger } from '@nx/devkit'
 import { isVerbose, logDebug } from '@nx-devkit/internal'
 import { SVERKA_CONFIG_NAMES, loadDefinitionGraph } from './graph.js'
 import { collectEntries, stepsForEntry, type SverkaEntryRef } from './plan.js'
 import { buildStepTarget, targetNameFor } from './targets.js'
 import type { NxDevkitSverkaOptions } from './types.js'
+import { warnConfigNotLoaded, warnEntryNotFound, warnTargetNameCollision } from './warnings.js'
 
 const PLUGIN_SCOPE = 'nx-devkit/sverka'
 
@@ -85,15 +85,14 @@ async function inferProject(
   try {
     graph = await loadDefinitionGraph(absConfig)
   } catch (error) {
-    logger.warn(
-      `[${PLUGIN_SCOPE}] could not load ${logSafe(configFile)}: ${logSafe(
-        error instanceof Error ? error.message : String(error),
-      )}`,
-    )
+    // The file name and the reason come from the config file — the
+    // warning carries neither.
+    warnConfigNotLoaded()
+    logDebug(PLUGIN_SCOPE, `could not load ${logSafe(configFile)}: ${logSafe(errorMessage(error))}`)
     return null
   }
 
-  const selected = selectEntries(graph, options, configFile)
+  const selected = selectEntries(graph, options)
   if (!selected) return null
 
   const targets = buildTargets(graph, selected, projectRoot, configFile, options)
@@ -114,13 +113,12 @@ async function inferProject(
 function selectEntries(
   graph: DefinitionGraph,
   options: NxDevkitSverkaOptions,
-  configFile: string,
 ): SverkaEntryRef[] | null {
   const entries = collectEntries(graph)
   const selected = options.entry ? entries.filter((entry) => entry.id === options.entry) : entries
 
   if (selected.length === 0) {
-    logger.warn(`[${PLUGIN_SCOPE}] no sverka entry "${options.entry}" in ${configFile}`)
+    warnEntryNotFound()
     return null
   }
   return selected
@@ -143,7 +141,7 @@ function buildTargets(
 
   for (const entry of selected) {
     for (const step of stepsForEntry(graph, entry)) {
-      const name = claimTargetName(step, owners, configFile, options)
+      const name = claimTargetName(step, owners, options)
       if (name === null) continue
       targets[name] = buildStepTarget(step, entry.id, {
         projectRoot,
@@ -184,7 +182,6 @@ function reachableSteps(graph: DefinitionGraph, selected: SverkaEntryRef[]): Ste
 function claimTargetName(
   step: StepDefinition,
   owners: Map<string, string>,
-  configFile: string,
   options: NxDevkitSverkaOptions,
 ): string | null {
   const name = targetNameFor(step.id, options)
@@ -194,15 +191,17 @@ function claimTargetName(
   let unique = name
   if (owner !== undefined) {
     unique = uniqueName(name, owners)
-    // The step ids and the file name come from the config file — untrusted
-    // input that must not reach a log line. The message stays static; the
-    // unique suffix shows up in the target name.
-    logger.warn(
-      `[${PLUGIN_SCOPE}] two steps render the same target name — the second one gets a unique suffix`,
-    )
+    // The step ids and the file name come from the config file — the
+    // warning carries none of them.
+    warnTargetNameCollision()
   }
   owners.set(unique, step.id)
   return unique
+}
+
+/** The message of an unknown error. */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /**
