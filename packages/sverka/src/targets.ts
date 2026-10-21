@@ -234,10 +234,11 @@ function collectProjectWrites(steps: StepDefinition[]): Set<string> {
  * the target hashes. Steps that declare their outputs are covered by that
  * declaration — this covers the ones that do not.
  *
- * The detection is deliberately conservative: only stdout redirections
- * count (a stderr redirection — `2>`, `&>` — writes nothing the step reads
- * back), and the quoted parts of the command are removed before the scan,
- * so a `>` inside a string is not a redirection.
+ * The detection is deliberately conservative: only the redirections that
+ * write the file count — a stderr-only redirection (`2>`, `2>>`) writes
+ * nothing the step reads back, while `&>` and `&>>` write both streams.
+ * The quoted parts of the command are removed before the scan, so a `>`
+ * inside a string is not a redirection.
  */
 function redirectTargets(step: StepDefinition): string[] {
   const targets: string[] = []
