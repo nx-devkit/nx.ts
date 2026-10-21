@@ -62,11 +62,7 @@ export async function configGenerator(
     )
   }
 
-  const githubChecks = (options.githubChecks ?? []).filter((id) => {
-    if (GITHUB_CHECKS[id]) return true
-    console.warn(`Unknown GitHub check "${id}" — available: ${GITHUB_CHECK_IDS.join(', ')}`)
-    return false
-  })
+  const githubChecks = resolveGithubChecks(options.githubChecks ?? [])
 
   tree.write(
     configPath,
@@ -79,18 +75,37 @@ export async function configGenerator(
     }),
   )
 
+  printChecklist(configPath, projectName, options.pipeline ?? 'ci', checks[0]?.id)
+
+  await formatFiles(tree)
+
+  return () => {}
+}
+
+/** Keep the known GitHub checks, warn about the unknown ones. */
+function resolveGithubChecks(requested: string[]): string[] {
+  return requested.filter((id) => {
+    if (GITHUB_CHECKS[id]) return true
+    console.warn(`Unknown GitHub check "${id}" — available: ${GITHUB_CHECK_IDS.join(', ')}`)
+    return false
+  })
+}
+
+/** Tell the user what to do next. */
+function printChecklist(
+  configPath: string,
+  projectName: string | undefined,
+  pipeline: string,
+  firstCheck: string | undefined,
+): void {
   const checklist = [
     `1. Wrote ${configPath}`,
     '2. Inspect the inferred Nx targets:',
     `   bunx nx show project ${projectName ?? '<root-project>'} --json`,
     '3. Run one step:',
-    `   bunx nx run ${projectName ?? '<root-project>'}:${options.pipeline ?? 'ci'}:${checks[0]?.id}`,
+    `   bunx nx run ${projectName ?? '<root-project>'}:${pipeline}:${firstCheck}`,
   ]
   for (const line of checklist) console.log(line)
-
-  await formatFiles(tree)
-
-  return () => {}
 }
 
 /**

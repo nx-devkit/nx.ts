@@ -114,24 +114,50 @@ export function collectStepValues(
       if (!namespace || !field) continue
       if (CONTEXT_NAMESPACES.has(namespace)) continue
 
-      const reference = step.inputs.find((input) => input.kind === 'step' && input.output === field)
-      if (reference?.kind !== 'step') continue
-
-      const producerId = resolveProducerId(step.id, reference.step)
-      const producer = findStep(graph, producerId)
+      const producer = findProducerForReference(step, graph, namespace, field)
       if (!producer) continue
 
-      const bareId = producerId.split('/').pop() ?? producerId
-      if (namespace !== bareId && namespace !== producerId) continue
-
-      const valuePath = resolveInside(workspace, valueRelativePath(producerId, field))
+      const valuePath = resolveInside(workspace, valueRelativePath(producer.id, field))
       if (!valuePath) continue
-      const value = readValue(valuePath, reference.type)
+      const value = readValue(valuePath, producer.type)
       if (value === undefined) continue
       values.push({ key: `${namespace}.${field}`, value })
     }
   }
   return values
+}
+
+/** A producer step a value reference points at. */
+interface ProducerRef {
+  /** Fully qualified producer step id. */
+  id: string
+  /** Declared type of the value. */
+  type: string
+}
+
+/**
+ * Resolve the producer of a `${namespace.field}` reference.
+ *
+ * The namespace is the way the command names the producer (its bare step
+ * id or its qualified id); the step's input references say which output
+ * of which producer it consumes.
+ */
+function findProducerForReference(
+  step: StepDefinition,
+  graph: DefinitionGraph,
+  namespace: string,
+  field: string,
+): ProducerRef | undefined {
+  const reference = step.inputs.find((input) => input.kind === 'step' && input.output === field)
+  if (reference?.kind !== 'step') return undefined
+
+  const producerId = resolveProducerId(step.id, reference.step)
+  if (!findStep(graph, producerId)) return undefined
+
+  const bareId = producerId.split('/').pop() ?? producerId
+  if (namespace !== bareId && namespace !== producerId) return undefined
+
+  return { id: producerId, type: reference.type }
 }
 
 /**
