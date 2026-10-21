@@ -184,3 +184,15 @@ describe('@nx-devkit/sverka:config', () => {
     await expect(configGenerator(tree)).rejects.toThrow(/no checks found/)
   })
 })
+
+describe('the entry identifier', () => {
+  it('rejects a reserved word', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))
+
+    await configGenerator(tree, { entry: 'default' })
+
+    const config = tree.read('sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('export const defaultEntry = new Entry(ci, "default"')
+  })
+})

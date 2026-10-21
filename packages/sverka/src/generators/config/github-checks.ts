@@ -81,7 +81,7 @@ export const GITHUB_CHECKS: Record<string, GithubCheck> = {
       '[ -z "$REPO_HEALTH_TOKEN" ] || export GH_TOKEN="$REPO_HEALTH_TOKEN";',
       `out=$(gh api --paginate 'repos/{owner}/{repo}/dependabot/alerts?state=open' --jq '.[].number' 2>&1)`,
       '|| {',
-      'if echo "$out" | grep -qi "not accessible\\|403"; then',
+      'if echo "$out" | grep -qi "not accessible\\|403\\|404"; then',
       // An explicit token that cannot read the alerts is a failure — the
       // check would silently pass otherwise.
       'if [ -n "$REPO_HEALTH_TOKEN" ]; then echo "REPO_HEALTH_TOKEN cannot read dependabot alerts — check its scopes (vulnerability-alerts read) or remove the secret"; exit 1; fi;',

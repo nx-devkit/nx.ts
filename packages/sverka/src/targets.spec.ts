@@ -199,3 +199,25 @@ describe('quoted commands', () => {
     expect(target.inputs).toContain('!{workspaceRoot}/report.txt')
   })
 })
+
+describe('stderr appends', () => {
+  it('does not exclude a file written by a stderr append', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'tool 2>> errors.txt' }],
+      }),
+    )
+
+    expect(target.inputs).not.toContain('!{workspaceRoot}/errors.txt')
+  })
+
+  it('does not exclude a file written by an explicit stderr append', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'tool &>> errors.txt' }],
+      }),
+    )
+
+    expect(target.inputs).not.toContain('!{workspaceRoot}/errors.txt')
+  })
+})

@@ -430,6 +430,56 @@ function camel(value: string): string {
 /** The identifiers the generated code already uses. */
 const RESERVED_IDENTIFIERS = new Set(['proj', 'ci', 'repoHealth', 'entry'])
 
+/** JavaScript reserved words — they cannot be a variable name. */
+const RESERVED_WORDS = new Set([
+  'await',
+  'break',
+  'case',
+  'catch',
+  'class',
+  'const',
+  'continue',
+  'debugger',
+  'default',
+  'delete',
+  'do',
+  'else',
+  'enum',
+  'export',
+  'extends',
+  'false',
+  'finally',
+  'for',
+  'function',
+  'if',
+  'implements',
+  'import',
+  'in',
+  'instanceof',
+  'interface',
+  'let',
+  'new',
+  'null',
+  'package',
+  'private',
+  'protected',
+  'public',
+  'return',
+  'static',
+  'super',
+  'switch',
+  'this',
+  'throw',
+  'true',
+  'try',
+  'typeof',
+  'var',
+  'void',
+  'while',
+  'with',
+  'yield',
+])
+
 /**
  * A valid TypeScript identifier for the entry export.
  *
@@ -442,7 +492,7 @@ function entryIdentifier(name: string): string {
   if (candidate === '' || /^[0-9]/.test(candidate)) {
     candidate = `entry${candidate}`
   }
-  if (RESERVED_IDENTIFIERS.has(candidate)) {
+  if (RESERVED_IDENTIFIERS.has(candidate) || RESERVED_WORDS.has(candidate)) {
     candidate = `${candidate}Entry`
   }
   return candidate
