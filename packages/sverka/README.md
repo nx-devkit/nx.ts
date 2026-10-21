@@ -1,8 +1,8 @@
 # @nx-devkit/sverka
 
 Zero-config Nx plugin for [sverka](https://sverka.dev): a sverka config
-automatically produces **one Nx target per sverka step** — no `project.json`
-needed, and no "run the whole workflow" mega-target.
+automatically produces **one Nx target per reachable sverka step** — no
+`project.json` needed, and no "run the whole workflow" mega-target.
 
 Each step keeps its own inputs, outputs and cache entry, so Nx can run the
 steps in parallel, cache them individually and restore a single step from the
@@ -66,9 +66,21 @@ nx run-many -t ci:lint      # every project with a sverka config
 nx affected -t ci:lint      # only the projects whose files changed
 ```
 
+A target name contains a colon, so `nx run app:ci:lint` is ambiguous to
+read — the explicit form always works:
+
+```bash
+nx run --project=app --target=ci:lint
+```
+
 The target name is `<pipeline>:<step>` — the sverka step `ci/lint` becomes
 the Nx target `ci:lint`. The config's directory is the project root, so a
-config in `packages/app` gives the targets to the `packages/app` project.
+config in `packages/app` gives the targets to that project (the project
+*name* comes from its `package.json` — `app` in the example below; without
+a `package.json` the project is named after its path, `packages/app`).
+
+A step is inferred when an entry can reach it — a step that no entry
+references gets no target.
 
 The plugin watches `sverka.config.ts`, `sverka.config.mts`,
 `sverka.config.js` and `sverka.config.mjs`.
@@ -220,8 +232,13 @@ nx g @nx-devkit/sverka:config --project=app \
 | `open-prs` | lists the open PRs (informational) |
 
 They land in a second pipeline (`repo-health`) with read-scoped permissions
-and a `GITHUB_TOKEN` secret, and are driven by the `gh` CLI — so they work
+and the `GITHUB_TOKEN` secret, and are driven by the `gh` CLI — so they work
 locally (`gh auth login`) and in CI.
+
+`dependabot-alerts` needs the `vulnerability-alerts` permission, which the
+workflow `GITHUB_TOKEN` does not carry. The generated pipeline declares an
+optional `REPO_HEALTH_TOKEN` secret for it: without that token the check
+prints a warning and skips instead of failing.
 
 ## Options
 

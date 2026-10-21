@@ -17,7 +17,8 @@ export interface NxDevkitSverkaOptions {
   /**
    * Target name template.
    *
-   * Tokens: `{pipeline}` (sverka pipeline id), `{step}` (sverka step id).
+   * Tokens: `{pipeline}` (sverka pipeline id), `{step}` (sverka step id),
+   * `{id}` (the fully qualified step id, e.g. `ci/lint`).
    * Default: `"{pipeline}:{step}"` — e.g. `ci:lint`.
    */
   targetName?: string

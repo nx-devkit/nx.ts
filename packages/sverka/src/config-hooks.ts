@@ -61,16 +61,33 @@ function resolveWithFallback(
   context: ResolveContext,
   nextResolve: NextResolve,
 ): ResolveResult | Promise<ResolveResult> {
+  const versioned = versionedSpecifier(specifier, context)
   let result: ResolveResult | Promise<ResolveResult>
   try {
-    result = nextResolve(specifier, context)
+    result = nextResolve(versioned, context)
   } catch (error) {
-    return fallback(specifier, context, nextResolve, error)
+    return fallback(versioned, context, nextResolve, error)
   }
   if (result instanceof Promise) {
-    return result.catch((error) => fallback(specifier, context, nextResolve, error))
+    return result.catch((error) => fallback(versioned, context, nextResolve, error))
   }
   return result
+}
+
+/**
+ * Carry the config fingerprint over to a relative import.
+ *
+ * The config module is imported with a `?v=<fingerprint>` query, so it
+ * is re-evaluated when it (or one of its helpers) changes. The helpers
+ * it imports have to carry the same query — otherwise the ESM cache
+ * serves the old helper.
+ */
+function versionedSpecifier(specifier: string, context: ResolveContext): string {
+  if (!specifier.startsWith('.')) return specifier
+  const parent = context.parentURL ?? ''
+  const match = /[?&]v=([a-f0-9]+)/.exec(parent)
+  if (!match) return specifier
+  return `${specifier}?v=${match[1]}`
 }
 
 function fallback(

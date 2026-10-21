@@ -25,7 +25,7 @@ function makeWorkspace(files: Record<string, string> = {}): string {
 }
 
 const CONFIG = `
-import { Project, Pipeline, ShellStep, Entry, push } from '@sverka/workflow'
+import { Project, Pipeline, ShellStep, Entry, push, manual } from '@sverka/workflow'
 
 const proj = new Project('demo')
 const ci = new Pipeline(proj, 'ci')
@@ -53,13 +53,25 @@ export const onPush = new Entry(ci, 'on-push', {
   roots: [lint.node.id, policy.node.id],
 })
 
+const audit = new ShellStep(ci, 'audit', {
+  command: 'bun run audit',
+  runtime: { shell: 'sh' },
+})
+
+export const nightly = new Entry(ci, 'nightly', {
+  trigger: manual(),
+  roots: [audit.node.id],
+})
+
 export default proj
 `
 
 describe('@nx-devkit/sverka createNodesV2', () => {
   it('watches the sverka config file names', () => {
     expect(createNodesV2[0]).toContain('sverka.config.ts')
+    expect(createNodesV2[0]).toContain('sverka.config.mts')
     expect(createNodesV2[0]).toContain('sverka.config.js')
+    expect(createNodesV2[0]).toContain('sverka.config.mjs')
   })
 
   it('infers one target per sverka step', async () => {
@@ -68,6 +80,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
     const project = results[0]![1].projects!['']!
 
     expect(Object.keys(project.targets!).sort()).toEqual([
+      'ci:audit',
       'ci:build',
       'ci:lint',
       'ci:lint-sarif',
@@ -146,7 +159,55 @@ describe('@nx-devkit/sverka createNodesV2', () => {
     )
     const targets = results[0]![1].projects!['']!.targets!
 
-    expect(Object.keys(targets)).toHaveLength(4)
+    // `ci/audit` belongs to the other entry only.
+    expect(Object.keys(targets).sort()).toEqual([
+      'ci:build',
+      'ci:lint',
+      'ci:lint-sarif',
+      'ci:policy',
+    ])
+  })
+
+  it('infers only the steps of the selected entry', async () => {
+    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
+    const results = await createNodesV2[1](
+      ['sverka.config.ts'],
+      { entry: 'ci/nightly' },
+      makeContext(root),
+    )
+    const targets = results[0]![1].projects!['']!.targets!
+
+    expect(Object.keys(targets)).toEqual(['ci:audit'])
+  })
+
+  it('infers the steps of every entry by default', async () => {
+    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
+    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
+    const targets = results[0]![1].projects!['']!.targets!
+
+    // The union of both entries.
+    expect(Object.keys(targets).sort()).toEqual([
+      'ci:audit',
+      'ci:build',
+      'ci:lint',
+      'ci:lint-sarif',
+      'ci:policy',
+    ])
+  })
+
+  it('reports a target name that two steps would share', async () => {
+    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
+    const results = await createNodesV2[1](
+      ['sverka.config.ts'],
+      { targetName: '{step}' },
+      makeContext(root),
+    )
+    const targets = results[0]![1].projects!['']!.targets!
+
+    // `lint` and `lint-sarif` do not collide, but the pipeline is gone —
+    // the names stay unique.
+    expect(Object.keys(targets)).toContain('lint')
+    expect(Object.keys(targets)).toContain('lint-sarif')
   })
 
   it('honours a custom target name template', async () => {
@@ -159,6 +220,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
     const targets = results[0]![1].projects!['']!.targets!
 
     expect(Object.keys(targets).sort()).toEqual([
+      'sverka-audit',
       'sverka-build',
       'sverka-lint',
       'sverka-lint-sarif',

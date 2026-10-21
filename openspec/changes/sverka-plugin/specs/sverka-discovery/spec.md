@@ -51,10 +51,12 @@ collapsed into a single target.
 
 ### Requirement: per-step inputs, outputs and cache
 
-Every inferred target MUST be cached (`cache: true`) and MUST declare its own
-inputs and outputs. The inputs MUST cover the project files, the sverka
-config and the artifacts the step consumes; the outputs MUST cover the files
-the step declares as outputs.
+Every inferred target MUST be cached by default (`cache: true`) and MUST declare
+its own inputs and outputs. The `cache: false` option MUST be honored. A
+step that reads remote state (a command that talks to GitHub) MUST NOT be
+cached — its result depends on state Nx cannot hash. The inputs MUST cover
+the project files, the sverka config and the artifacts the step consumes;
+the outputs MUST cover the files the step declares as outputs.
 
 #### Scenario: cached target
 
@@ -78,8 +80,13 @@ the step declares as outputs.
 
 - **GIVEN** a step writes a file into the project
 - **WHEN** nodes are created
-- **THEN** that file MUST be excluded from the inputs of every step of the
-  config, so a step does not invalidate its own cache
+- **THEN** a *detectable* write MUST be excluded from the inputs of every
+  step of the config, so a step does not invalidate its own cache
+
+The detectable writes are the declared outputs, the imported artifacts (the
+engine materializes them in the project directory) and the files a shell
+step redirects into (`tool > report.txt`). A file a step writes without any
+of those declarations stays an input — declare it in the sverka config.
 
 ### Requirement: step dependencies become target dependencies
 

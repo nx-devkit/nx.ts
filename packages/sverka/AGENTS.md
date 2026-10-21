@@ -120,8 +120,9 @@ target ci:lint { executor, inputs, outputs, dependsOn, cache }
   the ESM cache.
 - **`jsonc-parser` must stay a dependency.** `@nx-devkit/internal` is
   bundled (`alwaysBundle`), and tsdown only externalizes *declared*
-  dependencies — without it the CJS build of jsonc-parser ends up inlined
-  with broken `require("./impl/*")` calls (see `a90b406`).
+  dependencies — without it, jsonc-parser is inlined into the chunk and
+  its internal `require("./impl/*")` calls break at runtime (the same fix
+  as `a90b406`).
 
 ## Extending
 
