@@ -45,9 +45,34 @@ const UNSAFE_TARGET_CHARS = /[^A-Za-z0-9._:-]+/g
  * A `>` inside a quoted string is a literal character, not a redirection.
  */
 function withoutStrings(command: string): string {
-  // A double-quoted string may contain escaped quotes — the closing quote
-  // is the one that is not escaped.
-  return command.replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, ' ')
+  // A scanner, not a regular expression: a pattern that matches quoted
+  // strings with escapes can backtrack on a long run of escaped quotes.
+  let out = ''
+  let quote: string | undefined
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index]!
+    if (quote === undefined) {
+      if (char === '"' || char === "'") {
+        quote = char
+        out += ' '
+        continue
+      }
+      out += char
+      continue
+    }
+    // Inside a double-quoted string a backslash escapes the next character
+    // — the escaped quote does not end the string.
+    if (quote === '"' && char === '\\' && index + 1 < command.length) {
+      index += 1
+      out += ' '
+      continue
+    }
+    if (char === quote) {
+      quote = undefined
+      out += ' '
+    }
+  }
+  return out
 }
 
 /**

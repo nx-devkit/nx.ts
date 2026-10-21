@@ -180,3 +180,22 @@ describe('redirect detection', () => {
     expect(target.inputs).not.toContain('!{workspaceRoot}/b.txt')
   })
 })
+
+describe('quoted commands', () => {
+  it('keeps a redirection outside a quoted string', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'tool "a" > report.txt' }],
+      }),
+    )
+
+    expect(target.inputs).toContain('!{workspaceRoot}/report.txt')
+  })
+
+  it('handles a long run of escaped quotes without hanging', () => {
+    const command = `echo "${'\\"'.repeat(200)}" > report.txt`
+    const target = targetFor(makeStep({ operations: [{ kind: 'shell', command }] }))
+
+    expect(target.inputs).toContain('!{workspaceRoot}/report.txt')
+  })
+})
