@@ -195,15 +195,10 @@ function claimTargetName(
   if (owner !== undefined) {
     unique = uniqueName(name, owners)
     // The step ids and the file name come from the config file — untrusted
-    // input. The warning stays static; the details are in the debug log.
+    // input that must not reach a log line. The message stays static; the
+    // unique suffix shows up in the target name.
     logger.warn(
       `[${PLUGIN_SCOPE}] two steps render the same target name — the second one gets a unique suffix`,
-    )
-    // Only the file name — the step ids come from the config file and
-    // must not reach a log line.
-    logDebug(
-      PLUGIN_SCOPE,
-      `target name collision in ${logSafe(configFile)} — the second step got a unique suffix`,
     )
   }
   owners.set(unique, step.id)
