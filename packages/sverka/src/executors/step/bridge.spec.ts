@@ -24,6 +24,28 @@ function step(overrides: Partial<StepDefinition>): StepDefinition {
   } as StepDefinition
 }
 
+/** The producer step the consumer imports from. */
+function producer(): StepDefinition {
+  return step({
+    id: 'ci/producer',
+    outputs: [{ name: 'report.json', type: 'artifact', fromStdout: true }],
+  })
+}
+
+/** A consumer that imports `name` from the producer. */
+function importConsumer(name: string): StepDefinition {
+  return step({
+    operations: [
+      {
+        kind: 'importArtifact',
+        name,
+        from: 'ci/producer',
+        output: 'report.json',
+      },
+    ],
+  })
+}
+
 function graphWith(...producers: StepDefinition[]): DefinitionGraph {
   return {
     project: {
@@ -33,47 +55,37 @@ function graphWith(...producers: StepDefinition[]): DefinitionGraph {
   }
 }
 
+/** A step that publishes a stdout artifact. */
+function stdoutProducer(name: string): StepDefinition {
+  return step({
+    id: 'ci/producer',
+    operations: [
+      { kind: 'shell', command: 'true' },
+      { kind: 'exportStdout', name },
+    ],
+  })
+}
+
+/** The directory a stdout artifact is published to. */
+function artifactPath(workspace: string, name: string): string {
+  return join(workspace, '.sverka', 'artifacts', 'ci', 'producer', name)
+}
+
 describe('artifact bridge', () => {
   it('materializes an imported artifact in the project directory', () => {
     const workspace = makeWorkspace()
-    const producer = step({
-      id: 'ci/producer',
-      outputs: [{ name: 'report.json', type: 'artifact', fromStdout: true }],
-    })
-    const consumer = step({
-      operations: [
-        {
-          kind: 'importArtifact',
-          name: 'report.json',
-          from: 'ci/producer',
-          output: 'report.json',
-        },
-      ],
-    })
+    const consumer = importConsumer('report.json')
 
-    const materialized = materializeImportedArtifacts(consumer, graphWith(producer), workspace)
+    const materialized = materializeImportedArtifacts(consumer, graphWith(producer()), workspace)
 
     expect(materialized).toEqual([join(workspace, 'report.json')])
   })
 
   it('refuses to materialize an artifact outside the project directory', () => {
     const workspace = makeWorkspace()
-    const producer = step({
-      id: 'ci/producer',
-      outputs: [{ name: 'report.json', type: 'artifact', fromStdout: true }],
-    })
-    const consumer = step({
-      operations: [
-        {
-          kind: 'importArtifact',
-          name: '../../escaped.json',
-          from: 'ci/producer',
-          output: 'report.json',
-        },
-      ],
-    })
+    const consumer = importConsumer('../../escaped.json')
 
-    expect(() => materializeImportedArtifacts(consumer, graphWith(producer), workspace)).toThrow(
+    expect(() => materializeImportedArtifacts(consumer, graphWith(producer()), workspace)).toThrow(
       /escapes the project directory/,
     )
   })
@@ -82,46 +94,26 @@ describe('artifact bridge', () => {
     const workspace = makeWorkspace()
     const outside = mkdtempSync(join(tmpdir(), 'nx-sverka-outside-'))
     symlinkSync(outside, join(workspace, 'linked'), 'dir')
-    const producer = step({
-      id: 'ci/producer',
-      outputs: [{ name: 'report.json', type: 'artifact', fromStdout: true }],
-    })
-    const consumer = step({
-      operations: [
-        {
-          kind: 'importArtifact',
-          name: 'linked/escaped.json',
-          from: 'ci/producer',
-          output: 'report.json',
-        },
-      ],
-    })
 
-    expect(() => materializeImportedArtifacts(consumer, graphWith(producer), workspace)).toThrow(
-      /escapes the project directory/,
-    )
+    expect(() =>
+      materializeImportedArtifacts(
+        importConsumer('linked/escaped.json'),
+        graphWith(producer()),
+        workspace,
+      ),
+    ).toThrow(/escapes the project directory/)
   })
 
   it('refuses to read a producer output outside the project directory', () => {
     const workspace = makeWorkspace()
-    const producer = step({
+    const escaping = step({
       id: 'ci/producer',
       outputs: [{ name: 'report.json', type: 'artifact', path: '../escaped.json' }],
     })
-    const consumer = step({
-      operations: [
-        {
-          kind: 'importArtifact',
-          name: 'report.json',
-          from: 'ci/producer',
-          output: 'report.json',
-        },
-      ],
-    })
 
-    expect(() => materializeImportedArtifacts(consumer, graphWith(producer), workspace)).toThrow(
-      /declares no such output/,
-    )
+    expect(() =>
+      materializeImportedArtifacts(importConsumer('report.json'), graphWith(escaping), workspace),
+    ).toThrow(/declares no such output/)
   })
 
   it('does not publish an output outside the project directory', () => {
@@ -142,19 +134,14 @@ describe('artifact bridge', () => {
     mkdirSync(join(artifactDir, runId, 'ci', 'producer'), { recursive: true })
     writeFileSync(join(artifactDir, runId, 'ci', 'producer', 'report.json'), '{"ok":true}')
 
-    const producer = step({
-      id: 'ci/producer',
-      operations: [
-        { kind: 'shell', command: 'true' },
-        { kind: 'exportStdout', name: 'report.json' },
-      ],
-    })
+    const published = publishStepOutputs(
+      stdoutProducer('report.json'),
+      artifactDir,
+      runId,
+      workspace,
+    )
 
-    const published = publishStepOutputs(producer, artifactDir, runId, workspace)
-
-    expect(published).toEqual([
-      join(workspace, '.sverka', 'artifacts', 'ci', 'producer', 'report.json'),
-    ])
+    expect(published).toEqual([artifactPath(workspace, 'report.json')])
   })
 
   it('reads a producer value from its stable path', () => {
@@ -167,16 +154,11 @@ describe('artifact bridge', () => {
       '1.2.3',
     )
 
-    const producer = step({
-      id: 'ci/producer',
-      outputs: [{ name: 'version', type: 'string' }],
-    })
-    const consumer = step({
-      operations: [{ kind: 'shell', command: `echo \${producer.version}` }],
-      inputs: [{ kind: 'step', step: 'producer', output: 'version', type: 'string' }],
-    })
-
-    const values = collectStepValues(consumer, graphWith(producer), workspace)
+    const values = collectStepValues(
+      versionConsumer('producer'),
+      graphWith(versionProducer('1.2.3')),
+      workspace,
+    )
 
     expect(values).toEqual([{ key: 'producer.version', value: '1.2.3' }])
   })
@@ -193,14 +175,6 @@ describe('artifact bridge', () => {
       )
     }
 
-    const producerA = step({
-      id: 'ci/a',
-      outputs: [{ name: 'version', type: 'string' }],
-    })
-    const producerB = step({
-      id: 'ci/b',
-      outputs: [{ name: 'version', type: 'string' }],
-    })
     const consumer = step({
       operations: [{ kind: 'shell', command: `echo \${b.version}` }],
       inputs: [
@@ -209,31 +183,47 @@ describe('artifact bridge', () => {
       ],
     })
 
-    const values = collectStepValues(consumer, graphWith(producerA, producerB), workspace)
+    const values = collectStepValues(
+      consumer,
+      graphWith(versionProducer('1.0.0', 'ci/a'), versionProducer('2.0.0', 'ci/b')),
+      workspace,
+    )
 
     expect(values).toEqual([{ key: 'b.version', value: '2.0.0' }])
   })
 })
 
+/** A producer that publishes a version value. */
+function versionProducer(value: string, id = 'ci/producer'): StepDefinition {
+  void value
+  return step({
+    id,
+    outputs: [{ name: 'version', type: 'string' }],
+  })
+}
+
+/** A consumer that reads a version value. */
+function versionConsumer(namespace: string): StepDefinition {
+  return step({
+    operations: [{ kind: 'shell', command: `echo \${${namespace}.version}` }],
+    inputs: [{ kind: 'step', step: 'producer', output: 'version', type: 'string' }],
+  })
+}
+
 describe('missing outputs', () => {
   it('removes a stale artifact when a declared output is not produced', () => {
     const workspace = makeWorkspace()
     // The producer declared this output in an earlier run.
-    writeFileSync(
-      join(workspace, '.sverka', 'artifacts', 'ci', 'producer', 'stale.json'),
-      '{"old":true}',
-    )
+    writeFileSync(artifactPath(workspace, 'stale.json'), '{"old":true}')
 
-    const producer = step({
+    const stepWithOutput = step({
       id: 'ci/producer',
       operations: [{ kind: 'shell', command: 'true' }],
       outputs: [{ name: 'stale.json', type: 'artifact', fromStdout: true }],
     })
 
-    publishStepOutputs(producer, join(workspace, '.tmp'), undefined, workspace)
+    publishStepOutputs(stepWithOutput, join(workspace, '.tmp'), undefined, workspace)
 
-    expect(
-      existsSync(join(workspace, '.sverka', 'artifacts', 'ci', 'producer', 'stale.json')),
-    ).toBe(false)
+    expect(existsSync(artifactPath(workspace, 'stale.json'))).toBe(false)
   })
 })

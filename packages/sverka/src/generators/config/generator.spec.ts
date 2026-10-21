@@ -1,8 +1,22 @@
+import type { Tree } from '@nx/devkit'
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing'
 import { describe, expect, it } from 'vitest'
 import { configGenerator } from './generator.ts'
 
 describe('@nx-devkit/sverka:config', () => {
+  /** The config the generator wrote for the `app` project. */
+  function appConfig(tree: Tree): string {
+    return tree.read('packages/app/sverka.config.ts', 'utf8') ?? ''
+  }
+
+  /** A workspace with a root package and a `packages/app` project. */
+  function workspaceWithAppProject(projectJson: string) {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'workspace' }))
+    tree.write('packages/app/project.json', projectJson)
+    return tree
+  }
+
   it('generates a config from the package.json scripts', async () => {
     const tree = createTreeWithEmptyWorkspace()
     tree.write(
@@ -52,17 +66,13 @@ describe('@nx-devkit/sverka:config', () => {
   })
 
   it('uses the Nx target of a project that has no matching script', async () => {
-    const tree = createTreeWithEmptyWorkspace()
-    tree.write('package.json', JSON.stringify({ name: 'workspace', scripts: {} }))
-    tree.write(
-      'packages/app/project.json',
+    const tree = workspaceWithAppProject(
       JSON.stringify({ name: 'app', root: 'packages/app', targets: { lint: {} } }),
     )
 
     await configGenerator(tree, { project: 'app' })
 
-    const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? ''
-    expect(config).toContain('"nx run app:lint"')
+    expect(appConfig(tree)).toContain('"nx run app:lint"')
   })
 
   it('adds the GitHub checks to a repo-health pipeline', async () => {
@@ -129,17 +139,13 @@ describe('@nx-devkit/sverka:config', () => {
   })
 
   it('reads a project.json with comments', async () => {
-    const tree = createTreeWithEmptyWorkspace()
-    tree.write('package.json', JSON.stringify({ name: 'workspace' }))
-    tree.write(
-      'packages/app/project.json',
+    const tree = workspaceWithAppProject(
       '{ /* the app */ "name": "app", "root": "packages/app", "targets": { "lint": {} } }',
     )
 
     await configGenerator(tree, { project: 'app' })
 
-    const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? ''
-    expect(config).toContain('"nx run app:lint"')
+    expect(appConfig(tree)).toContain('"nx run app:lint"')
   })
 
   it('refuses to overwrite an existing config', async () => {

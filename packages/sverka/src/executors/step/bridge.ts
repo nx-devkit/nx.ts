@@ -26,6 +26,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { DefinitionGraph, OperationDefinition, StepDefinition } from '@sverka/workflow'
 import { artifactRelativePath, valueRelativePath } from '../../paths.js'
+import { findStep } from '../../plan.js'
 import { resolveProducerId } from '../../targets.js'
 
 /** `${namespace.field}` references inside a step command. */
@@ -323,15 +324,6 @@ function producerOutputPath(
   if (!output) return undefined
   if (output.path) return resolveInside(workspace, output.path)
   return resolveInside(workspace, artifactRelativePath(producerId, outputName))
-}
-
-/** Find a step by fully qualified id. */
-function findStep(graph: DefinitionGraph, stepId: string): StepDefinition | undefined {
-  for (const pipeline of graph.project.pipelines) {
-    const step = pipeline.steps.find((candidate) => candidate.id === stepId)
-    if (step) return step
-  }
-  return undefined
 }
 
 /** Read and parse a published value file. */

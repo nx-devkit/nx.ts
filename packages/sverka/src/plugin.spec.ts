@@ -1,9 +1,11 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import type { TargetConfiguration } from '@nx/devkit'
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
 import { describe, expect, it } from 'vitest'
 import { createNodesV2 } from './plugin.ts'
+import type { NxDevkitSverkaOptions } from './types.ts'
 
 function makeContext(workspaceRoot: string): CreateNodesContextV2 {
   return {
@@ -67,6 +69,16 @@ export default proj
 `
 
 describe('@nx-devkit/sverka createNodesV2', () => {
+  /** The inferred targets of a config in the workspace root. */
+  async function inferTargets(
+    options: NxDevkitSverkaOptions = {},
+    files: Record<string, string> = { 'sverka.config.ts': CONFIG },
+  ): Promise<Record<string, TargetConfiguration>> {
+    const root = makeWorkspace(files)
+    const results = await createNodesV2[1](['sverka.config.ts'], options, makeContext(root))
+    return results[0]![1].projects!['']!.targets!
+  }
+
   it('watches the sverka config file names', () => {
     expect(createNodesV2[0]).toContain('sverka.config.ts')
     expect(createNodesV2[0]).toContain('sverka.config.mts')
@@ -75,9 +87,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('infers one target per sverka step', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
-    const project = results[0]![1].projects!['']!
+    const project = { targets: await inferTargets({}) }
 
     expect(Object.keys(project.targets!).sort()).toEqual([
       'ci:audit',
@@ -89,9 +99,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('gives every step its own executor, options and cache entry', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({})
     const lint = targets['ci:lint']!
 
     expect(lint.executor).toBe('@nx-devkit/sverka:step')
@@ -100,9 +108,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('maps sverka step dependencies onto Nx target dependencies', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({})
 
     expect(targets['ci:lint']!.dependsOn).toEqual(['ci:build'])
     expect(targets['ci:policy']!.dependsOn).toEqual(['ci:lint-sarif'])
@@ -110,9 +116,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('declares the step outputs as Nx outputs', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({})
 
     expect(targets['ci:lint-sarif']!.outputs).toEqual([
       '{workspaceRoot}/.sverka/artifacts/ci/lint-sarif/eslint.sarif',
@@ -121,9 +125,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('declares the consumed producer artifact as an input', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({})
 
     expect(targets['ci:policy']!.inputs).toContain(
       '{workspaceRoot}/.sverka/artifacts/ci/lint-sarif/eslint.sarif',
@@ -131,9 +133,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('excludes the sverka scratch space and its own outputs from the inputs', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({})
 
     expect(targets['ci:lint']!.inputs).toContain('!{workspaceRoot}/.sverka/workspace/**')
     expect(targets['ci:lint-sarif']!.inputs).toContain(
@@ -151,13 +151,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('restricts the inference to a single entry', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](
-      ['sverka.config.ts'],
-      { entry: 'ci/on-push' },
-      makeContext(root),
-    )
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({ entry: 'ci/on-push' })
 
     // `ci/audit` belongs to the other entry only.
     expect(Object.keys(targets).sort()).toEqual([
@@ -169,21 +163,13 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('infers only the steps of the selected entry', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](
-      ['sverka.config.ts'],
-      { entry: 'ci/nightly' },
-      makeContext(root),
-    )
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({ entry: 'ci/nightly' })
 
     expect(Object.keys(targets)).toEqual(['ci:audit'])
   })
 
   it('infers the steps of every entry by default', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({})
 
     // The union of both entries.
     expect(Object.keys(targets).sort()).toEqual([
@@ -196,13 +182,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('reports a target name that two steps would share', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](
-      ['sverka.config.ts'],
-      { targetName: '{step}' },
-      makeContext(root),
-    )
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({ targetName: '{step}' })
 
     // `lint` and `lint-sarif` do not collide, but the pipeline is gone —
     // the names stay unique.
@@ -211,13 +191,7 @@ describe('@nx-devkit/sverka createNodesV2', () => {
   })
 
   it('honours a custom target name template', async () => {
-    const root = makeWorkspace({ 'sverka.config.ts': CONFIG })
-    const results = await createNodesV2[1](
-      ['sverka.config.ts'],
-      { targetName: 'sverka-{step}' },
-      makeContext(root),
-    )
-    const targets = results[0]![1].projects!['']!.targets!
+    const targets = await inferTargets({ targetName: 'sverka-{step}' })
 
     expect(Object.keys(targets).sort()).toEqual([
       'sverka-audit',
