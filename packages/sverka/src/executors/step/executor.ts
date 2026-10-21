@@ -67,53 +67,17 @@ export async function stepExecutor(
   materializeImportedArtifacts(step, graph, workspace)
 
   const artifactDir = mkdtempSync(join(tmpdir(), 'nx-sverka-'))
-  const engine = createEngine({
-    drivers: [
-      createHostDriver({
-        enabled: true,
-        // The allowlist is a boundary for untrusted input; a workspace
-        // config is trusted input, so every command is allowed.
-        allowlist: { entries: [], isAllowed: () => true },
-        envAllowlist: [
-          'PATH',
-          'HOME',
-          'USER',
-          'SHELL',
-          'TMPDIR',
-          'CI',
-          'NODE_ENV',
-          'XDG_CONFIG_HOME',
-          'XDG_CACHE_HOME',
-          'XDG_DATA_HOME',
-          'XDG_STATE_HOME',
-          'XDG_RUNTIME_DIR',
-        ],
-      }),
-    ],
-    maxConcurrent: 1,
-  })
-
   let runId: string | undefined
   let failure: string | undefined
   let stdout = ''
   let stderr = ''
 
   try {
-    for await (const event of engine.run({ plan, workspace, artifactDir })) {
-      if (event.type === 'run-completed') {
-        runId = event.runId
-      }
-      if (event.type === 'step-succeeded' || event.type === 'step-failed') {
-        stdout = event.stdout ?? stdout
-        stderr = event.stderr ?? stderr
-      }
-      if (event.type === 'step-failed') {
-        failure = event.error
-      }
-      if (event.type === 'diagnostic' && event.severity === 'error') {
-        failure = failure ?? event.message
-      }
-    }
+    const outcome = await runStep(plan, workspace, artifactDir)
+    runId = outcome.runId
+    failure = outcome.failure
+    stdout = outcome.stdout
+    stderr = outcome.stderr
 
     // Publish the step's artifacts and values to their stable paths so the
     // next task (and the Nx cache) can pick them up. This has to happen
@@ -143,6 +107,72 @@ export async function stepExecutor(
 
   return { success: true }
 }
+
+/** What a step run produced. */
+interface StepOutcome {
+  runId?: string
+  failure?: string
+  stdout: string
+  stderr: string
+}
+
+/**
+ * Run the plan on the sverka engine and collect its outcome.
+ */
+async function runStep(
+  plan: RunPlan,
+  workspace: string,
+  artifactDir: string,
+): Promise<StepOutcome> {
+  const engine = createEngine({
+    drivers: [
+      createHostDriver({ enabled: true, allowlist: PERMISSIVE, envAllowlist: ENV_ALLOWLIST }),
+    ],
+    maxConcurrent: 1,
+  })
+
+  const outcome: StepOutcome = { stdout: '', stderr: '' }
+  for await (const event of engine.run({ plan, workspace, artifactDir })) {
+    if (event.type === 'run-completed') {
+      outcome.runId = event.runId
+      continue
+    }
+    if (event.type === 'step-succeeded' || event.type === 'step-failed') {
+      outcome.stdout = event.stdout ?? outcome.stdout
+      outcome.stderr = event.stderr ?? outcome.stderr
+    }
+    if (event.type === 'step-failed') {
+      outcome.failure = event.error
+      continue
+    }
+    if (event.type === 'diagnostic' && event.severity === 'error') {
+      outcome.failure = outcome.failure ?? event.message
+    }
+  }
+  return outcome
+}
+
+/**
+ * The allowlist is a boundary for untrusted input; a workspace config is
+ * trusted input, so every command is allowed.
+ */
+const PERMISSIVE = { entries: [], isAllowed: () => true }
+
+/** Host variables forwarded to the step's command. */
+const ENV_ALLOWLIST = [
+  'PATH',
+  'HOME',
+  'USER',
+  'SHELL',
+  'TMPDIR',
+  'CI',
+  'NODE_ENV',
+  'XDG_CONFIG_HOME',
+  'XDG_CACHE_HOME',
+  'XDG_DATA_HOME',
+  'XDG_STATE_HOME',
+  'XDG_RUNTIME_DIR',
+]
 
 /**
  * Build the run plan for a single step.

@@ -129,34 +129,37 @@ function resolveChecks(
 
 /** package.json scripts of a project. */
 function readScripts(tree: Tree, projectRoot: string): Record<string, string> {
-  const path = `${projectRoot}/package.json`.replace(/^\//, '')
-  if (!tree.exists(path)) return {}
+  const pkg = readJsonFile(tree, `${projectRoot}/package.json`)
+  const scripts: Record<string, string> = {}
+  for (const [name, value] of Object.entries(pkg?.scripts ?? {})) {
+    if (typeof value === 'string' && value.length > 0) scripts[name] = value
+  }
+  return scripts
+}
+
+/**
+ * Read a JSON file from the tree.
+ *
+ * Returns `null` when the file is missing or malformed — the caller
+ * decides what to do without it.
+ */
+function readJsonFile(tree: Tree, path: string): Record<string, unknown> | null {
+  const normalized = path.replace(/^\//, '')
+  if (!tree.exists(normalized)) return null
   try {
-    const pkg = JSON.parse(tree.read(path, 'utf8') ?? '{}') as {
-      scripts?: Record<string, unknown>
-    }
-    const scripts: Record<string, string> = {}
-    for (const [name, value] of Object.entries(pkg.scripts ?? {})) {
-      if (typeof value === 'string' && value.length > 0) scripts[name] = value
-    }
-    return scripts
+    const parsed = JSON.parse(tree.read(normalized, 'utf8') ?? '{}')
+    return typeof parsed === 'object' && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : null
   } catch {
-    return {}
+    return null
   }
 }
 
 /** Target names declared by a project's project.json. */
 function readTargetNames(tree: Tree, projectRoot: string): Set<string> {
-  const path = `${projectRoot}/project.json`.replace(/^\//, '')
-  if (!tree.exists(path)) return new Set()
-  try {
-    const project = JSON.parse(tree.read(path, 'utf8') ?? '{}') as {
-      targets?: Record<string, unknown>
-    }
-    return new Set(Object.keys(project.targets ?? {}))
-  } catch {
-    return new Set()
-  }
+  const project = readJsonFile(tree, `${projectRoot}/project.json`)
+  return new Set(Object.keys(project?.targets ?? {}))
 }
 
 /** A project declared by a project.json in the tree. */
