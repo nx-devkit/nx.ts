@@ -1,10 +1,16 @@
 import { basename, dirname, relative, resolve } from 'node:path'
-import type { CreateNodesResultArray, CreateNodesV2, TargetConfiguration } from '@nx/devkit'
+import type {
+  CreateNodesContextV2,
+  CreateNodesResult,
+  CreateNodesResultArray,
+  CreateNodesV2,
+  TargetConfiguration,
+} from '@nx/devkit'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
 import { logger } from '@nx/devkit'
 import { isVerbose, logDebug } from '@nx-devkit/internal'
 import { SVERKA_CONFIG_NAMES, loadDefinitionGraph } from './graph.js'
-import { collectEntries, stepsForEntry } from './plan.js'
+import { collectEntries, stepsForEntry, type SverkaEntryRef } from './plan.js'
 import { buildStepTarget, targetNameFor } from './targets.js'
 import type { NxDevkitSverkaOptions } from './types.js'
 
@@ -24,111 +30,177 @@ export const SVERKA_GLOB =
 export const createNodesV2: CreateNodesV2<NxDevkitSverkaOptions> = [
   SVERKA_GLOB,
   async (configFiles, options = {}, context): Promise<CreateNodesResultArray> => {
-    const verbose = isVerbose()
     const results: CreateNodesResultArray = []
-
-    // One project per root: a directory may hold several config forms
-    // (`sverka.config.ts` and `sverka.config.js`), and the one with the
-    // highest precedence wins — the outcome must not depend on the order
-    // the glob returned the files in.
-    const byRoot = new Map<string, string[]>()
-    for (const configFile of configFiles) {
-      const dir = dirname(configFile).replace(/\\/g, '/')
-      // The workspace root is the project root of a config in the root
-      // directory — Nx names that project ''.
-      const projectRoot = dir === '.' ? '' : dir
-      if (isSkippedProjectRoot(projectRoot, context.workspaceRoot)) {
-        logDebug(PLUGIN_SCOPE, `Skipping ${projectRoot}`)
-        continue
-      }
-      const files = byRoot.get(projectRoot) ?? []
-      files.push(configFile)
-      byRoot.set(projectRoot, files)
+    for (const [projectRoot, files] of groupByRoot(configFiles, context.workspaceRoot)) {
+      const result = await inferProject(projectRoot, files, options, context)
+      if (result) results.push(result)
     }
-
-    for (const [projectRoot, files] of [...byRoot.entries()].sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
-      const configFile = pickConfig(files)
-      const absConfig = resolve(context.workspaceRoot, configFile)
-      let graph: DefinitionGraph
-      try {
-        graph = await loadDefinitionGraph(absConfig)
-      } catch (error) {
-        // A broken config must not break the whole project graph — report
-        // it and leave the project without sverka targets.
-        logger.warn(
-          `[${PLUGIN_SCOPE}] could not load ${configFile}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        )
-        continue
-      }
-
-      const entries = collectEntries(graph)
-      const selected = options.entry
-        ? entries.filter((entry) => entry.id === options.entry)
-        : entries
-
-      if (selected.length === 0) {
-        logger.warn(`[${PLUGIN_SCOPE}] no sverka entry "${options.entry}" in ${configFile}`)
-        continue
-      }
-
-      const targets: Record<string, TargetConfiguration> = {}
-      const allSteps = new Map<string, StepDefinition>()
-      for (const entry of selected) {
-        for (const step of stepsForEntry(graph, entry)) {
-          allSteps.set(step.id, step)
-        }
-      }
-
-      // The step a target name belongs to — a name may only be used once.
-      const owners = new Map<string, string>()
-
-      for (const entry of selected) {
-        for (const step of stepsForEntry(graph, entry)) {
-          let name = targetNameFor(step.id, options)
-          const owner = owners.get(name)
-          if (owner === step.id) {
-            // A step reachable from two entries is inferred once — the
-            // first entry wins, the targets are identical either way.
-            continue
-          }
-          if (owner !== undefined) {
-            // Two different steps render the same name (a template without
-            // the pipeline, or two ids that sanitize to one). Report it and
-            // keep the second step reachable under a unique name.
-            const unique = uniqueName(name, owners)
-            logger.warn(
-              `[${PLUGIN_SCOPE}] target name "${name}" is used by both "${owner}" and "${step.id}" in ${configFile} — using "${unique}" for "${step.id}"`,
-            )
-            name = unique
-          }
-          owners.set(name, step.id)
-          targets[name] = buildStepTarget(step, entry.id, {
-            projectRoot,
-            // The config lives in the project root — the target input is
-            // relative to the project, not to the workspace.
-            configFile: basename(configFile),
-            graph,
-            options,
-            allSteps: [...allSteps.values()],
-          })
-          if (verbose) {
-            logDebug(PLUGIN_SCOPE, `Registered ${projectRoot}:${name}`)
-          }
-        }
-      }
-
-      results.push([configFile, { projects: { [projectRoot]: { root: projectRoot, targets } } }])
-    }
-
     return results
   },
 ]
 
 export default createNodesV2
+
+/**
+ * Group the config files by the project root they belong to.
+ *
+ * A directory may hold several config forms (`sverka.config.ts` and
+ * `sverka.config.js`); the one with the highest precedence wins — the
+ * outcome must not depend on the order the glob returned the files in.
+ */
+function groupByRoot(configFiles: readonly string[], workspaceRoot: string): Map<string, string[]> {
+  const byRoot = new Map<string, string[]>()
+  for (const configFile of configFiles) {
+    const dir = dirname(configFile).replace(/\\/g, '/')
+    // The workspace root is the project root of a config in the root
+    // directory — Nx names that project ''.
+    const projectRoot = dir === '.' ? '' : dir
+    if (isSkippedProjectRoot(projectRoot, workspaceRoot)) {
+      logDebug(PLUGIN_SCOPE, `Skipping ${projectRoot}`)
+      continue
+    }
+    const files = byRoot.get(projectRoot) ?? []
+    files.push(configFile)
+    byRoot.set(projectRoot, files)
+  }
+  return new Map([...byRoot.entries()].sort(([a], [b]) => a.localeCompare(b)))
+}
+
+/**
+ * Infer the targets of one project.
+ *
+ * Returns `null` when the config cannot be used — a broken config must
+ * not break the whole project graph.
+ */
+async function inferProject(
+  projectRoot: string,
+  files: string[],
+  options: NxDevkitSverkaOptions,
+  context: CreateNodesContextV2,
+): Promise<readonly [string, CreateNodesResult] | null> {
+  const configFile = pickConfig(files)
+  const absConfig = resolve(context.workspaceRoot, configFile)
+
+  let graph: DefinitionGraph
+  try {
+    graph = await loadDefinitionGraph(absConfig)
+  } catch (error) {
+    logger.warn(
+      `[${PLUGIN_SCOPE}] could not load ${configFile}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+    return null
+  }
+
+  const selected = selectEntries(graph, options, configFile)
+  if (!selected) return null
+
+  const targets = buildTargets(graph, selected, projectRoot, configFile, options)
+  if (isVerbose()) {
+    for (const name of Object.keys(targets)) {
+      logDebug(PLUGIN_SCOPE, `Registered ${projectRoot}:${name}`)
+    }
+  }
+
+  return [configFile, { projects: { [projectRoot]: { root: projectRoot, targets } } }]
+}
+
+/**
+ * The entries the targets are inferred for.
+ *
+ * `null` when the requested entry does not exist in the config.
+ */
+function selectEntries(
+  graph: DefinitionGraph,
+  options: NxDevkitSverkaOptions,
+  configFile: string,
+): SverkaEntryRef[] | null {
+  const entries = collectEntries(graph)
+  const selected = options.entry ? entries.filter((entry) => entry.id === options.entry) : entries
+
+  if (selected.length === 0) {
+    logger.warn(`[${PLUGIN_SCOPE}] no sverka entry "${options.entry}" in ${configFile}`)
+    return null
+  }
+  return selected
+}
+
+/**
+ * The target of every step the entries can reach.
+ */
+function buildTargets(
+  graph: DefinitionGraph,
+  selected: SverkaEntryRef[],
+  projectRoot: string,
+  configFile: string,
+  options: NxDevkitSverkaOptions,
+): Record<string, TargetConfiguration> {
+  const targets: Record<string, TargetConfiguration> = {}
+  // The step a target name belongs to — a name may only be used once.
+  const owners = new Map<string, string>()
+  const allSteps = reachableSteps(graph, selected)
+
+  for (const entry of selected) {
+    for (const step of stepsForEntry(graph, entry)) {
+      const name = claimTargetName(step, owners, configFile, options)
+      if (name === null) continue
+      targets[name] = buildStepTarget(step, entry.id, {
+        projectRoot,
+        // The config lives in the project root — the target input is
+        // relative to the project, not to the workspace.
+        configFile: basename(configFile),
+        graph,
+        options,
+        allSteps,
+      })
+    }
+  }
+  return targets
+}
+
+/**
+ * Every step the entries can reach.
+ */
+function reachableSteps(graph: DefinitionGraph, selected: SverkaEntryRef[]): StepDefinition[] {
+  const steps = new Map<string, StepDefinition>()
+  for (const entry of selected) {
+    for (const step of stepsForEntry(graph, entry)) {
+      steps.set(step.id, step)
+    }
+  }
+  return [...steps.values()]
+}
+
+/**
+ * The target name of a step.
+ *
+ * A step reachable from two entries is inferred once. Two *different*
+ * steps that render the same name are reported, and the second one keeps
+ * a unique name instead of disappearing from the graph.
+ *
+ * Returns `null` when the step is already inferred.
+ */
+function claimTargetName(
+  step: StepDefinition,
+  owners: Map<string, string>,
+  configFile: string,
+  options: NxDevkitSverkaOptions,
+): string | null {
+  const name = targetNameFor(step.id, options)
+  const owner = owners.get(name)
+  if (owner === step.id) return null
+
+  let unique = name
+  if (owner !== undefined) {
+    unique = uniqueName(name, owners)
+    logger.warn(
+      `[${PLUGIN_SCOPE}] target name "${name}" is used by both "${owner}" and "${step.id}" in ${configFile} — using "${unique}" for "${step.id}"`,
+    )
+  }
+  owners.set(unique, step.id)
+  return unique
+}
 
 /**
  * Pick the config of a directory.
