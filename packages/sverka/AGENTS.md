@@ -158,3 +158,13 @@ bun run test
 bun run build
 npx tsc --noEmit -p tsconfig.json
 ```
+
+## Consumer commands
+
+The project name comes from the `package.json` name, and falls back to the
+project path when the project has no `package.json`:
+
+```bash
+nx run <project>:ci:lint          # a step
+nx run --project=<project> --target=ci:lint   # the explicit form
+```

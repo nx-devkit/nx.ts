@@ -148,3 +148,35 @@ describe('remote state', () => {
     expect(target.cache).toBe(true)
   })
 })
+
+describe('redirect detection', () => {
+  it('excludes an explicit stdout redirection', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'tool 1> report.txt' }],
+      }),
+    )
+
+    expect(target.inputs).toContain('!{workspaceRoot}/report.txt')
+  })
+
+  it('does not exclude a stderr redirection', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'tool 2> report.txt' }],
+      }),
+    )
+
+    expect(target.inputs).not.toContain('!{workspaceRoot}/report.txt')
+  })
+
+  it('does not treat an escaped quote as the end of a string', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'echo "a \\" > b.txt"' }],
+      }),
+    )
+
+    expect(target.inputs).not.toContain('!{workspaceRoot}/b.txt')
+  })
+})

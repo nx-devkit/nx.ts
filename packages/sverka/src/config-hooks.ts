@@ -84,10 +84,18 @@ function resolveWithFallback(
  */
 function versionedSpecifier(specifier: string, context: ResolveContext): string {
   if (!specifier.startsWith('.')) return specifier
+  // A CommonJS require treats the query as part of the file name — the
+  // fingerprint may only ride on an ESM import.
+  if (/\.(cjs|json)$/.test(specifier)) return specifier
   const parent = context.parentURL ?? ''
   const match = /[?&]v=([a-f0-9]+)/.exec(parent)
   if (!match) return specifier
-  return `${specifier}?v=${match[1]}`
+  const fingerprint = match[1]!
+  // Keep an existing query and the fragment.
+  const [path = specifier, ...rest] = specifier.split('#')
+  const fragment = rest.length > 0 ? `#${rest.join('#')}` : ''
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}v=${fingerprint}${fragment}`
 }
 
 function fallback(

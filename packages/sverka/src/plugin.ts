@@ -62,7 +62,7 @@ function groupByRoot(configFiles: readonly string[], workspaceRoot: string): Map
     // directory — Nx names that project ''.
     const projectRoot = dir === '.' ? '' : dir
     if (isSkippedProjectRoot(projectRoot, workspaceRoot)) {
-      logDebug(PLUGIN_SCOPE, `Skipping ${projectRoot}`)
+      logDebug(PLUGIN_SCOPE, `Skipping ${logSafe(projectRoot)}`)
       continue
     }
     const files = byRoot[projectRoot] ?? []
@@ -104,7 +104,7 @@ async function inferProject(
   const targets = buildTargets(graph, selected, projectRoot, configFile, options)
   if (isVerbose()) {
     for (const name of Object.keys(targets)) {
-      logDebug(PLUGIN_SCOPE, `Registered ${projectRoot}:${name}`)
+      logDebug(PLUGIN_SCOPE, `Registered ${logSafe(projectRoot)}:${logSafe(name)}`)
     }
   }
 
@@ -146,6 +146,8 @@ function buildTargets(
   const owners: Record<string, string> = Object.create(null)
   // The target name of every step — a collision renames the second one.
   const targetNames: Record<string, string> = Object.create(null)
+  // The name a step was given, so a second entry does not rename it again.
+  const assigned: Record<string, string> = Object.create(null)
   const allSteps = reachableSteps(graph, selected)
   const collisions = { count: 0 }
 
@@ -153,13 +155,15 @@ function buildTargets(
   // `dependsOn` has to point at the *renamed* producer.
   for (const entry of selected) {
     for (const step of stepsForEntry(graph, entry)) {
-      const name = claimTargetName(step, owners, options, collisions)
+      const name = claimTargetName(step, owners, assigned, options, collisions)
       if (name === null) continue
       targetNames[step.id] = name
     }
   }
 
-  const targets: Record<string, TargetConfiguration> = {}
+  // A null-prototype record: a target name like `__proto__` must not
+  // change the prototype of the map.
+  const targets: Record<string, TargetConfiguration> = Object.create(null)
   for (const entry of selected) {
     for (const step of stepsForEntry(graph, entry)) {
       const name = targetNames[step.id]
@@ -208,19 +212,25 @@ function reachableSteps(graph: DefinitionGraph, selected: SverkaEntryRef[]): Ste
 function claimTargetName(
   step: StepDefinition,
   owners: Record<string, string>,
+  assigned: Record<string, string>,
   options: NxDevkitSverkaOptions,
   collisions: { count: number },
 ): string | null {
+  // A step that already has a name keeps it — the same step can be
+  // reached from several entries.
+  const known = assigned[step.id]
+  if (known !== undefined) return null
+
   const name = targetNameFor(step.id, options)
   const owner = owners[name]
-  if (owner === step.id) return null
 
   let unique = name
-  if (owner !== undefined) {
+  if (owner !== undefined && owner !== step.id) {
     unique = uniqueName(name, owners)
     collisions.count += 1
   }
   owners[unique] = step.id
+  assigned[step.id] = unique
   return unique
 }
 

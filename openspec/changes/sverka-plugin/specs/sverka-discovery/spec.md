@@ -53,8 +53,10 @@ collapsed into a single target.
 
 Every inferred target MUST be cached by default (`cache: true`) and MUST declare
 its own inputs and outputs. The `cache: false` option MUST be honored. A
-step that reads remote state (a command that talks to GitHub) MUST NOT be
-cached — its result depends on state Nx cannot hash. The inputs MUST cover
+step whose command talks to GitHub through the `gh` CLI (`gh api`, `gh pr`,
+`gh repo`, …) MUST NOT be cached — its result depends on state Nx cannot
+hash. A step that talks to a remote service in another way is cached like
+any other step. The inputs MUST cover
 the project files, the sverka config and the artifacts the step consumes;
 the outputs MUST cover the files the step declares as outputs.
 

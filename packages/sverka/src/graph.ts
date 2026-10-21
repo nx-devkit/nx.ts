@@ -117,7 +117,8 @@ const MAX_IMPORT_DEPTH = 5
 /** The relative module specifiers of a source file. */
 function relativeImports(source: string): string[] {
   const specifiers: string[] = []
-  const pattern = /(?:from|import)\s*['"](\.[^'"]+)['"]/g
+  // `import … from './x'`, `import './x'` and `await import('./x')`.
+  const pattern = /(?:from|import)\s*\(?\s*['"](\.[^'"]+)['"]/g
   for (const match of source.matchAll(pattern)) {
     const specifier = match[1]
     if (!specifier) continue

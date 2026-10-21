@@ -52,7 +52,11 @@ export async function initGenerator(
  * (`@nx-devkit/sverka:config`) — a local file path cannot.
  */
 function isPackagePath(pluginPath: string): boolean {
-  return !pluginPath.startsWith('.') && !pluginPath.startsWith('/')
+  if (pluginPath.startsWith('.') || pluginPath.startsWith('/')) return false
+  // A Windows path (`C:\…` or `\\host\share`) is a local path too.
+  if (/^[A-Za-z]:[\\/]/.test(pluginPath)) return false
+  if (pluginPath.startsWith('\\\\')) return false
+  return true
 }
 
 export default initGenerator

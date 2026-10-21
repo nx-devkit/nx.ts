@@ -120,10 +120,11 @@ describe('@nx-devkit/sverka:config', () => {
       JSON.stringify({ name: 'dep', scripts: { lint: 'oxlint .' } }),
     )
 
-    await configGenerator(tree, { project: 'dep' }).catch(() => undefined)
-
-    // The dependency is not a workspace project — the generator must not
-    // have written a config for it.
+    // The dependency is not a workspace project — the generator reports
+    // the unknown name instead of writing a config for it.
+    await expect(configGenerator(tree, { project: 'dep' })).rejects.toThrow(
+      /not found in the workspace/,
+    )
     expect(tree.exists('node_modules/dep/sverka.config.ts')).toBe(false)
   })
 

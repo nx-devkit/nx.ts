@@ -45,16 +45,18 @@ const UNSAFE_TARGET_CHARS = /[^A-Za-z0-9._:-]+/g
  * A `>` inside a quoted string is a literal character, not a redirection.
  */
 function withoutStrings(command: string): string {
-  return command.replace(/'[^']*'|"[^"]*"/g, ' ')
+  // A double-quoted string may contain escaped quotes — the closing quote
+  // is the one that is not escaped.
+  return command.replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, ' ')
 }
 
 /**
- * A stdout redirection: `> file` or `>> file`.
+ * A stdout redirection: `> file`, `>> file` or `1> file`.
  *
  * The lookbehind keeps stderr redirections (`2>`, `&>`) out — they write
  * to the error stream, not to a file the step reads back.
  */
-const REDIRECT = /(?<![0-9>&])>{1,2}\s*([^\s>|;&]+)/g
+const REDIRECT = /(?<![2>&])>{1,2}\s*([^\s>|;&]+)/g
 
 /**
  * Resolve the target name of a step.

@@ -26,7 +26,7 @@ function step(overrides: Partial<StepDefinition>): StepDefinition {
 }
 
 /** The producer step the consumer imports from. */
-function producer(): StepDefinition {
+function producerStep(): StepDefinition {
   return step({
     id: 'ci/producer',
     outputs: [{ name: 'report.json', type: 'artifact', fromStdout: true }],
@@ -77,7 +77,11 @@ describe('artifact bridge', () => {
     const workspace = makeWorkspace()
     const consumer = importConsumer('report.json')
 
-    const materialized = materializeImportedArtifacts(consumer, graphWith(producer()), workspace)
+    const materialized = materializeImportedArtifacts(
+      consumer,
+      graphWith(producerStep()),
+      workspace,
+    )
 
     expect(materialized).toEqual([join(workspace, 'report.json')])
   })
@@ -86,9 +90,9 @@ describe('artifact bridge', () => {
     const workspace = makeWorkspace()
     const consumer = importConsumer('../../escaped.json')
 
-    expect(() => materializeImportedArtifacts(consumer, graphWith(producer()), workspace)).toThrow(
-      /escapes the project directory/,
-    )
+    expect(() =>
+      materializeImportedArtifacts(consumer, graphWith(producerStep()), workspace),
+    ).toThrow(/escapes the project directory/)
   })
 
   it('refuses to follow a symlink out of the project directory', () => {
@@ -99,7 +103,7 @@ describe('artifact bridge', () => {
     expect(() =>
       materializeImportedArtifacts(
         importConsumer('linked/escaped.json'),
-        graphWith(producer()),
+        graphWith(producerStep()),
         workspace,
       ),
     ).toThrow(/escapes the project directory/)

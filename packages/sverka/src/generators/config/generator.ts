@@ -269,16 +269,7 @@ function readProjects(tree: Tree): Map<string, TreeProject> {
  * it) must not be mistaken for a project, and `.git`/`.nx`/build output
  * only make the scan slower.
  */
-const IGNORED_DIRECTORIES = new Set([
-  'node_modules',
-  '.git',
-  '.nx',
-  '.nx-cache',
-  'dist',
-  'build',
-  'coverage',
-  'tmp',
-])
+const IGNORED_DIRECTORIES = new Set(['node_modules', '.git', '.nx', '.nx-cache'])
 
 /** Every file of the tree, relative to the workspace root. */
 function listFiles(tree: Tree, dir = ''): string[] {

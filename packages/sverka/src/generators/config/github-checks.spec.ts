@@ -19,18 +19,30 @@ describe('GitHub checks', () => {
     const command = GITHUB_CHECKS['main-green']!.command
     expect(command).toContain('defaultBranchRef')
     expect(command).not.toContain('commits/main/check-runs')
+    // The discovered branch is what the API call uses.
+    expect(command).toContain('commits/$branch/check-runs')
   })
 
   it('passes the branch name alone to gh pr list --head', () => {
     const command = GITHUB_CHECKS['stale-branches']!.command
     expect(command).toContain('gh pr list --head "$b"')
     expect(command).not.toContain('--head "$owner:$b"')
-    expect(command).toContain('headRepositoryOwner')
+    // The owner is a filter, not part of the branch name.
+    expect(command).toContain('headRepositoryOwner.login == "')
   })
 
   it('fails when the remote cannot be queried', () => {
     const command = GITHUB_CHECKS['stale-branches']!.command
-    expect(command).toContain('ls-remote failed')
+    // The status of `git ls-remote` is checked before its output is piped.
+    expect(command).toContain(
+      'remote=$(git ls-remote --heads origin 2>&1) || { echo "ls-remote failed: $remote"; exit 1; }',
+    )
+  })
+
+  it('fails when the override token cannot read the dependabot alerts', () => {
+    const command = GITHUB_CHECKS['dependabot-alerts']!.command
+    expect(command).toContain('if [ -n "$REPO_HEALTH_TOKEN" ]; then')
+    expect(command).toContain('exit 1; fi;')
   })
 
   it.each(GITHUB_CHECK_IDS)('%s is valid POSIX shell', (id) => {

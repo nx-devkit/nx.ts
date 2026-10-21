@@ -68,3 +68,28 @@ describe('loadDefinitionGraph', () => {
     )
   })
 })
+
+describe('the config fingerprint', () => {
+  it('covers a helper loaded with a dynamic import', () => {
+    const root = makeWorkspace({
+      'sverka.config.ts': `
+import { Project, Pipeline, ShellStep, Entry, push } from '@sverka/workflow'
+
+const { lintCommand } = await import('./helper.ts')
+
+const proj = new Project('demo')
+const ci = new Pipeline(proj, 'ci')
+new ShellStep(ci, 'lint', { command: lintCommand() })
+export const onPush = new Entry(ci, 'on-push', { trigger: push(), roots: ['lint'] })
+export default proj
+`,
+      'helper.ts': HELPER,
+    })
+    const configPath = join(root, 'sverka.config.ts')
+
+    const first = configFingerprint(configPath)
+    writeFileSync(join(root, 'helper.ts'), HELPER.replace('oxlint .', 'biome check .'))
+
+    expect(configFingerprint(configPath)).not.toBe(first)
+  })
+})

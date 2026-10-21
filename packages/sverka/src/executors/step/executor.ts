@@ -7,7 +7,7 @@
  * outputs and cache entry, and the producing steps run as their own tasks
  * before it — instead of one "run the whole workflow" target.
  */
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { ExecutorContext } from '@nx/devkit'
@@ -287,7 +287,16 @@ function resolveInsideRoot(root: string, path: string, option: string): string {
   }
   const resolved = resolve(root, path)
   const rel = relative(root, resolved)
-  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+  // The workspace root itself is fine (`"."`), an escaping path is not.
+  if (rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(`the "${option}" option must stay inside the workspace, got "${path}"`)
+  }
+  // A symlink inside the workspace can point outside it — the real path
+  // decides.
+  const realRoot = realpathSync(root)
+  const real = existsSync(resolved) ? realpathSync(resolved) : resolved
+  const realRel = relative(realRoot, real)
+  if (realRel.startsWith('..') || isAbsolute(realRel)) {
     throw new Error(`the "${option}" option must stay inside the workspace, got "${path}"`)
   }
   return resolved
