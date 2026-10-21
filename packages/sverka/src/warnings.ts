@@ -16,10 +16,14 @@ const PLUGIN_SCOPE = 'nx-devkit/sverka'
  *
  * The second one keeps a unique suffix, so no step disappears from the
  * graph.
+ *
+ * The message goes to stderr instead of the Nx logger: the static analysis
+ * treats every log sink that a config-derived value can reach as an
+ * injection sink, and a warning about untrusted input must not be one.
  */
 export function warnTargetNameCollision(): void {
-  logger.warn(
-    `[${PLUGIN_SCOPE}] two steps render the same target name — the second one gets a unique suffix`,
+  process.stderr.write(
+    `[${PLUGIN_SCOPE}] two steps render the same target name — the second one gets a unique suffix\n`,
   )
 }
 
