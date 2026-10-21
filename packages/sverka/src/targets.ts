@@ -27,6 +27,8 @@ export interface TargetContext {
   options: NxDevkitSverkaOptions
   /** Every step of the config — the files they write are excluded from the inputs of all steps. */
   allSteps: StepDefinition[]
+  /** The target name of every step — a collision gives the second one a unique suffix. */
+  targetNames: Record<string, string>
 }
 
 /**
@@ -116,7 +118,11 @@ export function buildStepTarget(
     ...(options.inputs ?? []),
   ]
 
-  const dependsOn = dependencyProducers(step).map((producer) => targetNameFor(producer, options))
+  // The producer's target name — the plugin may have renamed it (a name
+  // collision gives the second step a unique suffix).
+  const dependsOn = dependencyProducers(step).map(
+    (producer) => context.targetNames[producer] ?? targetNameFor(producer, options),
+  )
 
   // A step that reads remote state (the GitHub-side checks) cannot be
   // cached: a review thread or an alert can change without any file in

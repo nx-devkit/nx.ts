@@ -25,6 +25,7 @@ function targetFor(targetStep: StepDefinition) {
     graph,
     options: {},
     allSteps: [targetStep],
+    targetNames: {},
   })
 }
 
@@ -119,6 +120,7 @@ describe('declared outputs', () => {
       graph,
       options: {},
       allSteps: [writer, other],
+      targetNames: {},
     })
 
     expect(target.inputs).toContain('!{workspaceRoot}/report.json')

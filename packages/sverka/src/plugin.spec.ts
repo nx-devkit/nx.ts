@@ -209,3 +209,39 @@ describe('@nx-devkit/sverka createNodesV2', () => {
     expect(results).toEqual([])
   })
 })
+
+describe('target name collisions', () => {
+  const COLLIDING = `
+import { Project, Pipeline, ShellStep, Entry, push } from '@sverka/workflow'
+
+const proj = new Project('demo')
+const a = new Pipeline(proj, 'a')
+const b = new Pipeline(proj, 'b')
+
+new ShellStep(a, 'lint', { command: 'bun run lint' })
+new ShellStep(b, 'lint', { command: 'bun run lint' })
+const bTest = new ShellStep(b, 'test', {
+  command: 'bun run test',
+  dependsOn: [b.node.children[0]!.node.id],
+})
+
+export const onPush = new Entry(a, 'on-push', { trigger: push(), roots: [a.node.children[0]!.node.id] })
+export const onPushB = new Entry(b, 'on-push', { trigger: push(), roots: [bTest.node.id] })
+export default proj
+`
+
+  it('gives the second step a unique name and keeps the edges', async () => {
+    const root = makeWorkspace({ 'sverka.config.ts': COLLIDING })
+    const results = await createNodesV2[1](
+      ['sverka.config.ts'],
+      { targetName: '{step}' },
+      makeContext(root),
+    )
+    const targets = results[0]![1].projects!['']!.targets!
+
+    // Both steps render as "lint" — the second one gets a unique name.
+    expect(Object.keys(targets).sort()).toEqual(['lint', 'lint-2', 'test'])
+    // The consumer depends on the *renamed* producer.
+    expect(targets['test']!.dependsOn).toEqual(['lint-2'])
+  })
+})

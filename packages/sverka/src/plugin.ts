@@ -140,18 +140,30 @@ function buildTargets(
   configFile: string,
   options: NxDevkitSverkaOptions,
 ): Record<string, TargetConfiguration> {
-  const targets: Record<string, TargetConfiguration> = {}
   // The step a target name belongs to — a name may only be used once.
   // A plain record, not a Map: the static analysis reads a `set()` call
   // with untrusted data as a response-header write.
   const owners: Record<string, string> = Object.create(null)
+  // The target name of every step — a collision renames the second one.
+  const targetNames: Record<string, string> = Object.create(null)
   const allSteps = reachableSteps(graph, selected)
   const collisions = { count: 0 }
 
+  // First claim the names, then build the targets: a consumer's
+  // `dependsOn` has to point at the *renamed* producer.
   for (const entry of selected) {
     for (const step of stepsForEntry(graph, entry)) {
       const name = claimTargetName(step, owners, options, collisions)
       if (name === null) continue
+      targetNames[step.id] = name
+    }
+  }
+
+  const targets: Record<string, TargetConfiguration> = {}
+  for (const entry of selected) {
+    for (const step of stepsForEntry(graph, entry)) {
+      const name = targetNames[step.id]
+      if (name === undefined) continue
       targets[name] = buildStepTarget(step, entry.id, {
         projectRoot,
         // The config lives in the project root — the target input is
@@ -160,6 +172,7 @@ function buildTargets(
         graph,
         options,
         allSteps,
+        targetNames,
       })
     }
   }

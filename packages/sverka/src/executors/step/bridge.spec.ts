@@ -1,4 +1,5 @@
 import { existsSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
@@ -225,5 +226,24 @@ describe('missing outputs', () => {
     publishStepOutputs(stepWithOutput, join(workspace, '.tmp'), undefined, workspace)
 
     expect(existsSync(artifactPath(workspace, 'stale.json'))).toBe(false)
+  })
+})
+
+describe('stale values', () => {
+  it('removes a stale value file when the step does not produce it', () => {
+    const workspace = makeWorkspace()
+    const valuePath = join(workspace, '.sverka', 'artifacts', 'ci', 'producer', 'values', 'version')
+    mkdirSync(dirname(valuePath), { recursive: true })
+    writeFileSync(valuePath, '1.0.0')
+
+    const producer = step({
+      id: 'ci/producer',
+      operations: [{ kind: 'shell', command: 'true' }],
+      outputs: [{ name: 'version', type: 'string' }],
+    })
+
+    publishStepOutputs(producer, join(workspace, '.tmp'), undefined, workspace)
+
+    expect(existsSync(valuePath)).toBe(false)
   })
 })

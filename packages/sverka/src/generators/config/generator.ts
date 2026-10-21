@@ -374,7 +374,7 @@ function renderConfig(input: {
 
   lines.push(
     '',
-    `export const ${camel(input.entry)} = new Entry(ci, ${JSON.stringify(input.entry)}, {`,
+    `export const ${entryIdentifier(input.entry)} = new Entry(ci, ${JSON.stringify(input.entry)}, {`,
     '  trigger: push(),',
     `  roots: [${input.checks.map((check) => JSON.stringify(check.id)).join(', ')}],`,
     '})',
@@ -434,6 +434,27 @@ function renderConfig(input: {
 /** `on-push` → `onPush`. */
 function camel(value: string): string {
   return value.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())
+}
+
+/** The identifiers the generated code already uses. */
+const RESERVED_IDENTIFIERS = new Set(['proj', 'ci', 'repoHealth', 'entry'])
+
+/**
+ * A valid TypeScript identifier for the entry export.
+ *
+ * The entry name is free text (`on-push`, `run-1`, `ci`) — it must not
+ * produce a syntax error and must not collide with the identifiers the
+ * generated file already declares.
+ */
+function entryIdentifier(name: string): string {
+  let candidate = camel(name).replace(/[^A-Za-z0-9_$]/g, '')
+  if (candidate === '' || /^[0-9]/.test(candidate)) {
+    candidate = `entry${candidate}`
+  }
+  if (RESERVED_IDENTIFIERS.has(candidate)) {
+    candidate = `${candidate}Entry`
+  }
+  return candidate
 }
 
 export default configGenerator

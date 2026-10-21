@@ -148,6 +148,26 @@ describe('@nx-devkit/sverka:config', () => {
     expect(appConfig(tree)).toContain('"nx run app:lint"')
   })
 
+  it('emits a valid identifier for the entry export', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))
+
+    await configGenerator(tree, { entry: 'run-1' })
+
+    const config = tree.read('sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('export const run1 = new Entry(ci, "run-1"')
+  })
+
+  it('does not collide with the identifiers the generated file declares', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))
+
+    await configGenerator(tree, { entry: 'ci' })
+
+    const config = tree.read('sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('export const ciEntry = new Entry(ci, "ci"')
+  })
+
   it('refuses to overwrite an existing config', async () => {
     const tree = createTreeWithEmptyWorkspace()
     tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))

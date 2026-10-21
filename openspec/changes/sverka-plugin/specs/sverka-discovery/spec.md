@@ -80,13 +80,17 @@ the outputs MUST cover the files the step declares as outputs.
 
 - **GIVEN** a step writes a file into the project
 - **WHEN** nodes are created
-- **THEN** a *detectable* write MUST be excluded from the inputs of every
-  step of the config, so a step does not invalidate its own cache
+- **THEN** a *detectable* write MUST be excluded from the inputs of the
+  steps that do not consume it, so a step does not invalidate its own cache
 
 The detectable writes are the declared outputs, the imported artifacts (the
 engine materializes them in the project directory) and the files a shell
 step redirects into (`tool > report.txt`). A file a step writes without any
 of those declarations stays an input — declare it in the sverka config.
+
+A step that *consumes* an artifact keeps the producer's path as an input:
+the artifact's content is part of its cache key, so a changed artifact
+invalidates the consumer.
 
 ### Requirement: step dependencies become target dependencies
 

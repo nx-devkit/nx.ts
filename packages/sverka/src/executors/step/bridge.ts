@@ -294,14 +294,27 @@ function copyTo(source: string, workspace: string, relativePath: string): string
   return destination
 }
 
+/**
+ * The stable path of a declared output.
+ *
+ * The same mapping the plugin uses for the target's outputs: a path-based
+ * artifact keeps its path, a captured artifact lives in the artifacts
+ * directory and a value in its values directory.
+ */
+function stablePathOf(
+  step: StepDefinition,
+  output: { name: string; path?: string; fromStdout?: boolean },
+): string {
+  if (output.path) return output.path
+  if (output.fromStdout) return artifactRelativePath(step.id, output.name)
+  return valueRelativePath(step.id, output.name)
+}
+
 /** Remove the stable path of an output the step did not produce. */
 function removeStaleOutputs(step: StepDefinition, workspace: string, produced: Set<string>): void {
   for (const output of step.outputs) {
     if (produced.has(output.name)) continue
-    const stale = resolveInside(
-      workspace,
-      output.path ?? artifactRelativePath(step.id, output.name),
-    )
+    const stale = resolveInside(workspace, stablePathOf(step, output))
     if (stale) rmSync(stale, { force: true, recursive: true })
   }
 }
