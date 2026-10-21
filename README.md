@@ -50,6 +50,7 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/skill`](./packages/skill/README.md) | `**/SKILL.md` | Skill lifecycle: `build`, `lint`, `validate`, `os-check`, `size-check` |
 | [`@nx-devkit/skillspector`](./packages/skillspector/README.md) | `**/SKILL.md` | `scan` target — SkillSpector security scans with SARIF + CI annotations |
 | [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{mmd,puml,dot,d2,bpmn,excalidraw,…}` | `diagrams` target — renders diagram sources via Kroki or local command overrides |
+| [`@nx-devkit/sverka`](./packages/sverka/README.md) | `**/sverka.config.{ts,mts,js,mjs}` | One cached target per sverka step (`ci:lint`) — own inputs, outputs and cache per step |
 | [`@nx-devkit/nx-cloud`](./packages/nx-cloud/README.md) | `nx.json` | `nx-cloud-rotate` target on the root project — rebinds to a fresh Nx Cloud org/workspace |
 | [`@nx-devkit/release`](./packages/release/README.md) | `nx g @nx-devkit/release:init` | Automated npm releases: version bump, OIDC publish, tag push, GitHub Release — all idempotent |
 | [`@nx-devkit/prepare-for-release`](./packages/prepare-for-release/README.md) | Every non-root `package.json` with `name` + `private !== true` | `prepare-for-release` target per package — idempotent npm placeholder publishing + OIDC trust |

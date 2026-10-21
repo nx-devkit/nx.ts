@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "type": "object",
+  "title": "Generate a sverka config",
+  "description": "Generates a sverka.config.ts from what the project already has (package.json scripts, Nx targets, GitHub checks).",
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Nx project the config describes. Default: the root project."
+    },
+    "path": {
+      "type": "string",
+      "description": "Where to write the config. Default: <projectRoot>/sverka.config.ts."
+    },
+    "pipeline": {
+      "type": "string",
+      "default": "ci",
+      "description": "Name of the CI pipeline."
+    },
+    "entry": {
+      "type": "string",
+      "default": "on-push",
+      "description": "Name of the push entry."
+    },
+    "checks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Checks to include. Default: the checks detected in the project."
+    },
+    "githubChecks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "main-green",
+          "review-debt",
+          "dependabot-alerts",
+          "code-scanning",
+          "secret-scanning",
+          "stale-branches",
+          "open-prs"
+        ]
+      },
+      "description": "GitHub-side checks to add to a repo-health pipeline."
+    },
+    "force": {
+      "type": "boolean",
+      "default": false,
+      "description": "Overwrite an existing config."
+    }
+  },
+  "additionalProperties": false
+}

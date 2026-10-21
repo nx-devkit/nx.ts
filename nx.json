@@ -26,6 +26,7 @@
       }
     },
     "./packages/markdownlint/src/plugin.ts",
+    "./packages/sverka/src/plugin.ts",
     "./packages/openspec/src/plugin.ts",
     "./packages/knip/src/plugin.ts",
     "./packages/playwright/src/plugin.ts",
@@ -48,6 +49,7 @@
       "packages/release",
       "packages/nx-cloud",
       "packages/markdownlint",
+      "packages/sverka",
       "packages/openspec",
       "packages/knip",
       "packages/playwright",

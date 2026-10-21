@@ -37,6 +37,7 @@ jobs:
           cd ../skill && bun run build
           cd ../skillspector && bun run build
           cd ../diagrams && bun run build
+          cd ../sverka && bun run build
       - name: Lint, Build, Test, Typecheck (Nx inferred targets)
         # packages/* only — skills-* build must not run concurrently with a
         # packages/skill rebuild: the executor is loaded from packages/skill/dist
