@@ -15,7 +15,7 @@ import type { NxDevkitSverkaOptions } from './types.js'
 import {
   reportConfigNotLoaded,
   reportEntryNotFound,
-  reportTargetNameCollision,
+  reportTargetNameCollisions,
 } from './warnings.js'
 
 const PLUGIN_SCOPE = 'nx-devkit/sverka'
@@ -142,10 +142,11 @@ function buildTargets(
   // The step a target name belongs to — a name may only be used once.
   const owners = new Map<string, string>()
   const allSteps = reachableSteps(graph, selected)
+  const collisions = { count: 0 }
 
   for (const entry of selected) {
     for (const step of stepsForEntry(graph, entry)) {
-      const name = claimTargetName(step, owners, options)
+      const name = claimTargetName(step, owners, options, collisions)
       if (name === null) continue
       targets[name] = buildStepTarget(step, entry.id, {
         projectRoot,
@@ -157,6 +158,10 @@ function buildTargets(
         allSteps,
       })
     }
+  }
+
+  if (collisions.count > 0) {
+    reportTargetNameCollisions(collisions.count)
   }
   return targets
 }
@@ -187,6 +192,7 @@ function claimTargetName(
   step: StepDefinition,
   owners: Map<string, string>,
   options: NxDevkitSverkaOptions,
+  collisions: { count: number },
 ): string | null {
   const name = targetNameFor(step.id, options)
   const owner = owners.get(name)
@@ -195,9 +201,7 @@ function claimTargetName(
   let unique = name
   if (owner !== undefined) {
     unique = uniqueName(name, owners)
-    // The step ids and the file name come from the config file — the
-    // warning carries none of them.
-    reportTargetNameCollision()
+    collisions.count += 1
   }
   owners.set(unique, step.id)
   return unique

@@ -12,19 +12,15 @@ import { logger } from '@nx/devkit'
 const PLUGIN_SCOPE = 'nx-devkit/sverka'
 
 /**
- * Two steps of the same config render the same target name.
+ * Steps of the same config render the same target name.
  *
  * The second one keeps a unique suffix, so no step disappears from the
- * graph.
- *
- * The functions in this module are deliberately not named after a log
- * level (`warn…`): the static analysis treats every call that looks like
- * a log sink and can be reached from config-derived data as an injection
- * sink — and a report about untrusted input must not be one.
+ * graph. Only the *count* is reported: the step ids and the file name come
+ * from the config file, and untrusted input must not reach a log line.
  */
-export function reportTargetNameCollision(): void {
-  process.stderr.write(
-    `[${PLUGIN_SCOPE}] two steps render the same target name — the second one gets a unique suffix\n`,
+export function reportTargetNameCollisions(count: number): void {
+  logger.warn(
+    `[${PLUGIN_SCOPE}] ${count} target name collision(s) — the second step of each pair got a unique suffix`,
   )
 }
 
