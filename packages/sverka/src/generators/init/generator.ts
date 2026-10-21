@@ -36,8 +36,8 @@ export async function initGenerator(
       : []),
     '3. Inspect the inferred targets:',
     `   bunx nx show project ${projectName} --json`,
-    '4. Run a step (the target name is <pipeline>:<step>):',
-    `   bunx nx run ${projectName}:ci:lint`,
+    '4. Run a step of the generated config (the target names are <pipeline>:<step>):',
+    `   bunx nx run ${projectName}:ci:lint   # when the config has a "lint" step`,
   ]
   for (const line of checklist) {
     console.log(line)

@@ -20,10 +20,11 @@ import {
   readFileSync,
   readdirSync,
   realpathSync,
+  rmSync,
   statSync,
 } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
+import type { DefinitionGraph, OperationDefinition, StepDefinition } from '@sverka/workflow'
 import { artifactRelativePath, valueRelativePath } from '../../paths.js'
 import { resolveProducerId } from '../../targets.js'
 
@@ -221,42 +222,87 @@ export function publishStepOutputs(
   workspace: string,
 ): string[] {
   const published: string[] = []
+  const produced = new Set<string>()
   const runArtifactDir = findRunDir(artifactDir, runId)
 
   for (const operation of step.operations) {
-    if (operation.kind === 'exportStdout') {
-      if (!runArtifactDir) continue
-      const source = join(runArtifactDir, step.id, operation.name)
-      if (!existsSync(source)) continue
-      const destination = resolveInside(workspace, artifactRelativePath(step.id, operation.name))
-      if (!destination) continue
-      mkdirSync(dirname(destination), { recursive: true })
-      copyFileSync(source, destination)
-      published.push(destination)
-      continue
-    }
-
-    if (operation.kind === 'exportOutput') {
-      const source = join(workspace, '.sverka', 'workspace', step.id, '.outputs', operation.name)
-      if (!existsSync(source)) continue
-      const destination = resolveInside(workspace, valueRelativePath(step.id, operation.name))
-      if (!destination) continue
-      mkdirSync(dirname(destination), { recursive: true })
-      copyFileSync(source, destination)
-      published.push(destination)
-      continue
-    }
-
-    if (operation.kind === 'exportArtifact') {
-      // The step wrote the file into the workspace — that path *is* the
-      // stable output.
-      const destination = resolveInside(workspace, operation.path)
-      if (!destination) continue
-      if (existsSync(destination)) published.push(destination)
-    }
+    const name = outputName(operation)
+    if (name === undefined) continue
+    const destination = publishOperation(operation, step, workspace, runArtifactDir)
+    if (!destination) continue
+    produced.add(name)
+    published.push(destination)
   }
 
+  // A declared output the step did not produce must not leave a stale
+  // artifact behind — a consumer would read the previous run's file.
+  removeStaleOutputs(step, workspace, produced)
+
   return published
+}
+
+/** The name of an output operation; `undefined` for the other kinds. */
+function outputName(operation: OperationDefinition): string | undefined {
+  if (
+    operation.kind === 'exportStdout' ||
+    operation.kind === 'exportOutput' ||
+    operation.kind === 'exportArtifact'
+  ) {
+    return operation.name
+  }
+  return undefined
+}
+
+/** Publish one output operation; `undefined` when it produced nothing. */
+function publishOperation(
+  operation: OperationDefinition,
+  step: StepDefinition,
+  workspace: string,
+  runArtifactDir: string | undefined,
+): string | undefined {
+  if (operation.kind === 'exportStdout') {
+    if (!runArtifactDir) return undefined
+    const source = join(runArtifactDir, step.id, operation.name)
+    if (!existsSync(source)) return undefined
+    return copyTo(source, workspace, artifactRelativePath(step.id, operation.name))
+  }
+
+  if (operation.kind === 'exportOutput') {
+    const source = join(workspace, '.sverka', 'workspace', step.id, '.outputs', operation.name)
+    if (!existsSync(source)) return undefined
+    return copyTo(source, workspace, valueRelativePath(step.id, operation.name))
+  }
+
+  if (operation.kind === 'exportArtifact') {
+    // The step wrote the file into the workspace — that path *is* the
+    // stable output.
+    const destination = resolveInside(workspace, operation.path)
+    if (!destination) return undefined
+    return existsSync(destination) ? destination : undefined
+  }
+
+  return undefined
+}
+
+/** Copy a file to a stable path inside the workspace. */
+function copyTo(source: string, workspace: string, relativePath: string): string | undefined {
+  const destination = resolveInside(workspace, relativePath)
+  if (!destination) return undefined
+  mkdirSync(dirname(destination), { recursive: true })
+  copyFileSync(source, destination)
+  return destination
+}
+
+/** Remove the stable path of an output the step did not produce. */
+function removeStaleOutputs(step: StepDefinition, workspace: string, produced: Set<string>): void {
+  for (const output of step.outputs) {
+    if (produced.has(output.name)) continue
+    const stale = resolveInside(
+      workspace,
+      output.path ?? artifactRelativePath(step.id, output.name),
+    )
+    if (stale) rmSync(stale, { force: true, recursive: true })
+  }
 }
 
 /**

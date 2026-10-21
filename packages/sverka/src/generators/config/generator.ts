@@ -46,21 +46,9 @@ export async function configGenerator(
   tree: Tree,
   options: NxDevkitSverkaConfigOptions = {},
 ): Promise<GeneratorCallback> {
-  const projects = readProjects(tree)
-  const projectName = options.project ?? resolveRootProjectName(tree)
-  const project = projectName ? projects.get(projectName) : undefined
-  if (options.project && !project) {
-    // A typo must not silently produce a config for the wrong project.
-    throw new Error(
-      `project "${options.project}" not found in the workspace — known projects: ${[...projects.keys()].join(', ') || '(none)'}`,
-    )
-  }
-  const projectRoot = project?.root ?? ''
-
-  const configPath = options.path ?? `${projectRoot}/sverka.config.ts`.replace(/^\//, '')
-  if (tree.exists(configPath) && !options.force) {
-    throw new Error(`${configPath} already exists — pass --force to overwrite it`)
-  }
+  const { projectName, projectRoot } = resolveTargetProject(tree, options)
+  const configPath = resolveConfigPath(tree, projectRoot, options)
+  assertConfigWritable(tree, configPath, options.force)
 
   const checks = resolveChecks(tree, projectName, projectRoot, options.checks)
   if (checks.length === 0) {
@@ -87,6 +75,43 @@ export async function configGenerator(
   await formatFiles(tree)
 
   return () => {}
+}
+
+/** The project the config is generated for. */
+function resolveTargetProject(
+  tree: Tree,
+  options: NxDevkitSverkaConfigOptions,
+): { projectName: string | undefined; projectRoot: string } {
+  const projects = readProjects(tree)
+  const projectName = options.project ?? resolveRootProjectName(tree)
+  const project = projectName ? projects.get(projectName) : undefined
+  if (options.project && !project) {
+    // A typo must not silently produce a config for the wrong project.
+    throw new Error(
+      `project "${options.project}" not found in the workspace — known projects: ${[...projects.keys()].join(', ') || '(none)'}`,
+    )
+  }
+  return { projectName, projectRoot: project?.root ?? '' }
+}
+
+/** Where the config is written. */
+function resolveConfigPath(
+  tree: Tree,
+  projectRoot: string,
+  options: NxDevkitSverkaConfigOptions,
+): string {
+  const path = options.path ?? `${projectRoot}/sverka.config.ts`.replace(/^\//, '')
+  if (tree.exists(path) && !options.force) {
+    throw new Error(`${path} already exists — pass --force to overwrite it`)
+  }
+  return path
+}
+
+/** Refuse to overwrite a config the user did not ask to replace. */
+function assertConfigWritable(tree: Tree, path: string, force: boolean | undefined): void {
+  if (tree.exists(path) && !force) {
+    throw new Error(`${path} already exists — pass --force to overwrite it`)
+  }
 }
 
 /** Keep the known GitHub checks, warn about the unknown ones. */
@@ -160,6 +185,24 @@ function readScripts(tree: Tree, projectRoot: string): Record<string, string> {
 }
 
 /**
+ * The project a project.json declares.
+ */
+function readProjectFile(tree: Tree, path: string): TreeProject | undefined {
+  const parsed = readJsonFile(tree, path)
+  if (!parsed) return undefined
+  const root = (parsed.root as string | undefined) ?? dirnameOf(path)
+  const name =
+    (parsed.name as string | undefined) ??
+    (parsed.projectName as string | undefined) ??
+    basename(root)
+  return {
+    name,
+    root,
+    targets: new Set(Object.keys((parsed.targets as object) ?? {})),
+  }
+}
+
+/**
  * Read a JSON file from the tree.
  *
  * Returns `null` when the file is missing or malformed — the caller
@@ -185,6 +228,8 @@ function readTargetNames(tree: Tree, projectRoot: string): Set<string> {
 
 /** A project declared by a project.json in the tree. */
 interface TreeProject {
+  /** The project name (package.json name, project.json name). */
+  name: string
   root: string
   targets: Set<string>
 }
@@ -201,27 +246,16 @@ function readProjects(tree: Tree): Map<string, TreeProject> {
   const projects = new Map<string, TreeProject>()
   for (const path of listFiles(tree)) {
     if (path.endsWith('project.json')) {
-      const parsed = readJsonFile(tree, path)
-      if (!parsed) continue
-      const root = (parsed.root as string | undefined) ?? dirnameOf(path)
-      const name =
-        (parsed.name as string | undefined) ??
-        (parsed.projectName as string | undefined) ??
-        basename(root)
-      projects.set(name, {
-        root,
-        targets: new Set(Object.keys((parsed.targets as object) ?? {})),
-      })
+      const project = readProjectFile(tree, path)
+      if (project) projects.set(project.name, project)
       continue
     }
 
     if (!path.endsWith('package.json')) continue
-    const parsed = readJsonFile(tree, path)
-    const name = parsed?.name as string | undefined
+    const name = readJsonFile(tree, path)?.name as string | undefined
     if (!name) continue
-    const root = dirnameOf(path)
     if (projects.has(name)) continue
-    projects.set(name, { root, targets: new Set() })
+    projects.set(name, { name, root: dirnameOf(path), targets: new Set() })
   }
   return projects
 }

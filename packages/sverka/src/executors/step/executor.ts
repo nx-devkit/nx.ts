@@ -42,19 +42,8 @@ export async function stepExecutor(
   }
 
   const graph = await loadDefinitionGraph(configPath)
-  const step = findStep(graph, options.step)
-  if (!step) {
-    throw new Error(`sverka step "${options.step}" not found in ${configPath}`)
-  }
-
-  const entry = options.entry
-    ? findEntryById(graph, options.entry)
-    : findEntryForStep(graph, step.id)
-  if (!entry) {
-    throw new Error(
-      `sverka entry "${options.entry ?? '(default)'}" does not reach step "${step.id}"`,
-    )
-  }
+  const step = resolveStep(graph, configPath, options)
+  const entry = resolveEntry(graph, step, options)
 
   // Two roots, on purpose:
   // - `workspace` is where the step's command runs (the engine's
@@ -71,46 +60,51 @@ export async function stepExecutor(
   // Nx restored them from the cache.
   materializeImportedArtifacts(step, graph, workspace)
 
-  const artifactDir = mkdtempSync(join(tmpdir(), 'nx-sverka-'))
-  let runId: string | undefined
-  let failure: string | undefined
-  let stdout = ''
-  let stderr = ''
+  const outcome = await runPlan(plan, step, workspace, projectDir)
 
-  try {
-    const outcome = await runStep(plan, workspace, artifactDir)
-    runId = outcome.runId
-    failure = outcome.failure
-    stdout = outcome.stdout
-    stderr = outcome.stderr
-
-    // Publish the step's artifacts and values to their stable paths so the
-    // next task (and the Nx cache) can pick them up. This has to happen
-    // before the temporary artifact directory is removed.
-    try {
-      publishStepOutputs(step, artifactDir, runId, projectDir)
-    } catch (error) {
-      // A failed publish means the step's outputs are incomplete — report
-      // it as a step failure instead of crashing the task runner.
-      failure = failure ?? (error instanceof Error ? error.message : String(error))
-    }
-  } finally {
-    rmSync(artifactDir, { recursive: true, force: true })
+  if (outcome.stdout) {
+    process.stdout.write(outcome.stdout.endsWith('\n') ? outcome.stdout : `${outcome.stdout}\n`)
+  }
+  if (outcome.stderr) {
+    process.stderr.write(outcome.stderr.endsWith('\n') ? outcome.stderr : `${outcome.stderr}\n`)
   }
 
-  if (stdout) {
-    process.stdout.write(stdout.endsWith('\n') ? stdout : `${stdout}\n`)
-  }
-  if (stderr) {
-    process.stderr.write(stderr.endsWith('\n') ? stderr : `${stderr}\n`)
-  }
-
-  if (failure) {
-    process.stderr.write(`sverka step "${step.id}" failed: ${failure}\n`)
+  if (outcome.failure) {
+    process.stderr.write(`sverka step "${step.id}" failed: ${outcome.failure}\n`)
     return { success: false }
   }
 
   return { success: true }
+}
+
+/** The step the task runs. */
+function resolveStep(
+  graph: DefinitionGraph,
+  configPath: string,
+  options: StepExecutorSchema,
+): StepDefinition {
+  const step = findStep(graph, options.step)
+  if (!step) {
+    throw new Error(`sverka step "${options.step}" not found in ${configPath}`)
+  }
+  return step
+}
+
+/** The entry the step is bound to. */
+function resolveEntry(
+  graph: DefinitionGraph,
+  step: StepDefinition,
+  options: StepExecutorSchema,
+): SverkaEntryRef {
+  const entry = options.entry
+    ? findEntryById(graph, options.entry)
+    : findEntryForStep(graph, step.id)
+  if (!entry) {
+    throw new Error(
+      `sverka entry "${options.entry ?? '(default)'}" does not reach step "${step.id}"`,
+    )
+  }
+  return entry
 }
 
 /** What a step run produced. */
@@ -119,6 +113,40 @@ interface StepOutcome {
   failure?: string
   stdout: string
   stderr: string
+}
+
+/**
+ * Run the plan and publish the step's outputs.
+ *
+ * The artifacts and values are published to their stable paths so the next
+ * task (and the Nx cache) can pick them up — before the temporary
+ * artifact directory is removed.
+ */
+async function runPlan(
+  plan: RunPlan,
+  step: StepDefinition,
+  workspace: string,
+  projectDir: string,
+): Promise<StepOutcome> {
+  const artifactDir = mkdtempSync(join(tmpdir(), 'nx-sverka-'))
+  try {
+    const outcome = await runStep(plan, workspace, artifactDir)
+    try {
+      publishStepOutputs(step, artifactDir, outcome.runId, projectDir)
+    } catch (error) {
+      // A failed publish means the step's outputs are incomplete — report
+      // it as a step failure instead of crashing the task runner.
+      outcome.failure = outcome.failure ?? errorMessage(error)
+    }
+    return outcome
+  } finally {
+    rmSync(artifactDir, { recursive: true, force: true })
+  }
+}
+
+/** The message of an unknown error. */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /**

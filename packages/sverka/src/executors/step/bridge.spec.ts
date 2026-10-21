@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
@@ -212,5 +212,28 @@ describe('artifact bridge', () => {
     const values = collectStepValues(consumer, graphWith(producerA, producerB), workspace)
 
     expect(values).toEqual([{ key: 'b.version', value: '2.0.0' }])
+  })
+})
+
+describe('missing outputs', () => {
+  it('removes a stale artifact when a declared output is not produced', () => {
+    const workspace = makeWorkspace()
+    // The producer declared this output in an earlier run.
+    writeFileSync(
+      join(workspace, '.sverka', 'artifacts', 'ci', 'producer', 'stale.json'),
+      '{"old":true}',
+    )
+
+    const producer = step({
+      id: 'ci/producer',
+      operations: [{ kind: 'shell', command: 'true' }],
+      outputs: [{ name: 'stale.json', type: 'artifact', fromStdout: true }],
+    })
+
+    publishStepOutputs(producer, join(workspace, '.tmp'), undefined, workspace)
+
+    expect(
+      existsSync(join(workspace, '.sverka', 'artifacts', 'ci', 'producer', 'stale.json')),
+    ).toBe(false)
   })
 })
