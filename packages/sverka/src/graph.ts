@@ -89,7 +89,7 @@ function collectFingerprint(
   if (depth > MAX_IMPORT_DEPTH || seen.has(filePath)) return
   seen.add(filePath)
 
-  let stat
+  let stat: ReturnType<typeof statSync>
   try {
     stat = statSync(filePath)
   } catch {

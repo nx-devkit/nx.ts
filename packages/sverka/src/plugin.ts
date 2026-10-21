@@ -138,7 +138,11 @@ export default createNodesV2
  */
 function pickConfig(files: string[]): string {
   const sorted = [...files].sort((a, b) => configRank(a) - configRank(b))
-  return sorted[0]!
+  const first = sorted[0]
+  if (first === undefined) {
+    throw new Error('no sverka config found')
+  }
+  return first
 }
 
 /** Precedence of a config file name (lower wins). */

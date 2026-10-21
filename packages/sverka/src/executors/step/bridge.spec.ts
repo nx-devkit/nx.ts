@@ -172,7 +172,7 @@ describe('artifact bridge', () => {
       outputs: [{ name: 'version', type: 'string' }],
     })
     const consumer = step({
-      operations: [{ kind: 'shell', command: 'echo ${producer.version}' }],
+      operations: [{ kind: 'shell', command: `echo \${producer.version}` }],
       inputs: [{ kind: 'step', step: 'producer', output: 'version', type: 'string' }],
     })
 
@@ -202,7 +202,7 @@ describe('artifact bridge', () => {
       outputs: [{ name: 'version', type: 'string' }],
     })
     const consumer = step({
-      operations: [{ kind: 'shell', command: 'echo ${b.version}' }],
+      operations: [{ kind: 'shell', command: `echo \${b.version}` }],
       inputs: [
         { kind: 'step', step: 'a', output: 'version', type: 'string' },
         { kind: 'step', step: 'b', output: 'version', type: 'string' },
