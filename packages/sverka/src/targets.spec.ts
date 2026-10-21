@@ -82,6 +82,16 @@ describe('redirect targets', () => {
 
     expect(target.inputs).not.toContain('!{workspaceRoot}/b.txt')
   })
+
+  it('excludes a redirect of a command that also quotes text', () => {
+    const target = targetFor(
+      makeStep({
+        operations: [{ kind: 'shell', command: 'echo "lint ran" > lint.txt' }],
+      }),
+    )
+
+    expect(target.inputs).toContain('!{workspaceRoot}/lint.txt')
+  })
 })
 
 describe('declared outputs', () => {

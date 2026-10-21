@@ -38,6 +38,15 @@ export interface TargetContext {
 const UNSAFE_TARGET_CHARS = /[^A-Za-z0-9._:-]+/g
 
 /**
+ * The command with its quoted parts removed.
+ *
+ * A `>` inside a quoted string is a literal character, not a redirection.
+ */
+function withoutStrings(command: string): string {
+  return command.replace(/'[^']*'|"[^"]*"/g, ' ')
+}
+
+/**
  * A stdout redirection: `> file` or `>> file`.
  *
  * The lookbehind keeps stderr redirections (`2>`, `&>`) out — they write
@@ -190,17 +199,16 @@ function collectProjectWrites(steps: StepDefinition[]): Set<string> {
  * the target hashes. Steps that declare their outputs are covered by that
  * declaration — this covers the ones that do not.
  *
- * The detection is deliberately conservative: only stdout redirections of
- * a command without quotes count. A quoted command is not parsed (a `>`
- * inside a string is not a redirection), and a stderr redirection (`2>`,
- * `&>`) writes nothing the step reads back.
+ * The detection is deliberately conservative: only stdout redirections
+ * count (a stderr redirection — `2>`, `&>` — writes nothing the step reads
+ * back), and the quoted parts of the command are removed before the scan,
+ * so a `>` inside a string is not a redirection.
  */
 function redirectTargets(step: StepDefinition): string[] {
   const targets: string[] = []
   for (const operation of step.operations) {
     if (operation.kind !== 'shell') continue
-    if (operation.command.includes('"') || operation.command.includes("'")) continue
-    for (const match of operation.command.matchAll(REDIRECT)) {
+    for (const match of withoutStrings(operation.command).matchAll(REDIRECT)) {
       const target = match[1]
       if (!target) continue
       // Only plain relative paths inside the project are excluded.
