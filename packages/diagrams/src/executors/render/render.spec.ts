@@ -115,9 +115,6 @@ vi.mock('node:child_process', () => ({
   },
 }))
 
-/** The body of the companion readiness probe. */
-const READINESS_PROBE = 'graph TD;A-->B'
-
 const originalFetch = globalThis.fetch
 globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const headers = new Headers(init?.headers)
@@ -127,11 +124,6 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
     method: init?.method,
     url: String(input),
   })
-  // The readiness probe carries a fixed body — it asks the companion
-  // whether it can convert a diagram. It is not a render.
-  if (String(init?.body) === READINESS_PROBE) {
-    return new Response('<svg/>', { status: 200 })
-  }
   const res =
     typeof state.fetchResponse === 'function'
       ? state.fetchResponse(String(input))
@@ -560,14 +552,12 @@ describe('renderExecutor', () => {
       expect(state.dockerCalls[4]).toEqual(['stop', 'container2'])
       expect(state.dockerCalls[5]).toEqual(['stop', 'container1'])
       expect(state.dockerCalls[6]).toEqual(['network', 'rm', state.dockerCalls[0]![2]!])
-      // Health probe, the companion readiness probe, then the render —
-      // all on the mapped port.
+      // Health probe then the render POST, both on the mapped port.
       expect(state.fetchCalls.map((c) => c.url)).toEqual([
         'http://127.0.0.1:32768/health',
         'http://127.0.0.1:32768/mermaid/svg',
-        'http://127.0.0.1:32768/mermaid/svg',
       ])
-      expect(state.fetchCalls[2]?.body).toBe('graph TD; A-->B\n')
+      expect(state.fetchCalls[1]?.body).toBe('graph TD; A-->B\n')
       expect(existsSync(join(workspace, 'a.svg'))).toBe(true)
     })
 
@@ -591,13 +581,8 @@ describe('renderExecutor', () => {
         'stop',
         'network',
       ])
-      // The POSTs are the readiness probe and the two renders.
       const posts = state.fetchCalls.filter((c) => c.method === 'POST').map((c) => c.url)
-      expect(posts).toEqual([
-        'http://127.0.0.1:32768/mermaid/svg',
-        'http://127.0.0.1:32768/mermaid/svg',
-        'http://127.0.0.1:32768/d2/svg',
-      ])
+      expect(posts).toEqual(['http://127.0.0.1:32768/mermaid/svg', 'http://127.0.0.1:32768/d2/svg'])
     })
 
     it('stops the container even when a render fails', async () => {
@@ -751,6 +736,12 @@ describe('renderExecutor', () => {
           makeContext(workspace),
         ),
       ).rejects.toThrow(/docker stop.*container/i)
+
+      // The gateway stop failed — the companions and the network are still
+      // cleaned up.
+      const stopped = state.dockerCalls.filter((call) => call[0] === 'stop').map((call) => call[1])
+      expect(stopped).toContain('container1')
+      expect(state.dockerCalls.some((call) => call[0] === 'network' && call[1] === 'rm')).toBe(true)
     })
 
     it('warns about a failed stop without masking an earlier render error', async () => {

@@ -111,33 +111,6 @@ function companionTypesFor(
 }
 
 /**
- * True when every companion converts a diagram through the gateway.
- *
- * The gateway's health only reports itself — a companion that is still
- * starting would fail the first render. A tiny probe settles it.
- */
-async function companionsReady(
-  url: string,
-  companionTypes: readonly string[],
-  deadline: number,
-): Promise<boolean> {
-  for (const type of companionTypes) {
-    try {
-      // Nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- url is a loopback origin built from `docker port` output, validated as digits above
-      const res = await fetch(`${url}/${type}/svg`, {
-        method: 'POST',
-        body: 'graph TD;A-->B',
-        signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
-      })
-      if (!res.ok) return false
-    } catch {
-      return false
-    }
-  }
-  return true
-}
-
-/**
  * Create the per-run network the gateway and its companions share.
  */
 function createDockerNetwork(network: string, image: string, timeoutMs: number): void {
@@ -304,12 +277,7 @@ async function startDockerKroki(
         })
         // res.ok is evaluated before the deadline check — a successful
         // response can never be masked by the timeout.
-        if (res.ok) {
-          // The gateway is up — but a companion may still be starting.
-          // A conversion probe through the gateway settles it.
-          const ready = await companionsReady(url, companionTypes, deadline)
-          if (ready) break
-        }
+        if (res.ok) break
       } catch {
         // not up yet
       }
@@ -356,19 +324,28 @@ async function renderWithKroki(
   source: string,
 ): Promise<Buffer> {
   const url = `${krokiBase}/${type}/${resolved.format}`
-  // Nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- krokiUrl is workspace config validated as absolute http(s); type/format come from fixed enums
-  const res = await fetch(url, {
-    body: source,
-    headers: { 'content-type': 'text/plain' },
-    method: 'POST',
-    signal: AbortSignal.timeout(resolved.timeout),
-  })
-  if (!res.ok) {
+  const deadline = Date.now() + resolved.timeout
+  for (;;) {
+    // Nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- krokiUrl is workspace config validated as absolute http(s); type/format come from fixed enums
+    const res = await fetch(url, {
+      body: source,
+      headers: { 'content-type': 'text/plain' },
+      method: 'POST',
+      signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+    })
+    if (res.ok) {
+      return Buffer.from(await res.arrayBuffer())
+    }
     const rawBody = await res.text().catch(() => '')
     const body = rawBody.slice(0, 500)
-    throw new Error(`Kroki ${url} failed with HTTP ${res.status}: ${body}`)
+    // 502/503 is the gateway reporting that the service behind it (a
+    // companion that is still starting) is unavailable — retry until the
+    // budget is gone. Any other status is the diagram's own problem.
+    if ((res.status !== 502 && res.status !== 503) || Date.now() >= deadline) {
+      throw new Error(`Kroki ${url} failed with HTTP ${res.status}: ${body}`)
+    }
+    await new Promise((r) => setTimeout(r, 200))
   }
-  return Buffer.from(await res.arrayBuffer())
 }
 
 function renderWithCommand(

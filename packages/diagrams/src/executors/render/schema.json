@@ -57,11 +57,22 @@
     },
     "companionImages": {
       "type": "object",
-      "additionalProperties": {
-        "type": "string",
-        "minLength": 1
+      "description": "Companion image per diagram type for krokiUrl='docker' (default yuzutech/kroki-<type>:latest). The gateway reaches them by type name (KROKI_MERMAID_HOST=mermaid).",
+      "properties": {
+        "bpmn": {
+          "type": "string",
+          "minLength": 1
+        },
+        "excalidraw": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mermaid": {
+          "type": "string",
+          "minLength": 1
+        }
       },
-      "description": "Companion image per diagram type for krokiUrl='docker' (default yuzutech/kroki-<type>). The gateway reaches them by type name (KROKI_MERMAID_HOST=mermaid)."
+      "additionalProperties": false
     },
     "outputDir": {
       "type": "string",

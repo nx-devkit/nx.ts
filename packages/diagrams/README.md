@@ -97,7 +97,9 @@ Placeholder values expand **shell-quoted** — paths with spaces stay single arg
 
 Public `kroki.io` is rate-limited and sends your diagram sources to a third party. Set `"krokiUrl": "docker"` and the executor runs an ephemeral Kroki stack per run — lazily on the first Kroki render, health-checked, then torn down when the run finishes. Cleanup is best-effort: a failed `docker stop` fails the run (or warns when a render error is already propagating), and a hard-killed process can leave the container running — `docker ps`/`docker stop` it manually. Nothing is meant to persist between runs; set `krokiImage` to pin a digest or point at a mirror.
 
-Prerequisites: the `docker` CLI and a running daemon must be available on the machine executing Nx (a remote `DOCKER_HOST` is not supported — the port binds loopback on the daemon host while health probes hit the client host). The first run pulls the images, which counts against `timeout`; the container health-wait shares the same `timeout` budget, so raise it for slow boots.
+Prerequisites: the `docker` CLI and a running daemon must be available on the machine executing Nx (a remote `DOCKER_HOST` is not supported — the port binds loopback on the daemon host while health probes hit the client host).
+
+`timeout` is a **per-operation** limit, not a budget for the whole run: every docker command (including the image pull of the first run) and the health wait get their own limit, so a slow first pull does not eat the render's time — but a full run can take noticeably longer than `timeout`. A companion that is still starting makes the gateway answer `502`/`503`; the render is retried until the timeout is gone.
 
 **Companion services.** The core image covers plantuml, graphviz, d2 and friends — mermaid, bpmn and excalidraw are companion services in upstream Kroki and are not bundled. In docker mode the executor starts the companions the rendered types need, on a per-run docker network under their type name, and points the gateway at them:
 
