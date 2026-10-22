@@ -140,7 +140,10 @@ services:
     image: yuzutech/kroki-excalidraw
 ```
 
-Then `"krokiUrl": "http://localhost:8000"`.
+Run it (`docker compose up -d`) and point the plugin at it —
+`"krokiUrl": "http://localhost:8000"`. That is a *shared* stack; the
+`"docker"` mode above is the serverless one (a stack per run, nothing
+shared, nothing left behind).
 
 ## Committing images
 

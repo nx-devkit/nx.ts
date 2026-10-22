@@ -10,4 +10,4 @@
       gateway image bundles
 - [x] README: the companion services, the network, the teardown
 - [x] The repository switches to `krokiUrl: "docker"` (nx.json)
-- [ ] Gates: lint, format:check, test, build, e2e, check:spec, openspec validate
+- [x] Gates: lint, format:check, test, build, e2e, check:spec, openspec validate

@@ -6,7 +6,7 @@
 
 `krokiUrl` MUST additionally accept the literal string `docker`. In this mode the executor MUST lazily start `docker run -d --rm -p 127.0.0.1::8000 <krokiImage>` on the first render that requires Kroki, resolve the mapped port via `docker port`, wait for `GET <url>/health` to succeed (bounded by `timeout`), render all Kroki-needed sources in the run against that URL, and stop the container in `finally` so it is removed (`--rm`). `krokiImage` MUST default to `yuzutech/kroki:latest` and be overridable via plugin options and target config.
 
-The default core image only serves the types bundled upstream (PlantUML, Graphviz, D2, and similar); Mermaid, BPMN, and Excalidraw are companion services. In docker mode the executor MUST start the companion containers the rendered types need, on a per-run docker network, under their type name (`--network-alias <type>`), and point the gateway at them (`-e KROKI_<TYPE>_HOST=<type>`). The companion image MUST default to `yuzutech/kroki-<type>:latest` and MUST be overridable per type via the `companionImages` option. The gateway's health check reports its companions, so the health wait MUST cover their startup. The network and every container MUST be removed when the run ends. A type covered by a `commands` override MUST NOT need a companion container.
+The default core image only serves the types bundled upstream (PlantUML, Graphviz, D2, and similar); Mermaid, BPMN, and Excalidraw are companion services. In docker mode the executor MUST start the companion containers the rendered types need, on a per-run docker network, under their type name (`--network-alias <type>`), and point the gateway at them (`-e KROKI_<TYPE>_HOST=<type>`). The companion image MUST default to `yuzutech/kroki-<type>:latest` and MUST be overridable per type via the `companionImages` option. The companion set MUST cover only the types the run renders through Kroki: a type with a `commands` override never reaches Kroki, and a Markdown target renders only its selected block. The health wait MUST cover the companions' startup — the gateway's own health does not prove that a companion is ready, so the executor MUST probe a conversion through the gateway for every companion before treating the stack as healthy. The network and every container MUST be removed when the run ends. A type covered by a `commands` override MUST NOT need a companion container.
 
 #### Scenario: Docker mode render
 
@@ -21,8 +21,9 @@ The default core image only serves the types bundled upstream (PlantUML, Graphvi
 
 #### Scenario: Container is shared within one run
 
-- **WHEN** an aggregate target renders three Kroki sources with `krokiUrl: "docker"`
+- **WHEN** an aggregate target renders three Kroki sources of a type the gateway image bundles, with `krokiUrl: "docker"`
 - **THEN** exactly one container is started and all three POSTs target the same URL
+- **AND** a companion type adds exactly one companion container for the run
 
 #### Scenario: Companion service for a companion type
 
@@ -52,7 +53,7 @@ The default core image only serves the types bundled upstream (PlantUML, Graphvi
 
 #### Scenario: Docker unavailable
 
-- **WHEN** `krokiUrl` is `docker` but `docker run` fails (missing binary, daemon down, pull failure)
+- **WHEN** `krokiUrl` is `docker` but a docker call fails (missing binary, daemon down, pull failure, network creation)
 - **THEN** the executor fails with an error naming docker and the image
 
 #### Scenario: Health timeout

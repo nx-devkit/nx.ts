@@ -81,13 +81,16 @@ function companionTypesFor(
   files: readonly string[],
   singleBlock: number | null | undefined,
   blocks: readonly (number | null | undefined)[] | undefined,
+  commands: Record<string, string>,
 ): string[] {
   const types = new Set<string>()
   for (const [index, file] of files.entries()) {
     const blockIndex = singleBlock ?? blocks?.[index] ?? null
     if (blockIndex === null) {
       const type = diagramTypeFor(file)
-      if (type) types.add(type)
+      // A type with a command override never reaches Kroki — it needs no
+      // companion container.
+      if (type && !commands[type]) types.add(type)
       continue
     }
     // A missing or unreadable file is reported by the render loop with a
@@ -99,7 +102,7 @@ function companionTypesFor(
       // Only the targeted block — a file with other diagram types must not
       // pull their companions in.
       const block = blockIndex >= 0 ? fileBlocks.at(blockIndex) : undefined
-      if (block) types.add(block.type)
+      if (block && !commands[block.type]) types.add(block.type)
     } catch {
       // ignore — the render loop fails with the real error
     }
@@ -108,16 +111,43 @@ function companionTypesFor(
 }
 
 /**
+ * True when every companion converts a diagram through the gateway.
+ *
+ * The gateway's health only reports itself — a companion that is still
+ * starting would fail the first render. A tiny probe settles it.
+ */
+async function companionsReady(
+  url: string,
+  companionTypes: readonly string[],
+  deadline: number,
+): Promise<boolean> {
+  for (const type of companionTypes) {
+    try {
+      // Nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- url is a loopback origin built from `docker port` output, validated as digits above
+      const res = await fetch(`${url}/${type}/svg`, {
+        method: 'POST',
+        body: 'graph TD;A-->B',
+        signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+      })
+      if (!res.ok) return false
+    } catch {
+      return false
+    }
+  }
+  return true
+}
+
+/**
  * Create the per-run network the gateway and its companions share.
  */
-function createDockerNetwork(network: string, timeoutMs: number): void {
+function createDockerNetwork(network: string, image: string, timeoutMs: number): void {
   const created = spawnSync('docker', ['network', 'create', network], {
     encoding: 'utf8',
     timeout: timeoutMs,
   })
   if (created.error || created.status !== 0) {
     const detail = created.error?.message ?? String(created.stderr).trim()
-    throw new Error(`krokiUrl "docker": docker network create failed: ${detail}`)
+    throw new Error(`krokiUrl "docker": docker network create failed for ${image}: ${detail}`)
   }
 }
 
@@ -222,7 +252,7 @@ async function startDockerKroki(
   timeoutMs: number,
 ): Promise<DockerKroki> {
   const network = `kroki-${randomUUID().slice(0, 8)}`
-  createDockerNetwork(network, timeoutMs)
+  createDockerNetwork(network, image, timeoutMs)
 
   // The gateway and the companions share the network; the companion is
   // reachable under its type name.
@@ -239,8 +269,14 @@ async function startDockerKroki(
     // actually exits — a failed stop leaves it running, so report it.
     const res = spawnSync('docker', ['stop', id], { stdio: 'ignore', timeout: timeoutMs })
     if (res.error || res.status !== 0) {
-      return new Error(
-        `krokiUrl "docker": docker stop failed for container ${id}: ${res.error?.message ?? `exit ${res.status}`}`,
+      // The companions and the network are cleaned up even when the
+      // gateway refuses to stop — otherwise they outlive the run.
+      const cleanupError = stopDockerResources(network, companions, timeoutMs)
+      return (
+        cleanupError ??
+        new Error(
+          `krokiUrl "docker": docker stop failed for container ${id}: ${res.error?.message ?? `exit ${res.status}`}`,
+        )
       )
     }
     return stopDockerResources(network, companions, timeoutMs)
@@ -268,7 +304,12 @@ async function startDockerKroki(
         })
         // res.ok is evaluated before the deadline check — a successful
         // response can never be masked by the timeout.
-        if (res.ok) break
+        if (res.ok) {
+          // The gateway is up — but a companion may still be starting.
+          // A conversion probe through the gateway settles it.
+          const ready = await companionsReady(url, companionTypes, deadline)
+          if (ready) break
+        }
       } catch {
         // not up yet
       }
@@ -384,7 +425,7 @@ export default async function renderExecutor(
   // created — the gateway is told where to find its services then.
   const companionTypes =
     resolved.krokiUrl === 'docker'
-      ? companionTypesFor(context, files, options.block ?? null, options.blocks)
+      ? companionTypesFor(context, files, options.block ?? null, options.blocks, resolved.commands)
       : []
 
   let dockerKroki: DockerKroki | undefined
