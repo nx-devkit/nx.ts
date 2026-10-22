@@ -8,6 +8,7 @@ export interface RenderExecutorSchema {
   format?: 'svg' | 'png' | 'jpeg'
   krokiUrl?: string
   krokiImage?: string
+  companionImages?: Partial<Record<'bpmn' | 'excalidraw' | 'mermaid', string>>
   outputDir?: string
   commands?: Record<string, string>
   timeout?: number

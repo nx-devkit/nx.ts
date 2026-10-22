@@ -15,12 +15,17 @@
     },
     "files": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Multiple workspace-relative diagram source files (aggregate target)."
     },
     "blocks": {
       "type": "array",
-      "items": { "type": ["integer", "null"], "minimum": 0 },
+      "items": {
+        "type": ["integer", "null"],
+        "minimum": 0
+      },
       "description": "Diagram-fence indexes parallel to `files`; null for whole-file entries (aggregate target)."
     },
     "output": {
@@ -29,7 +34,9 @@
     },
     "outputs": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Workspace-relative output paths parallel to `files` (set by inferred targets)."
     },
     "format": {
@@ -41,12 +48,31 @@
     "krokiUrl": {
       "type": "string",
       "default": "https://kroki.io",
-      "description": "Kroki base URL, or \"docker\" to run an ephemeral local Kroki container per run (serverless — started lazily, stopped in finally). Empty string disables Kroki (commands must cover all types)."
+      "description": "Kroki base URL, or \"docker\" to run an ephemeral local Kroki container per run (serverless \u2014 started lazily, stopped in finally). Empty string disables Kroki (commands must cover all types)."
     },
     "krokiImage": {
       "type": "string",
       "default": "yuzutech/kroki:latest",
       "description": "Docker image used when krokiUrl is \"docker\" (mirrors, pinned digests)."
+    },
+    "companionImages": {
+      "type": "object",
+      "description": "Companion image per diagram type for krokiUrl='docker' (default yuzutech/kroki-<type>:latest). The gateway reaches them by type name (KROKI_MERMAID_HOST=mermaid).",
+      "properties": {
+        "bpmn": {
+          "type": "string",
+          "minLength": 1
+        },
+        "excalidraw": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mermaid": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     },
     "outputDir": {
       "type": "string",
@@ -55,9 +81,11 @@
     },
     "commands": {
       "type": "object",
-      "additionalProperties": { "type": "string" },
+      "additionalProperties": {
+        "type": "string"
+      },
       "default": {},
-      "description": "Per-type local command overrides. Placeholders (expanded shell-quoted — do not wrap in quotes): {input} {output} {format} {fileDir} {fileName} {projectRoot}. For Markdown blocks {input} is a materialized temp file (absolute path, type's canonical extension)."
+      "description": "Per-type local command overrides. Placeholders (expanded shell-quoted \u2014 do not wrap in quotes): {input} {output} {format} {fileDir} {fileName} {projectRoot}. For Markdown blocks {input} is a materialized temp file (absolute path, type's canonical extension)."
     },
     "timeout": {
       "type": "number",

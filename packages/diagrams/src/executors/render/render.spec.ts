@@ -45,6 +45,18 @@ const state = {
     stdout?: string
     stderr?: string
   },
+  dockerNetwork: { status: 0, stdout: 'netid\n', stderr: '' } as {
+    error?: { message: string }
+    status: number | null
+    stdout?: string
+    stderr?: string
+  },
+  dockerNetworkRm: { status: 0, stdout: '', stderr: '' } as {
+    error?: { message: string }
+    status: number | null
+    stdout?: string
+    stderr?: string
+  },
   spawnResponse: { status: 0, stderr: '' } as {
     error?: { code?: string; message: string }
     signal?: string
@@ -64,9 +76,22 @@ vi.mock('node:child_process', () => ({
     if (command === 'docker' && Array.isArray(argsOrOptions)) {
       state.dockerCalls.push(argsOrOptions as string[])
       const verb = (argsOrOptions as string[])[0]
-      if (verb === 'run') return state.dockerRun
+      if (verb === 'run') {
+        // Distinct ids per container — the companion and the gateway are
+        // two containers.
+        const runCount = state.dockerCalls.filter((call) => call[0] === 'run').length
+        return {
+          ...state.dockerRun,
+          stdout: `container${runCount}\n`,
+        }
+      }
       if (verb === 'port') return state.dockerPort
       if (verb === 'stop') return state.dockerStop
+      if (verb === 'network') {
+        // `network create` and `network rm` are different calls.
+        const subcommand = (argsOrOptions as string[])[1]
+        return subcommand === 'rm' ? state.dockerNetworkRm : state.dockerNetwork
+      }
       return { status: 1, stdout: '', stderr: `unknown docker verb ${verb}` }
     }
     state.spawnCalls.push({ command, options })
@@ -136,6 +161,8 @@ describe('renderExecutor', () => {
     state.dockerRun = { status: 0, stdout: 'container123\n', stderr: '' }
     state.dockerPort = { status: 0, stdout: '127.0.0.1:32768\n', stderr: '' }
     state.dockerStop = { status: 0, stdout: '', stderr: '' }
+    state.dockerNetwork = { status: 0, stdout: 'netid\n', stderr: '' }
+    state.dockerNetworkRm = { status: 0, stdout: '', stderr: '' }
     mkdirSync(workspace, { recursive: true })
   })
 
@@ -484,17 +511,47 @@ describe('renderExecutor', () => {
         makeContext(workspace),
       )
 
-      expect(state.dockerCalls.map((c) => c[0])).toEqual(['run', 'port', 'stop'])
-      expect(state.dockerCalls[0]).toEqual([
+      // A mermaid diagram needs the companion service: network, the
+      // companion, the gateway, the port lookup, then the teardown.
+      expect(state.dockerCalls.map((c) => c[0])).toEqual([
+        'network',
+        'run',
+        'run',
+        'port',
+        'stop',
+        'stop',
+        'network',
+      ])
+      expect(state.dockerCalls[0]?.[0]).toBe('network')
+      expect(state.dockerCalls[0]?.[1]).toBe('create')
+      // The companion runs on the per-run network under its type name.
+      expect(state.dockerCalls[1]).toEqual([
+        'run',
+        '-d',
+        '--rm',
+        '--network',
+        state.dockerCalls[0]![2]!,
+        '--network-alias',
+        'mermaid',
+        'yuzutech/kroki-mermaid:latest',
+      ])
+      // The gateway is told where to find the companion.
+      expect(state.dockerCalls[2]).toEqual([
         'run',
         '-d',
         '--rm',
         '-p',
         '127.0.0.1::8000',
+        '--network',
+        state.dockerCalls[0]![2]!,
+        '-e',
+        'KROKI_MERMAID_HOST=mermaid',
         'yuzutech/kroki:latest',
       ])
-      expect(state.dockerCalls[1]).toEqual(['port', 'container123', '8000'])
-      expect(state.dockerCalls[2]).toEqual(['stop', 'container123'])
+      expect(state.dockerCalls[3]).toEqual(['port', 'container2', '8000'])
+      expect(state.dockerCalls[4]).toEqual(['stop', 'container2'])
+      expect(state.dockerCalls[5]).toEqual(['stop', 'container1'])
+      expect(state.dockerCalls[6]).toEqual(['network', 'rm', state.dockerCalls[0]![2]!])
       // Health probe then the render POST, both on the mapped port.
       expect(state.fetchCalls.map((c) => c.url)).toEqual([
         'http://127.0.0.1:32768/health',
@@ -513,7 +570,17 @@ describe('renderExecutor', () => {
         makeContext(workspace),
       )
 
-      expect(state.dockerCalls.map((c) => c[0])).toEqual(['run', 'port', 'stop'])
+      // One stack for the whole run: the companion (mermaid) and the
+      // gateway are started once.
+      expect(state.dockerCalls.map((c) => c[0])).toEqual([
+        'network',
+        'run',
+        'run',
+        'port',
+        'stop',
+        'stop',
+        'network',
+      ])
       const posts = state.fetchCalls.filter((c) => c.method === 'POST').map((c) => c.url)
       expect(posts).toEqual(['http://127.0.0.1:32768/mermaid/svg', 'http://127.0.0.1:32768/d2/svg'])
     })
@@ -579,7 +646,48 @@ describe('renderExecutor', () => {
         makeContext(workspace),
       )
 
-      expect(state.dockerCalls[0]?.at(-1)).toBe('mirror.local/kroki:2024.1')
+      // The gateway image is the last argument of the gateway run.
+      const gateway = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.at(-1) === 'mirror.local/kroki:2024.1',
+      )
+      expect(gateway).toBeDefined()
+    })
+
+    it('honors a custom companion image', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD;\n')
+
+      await renderExecutor(
+        {
+          companionImages: { mermaid: 'mirror.local/kroki-mermaid:2024.1' },
+          file: 'a.mmd',
+          krokiUrl: 'docker',
+          output: 'a.svg',
+        },
+        makeContext(workspace),
+      )
+
+      const companion = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.includes('mermaid'),
+      )
+      expect(companion?.at(-1)).toBe('mirror.local/kroki-mermaid:2024.1')
+    })
+
+    it('starts no companion for a type the gateway image bundles', async () => {
+      writeFileSync(join(workspace, 'a.d2'), 'x -> y\n')
+
+      await renderExecutor(
+        { file: 'a.d2', krokiUrl: 'docker', output: 'a.svg' },
+        makeContext(workspace),
+      )
+
+      // Network, gateway, port, teardown — no companion container.
+      expect(state.dockerCalls.map((c) => c[0])).toEqual([
+        'network',
+        'run',
+        'port',
+        'stop',
+        'network',
+      ])
     })
 
     it('times out when /health never succeeds and still stops the container', async () => {
@@ -612,7 +720,7 @@ describe('renderExecutor', () => {
           { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
           makeContext(workspace),
         ),
-      ).rejects.toThrow(/docker port.*container123.*8000/i)
+      ).rejects.toThrow(/docker port.*container2.*8000/i)
 
       expect(state.dockerCalls.map((c) => c[0])).toContain('stop')
     })
@@ -627,7 +735,13 @@ describe('renderExecutor', () => {
           { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
           makeContext(workspace),
         ),
-      ).rejects.toThrow(/docker stop.*container123/i)
+      ).rejects.toThrow(/docker stop.*container/i)
+
+      // The gateway stop failed — the companions and the network are still
+      // cleaned up.
+      const stopped = state.dockerCalls.filter((call) => call[0] === 'stop').map((call) => call[1])
+      expect(stopped).toContain('container1')
+      expect(state.dockerCalls.some((call) => call[0] === 'network' && call[1] === 'rm')).toBe(true)
     })
 
     it('warns about a failed stop without masking an earlier render error', async () => {
@@ -665,6 +779,93 @@ describe('renderExecutor', () => {
       ).rejects.toThrow(/positive integer/)
 
       expect(state.dockerCalls).toEqual([])
+    })
+  })
+
+  describe('the companion set', () => {
+    it.each([
+      'bpmn',
+      'excalidraw',
+      'mermaid',
+    ])('starts the %s companion for its type', async (type) => {
+      const file = `a.${type === 'mermaid' ? 'mmd' : type}`
+      writeFileSync(join(workspace, file), 'x -> y\n')
+
+      await renderExecutor({ file, krokiUrl: 'docker', output: 'a.svg' }, makeContext(workspace))
+
+      const companion = state.dockerCalls.find((call) => call[0] === 'run' && call.includes(type))
+      expect(companion).toBeDefined()
+      // The gateway is told where to find it.
+      const gateway = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.at(-1) === 'yuzutech/kroki:latest',
+      )
+      expect(gateway).toContain(`KROKI_${type.toUpperCase()}_HOST=${type}`)
+    })
+
+    it('starts no companion for a type a command covers', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD; A-->B\n')
+
+      await renderExecutor(
+        {
+          commands: { mermaid: 'mmdc -i {input} -o {output}' },
+          file: 'a.mmd',
+          krokiUrl: 'docker',
+          output: 'a.svg',
+        },
+        makeContext(workspace),
+      )
+
+      const companion = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.includes('mermaid'),
+      )
+      expect(companion).toBeUndefined()
+    })
+
+    it('reports a failing network removal', async () => {
+      writeFileSync(join(workspace, 'a.mmd'), 'graph TD; A-->B\n')
+      state.dockerNetworkRm = { status: 1, stdout: '', stderr: 'network is in use' }
+
+      await expect(
+        renderExecutor(
+          { file: 'a.mmd', krokiUrl: 'docker', output: 'a.svg' },
+          makeContext(workspace),
+        ),
+      ).rejects.toThrow(/network rm failed/)
+    })
+
+    it('covers only the targeted block of a markdown file', async () => {
+      writeFileSync(
+        join(workspace, 'doc.md'),
+        '```plantuml\nA-->B\n```\n\n```mermaid\ngraph TD; A-->B\n```\n',
+      )
+
+      await renderExecutor(
+        { block: 0, file: 'doc.md', krokiUrl: 'docker', output: 'doc.svg' },
+        makeContext(workspace),
+      )
+
+      // Block 0 is a plantuml diagram — the mermaid companion is not needed.
+      const companion = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.includes('mermaid'),
+      )
+      expect(companion).toBeUndefined()
+    })
+
+    it('covers the targeted mermaid block', async () => {
+      writeFileSync(
+        join(workspace, 'doc.md'),
+        '```plantuml\nA-->B\n```\n\n```mermaid\ngraph TD; A-->B\n```\n',
+      )
+
+      await renderExecutor(
+        { block: 1, file: 'doc.md', krokiUrl: 'docker', output: 'doc.svg' },
+        makeContext(workspace),
+      )
+
+      const companion = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.includes('mermaid'),
+      )
+      expect(companion).toBeDefined()
     })
   })
 })

@@ -95,11 +95,30 @@ Placeholder values expand **shell-quoted** — paths with spaces stay single arg
 
 ## Local Kroki via docker
 
-Public `kroki.io` is rate-limited and sends your diagram sources to a third party. Set `"krokiUrl": "docker"` and the executor runs an ephemeral Kroki container per run — `docker run -d --rm -p 127.0.0.1::8000 yuzutech/kroki`, lazily on the first Kroki render, health-checked, then `docker stop`ped when the run finishes. Cleanup is best-effort: a failed `docker stop` fails the run (or warns when a render error is already propagating), and a hard-killed process can leave the container running — `docker ps`/`docker stop` it manually. Nothing is meant to persist between runs; set `krokiImage` to pin a digest or point at a mirror.
+Public `kroki.io` is rate-limited and sends your diagram sources to a third party. Set `"krokiUrl": "docker"` and the executor runs an ephemeral Kroki stack per run — lazily on the first Kroki render, health-checked, then torn down when the run finishes. Cleanup is best-effort: a failed `docker stop` fails the run (or warns when a render error is already propagating), and a hard-killed process can leave the container running — `docker ps`/`docker stop` it manually. Nothing is meant to persist between runs; set `krokiImage` to pin a digest or point at a mirror.
 
-Prerequisites: the `docker` CLI and a running daemon must be available on the machine executing Nx (a remote `DOCKER_HOST` is not supported — the port binds loopback on the daemon host while health probes hit the client host). The first run pulls the image, which counts against `timeout`; the container health-wait shares the same `timeout` budget, so raise it for slow boots.
+Prerequisites: the `docker` CLI and a running daemon must be available on the machine executing Nx (a remote `DOCKER_HOST` is not supported — the port binds loopback on the daemon host while health probes hit the client host).
 
-The core image covers plantuml, graphviz, d2 and friends — mermaid, bpmn and excalidraw are companion services in upstream Kroki and are not bundled. For those types combine docker mode with `commands` (commands always win per type), or run a full compose stack:
+`timeout` is a **per-operation** limit, not a budget for the whole run: every docker command (including the image pull of the first run) and the health wait get their own limit, so a slow first pull does not eat the render's time — but a full run can take noticeably longer than `timeout`. A companion that is still starting makes the gateway answer `502`/`503`; the render is retried until the timeout is gone.
+
+**Companion services.** The core image covers plantuml, graphviz, d2 and friends — mermaid, bpmn and excalidraw are companion services in upstream Kroki and are not bundled. In docker mode the executor starts the companions the rendered types need, on a per-run docker network under their type name, and points the gateway at them:
+
+```text
+docker network create kroki-<run>
+docker run -d --rm --network kroki-<run> --network-alias mermaid yuzutech/kroki-mermaid:latest
+docker run -d --rm -p 127.0.0.1::8000 --network kroki-<run> \
+  -e KROKI_MERMAID_HOST=mermaid yuzutech/kroki:latest
+```
+
+The gateway's health check reports the companions, so the wait covers their startup. The network and every container are removed when the run ends. Override the images per type with `"companionImages": { "mermaid": "mirror.local/kroki-mermaid:2024.1" }`.
+
+A type with a `commands` override never reaches Kroki — `commands` always win per type, and a command-only run touches Docker not at all. To render a companion type with a local tool instead of a container:
+
+```jsonc
+{ "options": { "krokiUrl": "docker", "commands": { "mermaid": "mmdc -i {input} -o {output}" } } }
+```
+
+To run a full stack yourself (for example a shared Kroki with a pinned image), use compose:
 
 ```jsonc
 { "options": { "krokiUrl": "docker", "commands": { "mermaid": "mmdc -i {input} -o {output}" } } }
@@ -123,7 +142,10 @@ services:
     image: yuzutech/kroki-excalidraw
 ```
 
-Then `"krokiUrl": "http://localhost:8000"`.
+Run it (`docker compose up -d`) and point the plugin at it —
+`"krokiUrl": "http://localhost:8000"`. That is a *shared* stack; the
+`"docker"` mode above is the serverless one (a stack per run, nothing
+shared, nothing left behind).
 
 ## Committing images
 

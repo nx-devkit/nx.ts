@@ -14,6 +14,13 @@ export interface NxDiagramsPluginOptions {
   /** Docker image for krokiUrl='docker'. Default: 'yuzutech/kroki:latest'. */
   krokiImage?: string
   /**
+   * Companion image per diagram type for krokiUrl='docker' — the gateway
+   * image bundles plantuml, graphviz and d2 only; mermaid, bpmn and
+   * excalidraw are separate services.
+   * Default: 'yuzutech/kroki-<type>:latest'.
+   */
+  companionImages?: Record<string, string>
+  /**
    * Output directory template, workspace-relative.
    * Tokens: {fileDir} {fileName} {projectRoot}. Default: '{fileDir}'.
    */
@@ -146,6 +153,9 @@ export const createNodesV2: CreateNodesV2<NxDiagramsPluginOptions> = [
 
     const sharedOptions = {
       commands: options.commands ?? {},
+      ...(options.companionImages !== undefined
+        ? { companionImages: options.companionImages }
+        : {}),
       dryRun: options.dryRun ?? false,
       format,
       krokiImage: options.krokiImage ?? 'yuzutech/kroki:latest',
