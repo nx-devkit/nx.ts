@@ -1,3 +1,7 @@
+## 0.0.22 (2026-10-22)
+
+This was a version bump only for @nx-devkit/release to align it with other projects, there were no code changes.
+
 ## 0.0.21 (2026-10-01)
 
 This was a version bump only for @nx-devkit/release to align it with other projects, there were no code changes.

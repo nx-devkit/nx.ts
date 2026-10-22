@@ -1,3 +1,7 @@
+## 0.0.13 (2026-10-22)
+
+This was a version bump only for @nx-devkit/boundaries to align it with other projects, there were no code changes.
+
 ## 0.0.12 (2026-10-01)
 
 ### 🩹 Fixes

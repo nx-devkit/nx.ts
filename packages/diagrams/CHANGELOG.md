@@ -1,3 +1,13 @@
+## 0.0.19 (2026-10-22)
+
+### 🚀 Features
+
+- **diagrams:** serverless Kroki with the companion services the type needs ([#130](https://github.com/nx-devkit/nx.ts/pull/130))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.18 (2026-10-01)
 
 ### 🩹 Fixes
