@@ -214,50 +214,18 @@ async function startDockerKroki(
   timeoutMs: number,
 ): Promise<DockerKroki> {
   const network = `kroki-${randomUUID().slice(0, 8)}`
-  const companions: string[] = []
-  const created = spawnSync('docker', ['network', 'create', network], {
-    encoding: 'utf8',
-    timeout: timeoutMs,
-  })
-  if (created.error || created.status !== 0) {
-    const detail = created.error?.message ?? String(created.stderr).trim()
-    throw new Error(`krokiUrl "docker": docker network create failed: ${detail}`)
-  }
+  createDockerNetwork(network, timeoutMs)
 
   // The gateway and the companions share the network; the companion is
   // reachable under its type name.
+  const companions: string[] = []
   for (const type of companionTypes) {
     const companionImage = companionImages[type]
     if (!companionImage) continue
-    const started = spawnSync(
-      'docker',
-      ['run', '-d', '--rm', '--network', network, '--network-alias', type, companionImage],
-      { encoding: 'utf8', timeout: timeoutMs },
-    )
-    if (started.error || started.status !== 0) {
-      const detail = started.error?.message ?? String(started.stderr).trim()
-      stopDockerResources(network, companions, timeoutMs)
-      throw new Error(`krokiUrl "docker": docker run failed for ${companionImage}: ${detail}`)
-    }
-    companions.push(String(started.stdout).trim())
+    companions.push(startCompanionContainer(type, companionImage, network, timeoutMs, companions))
   }
 
-  const runArgs = ['run', '-d', '--rm', '-p', '127.0.0.1::8000', '--network', network]
-  for (const type of companionTypes) {
-    if (!companionImages[type]) continue
-    runArgs.push('-e', `KROKI_${type.toUpperCase()}_HOST=${type}`)
-  }
-  runArgs.push(image)
-  const run = spawnSync('docker', runArgs, {
-    encoding: 'utf8',
-    timeout: timeoutMs,
-  })
-  if (run.error || run.status !== 0) {
-    const detail = run.error?.message ?? String(run.stderr).trim()
-    stopDockerResources(network, companions, timeoutMs)
-    throw new Error(`krokiUrl "docker": docker run failed for ${image}: ${detail}`)
-  }
-  const id = String(run.stdout).trim()
+  const id = startGatewayContainer(image, network, companionTypes, timeoutMs, companions)
   const stop = (): Error | undefined => {
     // The container is --rm, but --rm only cleans up once the container
     // actually exits — a failed stop leaves it running, so report it.
