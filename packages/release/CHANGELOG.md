@@ -1,3 +1,41 @@
+## 0.1.0 (2026-10-22)
+
+### 🚀 Features
+
+- ⚠️  **release:** the release version comes from conventional commits ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
+
+### ⚠️  Breaking Changes
+
+- **release:** the release version comes from conventional commits  ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
+  footer in the commit body marks the commit as
+    breaking (the spec promised it, the parser only looked at the subject);
+  - the commit type must be alphabetic, and the description must not be
+    empty;
+  - a pull request link is only rendered when it is a safe https URL — a
+    parenthesis would end the link early and a javascript: URL would be
+    executable in a Markdown renderer.
+  * fix(release): breaking marker in the changelog, and the docs match the code
+  - a breaking change carries a marker in the changelog, so a reader can
+    spot the changes that need an update;
+  - the proposal, the tasks and the spec name the same bump mapping
+    (fix/perf/revert -> patch) and the same version baseline (the highest
+    current version among the packages, so none is downgraded);
+  - the changelog requirement spells out the format elements the
+    repository's changelogs use;
+  - stage 1's parity check covers the published set and the versions — the
+    tag and release model change in stage 2, with the one-version model."
+  A	openspec/changes/release-dogfooding/proposal.md
+  A	openspec/changes/release-dogfooding/specs/release-dogfooding/spec.md
+  A	openspec/changes/release-dogfooding/tasks.md
+  A	packages/release/src/changelog.spec.ts
+  A	packages/release/src/changelog.ts
+  A	packages/release/src/version.spec.ts
+  A	packages/release/src/version.ts
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.22 (2026-10-22)
 
 This was a version bump only for @nx-devkit/release to align it with other projects, there were no code changes.
