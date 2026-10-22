@@ -35,31 +35,44 @@ Per-package options interfaces, file layout, and TDD workflow are in each `packa
 
 ## Branch hygiene
 
-**A PR leaves nothing behind: not a local branch, not a remote branch, not a
-stale checkout.** The branch belongs to the PR.
+**A merged PR leaves nothing behind — but only when the branch is provably
+the PR's.** The branch belongs to the PR; the PR is gone.
 
-You may clean up **the branch of the PR you worked** — whether it merged or
-was closed. Anything else is off limits: another PR or another session may
-own it.
+Clean up the branch of a PR **that merged**, and only when both hold:
 
-Order matters — git refuses to delete a branch that is checked out:
+- the branch tip is the **merged head** — commits that landed on the branch
+  after the merge still carry work;
+- **no other open PR is based on it** — a stacked PR needs its base.
+
+A PR **closed without merging keeps its branch** — that work is unmerged,
+not garbage; it belongs to whoever pushed it.
+
+Order matters — git refuses to delete a branch that is checked out, and
+`git switch` fails when the target branch is checked out in another
+worktree:
 
 ```bash
-# 1. leave the PR's checkout: switch to the base (normal checkout),
-#    or remove the linked worktree the PR was worked in
-git switch <base>            # normal checkout
-git worktree remove <path>   # linked worktree (then git worktree prune)
+# 1. leave the PR's checkout — remove the linked worktree FIRST
+git worktree remove <path>       # if the PR used one
+git worktree prune
+#    ...then, from the primary checkout:
+git switch <base>                 # the PR's base branch
+git pull --ff-only
 
-# 2. delete the local branch
-git branch -D <branch>
+# 2. delete the local branch — only if its tip is the merged head
+git branch -D "<branch>"
 
-# 3. delete the remote branch — only if it is still there
-git ls-remote --exit-code --heads origin <branch> >/dev/null 2>&1 \
-  && git push origin --delete <branch>
+# 3. delete the remote branch on the PR's HEAD repo — only if it is there
+git ls-remote --exit-code --heads "<head-repo>" "<branch>" >/dev/null 2>&1 \
+  && git push "<head-repo>" --delete "<branch>"
 ```
 
+- **Quote every branch name** — a PR head ref is attacker-controlled input
+  and reaches a shell.
+- The remote is the PR's **head** repository: for a fork PR, `origin` can be
+  the base repo, and deleting there would hit an unrelated branch.
 - The repo has `delete_branch_on_merge` on, so GitHub removes the *remote*
-  branch on merge — step 3 is a no-op then. It stays conditional on
+  branch on merge — step 3 is often a no-op. It stays conditional on
   purpose: deleting an already-removed ref exits non-zero.
 - Report the cleanup in the closing summary (branch, local + remote).
 
