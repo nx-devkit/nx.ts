@@ -104,6 +104,70 @@ function companionTypesFor(
 }
 
 /**
+ * Create the per-run network the gateway and its companions share.
+ */
+function createDockerNetwork(network: string, timeoutMs: number): void {
+  const created = spawnSync('docker', ['network', 'create', network], {
+    encoding: 'utf8',
+    timeout: timeoutMs,
+  })
+  if (created.error || created.status !== 0) {
+    const detail = created.error?.message ?? String(created.stderr).trim()
+    throw new Error(`krokiUrl "docker": docker network create failed: ${detail}`)
+  }
+}
+
+/**
+ * Start a companion container under its type name.
+ */
+function startCompanionContainer(
+  type: string,
+  image: string,
+  network: string,
+  timeoutMs: number,
+  started: readonly string[],
+): string {
+  const run = spawnSync(
+    'docker',
+    ['run', '-d', '--rm', '--network', network, '--network-alias', type, image],
+    { encoding: 'utf8', timeout: timeoutMs },
+  )
+  if (run.error || run.status !== 0) {
+    const detail = run.error?.message ?? String(run.stderr).trim()
+    stopDockerResources(network, started, timeoutMs)
+    throw new Error(`krokiUrl "docker": docker run failed for ${image}: ${detail}`)
+  }
+  return String(run.stdout).trim()
+}
+
+/**
+ * Start the gateway container, told where to find its companions.
+ */
+function startGatewayContainer(
+  image: string,
+  network: string,
+  companionTypes: readonly string[],
+  timeoutMs: number,
+  started: readonly string[],
+): string {
+  const runArgs = ['run', '-d', '--rm', '-p', '127.0.0.1::8000', '--network', network]
+  for (const type of companionTypes) {
+    runArgs.push('-e', `KROKI_${type.toUpperCase()}_HOST=${type}`)
+  }
+  runArgs.push(image)
+  const run = spawnSync('docker', runArgs, {
+    encoding: 'utf8',
+    timeout: timeoutMs,
+  })
+  if (run.error || run.status !== 0) {
+    const detail = run.error?.message ?? String(run.stderr).trim()
+    stopDockerResources(network, started, timeoutMs)
+    throw new Error(`krokiUrl "docker": docker run failed for ${image}: ${detail}`)
+  }
+  return String(run.stdout).trim()
+}
+
+/**
  * Stop the companion containers and remove the per-run network.
  *
  * Best effort: the first failure is reported, the rest still runs — a
