@@ -22,22 +22,27 @@ sources — the release is dogfooding.
 
 **Version model** (one version for the whole release, no empty publishes):
 
-- the release carries **one version** for every package;
+- the release carries **one version** for the whole repository — every
+  package that is published ends up with it;
 - a package whose content is unchanged apart from the version is **not
   published** — it gets no version bump and no tarball;
 - the candidate set comes from `nx affected` (the changed packages and
-  their dependents).
+  their dependents);
+- the version baseline is the **highest current version** among the
+  repository's packages, so no package is ever downgraded.
 
 **Stages** (one PR each, a dry-run parity check against the current
 `main` in every stage):
 
 1. **Publish on the local plugin** — a multi-package mode in
    `@nx-devkit/release`, and `release.yml` calls the local target instead
-   of `nx release publish`.
+   of `nx release publish`. The parity check covers the published set and
+   the versions; the tag and release model change in stage 2, where the
+   one-version model lands.
 2. **Versions and changelogs on own code** — conventional commits → semver
-   (`feat` → minor, `fix` → patch, breaking → major), one version for the
-   release, per-package changelog entries in the format the repository's
-   changelogs already use.
+   (`feat` → minor, `fix`/`perf`/`revert` → patch, breaking → major), one
+   version for the release, per-package changelog entries in the format the
+   repository's changelogs already use.
 3. *(optional)* **Split `release.yml` / `publish.yml`** the way adt-cli
    does: the publish is dispatched, because a push from `GITHUB_TOKEN`
    does not cascade into other workflows, and a separate workflow gets

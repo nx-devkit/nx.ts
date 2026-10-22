@@ -42,6 +42,23 @@ describe('renderChangelog', () => {
     expect(changelog).toContain('### 📦 Other')
   })
 
+  it('marks a breaking change', () => {
+    const changelog = renderChangelog({
+      version: '2.0.0',
+      date: '2026-10-22',
+      changes: [
+        {
+          type: 'feat',
+          scope: 'release',
+          breaking: true,
+          description: 'drop the old option',
+        },
+      ],
+    })
+
+    expect(changelog).toContain('- **⚠ BREAKING CHANGE:** **release:** drop the old option')
+  })
+
   it('drops a pull request link that is not a safe https URL', () => {
     const changelog = renderChangelog({
       version: '1.0.0',

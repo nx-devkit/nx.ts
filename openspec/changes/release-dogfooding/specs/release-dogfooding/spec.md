@@ -40,7 +40,9 @@ skipped.
 
 A release MUST carry one version for the whole repository. Every package
 that is published in that release MUST end up with that version; a package
-that is not published MUST keep its version.
+that is not published MUST keep its version. The version baseline MUST be
+the highest current version among the repository's packages, so that no
+package is ever downgraded.
 
 #### Scenario: two packages change
 
