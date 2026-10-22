@@ -69,12 +69,26 @@ packages and their dependents); the unchanged ones are dropped from it.
 - **WHEN** the release runs
 - **THEN** the package is published with the release version
 
+#### Scenario: a skipped package is reported
+
+- **GIVEN** a package whose content did not change
+- **WHEN** the release runs
+- **THEN** the package is listed as skipped, with the reason it was not published
+
 ### Requirement: the changelog follows the repository's format
 
 The changelog entry of a release MUST use the format the repository's
-changelogs already use: a `## <version> (<date>)` heading, the changes
-grouped by type under the matching heading, one bullet per change with the
-scope, and a thank-you section listing the contributors.
+changelogs already use:
+
+- a `## <version> (<date>)` heading;
+- the changes grouped by type under the matching emoji heading
+  (`### 🚀 Features`, `### 🩹 Fixes`, `### ⚡ Performance Improvements`,
+  `### ⏪ Reverts`, `### 📦 Other`);
+- one bullet per change: `- **<scope>:** <description> ([#<pr>](<url>))` — the
+  scope and the pull request link appear when they are known;
+- a `**⚠ BREAKING CHANGE:**` marker on a breaking change;
+- a `### ❤️ Thank You` section listing the contributors as
+  `- <name> @<handle>` — the handle appears when it is known.
 
 #### Scenario: a feature and a fix
 

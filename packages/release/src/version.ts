@@ -101,17 +101,21 @@ function rank(bump: ReleaseBump): number {
  * The next version for a base version and a bump.
  *
  * A major bump resets the minor and the patch, a minor bump resets the
- * patch — the usual semver rules.
+ * patch — the usual semver rules. A patch bump of a pre-release drops
+ * the suffix instead of raising the patch: `1.0.0-rc.1` becomes
+ * `1.0.0`, the release it was leading to.
  */
 export function nextVersion(current: string, bump: ReleaseBump): string {
-  const match = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(current.trim())
+  const match = /^(\d+)\.(\d+)\.(\d+)([-+].*)?$/.exec(current.trim())
   if (!match) {
     throw new Error(`not a semver version: ${current}`)
   }
   const major = Number(match[1])
   const minor = Number(match[2])
   const patch = Number(match[3])
+  const preRelease = match[4]?.startsWith('-')
   if (bump === 'major') return `${major + 1}.0.0`
   if (bump === 'minor') return `${major}.${minor + 1}.0`
+  if (preRelease) return `${major}.${minor}.${patch}`
   return `${major}.${minor}.${patch + 1}`
 }
