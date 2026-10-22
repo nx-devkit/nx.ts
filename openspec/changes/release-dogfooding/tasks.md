@@ -18,9 +18,10 @@
 - [ ] `@nx-devkit/release`: a multi-package mode (publish the given
       packages with one version, one tag, one GitHub Release)
 - [ ] `release.yml` calls the local target instead of `nx release publish`
-- [ ] Dry-run parity against the current `main` (the same published set,
-      the same versions) — the tag and GitHub Release model change with
-      the one-version model
+- [ ] Dry-run parity against the current `main`: the same packages are
+      published, with the same content — the version differs, because the
+      one-version model replaces the per-package versions. The tag and the
+      GitHub Release model change here with it
 
 ## Stage 3 — split release/publish (optional)
 
