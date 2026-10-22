@@ -196,3 +196,49 @@ describe('the entry identifier', () => {
     expect(config).toContain('export const defaultEntry = new Entry(ci, "default"')
   })
 })
+
+describe('the requested checks', () => {
+  it('uses the Nx target when the project has no matching script', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'workspace' }))
+    tree.write(
+      'packages/app/project.json',
+      JSON.stringify({ name: 'app', root: 'packages/app', targets: { lint: {} } }),
+    )
+
+    await configGenerator(tree, { checks: ['lint'], project: 'app' })
+
+    const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('"nx run app:lint"')
+  })
+
+  it('prefers the script over the Nx target', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'workspace' }))
+    tree.write(
+      'packages/app/package.json',
+      JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }),
+    )
+    tree.write(
+      'packages/app/project.json',
+      JSON.stringify({ name: 'app', root: 'packages/app', targets: { lint: {} } }),
+    )
+
+    await configGenerator(tree, { checks: ['lint'], project: 'app' })
+
+    const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('"npm run lint"')
+  })
+})
+
+describe('the entry identifier', () => {
+  it('does not collide with a name the generated file declares', async () => {
+    const tree = createTreeWithEmptyWorkspace()
+    tree.write('package.json', JSON.stringify({ name: 'app', scripts: { lint: 'oxlint .' } }))
+
+    await configGenerator(tree, { entry: 'Project' })
+
+    const config = tree.read('sverka.config.ts', 'utf8') ?? ''
+    expect(config).toContain('export const ProjectEntry = new Entry(ci, "Project"')
+  })
+})

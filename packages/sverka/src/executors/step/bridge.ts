@@ -16,6 +16,7 @@
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -62,12 +63,15 @@ export function materializeImportedArtifacts(
   step: StepDefinition,
   graph: DefinitionGraph,
   workspace: string,
+  projectDir: string,
 ): string[] {
   const materialized: string[] = []
   for (const operation of step.operations) {
     if (operation.kind !== 'importArtifact') continue
     const producerId = resolveProducerId(step.id, operation.from)
-    const source = producerOutputPath(graph, producerId, operation.output, workspace)
+    // The producer published under the project directory; the copy lands
+    // where the step's command looks for it (the workspace).
+    const source = producerOutputPath(graph, producerId, operation.output, projectDir)
     if (!source) {
       throw new Error(
         `sverka step "${step.id}" imports "${operation.output}" from "${producerId}", but that step declares no such output`,
@@ -102,6 +106,14 @@ function resolveInside(workspace: string, path: string): string | undefined {
   const resolved = resolve(workspace, path)
   const rel = relative(workspace, resolved)
   if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return undefined
+  // A symlink at the destination is never followed — the copy would land
+  // wherever the link points. `lstat` sees a dangling link too, where
+  // `existsSync` would not.
+  try {
+    if (lstatSync(resolved).isSymbolicLink()) return undefined
+  } catch {
+    // No file at the path yet — the copy creates it.
+  }
   // Lexical containment is not enough: a symlink inside the project can
   // point outside it. The real path of the deepest existing ancestor has
   // to stay inside the workspace as well.

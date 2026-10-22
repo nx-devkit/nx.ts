@@ -81,6 +81,7 @@ describe('artifact bridge', () => {
       consumer,
       graphWith(producerStep()),
       workspace,
+      workspace,
     )
 
     expect(materialized).toEqual([join(workspace, 'report.json')])
@@ -91,7 +92,7 @@ describe('artifact bridge', () => {
     const consumer = importConsumer('../../escaped.json')
 
     expect(() =>
-      materializeImportedArtifacts(consumer, graphWith(producerStep()), workspace),
+      materializeImportedArtifacts(consumer, graphWith(producerStep()), workspace, workspace),
     ).toThrow(/escapes the project directory/)
   })
 
@@ -105,6 +106,7 @@ describe('artifact bridge', () => {
         importConsumer('linked/escaped.json'),
         graphWith(producerStep()),
         workspace,
+        workspace,
       ),
     ).toThrow(/escapes the project directory/)
   })
@@ -117,7 +119,12 @@ describe('artifact bridge', () => {
     })
 
     expect(() =>
-      materializeImportedArtifacts(importConsumer('report.json'), graphWith(escaping), workspace),
+      materializeImportedArtifacts(
+        importConsumer('report.json'),
+        graphWith(escaping),
+        workspace,
+        workspace,
+      ),
     ).toThrow(/declares no such output/)
   })
 
@@ -249,5 +256,22 @@ describe('stale values', () => {
     publishStepOutputs(producer, join(workspace, '.tmp'), undefined, workspace)
 
     expect(existsSync(valuePath)).toBe(false)
+  })
+})
+
+describe('symlink destinations', () => {
+  it('refuses a dangling symlink at the destination', () => {
+    const workspace = makeWorkspace()
+    const outside = mkdtempSync(join(tmpdir(), 'nx-sverka-outside-'))
+    symlinkSync(join(outside, 'missing.json'), join(workspace, 'report.json'))
+
+    expect(() =>
+      materializeImportedArtifacts(
+        importConsumer('report.json'),
+        graphWith(producerStep()),
+        workspace,
+        workspace,
+      ),
+    ).toThrow(/escapes the project directory/)
   })
 })

@@ -58,7 +58,7 @@ export async function stepExecutor(
 
   // Producer artifacts and values come from the tasks that already ran —
   // Nx restored them from the cache.
-  materializeImportedArtifacts(step, graph, workspace)
+  materializeImportedArtifacts(step, graph, workspace, projectDir)
 
   const outcome = await runPlan(plan, step, workspace, projectDir)
 

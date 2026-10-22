@@ -152,24 +152,29 @@ function resolveChecks(
   projectRoot: string,
   requested: string[] | undefined,
 ): DetectedCheck[] {
-  if (requested && requested.length > 0) {
-    const pm = detectPackageManager(tree, projectRoot)
-    return requested.map((id) => ({ id, command: `${pm} run ${id}` }))
-  }
-
   const scripts = readScripts(tree, projectRoot)
   const pm = detectPackageManager(tree, projectRoot)
   const targets = readTargetNames(tree, projectRoot)
 
+  // A script wins over an Nx target — the script is the project's own
+  // command. The same lookup serves the detected and the requested checks.
+  const commandFor = (id: string): string | undefined => {
+    if (id in scripts) return `${pm} run ${id}`
+    if (targets.has(id) && projectName) return `nx run ${projectName}:${id}`
+    return undefined
+  }
+
+  if (requested && requested.length > 0) {
+    return requested.map((id) => ({
+      id,
+      command: commandFor(id) ?? `${pm} run ${id}`,
+    }))
+  }
+
   const checks: DetectedCheck[] = []
   for (const id of KNOWN_CHECKS) {
-    if (id in scripts) {
-      checks.push({ id, command: `${pm} run ${id}` })
-      continue
-    }
-    if (targets.has(id) && projectName) {
-      checks.push({ id, command: `nx run ${projectName}:${id}` })
-    }
+    const command = commandFor(id)
+    if (command) checks.push({ id, command })
   }
   return checks
 }
@@ -427,8 +432,25 @@ function camel(value: string): string {
   return value.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())
 }
 
-/** The identifiers the generated code already uses. */
-const RESERVED_IDENTIFIERS = new Set(['proj', 'ci', 'repoHealth', 'entry'])
+/**
+ * The identifiers the generated file declares.
+ *
+ * The entry's export name must not collide with any of them — the config
+ * would declare the same name twice and fail to load.
+ */
+const RESERVED_IDENTIFIERS = new Set([
+  'Entry',
+  'Pipeline',
+  'Project',
+  'ShellStep',
+  'ci',
+  'entry',
+  'manual',
+  'proj',
+  'push',
+  'repoHealth',
+  'repoHealthCheck',
+])
 
 /** JavaScript reserved words — they cannot be a variable name. */
 const RESERVED_WORDS = new Set([
