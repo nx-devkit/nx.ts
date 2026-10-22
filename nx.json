@@ -21,7 +21,8 @@
       "plugin": "./packages/diagrams/src/plugin.ts",
       "options": {
         "outputDir": "{fileDir}/dist",
-        "timeout": 120000
+        "timeout": 300000,
+        "krokiUrl": "docker"
       }
     },
     "./packages/markdownlint/src/plugin.ts",

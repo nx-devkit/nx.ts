@@ -1,6 +1,7 @@
 import type { ExecutorContext } from '@nx/devkit'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { extractDiagramBlocks, TYPE_EXTENSIONS } from '../../blocks.ts'
@@ -9,11 +10,26 @@ import type { RenderExecutorSchema } from './schema.d.ts'
 
 interface Resolved {
   commands: Record<string, string>
+  companionImages: Record<string, string>
   format: 'svg' | 'png' | 'jpeg'
   krokiImage: string
   krokiUrl: string
   outputDir: string
   timeout: number
+}
+
+/**
+ * Diagram types Kroki serves from a companion container.
+ *
+ * The gateway image bundles plantuml, graphviz and d2; mermaid, bpmn and
+ * excalidraw are separate services the gateway reaches over the container
+ * network (KROKI_MERMAID_HOST=mermaid and friends).
+ */
+const COMPANION_TYPES = ['bpmn', 'excalidraw', 'mermaid'] as const
+
+/** The default companion image per type. */
+function defaultCompanionImage(type: string): string {
+  return `yuzutech/kroki-${type}:latest`
 }
 
 function resolveOptions(options: RenderExecutorSchema): Resolved {
@@ -34,8 +50,13 @@ function resolveOptions(options: RenderExecutorSchema): Resolved {
   if (!Number.isInteger(timeout) || timeout <= 0) {
     throw new Error(`timeout must be a positive integer of ms, got ${timeout}`)
   }
+  const companionImages: Record<string, string> = {}
+  for (const type of COMPANION_TYPES) {
+    companionImages[type] = options.companionImages?.[type] ?? defaultCompanionImage(type)
+  }
   return {
     commands,
+    companionImages,
     format,
     krokiImage: options.krokiImage ?? 'yuzutech/kroki:latest',
     krokiUrl,
@@ -49,16 +70,127 @@ interface DockerKroki {
   url: string
 }
 
+/**
+ * The companion types the rendered diagrams need.
+ *
+ * Markdown sources carry diagram fences of different types — every block
+ * type counts, so the set is a superset of what is actually rendered.
+ */
+function companionTypesFor(
+  context: ExecutorContext,
+  files: readonly string[],
+  singleBlock: number | null | undefined,
+  blocks: readonly (number | null | undefined)[] | undefined,
+): string[] {
+  const types = new Set<string>()
+  for (const [index, file] of files.entries()) {
+    const blockIndex = singleBlock ?? blocks?.[index] ?? null
+    if (blockIndex === null) {
+      const type = diagramTypeFor(file)
+      if (type) types.add(type)
+      continue
+    }
+    // A missing or unreadable file is reported by the render loop with a
+    // better message — here it only narrows the companion set.
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
+      const source = readFileSync(join(context.root, file), 'utf8')
+      for (const block of extractDiagramBlocks(source)) types.add(block.type)
+    } catch {
+      // ignore — the render loop fails with the real error
+    }
+  }
+  return [...types].filter((type) => (COMPANION_TYPES as readonly string[]).includes(type))
+}
+
+/**
+ * Stop the companion containers and remove the per-run network.
+ *
+ * Best effort: the first failure is reported, the rest still runs — a
+ * leftover container must not hide the others.
+ */
+function stopDockerResources(
+  network: string,
+  companions: readonly string[],
+  timeoutMs: number,
+): Error | undefined {
+  let firstError: Error | undefined
+  for (const id of companions) {
+    const res = spawnSync('docker', ['stop', id], { stdio: 'ignore', timeout: timeoutMs })
+    if (res.error || res.status !== 0) {
+      firstError ??= new Error(
+        `krokiUrl "docker": docker stop failed for container ${id}: ${res.error?.message ?? `exit ${res.status}`}`,
+      )
+    }
+  }
+  const removed = spawnSync('docker', ['network', 'rm', network], {
+    stdio: 'ignore',
+    timeout: timeoutMs,
+  })
+  if (removed.error || removed.status !== 0) {
+    firstError ??= new Error(
+      `krokiUrl "docker": docker network rm failed for ${network}: ${removed.error?.message ?? `exit ${removed.status}`}`,
+    )
+  }
+  return firstError
+}
+
 // Serverless Kroki: one ephemeral container per executor invocation.
 // `-p 127.0.0.1::8000` binds a random loopback port; `docker port` resolves it;
 // `--rm` removes the container on stop.
-async function startDockerKroki(image: string, timeoutMs: number): Promise<DockerKroki> {
-  const run = spawnSync('docker', ['run', '-d', '--rm', '-p', '127.0.0.1::8000', image], {
+//
+// The gateway image bundles plantuml, graphviz and d2 only — mermaid, bpmn
+// and excalidraw are companion services. They run on a per-run docker
+// network under their type name, and the gateway is told where to find them
+// (KROKI_MERMAID_HOST=mermaid and friends).
+async function startDockerKroki(
+  image: string,
+  companionImages: Record<string, string>,
+  companionTypes: readonly string[],
+  timeoutMs: number,
+): Promise<DockerKroki> {
+  const network = `kroki-${randomUUID().slice(0, 8)}`
+  const companions: string[] = []
+  const created = spawnSync('docker', ['network', 'create', network], {
+    encoding: 'utf8',
+    timeout: timeoutMs,
+  })
+  if (created.error || created.status !== 0) {
+    const detail = created.error?.message ?? String(created.stderr).trim()
+    throw new Error(`krokiUrl "docker": docker network create failed: ${detail}`)
+  }
+
+  // The gateway and the companions share the network; the companion is
+  // reachable under its type name.
+  for (const type of companionTypes) {
+    const companionImage = companionImages[type]
+    if (!companionImage) continue
+    const started = spawnSync(
+      'docker',
+      ['run', '-d', '--rm', '--network', network, '--network-alias', type, companionImage],
+      { encoding: 'utf8', timeout: timeoutMs },
+    )
+    if (started.error || started.status !== 0) {
+      const detail = started.error?.message ?? String(started.stderr).trim()
+      stopDockerResources(network, companions, timeoutMs)
+      throw new Error(`krokiUrl "docker": docker run failed for ${companionImage}: ${detail}`)
+    }
+    companions.push(String(started.stdout).trim())
+  }
+
+  const runArgs = ['run', '-d', '--rm', '-p', '127.0.0.1::8000', '--network', network]
+  for (const type of companionTypes) {
+    if (!companionImages[type]) continue
+    runArgs.push('-e', `KROKI_${type.toUpperCase()}_HOST=${type}`)
+  }
+  runArgs.push(image)
+  const run = spawnSync('docker', runArgs, {
     encoding: 'utf8',
     timeout: timeoutMs,
   })
   if (run.error || run.status !== 0) {
     const detail = run.error?.message ?? String(run.stderr).trim()
+    stopDockerResources(network, companions, timeoutMs)
     throw new Error(`krokiUrl "docker": docker run failed for ${image}: ${detail}`)
   }
   const id = String(run.stdout).trim()
@@ -71,7 +203,7 @@ async function startDockerKroki(image: string, timeoutMs: number): Promise<Docke
         `krokiUrl "docker": docker stop failed for container ${id}: ${res.error?.message ?? `exit ${res.status}`}`,
       )
     }
-    return undefined
+    return stopDockerResources(network, companions, timeoutMs)
   }
   try {
     const port = spawnSync('docker', ['port', id, '8000'], { encoding: 'utf8', timeout: timeoutMs })
@@ -208,6 +340,13 @@ export default async function renderExecutor(
     ? (context.projectsConfigurations?.projects[context.projectName]?.root ?? '.')
     : '.'
 
+  // The companion set has to be known before the gateway container is
+  // created — the gateway is told where to find its services then.
+  const companionTypes =
+    resolved.krokiUrl === 'docker'
+      ? companionTypesFor(context, files, options.block ?? null, options.blocks)
+      : []
+
   let dockerKroki: DockerKroki | undefined
   let renderError: unknown
   try {
@@ -334,7 +473,12 @@ export default async function renderExecutor(
         // and dryRun runs never touch the daemon.
         let krokiBase = resolved.krokiUrl
         if (krokiBase === 'docker') {
-          dockerKroki ??= await startDockerKroki(resolved.krokiImage, resolved.timeout)
+          dockerKroki ??= await startDockerKroki(
+            resolved.krokiImage,
+            resolved.companionImages,
+            companionTypes,
+            resolved.timeout,
+          )
           krokiBase = dockerKroki.url
         }
         const source =
