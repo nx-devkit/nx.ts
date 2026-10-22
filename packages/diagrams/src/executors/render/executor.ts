@@ -95,7 +95,11 @@ function companionTypesFor(
     try {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is a glob-matched workspace-relative path
       const source = readFileSync(join(context.root, file), 'utf8')
-      for (const block of extractDiagramBlocks(source)) types.add(block.type)
+      const fileBlocks = extractDiagramBlocks(source)
+      // Only the targeted block — a file with other diagram types must not
+      // pull their companions in.
+      const block = blockIndex >= 0 ? fileBlocks.at(blockIndex) : undefined
+      if (block) types.add(block.type)
     } catch {
       // ignore — the render loop fails with the real error
     }
@@ -185,6 +189,10 @@ function stopDockerResources(
       firstError ??= new Error(
         `krokiUrl "docker": docker stop failed for container ${id}: ${res.error?.message ?? `exit ${res.status}`}`,
       )
+      // A container that refuses to stop stays attached to the network —
+      // and `docker network rm` fails on a network with attached
+      // containers. Force-remove it so the network can go.
+      spawnSync('docker', ['rm', '-f', id], { stdio: 'ignore', timeout: timeoutMs })
     }
   }
   const removed = spawnSync('docker', ['network', 'rm', network], {

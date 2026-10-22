@@ -756,4 +756,41 @@ describe('renderExecutor', () => {
       expect(state.dockerCalls).toEqual([])
     })
   })
+
+  describe('the companion set', () => {
+    it('covers only the targeted block of a markdown file', async () => {
+      writeFileSync(
+        join(workspace, 'doc.md'),
+        '```plantuml\nA-->B\n```\n\n```mermaid\ngraph TD; A-->B\n```\n',
+      )
+
+      await renderExecutor(
+        { block: 0, file: 'doc.md', krokiUrl: 'docker', output: 'doc.svg' },
+        makeContext(workspace),
+      )
+
+      // Block 0 is a plantuml diagram — the mermaid companion is not needed.
+      const companion = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.includes('mermaid'),
+      )
+      expect(companion).toBeUndefined()
+    })
+
+    it('covers the targeted mermaid block', async () => {
+      writeFileSync(
+        join(workspace, 'doc.md'),
+        '```plantuml\nA-->B\n```\n\n```mermaid\ngraph TD; A-->B\n```\n',
+      )
+
+      await renderExecutor(
+        { block: 1, file: 'doc.md', krokiUrl: 'docker', output: 'doc.svg' },
+        makeContext(workspace),
+      )
+
+      const companion = state.dockerCalls.find(
+        (call) => call[0] === 'run' && call.includes('mermaid'),
+      )
+      expect(companion).toBeDefined()
+    })
+  })
 })
