@@ -344,7 +344,9 @@ async function renderWithKroki(
     if ((res.status !== 502 && res.status !== 503) || Date.now() >= deadline) {
       throw new Error(`Kroki ${url} failed with HTTP ${res.status}: ${body}`)
     }
-    await new Promise((r) => setTimeout(r, 200))
+    // The delay never outlives the budget.
+    const remaining = deadline - Date.now()
+    await new Promise((r) => setTimeout(r, Math.max(0, Math.min(200, remaining))))
   }
 }
 
