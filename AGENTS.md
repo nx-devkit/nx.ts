@@ -33,6 +33,19 @@ Per-package options interfaces, file layout, and TDD workflow are in each `packa
 - **Do not merge into `main` yourself.**
 - **Never edit** `node_modules/`, `dist/`, `coverage/`, `.nx/`, `.nx-cache/`, or `bun.lock` entries for dependencies you didn't actually add.
 
+## Branch hygiene
+
+**A merged PR leaves nothing behind.** The branch belongs to the PR, and the PR is gone:
+
+- delete the merged branch — **locally and on the remote** (`git branch -D <branch>`, `git push origin --delete <branch>`);
+- switch back to the base branch and `git pull --ff-only`;
+- remove the worktree the PR was worked in, if any (`git worktree remove <path>`, `git worktree prune`);
+- a PR closed **without** merging gets the same cleanup — the PR is gone, so its branch goes with it;
+- **never** delete a branch you did not merge — another PR or another agent may own it;
+- report the cleanup in the closing summary (branch, local + remote).
+
+The repo has `delete_branch_on_merge` on, so GitHub removes the *remote* branch for you — the local branch is still yours to delete.
+
 ## Dependency policy
 
 - **No manual version pins to silence scanners.** Dependency specs stay as ranges (`^x.y.z`). Do not pin or downgrade a dependency just to clear a transient alert (e.g. socket.dev `recentlyPublished`) — freshness is enforced once, centrally, by `minimumReleaseAge` in `bunfig.toml` (7 days). The resolver automatically skips too-fresh versions; manifests remain free to float to the latest release once it matures.
