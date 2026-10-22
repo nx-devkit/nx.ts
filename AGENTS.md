@@ -35,16 +35,33 @@ Per-package options interfaces, file layout, and TDD workflow are in each `packa
 
 ## Branch hygiene
 
-**A merged PR leaves nothing behind.** The branch belongs to the PR, and the PR is gone:
+**A PR leaves nothing behind: not a local branch, not a remote branch, not a
+stale checkout.** The branch belongs to the PR.
 
-- delete the merged branch — **locally and on the remote** (`git branch -D <branch>`, `git push origin --delete <branch>`);
-- switch back to the base branch and `git pull --ff-only`;
-- remove the worktree the PR was worked in, if any (`git worktree remove <path>`, `git worktree prune`);
-- a PR closed **without** merging gets the same cleanup — the PR is gone, so its branch goes with it;
-- **never** delete a branch you did not merge — another PR or another agent may own it;
-- report the cleanup in the closing summary (branch, local + remote).
+You may clean up **the branch of the PR you worked** — whether it merged or
+was closed. Anything else is off limits: another PR or another session may
+own it.
 
-The repo has `delete_branch_on_merge` on, so GitHub removes the *remote* branch for you — the local branch is still yours to delete.
+Order matters — git refuses to delete a branch that is checked out:
+
+```bash
+# 1. leave the PR's checkout: switch to the base (normal checkout),
+#    or remove the linked worktree the PR was worked in
+git switch <base>            # normal checkout
+git worktree remove <path>   # linked worktree (then git worktree prune)
+
+# 2. delete the local branch
+git branch -D <branch>
+
+# 3. delete the remote branch — only if it is still there
+git ls-remote --exit-code --heads origin <branch> >/dev/null 2>&1 \
+  && git push origin --delete <branch>
+```
+
+- The repo has `delete_branch_on_merge` on, so GitHub removes the *remote*
+  branch on merge — step 3 is a no-op then. It stays conditional on
+  purpose: deleting an already-removed ref exits non-zero.
+- Report the cleanup in the closing summary (branch, local + remote).
 
 ## Dependency policy
 
