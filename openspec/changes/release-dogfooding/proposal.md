@@ -34,15 +34,15 @@ sources — the release is dogfooding.
 **Stages** (one PR each, a dry-run parity check against the current
 `main` in every stage):
 
-1. **Publish on the local plugin** — a multi-package mode in
-   `@nx-devkit/release`, and `release.yml` calls the local target instead
-   of `nx release publish`. The parity check covers the published set and
-   the versions; the tag and release model change in stage 2, where the
-   one-version model lands.
-2. **Versions and changelogs on own code** — conventional commits → semver
+1. **Versions and changelogs on own code** — conventional commits → semver
    (`feat` → minor, `fix`/`perf`/`revert` → patch, breaking → major), one
    version for the release, per-package changelog entries in the format the
    repository's changelogs already use.
+2. **Publish on the local plugin** — a multi-package mode in
+   `@nx-devkit/release`, and `release.yml` calls the local target instead
+   of `nx release publish`. The parity check covers the published set and
+   the versions; the tag and the GitHub Release model change here, together
+   with the one-version model.
 3. *(optional)* **Split `release.yml` / `publish.yml`** the way adt-cli
    does: the publish is dispatched, because a push from `GITHUB_TOKEN`
    does not cascade into other workflows, and a separate workflow gets
