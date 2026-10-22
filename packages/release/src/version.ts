@@ -29,16 +29,28 @@ const MINOR_TYPES = new Set(['feat'])
 /** Commit types that release a patch version. */
 const PATCH_TYPES = new Set(['fix', 'perf', 'revert'])
 
-/** Conventional commit subject: `type(scope)!: description`. */
-const CONVENTIONAL = /^(\w+)(?:\(([^)]+)\))?(!)?:\s+(.*)$/
+/**
+ * Conventional commit subject: `type(scope)!: description`.
+ *
+ * The type is alphabetic (the convention) and the description is not
+ * empty.
+ */
+const CONVENTIONAL = /^([a-zA-Z]+)(?:\(([^)]+)\))?(!)?:\s+(\S.*)$/
+
+/** A `BREAKING CHANGE:` footer in the commit body. */
+const BREAKING_FOOTER = /^BREAKING[ -]CHANGE:\s/m
 
 /**
  * Parse a commit subject as a conventional commit.
  *
  * Returns `undefined` for a subject that does not follow the convention —
- * such a commit never triggers a release.
+ * such a commit never triggers a release. The body is optional; a
+ * `BREAKING CHANGE:` footer marks the commit as breaking.
  */
-export function parseConventionalCommit(subject: string): ConventionalCommit | undefined {
+export function parseConventionalCommit(
+  subject: string,
+  body?: string,
+): ConventionalCommit | undefined {
   const match = CONVENTIONAL.exec(subject.trim())
   if (!match) return undefined
   const [, type, scope, breaking, description] = match
@@ -46,9 +58,15 @@ export function parseConventionalCommit(subject: string): ConventionalCommit | u
   return {
     type: type.toLowerCase(),
     scope: scope || undefined,
-    breaking: breaking === '!',
+    breaking: breaking === '!' || hasBreakingFooter(body),
     description: description.trim(),
   }
+}
+
+/** True when the commit body carries a `BREAKING CHANGE:` footer. */
+function hasBreakingFooter(body: string | undefined): boolean {
+  if (!body) return false
+  return BREAKING_FOOTER.test(body)
 }
 
 /**

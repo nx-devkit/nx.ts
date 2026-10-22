@@ -42,6 +42,25 @@ describe('renderChangelog', () => {
     expect(changelog).toContain('### 📦 Other')
   })
 
+  it('drops a pull request link that is not a safe https URL', () => {
+    const changelog = renderChangelog({
+      version: '1.0.0',
+      date: '2026-10-22',
+      changes: [
+        {
+          type: 'fix',
+          scope: undefined,
+          breaking: false,
+          description: 'a fix',
+          pullRequest: { number: 7, url: 'javascript:alert(1)' },
+        },
+      ],
+    })
+
+    expect(changelog).not.toContain('javascript:')
+    expect(changelog).toContain('- a fix')
+  })
+
   it('lists the contributors', () => {
     const changelog = renderChangelog({
       version: '1.0.0',

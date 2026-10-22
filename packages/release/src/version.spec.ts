@@ -25,9 +25,25 @@ describe('parseConventionalCommit', () => {
     expect(parseConventionalCommit('feat(scope)!: drop it')?.breaking).toBe(true)
   })
 
+  it('marks a breaking change from the commit body', () => {
+    expect(
+      parseConventionalCommit('feat: change the api', 'BREAKING CHANGE: the old option is gone')
+        ?.breaking,
+    ).toBe(true)
+    expect(parseConventionalCommit('feat: change the api', 'BREAKING-CHANGE: gone')?.breaking).toBe(
+      true,
+    )
+    expect(parseConventionalCommit('feat: change the api', 'just a note')?.breaking).toBe(false)
+  })
+
   it('returns undefined for a subject without the convention', () => {
     expect(parseConventionalCommit('just a message')).toBeUndefined()
     expect(parseConventionalCommit('feat:')).toBeUndefined()
+    expect(parseConventionalCommit('feat: ')).toBeUndefined()
+  })
+
+  it('rejects a numeric commit type', () => {
+    expect(parseConventionalCommit('123: not a type')).toBeUndefined()
   })
 })
 

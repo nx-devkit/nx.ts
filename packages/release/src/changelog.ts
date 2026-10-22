@@ -85,11 +85,21 @@ function groupByType(changes: readonly ChangelogChange[]): ChangeGroup[] {
   return groups
 }
 
+/**
+ * A pull request link that is safe to put in Markdown.
+ *
+ * Only `https` URLs without spaces or parentheses are rendered — a `)` would
+ * end the link early, and a `javascript:` URL would be executable in a
+ * Markdown renderer that does not sanitize it.
+ */
+function safePullRequestUrl(url: string): string | undefined {
+  return /^https:\/\/[^\s()<>]+$/.test(url) ? url : undefined
+}
+
 /** Render one change as a changelog bullet. */
 function renderChange(change: ChangelogChange): string {
   const scope = change.scope ? `**${change.scope}:** ` : ''
-  const link = change.pullRequest
-    ? `([#${change.pullRequest.number}](${change.pullRequest.url}))`
-    : ''
+  const url = change.pullRequest ? safePullRequestUrl(change.pullRequest.url) : undefined
+  const link = url ? `([#${change.pullRequest!.number}](${url}))` : ''
   return `- ${scope}${change.description} ${link}`.trimEnd()
 }
