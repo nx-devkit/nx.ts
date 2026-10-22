@@ -16,6 +16,7 @@ A monorepo of **zero-config Nx inference plugins** under the `@nx-devkit` scope.
 | `packages/typescript-preset` | `packages/typescript-preset/**` | beads scoped to typescript-preset only |
 | `packages/prepare-for-release` | `packages/prepare-for-release/**` | beads scoped to prepare-for-release only |
 | `packages/skill` | `packages/skill/**` | beads scoped to skill only |
+| `packages/sverka` | `packages/sverka/**` | beads scoped to sverka only |
 | `packages/skillspector` | `packages/skillspector/**` | beads scoped to skillspector only |
 | `packages/diagrams` | `packages/diagrams/**` | beads scoped to diagrams only |
 | `packages/nx-cloud` | `packages/nx-cloud/**` | beads scoped to nx-cloud only |

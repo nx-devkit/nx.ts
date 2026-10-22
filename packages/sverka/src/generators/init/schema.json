@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "type": "object",
+  "title": "Register @nx-devkit/sverka",
+  "description": "Registers @nx-devkit/sverka in nx.json plugins and installs the sverka peer deps.",
+  "properties": {
+    "pluginPath": {
+      "type": "string",
+      "description": "Plugin path registered in nx.json. Default: @nx-devkit/sverka.",
+      "default": "@nx-devkit/sverka",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

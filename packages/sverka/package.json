@@ -1,0 +1,77 @@
+{
+  "name": "@nx-devkit/sverka",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "Nx plugin: a sverka config infers one cached Nx target per sverka step \u2014 no project.json required.",
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "sverka",
+    "workflow",
+    "ci",
+    "zero-config"
+  ],
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.mts",
+      "default": "./dist/plugin.mjs"
+    },
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
+    },
+    "./generators/config": {
+      "types": "./dist/generators/config/generator.d.mts",
+      "default": "./dist/generators/config/generator.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "executors": "./executors.json",
+  "generators": "./generators.json",
+  "files": [
+    "dist",
+    "executors.json",
+    "generators.json",
+    "src/executors/step/schema.json",
+    "src/generators/init/schema.json",
+    "src/generators/config/schema.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build -- --clean"
+  },
+  "dependencies": {
+    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "@sverka/runtime": "^0.2.28",
+    "@sverka/sdk": "^0.2.28",
+    "@sverka/workflow": "^0.2.28",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
+    "@types/node": "^26.0.0",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/sverka"
+  },
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/sverka"
+}

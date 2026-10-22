@@ -1,0 +1,247 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import type { TargetConfiguration } from '@nx/devkit'
+import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
+import { describe, expect, it } from 'vitest'
+import { createNodesV2 } from './plugin.ts'
+import type { NxDevkitSverkaOptions } from './types.ts'
+
+function makeContext(workspaceRoot: string): CreateNodesContextV2 {
+  return {
+    workspaceRoot,
+    nxJsonConfiguration: {},
+    turboConfig: undefined,
+    projectGraph: { nodes: {}, dependencies: {} },
+  } as unknown as CreateNodesContextV2
+}
+
+function makeWorkspace(files: Record<string, string> = {}): string {
+  const root = mkdtempSync(join(tmpdir(), 'nx-sverka-'))
+  for (const [rel, content] of Object.entries(files)) {
+    const abs = join(root, rel)
+    mkdirSync(dirname(abs), { recursive: true })
+    writeFileSync(abs, content)
+  }
+  return root
+}
+
+const CONFIG = `
+import { Project, Pipeline, ShellStep, Entry, push, manual } from '@sverka/workflow'
+
+const proj = new Project('demo')
+const ci = new Pipeline(proj, 'ci')
+
+const build = new ShellStep(ci, 'build', { command: 'bun run build' })
+const lint = new ShellStep(ci, 'lint', {
+  command: 'bun run lint',
+  dependsOn: [build.node.id],
+})
+const lintSarif = new ShellStep(ci, 'lint-sarif', {
+  command: 'bun run lint:sarif',
+  runtime: { shell: 'sh' },
+  outputs: { 'eslint.sarif': { type: 'artifact', fromStdout: true } },
+})
+const policy = new ShellStep(ci, 'policy', {
+  command: 'bun sverka policy',
+  runtime: { shell: 'sh' },
+  inputs: [
+    { kind: 'step', step: 'lint-sarif', output: 'eslint.sarif', type: 'artifact' },
+  ],
+})
+
+export const onPush = new Entry(ci, 'on-push', {
+  trigger: push(),
+  roots: [lint.node.id, policy.node.id],
+})
+
+const audit = new ShellStep(ci, 'audit', {
+  command: 'bun run audit',
+  runtime: { shell: 'sh' },
+})
+
+export const nightly = new Entry(ci, 'nightly', {
+  trigger: manual(),
+  roots: [audit.node.id],
+})
+
+export default proj
+`
+
+describe('@nx-devkit/sverka createNodesV2', () => {
+  /** The inferred targets of a config in the workspace root. */
+  async function inferTargets(
+    options: NxDevkitSverkaOptions = {},
+    files: Record<string, string> = { 'sverka.config.ts': CONFIG },
+  ): Promise<Record<string, TargetConfiguration>> {
+    const root = makeWorkspace(files)
+    const results = await createNodesV2[1](['sverka.config.ts'], options, makeContext(root))
+    return results[0]![1].projects!['']!.targets!
+  }
+
+  it('watches the sverka config file names', () => {
+    expect(createNodesV2[0]).toContain('sverka.config.ts')
+    expect(createNodesV2[0]).toContain('sverka.config.mts')
+    expect(createNodesV2[0]).toContain('sverka.config.js')
+    expect(createNodesV2[0]).toContain('sverka.config.mjs')
+  })
+
+  it('infers one target per sverka step', async () => {
+    const project = { targets: await inferTargets({}) }
+
+    expect(Object.keys(project.targets!).sort()).toEqual([
+      'ci:audit',
+      'ci:build',
+      'ci:lint',
+      'ci:lint-sarif',
+      'ci:policy',
+    ])
+  })
+
+  it('gives every step its own executor, options and cache entry', async () => {
+    const targets = await inferTargets({})
+    const lint = targets['ci:lint']!
+
+    expect(lint.executor).toBe('@nx-devkit/sverka:step')
+    expect(lint.cache).toBe(true)
+    expect(lint.options).toEqual({ step: 'ci/lint', entry: 'ci/on-push' })
+  })
+
+  it('maps sverka step dependencies onto Nx target dependencies', async () => {
+    const targets = await inferTargets({})
+
+    expect(targets['ci:lint']!.dependsOn).toEqual(['ci:build'])
+    expect(targets['ci:policy']!.dependsOn).toEqual(['ci:lint-sarif'])
+    expect(targets['ci:build']!.dependsOn).toBeUndefined()
+  })
+
+  it('declares the step outputs as Nx outputs', async () => {
+    const targets = await inferTargets({})
+
+    expect(targets['ci:lint-sarif']!.outputs).toEqual([
+      '{workspaceRoot}/.sverka/artifacts/ci/lint-sarif/eslint.sarif',
+    ])
+    expect(targets['ci:lint']!.outputs).toEqual([])
+  })
+
+  it('declares the consumed producer artifact as an input', async () => {
+    const targets = await inferTargets({})
+
+    expect(targets['ci:policy']!.inputs).toContain(
+      '{workspaceRoot}/.sverka/artifacts/ci/lint-sarif/eslint.sarif',
+    )
+  })
+
+  it('excludes the sverka scratch space and its own outputs from the inputs', async () => {
+    const targets = await inferTargets({})
+
+    expect(targets['ci:lint']!.inputs).toContain('!{workspaceRoot}/.sverka/workspace/**')
+    expect(targets['ci:lint-sarif']!.inputs).toContain(
+      '!{workspaceRoot}/.sverka/artifacts/ci/lint-sarif/**',
+    )
+  })
+
+  it('infers the targets on the project owning the config', async () => {
+    const root = makeWorkspace({ 'packages/a/sverka.config.ts': CONFIG })
+    const results = await createNodesV2[1](['packages/a/sverka.config.ts'], {}, makeContext(root))
+    const project = results[0]![1].projects!['packages/a']!
+
+    expect(project.root).toBe('packages/a')
+    expect(project.targets!['ci:lint']!.inputs).toContain('{projectRoot}/**/*')
+  })
+
+  it('restricts the inference to a single entry', async () => {
+    const targets = await inferTargets({ entry: 'ci/on-push' })
+
+    // `ci/audit` belongs to the other entry only.
+    expect(Object.keys(targets).sort()).toEqual([
+      'ci:build',
+      'ci:lint',
+      'ci:lint-sarif',
+      'ci:policy',
+    ])
+  })
+
+  it('infers only the steps of the selected entry', async () => {
+    const targets = await inferTargets({ entry: 'ci/nightly' })
+
+    expect(Object.keys(targets)).toEqual(['ci:audit'])
+  })
+
+  it('infers the steps of every entry by default', async () => {
+    const targets = await inferTargets({})
+
+    // The union of both entries.
+    expect(Object.keys(targets).sort()).toEqual([
+      'ci:audit',
+      'ci:build',
+      'ci:lint',
+      'ci:lint-sarif',
+      'ci:policy',
+    ])
+  })
+
+  it('reports a target name that two steps would share', async () => {
+    const targets = await inferTargets({ targetName: '{step}' })
+
+    // `lint` and `lint-sarif` do not collide, but the pipeline is gone —
+    // the names stay unique.
+    expect(Object.keys(targets)).toContain('lint')
+    expect(Object.keys(targets)).toContain('lint-sarif')
+  })
+
+  it('honours a custom target name template', async () => {
+    const targets = await inferTargets({ targetName: 'sverka-{step}' })
+
+    expect(Object.keys(targets).sort()).toEqual([
+      'sverka-audit',
+      'sverka-build',
+      'sverka-lint',
+      'sverka-lint-sarif',
+      'sverka-policy',
+    ])
+  })
+
+  it('skips a config that cannot be loaded', async () => {
+    const root = makeWorkspace({ 'sverka.config.ts': 'export default 42' })
+    const results = await createNodesV2[1](['sverka.config.ts'], {}, makeContext(root))
+
+    expect(results).toEqual([])
+  })
+})
+
+describe('target name collisions', () => {
+  const COLLIDING = `
+import { Project, Pipeline, ShellStep, Entry, push } from '@sverka/workflow'
+
+const proj = new Project('demo')
+const a = new Pipeline(proj, 'a')
+const b = new Pipeline(proj, 'b')
+
+new ShellStep(a, 'lint', { command: 'bun run lint' })
+new ShellStep(b, 'lint', { command: 'bun run lint' })
+const bTest = new ShellStep(b, 'test', {
+  command: 'bun run test',
+  dependsOn: [b.node.children[0]!.node.id],
+})
+
+export const onPush = new Entry(a, 'on-push', { trigger: push(), roots: [a.node.children[0]!.node.id] })
+export const onPushB = new Entry(b, 'on-push', { trigger: push(), roots: [bTest.node.id] })
+export default proj
+`
+
+  it('gives the second step a unique name and keeps the edges', async () => {
+    const root = makeWorkspace({ 'sverka.config.ts': COLLIDING })
+    const results = await createNodesV2[1](
+      ['sverka.config.ts'],
+      { targetName: '{step}' },
+      makeContext(root),
+    )
+    const targets = results[0]![1].projects!['']!.targets!
+
+    // Both steps render as "lint" — the second one gets a unique name.
+    expect(Object.keys(targets).sort()).toEqual(['lint', 'lint-2', 'test'])
+    // The consumer depends on the *renamed* producer.
+    expect(targets['test']!.dependsOn).toEqual(['lint-2'])
+  })
+})

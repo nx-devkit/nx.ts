@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "type": "object",
+  "title": "Run sverka step executor",
+  "description": "Runs a single step of a sverka config as its own Nx task, with Nx-owned inputs, outputs and cache.",
+  "properties": {
+    "step": {
+      "type": "string",
+      "description": "Fully qualified sverka step id, e.g. \"ci/lint\"."
+    },
+    "entry": {
+      "type": "string",
+      "description": "sverka entry id that reaches the step. Default: the first entry that reaches it."
+    },
+    "config": {
+      "type": "string",
+      "description": "Path to the sverka config, relative to the workspace root (must stay inside it). Default: the config found in the project root.",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$)).*$"
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Directory the step runs in, relative to the workspace root (must stay inside it). Default: the project root.",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$)).*$"
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean"]
+      },
+      "description": "Values for the sverka pipeline inputs."
+    }
+  },
+  "required": ["step"],
+  "additionalProperties": false
+}

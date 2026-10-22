@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "executors": {
+    "step": {
+      "implementation": "./dist/executors/step/executor.mjs",
+      "schema": "./src/executors/step/schema.json",
+      "description": "Runs a single sverka step from a sverka config, with Nx-owned inputs, outputs and cache."
+    }
+  }
+}
