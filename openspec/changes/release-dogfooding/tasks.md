@@ -6,7 +6,8 @@
       `fix`/`perf`/`revert` → patch, breaking → major, everything else →
       no release
 - [x] The release plan: one version for the release, the packages whose
-      content changed are published, the rest are skipped with a reason
+      content changed are published, the rest are skipped with a reason,
+      the contributors are part of the plan's input
 - [x] Changelog entries in the format the repository's changelogs use
 - [ ] The candidate set comes from `nx affected`
 - [ ] The plan is applied: the manifests, the changelogs, the tag, the

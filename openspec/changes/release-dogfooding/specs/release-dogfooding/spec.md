@@ -84,10 +84,11 @@ changelogs already use:
 - the changes grouped by type under the matching emoji heading
   (`### 🚀 Features`, `### 🩹 Fixes`, `### ⚡ Performance Improvements`,
   `### ⏪ Reverts`, `### 📦 Other`);
-- one bullet per change: `- **<scope>:** <description> ([#<pr>](<url>))`,
-  with a `**⚠ BREAKING CHANGE:**` marker on a breaking change;
+- one bullet per change: `- **<scope>:** <description> ([#<pr>](<url>))` — the
+  scope and the pull request link appear when they are known;
+- a `**⚠ BREAKING CHANGE:**` marker on a breaking change;
 - a `### ❤️ Thank You` section listing the contributors as
-  `- <name> @<handle>`.
+  `- <name> @<handle>` — the handle appears when it is known.
 
 #### Scenario: a feature and a fix
 

@@ -91,8 +91,9 @@ describe('nextVersion', () => {
     expect(nextVersion('0.2.18', 'major')).toBe('1.0.0')
   })
 
-  it('accepts a prerelease version', () => {
-    expect(nextVersion('0.2.18-beta.1', 'patch')).toBe('0.2.19')
+  it('drops the pre-release suffix on a patch bump', () => {
+    expect(nextVersion('0.2.18-beta.1', 'patch')).toBe('0.2.18')
+    expect(nextVersion('0.2.18+build.42', 'patch')).toBe('0.2.19')
   })
 
   it('rejects a version that is not semver', () => {

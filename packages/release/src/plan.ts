@@ -34,8 +34,8 @@ export interface ReleasePlanInput {
   changed: readonly string[]
   /** The changes per package, for the changelog. */
   changes?: Readonly<Record<string, readonly ChangelogChange[]>>
-  /** The contributors of the release. */
-  authors?: readonly ChangelogAuthor[]
+  /** The contributors of the release — the thank-you section lists them. */
+  authors: readonly ChangelogAuthor[]
   /** The release date — `YYYY-MM-DD`. */
   date: string
 }
@@ -75,22 +75,14 @@ export function planRelease(input: ReleasePlanInput): ReleasePlan {
       continue
     }
     publish.push({ ...pkg, version })
-    const changelog: {
-      version: string
-      date: string
-      changes: readonly ChangelogChange[]
-      authors?: readonly ChangelogAuthor[]
-    } = {
-      version,
-      date: input.date,
-      changes: input.changes?.[pkg.name] ?? [],
-    }
-    if (input.authors) {
-      changelog.authors = input.authors
-    }
     changelogs.push({
       name: pkg.name,
-      content: renderChangelog(changelog),
+      content: renderChangelog({
+        version,
+        date: input.date,
+        changes: input.changes?.[pkg.name] ?? [],
+        authors: input.authors,
+      }),
     })
   }
 
@@ -130,11 +122,38 @@ export function compareVersions(a: string, b: string): number {
       return left[key] - right[key]
     }
   }
-  if (left.pre && !right.pre) {
-    return -1
+  return comparePreRelease(left.pre, right.pre)
+}
+
+/**
+ * Compare two pre-release suffixes.
+ *
+ * The semver rules: a pre-release comes before the release it leads to,
+ * numeric identifiers compare numerically and rank below alphanumeric
+ * ones, and a shorter set of identifiers comes first.
+ */
+function comparePreRelease(a: string | undefined, b: string | undefined): number {
+  if (a === undefined || b === undefined) {
+    if (a === b) return 0
+    return a === undefined ? 1 : -1
   }
-  if (!left.pre && right.pre) {
-    return 1
+  const left = a.split('.')
+  const right = b.split('.')
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    const l = left[index]
+    const r = right[index]
+    if (l === undefined) return -1
+    if (r === undefined) return 1
+    const lNumeric = /^\d+$/.test(l)
+    const rNumeric = /^\d+$/.test(r)
+    if (lNumeric && rNumeric) {
+      const diff = Number(l) - Number(r)
+      if (diff !== 0) return diff
+    } else if (lNumeric !== rNumeric) {
+      return lNumeric ? -1 : 1
+    } else if (l !== r) {
+      return l < r ? -1 : 1
+    }
   }
   return 0
 }
@@ -150,7 +169,9 @@ interface ParsedVersion {
 
 /** The major, minor, patch and pre-release of a version. */
 function parseVersion(version: string): ParsedVersion {
-  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/.exec(version.trim())
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(
+    version.trim(),
+  )
   if (!match) {
     throw new Error(`not a semver version: ${version}`)
   }

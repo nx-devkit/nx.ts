@@ -14,6 +14,7 @@ describe('planRelease', () => {
       baseline: '0.2.19',
       bump: 'minor',
       changed: ['@nx-devkit/release'],
+      authors: [],
       date: '2026-10-22',
     })
 
@@ -29,6 +30,7 @@ describe('planRelease', () => {
       baseline: '0.2.19',
       bump: 'patch',
       changed: ['@nx-devkit/cspell'],
+      authors: [],
       date: '2026-10-22',
     })
 
@@ -46,6 +48,7 @@ describe('planRelease', () => {
       baseline: '0.2.19',
       bump: 'major',
       changed: ['@nx-devkit/release', '@nx-devkit/cspell'],
+      authors: [],
       date: '2026-10-22',
     })
 
@@ -64,6 +67,7 @@ describe('planRelease', () => {
           { type: 'feat', scope: 'release', breaking: false, description: 'plan the release' },
         ],
       },
+      authors: [],
       date: '2026-10-22',
     })
 
@@ -79,6 +83,7 @@ describe('planRelease', () => {
       baseline: '0.2.19',
       bump: 'patch',
       changed: [],
+      authors: [],
       date: '2026-10-22',
     })
 
@@ -109,6 +114,17 @@ describe('compareVersions', () => {
   it('puts a pre-release before the release it leads to', () => {
     expect(compareVersions('1.0.0-rc.1', '1.0.0')).toBeLessThan(0)
     expect(compareVersions('1.0.0', '1.0.0-rc.1')).toBeGreaterThan(0)
-    expect(compareVersions('1.0.0-rc.1', '1.0.0-rc.2')).toBe(0)
+  })
+
+  it('orders pre-releases by the semver rules', () => {
+    expect(compareVersions('1.0.0-rc.1', '1.0.0-rc.2')).toBeLessThan(0)
+    expect(compareVersions('1.0.0-rc.2', '1.0.0-rc.10')).toBeLessThan(0)
+    expect(compareVersions('1.0.0-rc.1', '1.0.0-beta.1')).toBeGreaterThan(0)
+    expect(compareVersions('1.0.0-alpha', '1.0.0-alpha.1')).toBeLessThan(0)
+  })
+
+  it('rejects a version that is not semver', () => {
+    expect(() => compareVersions('1.0', '1.0.0')).toThrow(/not a semver/)
+    expect(() => compareVersions('1.0.0garbage', '1.0.0')).toThrow(/not a semver/)
   })
 })
