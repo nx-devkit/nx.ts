@@ -3,7 +3,6 @@ import {
   type Tree,
   formatFiles,
   addDependenciesToPackageJson,
-  readProjectConfiguration,
 } from '@nx/devkit'
 
 export interface NxTypescriptPackageOptions {
@@ -192,7 +191,7 @@ function createPackageStructure(
   // Add parent as dependency if specified
   if (options.parent) {
     packageJson.dependencies = {
-      ...(packageJson.dependencies ?? {}),
+      ...packageJson.dependencies,
       [options.parent]: 'workspace:*',
     }
   }

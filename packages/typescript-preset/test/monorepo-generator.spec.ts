@@ -47,9 +47,9 @@ function readJson(files: Map<string, string>, path: string): Record<string, unkn
 }
 
 async function capturedSummary(
-  generator: (tree: Tree, options: any) => Promise<any>,
+  generator: (tree: Tree, options: Record<string, unknown>) => Promise<unknown>,
   tree: Tree,
-  options: any,
+  options: Record<string, unknown>,
 ): Promise<string> {
   const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
   try {
