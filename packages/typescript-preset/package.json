@@ -35,6 +35,14 @@
       "types": "./dist/generators/init/generator.d.mts",
       "default": "./dist/generators/init/generator.mjs"
     },
+    "./generators/monorepo": {
+      "types": "./dist/generators/monorepo/generator.d.mts",
+      "default": "./dist/generators/monorepo/generator.mjs"
+    },
+    "./generators/package": {
+      "types": "./dist/generators/package/generator.d.mts",
+      "default": "./dist/generators/package/generator.mjs"
+    },
     "./executors/typecheck": {
       "types": "./dist/executors/typecheck/executor.d.mts",
       "default": "./dist/executors/typecheck/executor.mjs"
@@ -56,6 +64,8 @@
     "executors.json",
     "migrations.json",
     "src/generators/init/schema.json",
+    "src/generators/monorepo/schema.json",
+    "src/generators/package/schema.json",
     "src/executors/typecheck/schema.json",
     "src/executors/build/schema.json",
     "README.md"

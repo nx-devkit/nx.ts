@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "monorepo generator",
+  "description": "Bootstrap a new Nx monorepo with @nx-devkit/typescript preset and create the first package with inferred targets.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^@?[a-z0-9-]+(?:/[a-z0-9-]+)?$",
+      "description": "Name of the first package (also used as the workspace name). Must be a valid npm package name."
+    },
+    "packageDir": {
+      "type": "string",
+      "enum": ["packages", "apps", "libs"],
+      "default": "packages",
+      "description": "Directory for the first package."
+    },
+    "skipInstall": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip adding dependencies to package.json."
+    },
+    "packageManager": {
+      "type": "string",
+      "enum": ["bun", "npm", "pnpm", "yarn"],
+      "default": "bun",
+      "description": "Package manager to use for install instructions."
+    },
+    "test": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include test configuration (vitest)."
+    },
+    "lint": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include lint configuration (oxlint)."
+    },
+    "format": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include format configuration (biome)."
+    },
+    "build": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include build configuration (tsdown)."
+    },
+    "nativeTest": {
+      "type": "boolean",
+      "default": false,
+      "description": "Use native Node test runner instead of vitest."
+    }
+  },
+  "additionalProperties": false
+}

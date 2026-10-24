@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "package generator",
+  "description": "Add a new package to an existing Nx monorepo with @nx-devkit/typescript preset. Creates package structure with inferred targets.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^@?[a-z0-9-]+(?:/[a-z0-9-]+)?$",
+      "description": "Name of the new package. Must be a valid npm package name (e.g., \"my-pkg\" or \"@scope/my-pkg\")."
+    },
+    "directory": {
+      "type": "string",
+      "enum": ["packages", "apps", "libs"],
+      "default": "packages",
+      "description": "Directory to create the package in."
+    },
+    "skipInstall": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip adding dependencies to package.json."
+    },
+    "packageManager": {
+      "type": "string",
+      "enum": ["bun", "npm", "pnpm", "yarn"],
+      "default": "bun",
+      "description": "Package manager to use for install instructions."
+    },
+    "test": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include test configuration (vitest)."
+    },
+    "lint": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include lint configuration (oxlint)."
+    },
+    "format": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include format configuration (biome)."
+    },
+    "build": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include build configuration (tsdown)."
+    },
+    "nativeTest": {
+      "type": "boolean",
+      "default": false,
+      "description": "Use native Node test runner instead of vitest."
+    },
+    "parent": {
+      "type": "string",
+      "description": "Parent package to add as a dependency (for internal deps)."
+    }
+  },
+  "additionalProperties": false
+}

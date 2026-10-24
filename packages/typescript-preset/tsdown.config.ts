@@ -4,6 +4,8 @@ export default defineConfig({
   entry: [
     'src/plugin.ts',
     'src/generators/init/generator.ts',
+    'src/generators/monorepo/generator.ts',
+    'src/generators/package/generator.ts',
     'src/bin/init.ts',
     'src/migrations/update-1-0-0/replace-typecheck-executor.ts',
     'src/migrations/update-1-0-0/replace-build-executor.ts',
