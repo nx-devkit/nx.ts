@@ -6,6 +6,16 @@
       "schema": "./src/generators/init/schema.json",
       "description": "One-command bootstrap: registers @nx-devkit/typescript in nx.json, removes standalone @nx-devkit/* entries, detects config files, adds devDependencies for detected tools, and prints an inferred-targets summary.",
       "aliases": ["ng-add"]
+    },
+    "monorepo": {
+      "factory": "./dist/generators/monorepo/generator.mjs",
+      "schema": "./src/generators/monorepo/schema.json",
+      "description": "Bootstrap a new Nx monorepo with @nx-devkit/typescript preset and create the first package with inferred targets."
+    },
+    "package": {
+      "factory": "./dist/generators/package/generator.mjs",
+      "schema": "./src/generators/package/schema.json",
+      "description": "Add a new package to an existing Nx monorepo with @nx-devkit/typescript preset. Creates package structure with inferred targets."
     }
   }
 }
