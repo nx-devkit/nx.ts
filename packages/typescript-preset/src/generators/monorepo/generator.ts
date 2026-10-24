@@ -308,15 +308,6 @@ function printMonorepoSummary(
   packageManager: 'bun' | 'npm' | 'pnpm' | 'yarn',
   options: Required<Omit<NxTypescriptMonorepoOptions, 'name'>>,
 ): void {
-  const installCmd =
-    packageManager === 'bun'
-      ? 'bun add -D'
-      : packageManager === 'pnpm'
-        ? 'pnpm add -D'
-        : packageManager === 'yarn'
-          ? 'yarn add -D'
-          : 'npm install -D'
-
   console.log('')
   console.log('✅ Monorepo created!')
   console.log('')
