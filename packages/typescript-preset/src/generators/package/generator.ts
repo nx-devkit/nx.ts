@@ -143,8 +143,11 @@ function ensureNxJson(tree: Tree): void {
   }
 }
 
-function ensureTsconfigBase(tree: Tree): void {
+function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): void {
   if (!tree.exists('tsconfig.base.json')) {
+    const pathAliasPrefix = pkgName.startsWith('@')
+      ? pkgName.slice(0, pkgName.indexOf('/'))
+      : `@${pkgName}`
     const tsconfigBase = {
       compilerOptions: {
         target: 'ES2024',
@@ -160,6 +163,9 @@ function ensureTsconfigBase(tree: Tree): void {
         isolatedModules: true,
         noEmit: true,
         baseUrl: '.',
+        paths: {
+          [`${pathAliasPrefix}/*`]: [`${directory}/*/src`],
+        },
       },
     }
     writeJson(tree, 'tsconfig.base.json', tsconfigBase)
@@ -486,7 +492,7 @@ export async function packageGenerator(
   ensureNxJson(tree)
 
   // 3. Ensure tsconfig.base.json
-  ensureTsconfigBase(tree)
+  ensureTsconfigBase(tree, directory, name)
 
   // 4. Verify parent exists if specified
   if (parent) {

@@ -4,6 +4,7 @@ import {
   formatFiles,
   addDependenciesToPackageJson,
 } from '@nx/devkit'
+import { parse } from 'jsonc-parser'
 
 export interface NxTypescriptMonorepoOptions {
   /** Name of the first package (also used as the workspace name). */
@@ -52,7 +53,7 @@ function readJson(tree: Tree, path: string): Record<string, unknown> | null {
   const raw = tree.read(path, 'utf8')
   if (raw === null) return null
   try {
-    return JSON.parse(raw) as Record<string, unknown>
+    return parse(raw) as Record<string, unknown>
   } catch (error) {
     throw new Error(`Failed to parse ${path}`, { cause: error })
   }
