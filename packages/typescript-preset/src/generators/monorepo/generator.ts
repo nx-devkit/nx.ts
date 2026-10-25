@@ -115,8 +115,10 @@ function ensureNxJson(tree: Tree): void {
     const hasPreset = plugins.some(
       (entry) =>
         (typeof entry === 'string' && entry === '@nx-devkit/typescript') ||
+        (Array.isArray(entry) && entry[0] === '@nx-devkit/typescript') ||
         (typeof entry === 'object' &&
           entry !== null &&
+          !Array.isArray(entry) &&
           (entry as { plugin?: string }).plugin === '@nx-devkit/typescript'),
     )
     if (!hasPreset) {
@@ -179,9 +181,11 @@ function createPackageStructure(
   }
   writeJson(tree, `${pkgPath}/package.json`, packageJson)
 
-  // tsconfig.json
+  // tsconfig.json - compute extends path based on package depth
+  const depth = pkgName.split('/').length
+  const extendsPath = `${'../'.repeat(depth + 1)}tsconfig.base.json`
   const tsconfigJson = {
-    extends: '../../tsconfig.base.json',
+    extends: extendsPath,
     compilerOptions: {
       rootDir: '.',
       outDir: 'dist',

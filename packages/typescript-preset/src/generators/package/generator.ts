@@ -199,12 +199,9 @@ function createPackageStructure(
     throw new Error(`Package already exists at ${pkgPath}`)
   }
 
-  // Determine package.json name field (with scope if applicable)
-  const packageJsonName = pkgName.startsWith('@') ? pkgName : pkgName
-
   // package.json
-  const packageJson = {
-    name: packageJsonName,
+  const packageJson: Record<string, unknown> & { dependencies?: Record<string, string> } = {
+    name: pkgName,
     version: '0.0.0',
     private: true,
     type: 'module',
@@ -238,9 +235,11 @@ function createPackageStructure(
 
   writeJson(tree, `${pkgPath}/package.json`, packageJson)
 
-  // tsconfig.json
+  // tsconfig.json - compute extends path based on package depth
+  const depth = pkgName.split('/').length
+  const extendsPath = `${'../'.repeat(depth + 1)}tsconfig.base.json`
   const tsconfigJson = {
-    extends: '../../tsconfig.base.json',
+    extends: extendsPath,
     compilerOptions: {
       rootDir: '.',
       outDir: 'dist',
