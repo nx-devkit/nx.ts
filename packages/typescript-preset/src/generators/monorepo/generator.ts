@@ -82,7 +82,24 @@ function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: st
       packageManager: 'bun@latest',
     })
   } else {
-    const pkg = readJson(tree, 'package.json') ?? {}
+    const raw = tree.read('package.json', 'utf-8')
+    if (raw === null || raw.trim() === '') {
+      writeJson(tree, 'package.json', {
+        name: workspaceName,
+        version: '0.0.0',
+        private: true,
+        workspaces: workspaceGlobs,
+        packageManager: 'bun@latest',
+      })
+      return
+    }
+    const errors: NonNullable<Parameters<typeof parse>[1]> = []
+    const pkg = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
+    if (errors.length > 0) {
+      throw new Error(
+        `Failed to parse package.json: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
+      )
+    }
     const existingWorkspaces =
       (pkg.workspaces as
         | string[]
@@ -114,7 +131,14 @@ function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: st
       } else {
         pkg.workspaces = [...workspaces, ...missing]
       }
-      writeJson(tree, 'package.json', pkg)
+      // Use jsonc-parser modify to preserve formatting and comments
+      const eol = raw.includes('\r\n') ? '\r\n' : '\n'
+      const indentMatch = raw.match(/^\s*/)
+      const indent = indentMatch ? indentMatch[0].length : 2
+      const edits = modify(raw, ['workspaces'], pkg.workspaces, {
+        formattingOptions: { insertSpaces: true, tabSize: indent, eol },
+      })
+      tree.write('package.json', applyEdits(raw, edits))
     }
   }
 }

@@ -125,12 +125,18 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
         }
       }
 
-      // Remove NODE_AUTH_TOKEN from the Release step env
-      const envWithToken =
-        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}'
+      // Remove NODE_AUTH_TOKEN from the Release step env (handle multiple formats)
+      const envWithTokenVariants = [
+        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
+        'env:\n  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
+        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n',
+      ]
       const envWithoutToken = 'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
-      if (migrated.includes(envWithToken)) {
-        migrated = migrated.replace(envWithToken, envWithoutToken)
+      for (const variant of envWithTokenVariants) {
+        if (migrated.includes(variant)) {
+          migrated = migrated.replace(variant, envWithoutToken)
+          break
+        }
       }
 
       // Remove environment: npm only from the release job
@@ -144,9 +150,14 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
             : migrated.slice(releaseJobStart)
         const beforeJob = migrated.slice(0, releaseJobStart)
         const afterJob = nextJobStart !== -1 ? migrated.slice(nextJobStart) : ''
-        const envNpmLine = '    environment: npm'
-        if (jobContent.includes(envNpmLine)) {
-          const fixedJobContent = jobContent.replace(envNpmLine + '\n', '')
+        // Handle both 4-space and 2-space indentation for environment: npm
+        const envNpmLine4 = '    environment: npm'
+        const envNpmLine2 = '  environment: npm'
+        if (jobContent.includes(envNpmLine4)) {
+          const fixedJobContent = jobContent.replace(envNpmLine4 + '\n', '')
+          migrated = beforeJob + fixedJobContent + afterJob
+        } else if (jobContent.includes(envNpmLine2)) {
+          const fixedJobContent = jobContent.replace(envNpmLine2 + '\n', '')
           migrated = beforeJob + fixedJobContent + afterJob
         }
       }
