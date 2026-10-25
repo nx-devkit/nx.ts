@@ -1,3 +1,14 @@
+## 0.1.1 (2026-10-25)
+
+### 🚀 Features
+
+- add monorepo and package generators for typescript preset ([526b81f](https://github.com/nx-devkit/nx.ts/commit/526b81f))
+- **release:** the release plan — one version, publish what changed ([#136](https://github.com/nx-devkit/nx.ts/pull/136))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.1.0 (2026-10-22)
 
 ### 🚀 Features
