@@ -3,8 +3,8 @@ import {
   type Tree,
   formatFiles,
   addDependenciesToPackageJson,
-  readProjectConfiguration,
 } from '@nx/devkit'
+import { parse } from 'jsonc-parser'
 
 export interface NxTypescriptPackageOptions {
   /** Name of the new package. */
@@ -50,12 +50,12 @@ const DEP_VERSIONS: Record<string, string> = {
   '@typescript/native-preview': '^7.0.0-dev.20260621.1',
 }
 
-function readJson(tree: Tree, path: string): Record<string, unknown> | null {
+function readJsonc(tree: Tree, path: string): Record<string, unknown> | null {
   if (!tree.exists(path)) return null
   const raw = tree.read(path, 'utf8')
   if (raw === null) return null
   try {
-    return JSON.parse(raw) as Record<string, unknown>
+    return parse(raw) as Record<string, unknown>
   } catch (error) {
     throw new Error(`Failed to parse ${path}`, { cause: error })
   }
@@ -65,19 +65,45 @@ function writeJson(tree: Tree, path: string, value: unknown): void {
   tree.write(path, `${JSON.stringify(value, null, 2)}\n`)
 }
 
+function getWorkspaceGlobs(): string[] {
+  return ['packages/*', 'packages/@*/*', 'apps/*', 'apps/@*/*', 'libs/*', 'libs/@*/*']
+}
+
 function ensureRootPackageJson(tree: Tree): void {
+  const workspaceGlobs = getWorkspaceGlobs()
   if (!tree.exists('package.json')) {
     writeJson(tree, 'package.json', {
       name: 'workspace',
       version: '0.0.0',
       private: true,
-      workspaces: ['packages/*', 'apps/*', 'libs/*'],
+      workspaces: workspaceGlobs,
       packageManager: 'bun@latest',
     })
   } else {
-    const pkg = readJson(tree, 'package.json') ?? {}
-    const workspaces = (pkg.workspaces as string[]) ?? []
-    const requiredWorkspaces = ['packages/*', 'apps/*', 'libs/*']
+    const pkg = readJsonc(tree, 'package.json') ?? {}
+    const existingWorkspaces =
+      (pkg.workspaces as
+        | string[]
+        | { packages?: string[]; apps?: string[]; libs?: string[] }
+        | undefined) ?? []
+    let workspaces: string[] = []
+    if (Array.isArray(existingWorkspaces)) {
+      workspaces = [...existingWorkspaces]
+    } else if (typeof existingWorkspaces === 'object' && existingWorkspaces !== null) {
+      workspaces = [
+        ...(existingWorkspaces.packages ?? []),
+        ...(existingWorkspaces.apps ?? []),
+        ...(existingWorkspaces.libs ?? []),
+      ]
+    }
+    const requiredWorkspaces = [
+      'packages/*',
+      'packages/@*/*',
+      'apps/*',
+      'apps/@*/*',
+      'libs/*',
+      'libs/@*/*',
+    ]
     const missing = requiredWorkspaces.filter((ws) => !workspaces.includes(ws))
     if (missing.length > 0) {
       pkg.workspaces = [...workspaces, ...missing]
@@ -93,13 +119,15 @@ function ensureNxJson(tree: Tree): void {
       plugins: ['@nx-devkit/typescript'],
     })
   } else {
-    const nxJson = readJson(tree, 'nx.json') ?? {}
+    const nxJson = readJsonc(tree, 'nx.json') ?? {}
     const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : []
     const hasPreset = plugins.some(
       (entry) =>
         (typeof entry === 'string' && entry === '@nx-devkit/typescript') ||
+        (Array.isArray(entry) && entry[0] === '@nx-devkit/typescript') ||
         (typeof entry === 'object' &&
           entry !== null &&
+          !Array.isArray(entry) &&
           (entry as { plugin?: string }).plugin === '@nx-devkit/typescript'),
     )
     if (!hasPreset) {
@@ -115,8 +143,11 @@ function ensureNxJson(tree: Tree): void {
   }
 }
 
-function ensureTsconfigBase(tree: Tree): void {
+function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): void {
   if (!tree.exists('tsconfig.base.json')) {
+    const pathAliasPrefix = pkgName.startsWith('@')
+      ? pkgName.slice(0, pkgName.indexOf('/'))
+      : `@${pkgName}`
     const tsconfigBase = {
       compilerOptions: {
         target: 'ES2024',
@@ -132,6 +163,9 @@ function ensureTsconfigBase(tree: Tree): void {
         isolatedModules: true,
         noEmit: true,
         baseUrl: '.',
+        paths: {
+          [`${pathAliasPrefix}/*`]: [`${directory}/*/src`],
+        },
       },
     }
     writeJson(tree, 'tsconfig.base.json', tsconfigBase)
@@ -147,6 +181,17 @@ function validatePackageName(name: string): void {
   }
 }
 
+function findParentPackage(tree: Tree, parent: string): string | null {
+  // Search in packages/, apps/, libs/ for the parent package
+  for (const dir of ['packages', 'apps', 'libs']) {
+    const parentPath = `${dir}/${parent}/package.json`
+    if (tree.exists(parentPath)) {
+      return parentPath
+    }
+  }
+  return null
+}
+
 function createPackageStructure(
   tree: Tree,
   directory: string,
@@ -160,12 +205,9 @@ function createPackageStructure(
     throw new Error(`Package already exists at ${pkgPath}`)
   }
 
-  // Determine package.json name field (with scope if applicable)
-  const packageJsonName = pkgName.startsWith('@') ? pkgName : pkgName
-
   // package.json
-  const packageJson = {
-    name: packageJsonName,
+  const packageJson: Record<string, unknown> & { dependencies?: Record<string, string> } = {
+    name: pkgName,
     version: '0.0.0',
     private: true,
     type: 'module',
@@ -192,16 +234,18 @@ function createPackageStructure(
   // Add parent as dependency if specified
   if (options.parent) {
     packageJson.dependencies = {
-      ...(packageJson.dependencies ?? {}),
+      ...packageJson.dependencies,
       [options.parent]: 'workspace:*',
     }
   }
 
   writeJson(tree, `${pkgPath}/package.json`, packageJson)
 
-  // tsconfig.json
+  // tsconfig.json - compute extends path based on package depth
+  const depth = pkgName.split('/').length
+  const extendsPath = `${'../'.repeat(depth + 1)}tsconfig.base.json`
   const tsconfigJson = {
-    extends: '../../tsconfig.base.json',
+    extends: extendsPath,
     compilerOptions: {
       rootDir: '.',
       outDir: 'dist',
@@ -276,7 +320,7 @@ export default defineConfig({
     writeJson(tree, `${pkgPath}/biome.json`, biomeConfig)
   }
 
-  // tsdown.config.ts
+  // tsdown.config.ts - only write when build is enabled
   if (options.build) {
     const tsdownConfig = `import { defineConfig } from 'tsdown'
 
@@ -291,33 +335,36 @@ export default defineConfig({
     tree.write(`${pkgPath}/tsdown.config.ts`, tsdownConfig)
   }
 
-  // Native test file if no vitest
-  if (options.test && options.nativeTest) {
-    if (!tree.exists(`${pkgPath}/src`)) {
-      tree.write(
-        `${pkgPath}/src/index.test.ts`,
-        `import { test, expect } from 'node:test'
+  // Test file - check for test file specifically, not directory
+  const testFilePath = `${pkgPath}/src/index.test.ts`
+  if (options.test) {
+    if (!tree.exists(testFilePath)) {
+      if (options.nativeTest) {
+        // Native Node test runner - use assert from node:assert/strict
+        tree.write(
+          testFilePath,
+          `import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { hello } from './index.js'
+
+test('hello returns greeting', () => {
+  assert.strictEqual(hello(), 'Hello from ${pkgName}!')
+})
+`,
+        )
+      } else {
+        // Vitest test file
+        tree.write(
+          testFilePath,
+          `import { test, expect } from 'vitest'
 import { hello } from './index.js'
 
 test('hello returns greeting', () => {
   expect(hello()).toBe('Hello from ${pkgName}!')
 })
 `,
-      )
-    }
-  } else if (options.test) {
-    // Vitest test file
-    if (!tree.exists(`${pkgPath}/src`)) {
-      tree.write(
-        `${pkgPath}/src/index.test.ts`,
-        `import { test, expect } from 'vitest'
-import { hello } from './index.js'
-
-test('hello returns greeting', () => {
-  expect(hello()).toBe('Hello from ${pkgName}!')
-})
-`,
-      )
+        )
+      }
     }
   }
 }
@@ -326,7 +373,7 @@ function getMissingDevDeps(
   tree: Tree,
   options: Required<Omit<NxTypescriptPackageOptions, 'name' | 'parent'>> & { parent?: string },
 ): Record<string, string> {
-  const pkg = readJson(tree, 'package.json') ?? {}
+  const pkg = readJsonc(tree, 'package.json') ?? {}
   const existing = {
     ...(pkg.dependencies as Record<string, string> | undefined),
     ...(pkg.devDependencies as Record<string, string> | undefined),
@@ -432,6 +479,12 @@ export async function packageGenerator(
 
   validatePackageName(name)
 
+  if (parent) {
+    if (!/^(@[a-z0-9-~][a-z0-9-~._]*\/)?[a-z0-9-~][a-z0-9-~._]*$/.test(parent)) {
+      throw new Error(`Invalid parent package name: "${parent}". Must be a valid npm package name.`)
+    }
+  }
+
   // 1. Ensure root package.json with workspace config
   ensureRootPackageJson(tree)
 
@@ -439,12 +492,12 @@ export async function packageGenerator(
   ensureNxJson(tree)
 
   // 3. Ensure tsconfig.base.json
-  ensureTsconfigBase(tree)
+  ensureTsconfigBase(tree, directory, name)
 
   // 4. Verify parent exists if specified
   if (parent) {
-    const parentPkgPath = `${directory}/${parent}/package.json`
-    if (!tree.exists(parentPkgPath)) {
+    const parentPath = findParentPackage(tree, parent)
+    if (!parentPath) {
       throw new Error(`Parent package "${parent}" not found in workspace.`)
     }
   }
@@ -454,16 +507,17 @@ export async function packageGenerator(
 
   // 6. Install missing peer deps
   let installCallback: GeneratorCallback = () => {}
+  let installedDeps: Record<string, string> = {}
 
   if (!skipInstall) {
-    const installedDeps = getMissingDevDeps(tree, { ...mergedOptions, parent })
+    installedDeps = getMissingDevDeps(tree, { ...mergedOptions, parent })
     if (Object.keys(installedDeps).length > 0) {
       installCallback = addDependenciesToPackageJson(tree, {}, installedDeps)
     }
   }
 
-  // 7. Print summary
-  printPackageSummary(name, directory, {}, packageManager, { ...mergedOptions, parent })
+  // 7. Print summary with installed deps
+  printPackageSummary(name, directory, installedDeps, packageManager, { ...mergedOptions, parent })
 
   await formatFiles(tree)
 

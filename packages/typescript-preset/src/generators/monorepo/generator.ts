@@ -4,6 +4,7 @@ import {
   formatFiles,
   addDependenciesToPackageJson,
 } from '@nx/devkit'
+import { parse } from 'jsonc-parser'
 
 export interface NxTypescriptMonorepoOptions {
   /** Name of the first package (also used as the workspace name). */
@@ -52,7 +53,7 @@ function readJson(tree: Tree, path: string): Record<string, unknown> | null {
   const raw = tree.read(path, 'utf8')
   if (raw === null) return null
   try {
-    return JSON.parse(raw) as Record<string, unknown>
+    return parse(raw) as Record<string, unknown>
   } catch (error) {
     throw new Error(`Failed to parse ${path}`, { cause: error })
   }
@@ -62,20 +63,42 @@ function writeJson(tree: Tree, path: string, value: unknown): void {
   tree.write(path, `${JSON.stringify(value, null, 2)}\n`)
 }
 
-function ensureRootPackageJson(tree: Tree, workspaceName: string): void {
+function getWorkspaceGlobs(packageDir: string): string[] {
+  const base = packageDir.endsWith('/') ? packageDir.slice(0, -1) : packageDir
+  return [`${base}/*`, `${base}/@*/*`]
+}
+
+function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: string): void {
+  const workspaceGlobs = getWorkspaceGlobs(packageDir)
   if (!tree.exists('package.json')) {
     writeJson(tree, 'package.json', {
       name: workspaceName,
       version: '0.0.0',
       private: true,
-      workspaces: ['packages/*'],
+      workspaces: workspaceGlobs,
       packageManager: 'bun@latest',
     })
   } else {
     const pkg = readJson(tree, 'package.json') ?? {}
-    const workspaces = (pkg.workspaces as string[]) ?? []
-    if (!workspaces.includes('packages/*')) {
-      pkg.workspaces = [...workspaces, 'packages/*']
+    const existingWorkspaces =
+      (pkg.workspaces as
+        | string[]
+        | { packages?: string[]; apps?: string[]; libs?: string[] }
+        | undefined) ?? []
+    let workspaces: string[] = []
+    if (Array.isArray(existingWorkspaces)) {
+      workspaces = [...existingWorkspaces]
+    } else if (typeof existingWorkspaces === 'object' && existingWorkspaces !== null) {
+      workspaces = [
+        ...(existingWorkspaces.packages ?? []),
+        ...(existingWorkspaces.apps ?? []),
+        ...(existingWorkspaces.libs ?? []),
+      ]
+    }
+    const globs = getWorkspaceGlobs(packageDir)
+    const missing = globs.filter((g) => !workspaces.includes(g))
+    if (missing.length > 0) {
+      pkg.workspaces = [...workspaces, ...missing]
       writeJson(tree, 'package.json', pkg)
     }
   }
@@ -93,8 +116,10 @@ function ensureNxJson(tree: Tree): void {
     const hasPreset = plugins.some(
       (entry) =>
         (typeof entry === 'string' && entry === '@nx-devkit/typescript') ||
+        (Array.isArray(entry) && entry[0] === '@nx-devkit/typescript') ||
         (typeof entry === 'object' &&
           entry !== null &&
+          !Array.isArray(entry) &&
           (entry as { plugin?: string }).plugin === '@nx-devkit/typescript'),
     )
     if (!hasPreset) {
@@ -108,6 +133,18 @@ function ensureNxJson(tree: Tree): void {
       writeJson(tree, 'nx.json', nxJson)
     }
   }
+}
+
+function getPathAliasPrefix(pkgName: string): string {
+  // For scoped packages like @scope/name, use @scope as prefix
+  // For unscoped packages like name, use @name as prefix
+  if (pkgName.startsWith('@')) {
+    const scopeEnd = pkgName.indexOf('/')
+    if (scopeEnd > 0) {
+      return pkgName.slice(0, scopeEnd)
+    }
+  }
+  return `@${pkgName}`
 }
 
 function createPackageStructure(
@@ -145,9 +182,11 @@ function createPackageStructure(
   }
   writeJson(tree, `${pkgPath}/package.json`, packageJson)
 
-  // tsconfig.json
+  // tsconfig.json - compute extends path based on package depth
+  const depth = pkgName.split('/').length
+  const extendsPath = `${'../'.repeat(depth + 1)}tsconfig.base.json`
   const tsconfigJson = {
-    extends: '../../tsconfig.base.json',
+    extends: extendsPath,
     compilerOptions: {
       rootDir: '.',
       outDir: 'dist',
@@ -222,7 +261,7 @@ export default defineConfig({
     writeJson(tree, `${pkgPath}/biome.json`, biomeConfig)
   }
 
-  // tsdown.config.ts
+  // tsdown.config.ts - only write when build is enabled
   if (options.build) {
     const tsdownConfig = `import { defineConfig } from 'tsdown'
 
@@ -237,33 +276,36 @@ export default defineConfig({
     tree.write(`${pkgPath}/tsdown.config.ts`, tsdownConfig)
   }
 
-  // Native test file if no vitest
-  if (options.test && options.nativeTest) {
-    if (!tree.exists(`${pkgPath}/src`)) {
-      tree.write(
-        `${pkgPath}/src/index.test.ts`,
-        `import { test, expect } from 'node:test'
+  // Test file - check for test file specifically, not directory
+  const testFilePath = `${pkgPath}/src/index.test.ts`
+  if (options.test) {
+    if (!tree.exists(testFilePath)) {
+      if (options.nativeTest) {
+        // Native Node test runner - use assert from node:assert/strict
+        tree.write(
+          testFilePath,
+          `import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { hello } from './index.js'
+
+test('hello returns greeting', () => {
+  assert.strictEqual(hello(), 'Hello from ${pkgName}!')
+})
+`,
+        )
+      } else {
+        // Vitest test file
+        tree.write(
+          testFilePath,
+          `import { test, expect } from 'vitest'
 import { hello } from './index.js'
 
 test('hello returns greeting', () => {
   expect(hello()).toBe('Hello from ${pkgName}!')
 })
 `,
-      )
-    }
-  } else if (options.test) {
-    // Vitest test file
-    if (!tree.exists(`${pkgPath}/src`)) {
-      tree.write(
-        `${pkgPath}/src/index.test.ts`,
-        `import { test, expect } from 'vitest'
-import { hello } from './index.js'
-
-test('hello returns greeting', () => {
-  expect(hello()).toBe('Hello from ${pkgName}!')
-})
-`,
-      )
+        )
+      }
     }
   }
 }
@@ -308,15 +350,6 @@ function printMonorepoSummary(
   packageManager: 'bun' | 'npm' | 'pnpm' | 'yarn',
   options: Required<Omit<NxTypescriptMonorepoOptions, 'name'>>,
 ): void {
-  const installCmd =
-    packageManager === 'bun'
-      ? 'bun add -D'
-      : packageManager === 'pnpm'
-        ? 'pnpm add -D'
-        : packageManager === 'yarn'
-          ? 'yarn add -D'
-          : 'npm install -D'
-
   console.log('')
   console.log('✅ Monorepo created!')
   console.log('')
@@ -385,8 +418,15 @@ export async function monorepoGenerator(
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options }
   const { name, packageDir, skipInstall, packageManager } = mergedOptions
 
+  // Validate name at entry
+  if (!/^(@[a-z0-9-~][a-z0-9-~._]*\/)?[a-z0-9-~][a-z0-9-~._]*$/.test(name)) {
+    throw new Error(
+      `Invalid package name: "${name}". Must be a valid npm package name (e.g., "my-pkg" or "@scope/my-pkg").`,
+    )
+  }
+
   // 1. Ensure root package.json with workspace config
-  ensureRootPackageJson(tree, name)
+  ensureRootPackageJson(tree, name, packageDir)
 
   // 2. Ensure nx.json with preset
   ensureNxJson(tree)
@@ -409,7 +449,7 @@ export async function monorepoGenerator(
         noEmit: true,
         baseUrl: '.',
         paths: {
-          [`@${name}/*`]: [`${packageDir}/*/src`],
+          [`${getPathAliasPrefix(name)}/*`]: [`${packageDir}/*/src`],
         },
       },
     }
@@ -421,16 +461,17 @@ export async function monorepoGenerator(
 
   // 5. Install missing peer deps
   let installCallback: GeneratorCallback = () => {}
+  let installedDeps: Record<string, string> = {}
 
   if (!skipInstall) {
-    const installedDeps = getMissingDevDeps(tree, mergedOptions)
+    installedDeps = getMissingDevDeps(tree, mergedOptions)
     if (Object.keys(installedDeps).length > 0) {
       installCallback = addDependenciesToPackageJson(tree, {}, installedDeps)
     }
   }
 
-  // 6. Print summary
-  printMonorepoSummary(name, packageDir, {}, packageManager, mergedOptions)
+  // 6. Print summary with installed deps
+  printMonorepoSummary(name, packageDir, installedDeps, packageManager, mergedOptions)
 
   await formatFiles(tree)
 
