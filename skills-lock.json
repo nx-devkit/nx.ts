@@ -1,17 +1,245 @@
 {
   "version": 1,
   "skills": {
+    "acp": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/acp/SKILL.md",
+      "computedHash": "19c0eb2c88e98397fa5e5d16bc6b1c01c174a35aeffc68ad015a216d02e80fb7"
+    },
+    "act": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/act/SKILL.md",
+      "computedHash": "9318058968c7c55e3c834a7f8eaa353a26d89fdeb41a8dfdff64c7a7ab60312a"
+    },
+    "agents": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/agents/SKILL.md",
+      "computedHash": "c4d7c2535fb97d3f886e743face40cf0fb9ac642a47e619a8cab97df3e8815ac"
+    },
+    "check": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/check/SKILL.md",
+      "computedHash": "085be328dc0931012bf1c496a80be189fc63cd1cbf837cd8b62c4edc957a3131"
+    },
+    "convoy": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/convoy/SKILL.md",
+      "computedHash": "20dfaf538ae70ff3f44fdceabccea868cc9dd92930c6ac7f73681e9c397dd313"
+    },
+    "daemon": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/daemon/SKILL.md",
+      "computedHash": "a2b9b89ecc47fae310622daeb3bbdf0c0c1bbe2b52982bc72eeec11de1ea4f34"
+    },
+    "debt": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/debt/SKILL.md",
+      "computedHash": "33790ae0b46d50c51be874439a4acbca5edaedc48c9755437a166398014141c9"
+    },
+    "docs": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/docs/SKILL.md",
+      "computedHash": "a31ce4e15b26932bee0de8fc759ec29108a47db1f45cf5fd740c05d411d4a296"
+    },
     "documentation": {
       "source": "mcollina/skills",
       "sourceType": "github",
       "skillPath": "skills/documentation/SKILL.md",
       "computedHash": "9a43f2e8ebb01dbc162ad78d865ff9e20bf20270e0514095c3bf3f1ac43599c6"
     },
+    "dogfood": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/dogfood/SKILL.md",
+      "computedHash": "ffc3b9522011e47adc367f530d519728cc1dbe64b03d10abf0828be1678df417"
+    },
+    "drill": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/drill/SKILL.md",
+      "computedHash": "b72f3f6b9c30299b8e7e0781a4babdf8457b9b9c154a62cdb673a9be1b8205cb"
+    },
+    "drive": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/drive/SKILL.md",
+      "computedHash": "553c9a5c38657796b38ffa1d50eccdf62eb8d7769cb6e67eb141bdae14281873"
+    },
+    "goal": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/goal/SKILL.md",
+      "computedHash": "b1e9d69eaebcfc3709cc78f839593b392e35270543731c181fb16ee83000be5f"
+    },
+    "guard": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/guard/SKILL.md",
+      "computedHash": "5dcca95832acfa3e909e82962f178dbeb0d75609a0e6e6fa5f33f9fb0e032612"
+    },
+    "judge": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/judge/SKILL.md",
+      "computedHash": "a4d1f66b5d31fc14266a4b31ae588daefeb5516ed8245cbbde00af8d175463ee"
+    },
+    "learn": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/learn/SKILL.md",
+      "computedHash": "32a2624a1506c789f31c31f8ee428f8ba66ced3ab74113595e5a6257d5612b36"
+    },
+    "loop": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/loop/SKILL.md",
+      "computedHash": "43b4dbfd9403f469b5ee177488214f799871fbbb713f9e347b35cdf32d10529f"
+    },
+    "mcp": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/mcp/SKILL.md",
+      "computedHash": "f34aec0bbd17b70b04a99b0a6ead17144f491b6c72dcdb0e282dd4940e122bd9"
+    },
+    "mesh": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/mesh/SKILL.md",
+      "computedHash": "3c8bee0061182e52c2559f9217685c5925846a880b6b8935d4fb4231df1d72d8"
+    },
+    "next": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/next/SKILL.md",
+      "computedHash": "27cad99720872a73faa1bdf2148d75002ff3f28dac751a92c8f6883f10b781ae"
+    },
+    "notify": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/notify/SKILL.md",
+      "computedHash": "50086d28f6e8fa42d6b2dc78b5a66fc26b92b2371a929d55912b77bd0f0cd865"
+    },
+    "provider": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/provider/SKILL.md",
+      "computedHash": "6b0dc8a75e69818164fa35070c974277751fad2480ea63e1dcc12dbb3c6b2fa8"
+    },
+    "providers": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/providers/SKILL.md",
+      "computedHash": "0dea3f00c08c288b61989168241834be675d88b793318cf50a896e2cb69e84a5"
+    },
+    "pulse": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/pulse/SKILL.md",
+      "computedHash": "6ed3f2fa7751106a0adb83f45087b5d808daec0f3d26c79be3f152d2eb476838"
+    },
+    "query": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/query/SKILL.md",
+      "computedHash": "0d59be94e748bbfca3d4fd4acd1e1737f0c4671cf5b69e3fcd7b917d9fffdcc7"
+    },
     "readme": {
       "source": "statelyai/skills",
       "sourceType": "github",
       "skillPath": "skills/readme/SKILL.md",
       "computedHash": "b2c4624a194fd8aebbc9fc3d75b7b1da8d2033e0439c3f4e2802e4b07d308a89"
+    },
+    "resume": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/resume/SKILL.md",
+      "computedHash": "6658aacedb53b0d78d3732d172c3b0c5dd1315bc7152e9dfbb15800f35899da7"
+    },
+    "retro": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/retro/SKILL.md",
+      "computedHash": "5786dd88027d120e980175eae1529fd51660747c51688397253098a965f24445"
+    },
+    "rig": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/rig/SKILL.md",
+      "computedHash": "f17d282d964e6976fc4d47db59b67a83dd62b775f8218c0d49627ef7b5253237"
+    },
+    "sdd": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/sdd/SKILL.md",
+      "computedHash": "2df726e9213d8b409372587dcdf2668997438a0d92b6e36026d4fc9bded3b385"
+    },
+    "serve": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/serve/SKILL.md",
+      "computedHash": "071ac557b2bf861e76b85bc28ce06d4a2fd9b1d337e06c14342f9da82af8a229"
+    },
+    "stack": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/stack/SKILL.md",
+      "computedHash": "95b97dfd4baf9e97a3cf16a9020db7e161f6dc71de297e6b36f98e5cca2cead0"
+    },
+    "status": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/status/SKILL.md",
+      "computedHash": "0f16caa784d073fbefb6e5e57900d95e5428641bdb73bf3dd9df560e22998c7b"
+    },
+    "sweep": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/sweep/SKILL.md",
+      "computedHash": "27b7fe3d1b43fb3ae34d9c502c17e990b66e8fa402357f60129e90c09d2df537"
+    },
+    "sync": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/sync/SKILL.md",
+      "computedHash": "dd74528b2894059cd283950ac363e421a451431d889319cee29003a65910140b"
+    },
+    "trace": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/trace/SKILL.md",
+      "computedHash": "769d82379678b391cb42de7b91d9947609a0d9510f026cacfabc7ea0895c74e7"
+    },
+    "typesafe-ai": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/typesafe-ai/SKILL.md",
+      "computedHash": "ac4d61ae63a564e2f7beb86ab31f8eee45c958f9a8c85a1ff1b5e4a0841ec331"
+    },
+    "watch": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/watch/SKILL.md",
+      "computedHash": "979ecbc3e7234218c59584acc1025e3f03e73b533d7724cfce81769148d41fb8"
+    },
+    "work": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/work/SKILL.md",
+      "computedHash": "5f0b7f8a7852638669bda70c8def3c0831377f6fca2f0a488dc737ffde871daf"
+    },
+    "wtf": {
+      "source": "theplenkov/bro",
+      "sourceType": "github",
+      "skillPath": "skills/wtf/SKILL.md",
+      "computedHash": "3c3f1320d171f52ce17ffd2655b436b156b793968ac9498b3c79f96a1c19a5d1"
     }
   }
 }

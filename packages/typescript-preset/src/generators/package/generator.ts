@@ -114,11 +114,8 @@ function ensureRootPackageJson(tree: Tree): void {
     if (Array.isArray(existingWorkspaces)) {
       workspaces = [...existingWorkspaces]
     } else if (isObjectForm) {
-      workspaces = [
-        ...(existingWorkspaces.packages ?? []),
-        ...(existingWorkspaces.apps ?? []),
-        ...(existingWorkspaces.libs ?? []),
-      ]
+      // Yarn Classic registers workspaces only from `packages`
+      workspaces = [...(existingWorkspaces.packages ?? [])]
     }
     const requiredWorkspaces = [
       'packages/*',
@@ -130,24 +127,35 @@ function ensureRootPackageJson(tree: Tree): void {
     ]
     const missing = requiredWorkspaces.filter((ws) => !workspaces.includes(ws))
     if (missing.length > 0) {
-      if (isObjectForm) {
-        // Preserve object-form workspaces (e.g., Yarn Classic nohoist)
-        pkg.workspaces = {
-          ...existingWorkspaces,
-          packages: [...(existingWorkspaces.packages ?? []), ...missing],
-        }
-      } else {
-        pkg.workspaces = [...workspaces, ...missing]
-      }
       // Use jsonc-parser modify to preserve formatting and comments
-      // Detect formatting from raw content
+      // Use array-element paths to preserve comments inside arrays/objects
       const eol = raw.includes('\r\n') ? '\r\n' : '\n'
       const indentMatch = raw.match(/^\s*/)
       const indent = indentMatch ? indentMatch[0].length : 2
-      const edits = modify(raw, ['workspaces'], pkg.workspaces, {
-        formattingOptions: { insertSpaces: true, tabSize: indent, eol },
-      })
-      tree.write('package.json', applyEdits(raw, edits))
+      const formattingOptions = { insertSpaces: true, tabSize: indent, eol }
+      let updated = raw
+      if (isObjectForm) {
+        // For object form, add missing globs to packages array
+        const existingPackages = existingWorkspaces.packages ?? []
+        for (const [index, glob] of missing.entries()) {
+          const edits = modify(
+            updated,
+            ['workspaces', 'packages', existingPackages.length + index],
+            glob,
+            { formattingOptions },
+          )
+          updated = applyEdits(updated, edits)
+        }
+      } else {
+        // For array form, add to the end of the array
+        for (const [index, glob] of missing.entries()) {
+          const edits = modify(updated, ['workspaces', workspaces.length + index], glob, {
+            formattingOptions,
+          })
+          updated = applyEdits(updated, edits)
+        }
+      }
+      tree.write('package.json', updated)
     }
   }
 }

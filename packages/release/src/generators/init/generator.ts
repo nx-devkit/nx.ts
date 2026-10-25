@@ -125,40 +125,57 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
         }
       }
 
-      // Remove NODE_AUTH_TOKEN from the Release step env (handle multiple formats)
-      const envWithTokenVariants = [
-        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
-        'env:\n  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
-        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n',
-      ]
-      const envWithoutToken = 'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
-      for (const variant of envWithTokenVariants) {
-        if (migrated.includes(variant)) {
-          migrated = migrated.replace(variant, envWithoutToken)
-          break
+      // Find the release step (the exact old command we just replaced) and remove NODE_AUTH_TOKEN
+      // from the env block within that step only
+      const releaseStepIdx = migrated.indexOf(newReleaseStep)
+      if (releaseStepIdx !== -1) {
+        // Find the start of the release step (go backwards to find "- name: Release")
+        const stepStart = migrated.lastIndexOf('\n      - name: Release', releaseStepIdx)
+        if (stepStart !== -1) {
+          // Find the end of this step (next step or end of steps)
+          const stepsEnd = migrated.indexOf('\n    ', stepStart + 1)
+          const stepEnd = stepsEnd !== -1 ? stepsEnd : migrated.length
+          const stepContent = migrated.slice(stepStart, stepEnd)
+
+          // Remove NODE_AUTH_TOKEN from env within this step
+          const envVariants = [
+            'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
+            'env:\n  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
+            'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n',
+          ]
+          const envClean = 'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
+          let fixedStep = stepContent
+          for (const variant of envVariants) {
+            if (fixedStep.includes(variant)) {
+              fixedStep = fixedStep.replace(variant, envClean)
+              break
+            }
+          }
+
+          // Replace the step in migrated
+          migrated = migrated.slice(0, stepStart) + fixedStep + migrated.slice(stepEnd)
         }
       }
 
       // Remove environment: npm only from the release job
-      // Find the release job first, then remove environment: npm from it
-      const releaseJobStart = migrated.indexOf('  release:')
-      if (releaseJobStart !== -1) {
-        const nextJobStart = migrated.indexOf('\n  ', releaseJobStart + 1)
-        const jobContent =
-          nextJobStart !== -1
-            ? migrated.slice(releaseJobStart, nextJobStart)
-            : migrated.slice(releaseJobStart)
-        const beforeJob = migrated.slice(0, releaseJobStart)
-        const afterJob = nextJobStart !== -1 ? migrated.slice(nextJobStart) : ''
-        // Handle both 4-space and 2-space indentation for environment: npm
-        const envNpmLine4 = '    environment: npm'
-        const envNpmLine2 = '  environment: npm'
-        if (jobContent.includes(envNpmLine4)) {
-          const fixedJobContent = jobContent.replace(envNpmLine4 + '\n', '')
-          migrated = beforeJob + fixedJobContent + afterJob
-        } else if (jobContent.includes(envNpmLine2)) {
-          const fixedJobContent = jobContent.replace(envNpmLine2 + '\n', '')
-          migrated = beforeJob + fixedJobContent + afterJob
+      // Use per-line parsing to find job boundaries correctly (avoid ReDoS)
+      const lines = migrated.split('\n')
+      const jobIdx = lines.findIndex((l) => l.trimEnd() === '  release:')
+      if (jobIdx !== -1) {
+        let end = lines.length
+        for (let i = jobIdx + 1; i < lines.length; i++) {
+          // Next job (2-space key) or next top-level key ends the release job
+          if (/^ {0,2}\S/.test(lines[i]) && i > jobIdx + 1) {
+            end = i
+            break
+          }
+        }
+        const envIdx = lines.findIndex(
+          (l, i) => i > jobIdx && i < end && l.trim() === 'environment: npm',
+        )
+        if (envIdx !== -1) {
+          lines.splice(envIdx, 1)
+          migrated = lines.join('\n')
         }
       }
 
