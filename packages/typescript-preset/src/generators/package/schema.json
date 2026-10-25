@@ -9,7 +9,11 @@
     "name": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^@?[a-z0-9-]+(?:/[a-z0-9-]+)?$",
+      "pattern": "^(?:@[a-z0-9-~][a-z0-9-~._]*\\/)?[a-z0-9-~][a-z0-9-~._]*$",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
       "description": "Name of the new package. Must be a valid npm package name (e.g., \"my-pkg\" or \"@scope/my-pkg\")."
     },
     "directory": {
@@ -56,6 +60,7 @@
     },
     "parent": {
       "type": "string",
+      "pattern": "^(?:@[a-z0-9-~][a-z0-9-~._]*\\/)?[a-z0-9-~][a-z0-9-~._]*$",
       "description": "Parent package to add as a dependency (for internal deps)."
     }
   },

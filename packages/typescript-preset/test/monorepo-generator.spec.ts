@@ -9,7 +9,8 @@ function createTree(files: Record<string, string> = {}): {
   const fileMap = new Map<string, string>(Object.entries(files))
 
   const tree: Tree = {
-    exists: (path: string) => fileMap.has(path),
+    exists: (path: string) =>
+      fileMap.has(path) || Array.from(fileMap.keys()).some((key) => key.startsWith(`${path}/`)),
     read: (path: string) => fileMap.get(path) ?? null,
     write: (path: string, content: string) => {
       fileMap.set(path, content)
@@ -46,10 +47,10 @@ function readJson(files: Map<string, string>, path: string): Record<string, unkn
   return JSON.parse(files.get(path) ?? '{}') as Record<string, unknown>
 }
 
-async function capturedSummary(
-  generator: (tree: Tree, options: Record<string, unknown>) => Promise<unknown>,
+async function capturedSummary<O>(
+  generator: (tree: Tree, options: O) => Promise<unknown>,
   tree: Tree,
-  options: Record<string, unknown>,
+  options: O,
 ): Promise<string> {
   const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
   try {
@@ -71,7 +72,7 @@ describe('monorepoGenerator', () => {
       const pkg = readJson(files, 'package.json')
       expect(pkg.name).toBe('my-monorepo')
       expect(pkg.private).toBe(true)
-      expect(pkg.workspaces).toEqual(['packages/*'])
+      expect(pkg.workspaces).toEqual(['packages/*', 'packages/@*/*'])
     })
 
     it('creates nx.json with the preset', async () => {
@@ -227,7 +228,9 @@ describe('monorepoGenerator', () => {
 
       expect(files.has('packages/my-monorepo/src/index.test.ts')).toBe(true)
       const content = files.get('packages/my-monorepo/src/index.test.ts') ?? ''
-      expect(content).toContain("import { test, expect } from 'node:test'")
+      expect(content).toContain("import { test } from 'node:test'")
+      expect(content).toContain("import assert from 'node:assert/strict'")
+      expect(content).toContain('assert.strictEqual')
       expect(content).not.toContain('vitest')
     })
 
@@ -324,6 +327,7 @@ describe('monorepoGenerator', () => {
       const pkg = readJson(files, 'package.json')
       expect(pkg.name).toBe('existing')
       expect(pkg.workspaces).toContain('packages/*')
+      expect(pkg.workspaces).toContain('packages/@*/*')
     })
   })
 
