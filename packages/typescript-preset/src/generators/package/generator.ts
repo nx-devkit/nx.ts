@@ -4,7 +4,7 @@ import {
   formatFiles,
   addDependenciesToPackageJson,
 } from '@nx/devkit'
-import { parse } from 'jsonc-parser'
+import { parse, modify, applyEdits } from 'jsonc-parser'
 
 export interface NxTypescriptPackageOptions {
   /** Name of the new package. */
@@ -133,7 +133,7 @@ function ensureNxJson(tree: Tree): void {
     })
   } else {
     const raw = tree.read('nx.json', 'utf-8')
-    if (!raw) return
+    if (raw === null) return
     const errors: NonNullable<Parameters<typeof parse>[1]> = []
     const nxJson = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
     if (errors.length > 0) {
@@ -158,10 +158,14 @@ function ensureNxJson(tree: Tree): void {
       filtered.push('@nx-devkit/typescript')
       nxJson.plugins = filtered
       // Use jsonc-parser modify to preserve formatting and comments
-      const edits = require('jsonc-parser').modify(raw, ['plugins'], filtered, {
-        formattingOptions: { insertSpaces: true, tabSize: 2 },
+      // Detect formatting from raw content
+      const eol = raw.includes('\r\n') ? '\r\n' : '\n'
+      const indentMatch = raw.match(/^\s*/)
+      const indent = indentMatch ? indentMatch[0].length : 2
+      const edits = modify(raw, ['plugins'], filtered, {
+        formattingOptions: { insertSpaces: true, tabSize: indent, eol },
       })
-      tree.write('nx.json', require('jsonc-parser').applyEdits(raw, edits))
+      tree.write('nx.json', applyEdits(raw, edits))
     }
   }
 }
