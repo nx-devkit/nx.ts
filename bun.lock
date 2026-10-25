@@ -281,7 +281,7 @@
     },
     "packages/release": {
       "name": "@nx-devkit/release",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@nx/devkit": "^22.0.0 || ^23.0.0",
       },
@@ -359,7 +359,7 @@
     },
     "packages/typescript-preset": {
       "name": "@nx-devkit/typescript",
-      "version": "0.2.19",
+      "version": "0.2.20",
       "bin": {
         "nx-devkit-typescript": "./dist/bin/init.mjs",
       },

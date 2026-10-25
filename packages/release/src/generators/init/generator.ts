@@ -91,6 +91,7 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
     // Try to migrate an existing generated workflow from --version to --releaseVersion
     // Only migrate if it matches the previously generated template exactly
     const existing = tree.read(workflowPath, 'utf-8')
+    if (!existing) return
 
     // Check if this is a previously generated workflow by looking for the exact Nx release step
     const oldReleaseStep = `npx nx run ${projectName}:release \\\n            --version="\${{ inputs.version }}" \\\n            --dryRun="\${{ inputs.dry-run }}"`
@@ -165,7 +166,8 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
         let end = lines.length
         for (let i = jobIdx + 1; i < lines.length; i++) {
           // Next job (2-space key) or next top-level key ends the release job
-          if (/^ {0,2}\S/.test(lines[i]) && i > jobIdx + 1) {
+          const line = lines[i]
+          if (line && /^ {0,2}\S/.test(line) && i > jobIdx + 1) {
             end = i
             break
           }
