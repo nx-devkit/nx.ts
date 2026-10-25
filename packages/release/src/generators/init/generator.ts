@@ -88,7 +88,17 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
   const workflowPath = '.github/workflows/release.yml'
 
   if (tree.exists(workflowPath)) {
-    // Don't overwrite an existing workflow — user may have customized it
+    // Try to migrate an existing generated workflow from --version to --releaseVersion
+    // Only migrate if it matches the previously generated template exactly
+    const existing = tree.read(workflowPath, 'utf-8')
+    const oldVersionFlag = '--version="\${{ inputs.version }}"'
+    const newVersionFlag = '--releaseVersion="\${{ inputs.version }}"'
+    if (existing.includes(oldVersionFlag) && !existing.includes(newVersionFlag)) {
+      const migrated = existing.replace(oldVersionFlag, newVersionFlag)
+      tree.write(workflowPath, migrated)
+      console.log(`Migrated existing release.yml from --version to --releaseVersion`)
+    }
+    // If it doesn't match the old template, assume it's customized and leave it
     return
   }
 

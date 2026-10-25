@@ -54,11 +54,12 @@ function readJsonc(tree: Tree, path: string): Record<string, unknown> | null {
   if (!tree.exists(path)) return null
   const raw = tree.read(path, 'utf8')
   if (raw === null) return null
-  try {
-    return parse(raw) as Record<string, unknown>
-  } catch (error) {
-    throw new Error(`Failed to parse ${path}`, { cause: error })
+  const errors: NonNullable<Parameters<typeof parse>[1]> = []
+  const value = parse(raw, errors, { allowTrailingComma: true })
+  if (errors.length > 0) {
+    throw new Error(`Failed to parse ${path}: ${errors.map((e) => e.message).join(', ')}`)
   }
+  return value as Record<string, unknown>
 }
 
 function writeJson(tree: Tree, path: string, value: unknown): void {
@@ -87,9 +88,13 @@ function ensureRootPackageJson(tree: Tree): void {
         | { packages?: string[]; apps?: string[]; libs?: string[] }
         | undefined) ?? []
     let workspaces: string[] = []
+    const isObjectForm =
+      typeof existingWorkspaces === 'object' &&
+      existingWorkspaces !== null &&
+      !Array.isArray(existingWorkspaces)
     if (Array.isArray(existingWorkspaces)) {
       workspaces = [...existingWorkspaces]
-    } else if (typeof existingWorkspaces === 'object' && existingWorkspaces !== null) {
+    } else if (isObjectForm) {
       workspaces = [
         ...(existingWorkspaces.packages ?? []),
         ...(existingWorkspaces.apps ?? []),
@@ -106,7 +111,15 @@ function ensureRootPackageJson(tree: Tree): void {
     ]
     const missing = requiredWorkspaces.filter((ws) => !workspaces.includes(ws))
     if (missing.length > 0) {
-      pkg.workspaces = [...workspaces, ...missing]
+      if (isObjectForm) {
+        // Preserve object-form workspaces (e.g., Yarn Classic nohoist)
+        pkg.workspaces = {
+          ...existingWorkspaces,
+          packages: [...(existingWorkspaces.packages ?? []), ...missing],
+        }
+      } else {
+        pkg.workspaces = [...workspaces, ...missing]
+      }
       writeJson(tree, 'package.json', pkg)
     }
   }
@@ -119,7 +132,13 @@ function ensureNxJson(tree: Tree): void {
       plugins: ['@nx-devkit/typescript'],
     })
   } else {
-    const nxJson = readJsonc(tree, 'nx.json') ?? {}
+    const raw = tree.read('nx.json', 'utf-8')
+    if (!raw) return
+    const errors: NonNullable<Parameters<typeof parse>[1]> = []
+    const nxJson = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
+    if (errors.length > 0) {
+      throw new Error(`Failed to parse nx.json: ${errors.map((e) => e.message).join(', ')}`)
+    }
     const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : []
     const hasPreset = plugins.some(
       (entry) =>
@@ -138,7 +157,11 @@ function ensureNxJson(tree: Tree): void {
       })
       filtered.push('@nx-devkit/typescript')
       nxJson.plugins = filtered
-      writeJson(tree, 'nx.json', nxJson)
+      // Use jsonc-parser modify to preserve formatting and comments
+      const edits = require('jsonc-parser').modify(raw, ['plugins'], filtered, {
+        formattingOptions: { insertSpaces: true, tabSize: 2 },
+      })
+      tree.write('nx.json', require('jsonc-parser').applyEdits(raw, edits))
     }
   }
 }
@@ -148,6 +171,10 @@ function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): voi
     const pathAliasPrefix = pkgName.startsWith('@')
       ? pkgName.slice(0, pkgName.indexOf('/'))
       : `@${pkgName}`
+    // For scoped packages, include scope directory in path mapping
+    // e.g., @scope/my-pkg -> packages/@scope/*/src
+    const scopeDir = pkgName.startsWith('@') ? pkgName.slice(0, pkgName.indexOf('/')) : ''
+    const pathTarget = scopeDir ? `${directory}/${scopeDir}/*/src` : `${directory}/*/src`
     const tsconfigBase = {
       compilerOptions: {
         target: 'ES2024',
@@ -164,7 +191,7 @@ function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): voi
         noEmit: true,
         baseUrl: '.',
         paths: {
-          [`${pathAliasPrefix}/*`]: [`${directory}/*/src`],
+          [`${pathAliasPrefix}/*`]: [pathTarget],
         },
       },
     }
@@ -260,14 +287,17 @@ function createPackageStructure(
   writeJson(tree, `${pkgPath}/tsconfig.json`, tsconfigJson)
 
   // src/index.ts
-  if (!tree.exists(`${pkgPath}/src`)) {
+  const sourceFilePath = `${pkgPath}/src/index.ts`
+  let sourceCreated = false
+  if (!tree.exists(sourceFilePath)) {
     tree.write(
-      `${pkgPath}/src/index.ts`,
+      sourceFilePath,
       `export function hello(): string {
   return 'Hello from ${pkgName}!'
 }
 `,
     )
+    sourceCreated = true
   }
 
   // vitest.config.ts
@@ -335,9 +365,10 @@ export default defineConfig({
     tree.write(`${pkgPath}/tsdown.config.ts`, tsdownConfig)
   }
 
-  // Test file - check for test file specifically, not directory
+  // Test file - create only when source file was created or already exists
+  // (don't create a test that imports from a missing source)
   const testFilePath = `${pkgPath}/src/index.test.ts`
-  if (options.test) {
+  if (options.test && (sourceCreated || tree.exists(sourceFilePath))) {
     if (!tree.exists(testFilePath)) {
       if (options.nativeTest) {
         // Native Node test runner - use assert from node:assert/strict
