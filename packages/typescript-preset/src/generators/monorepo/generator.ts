@@ -127,7 +127,14 @@ function ensureNxJson(tree: Tree): void {
     })
   } else {
     const raw = tree.read('nx.json', 'utf-8')
-    if (raw === null || raw.trim() === '') return
+    if (raw === null || raw.trim() === '') {
+      // Treat empty or whitespace-only nx.json like a missing file
+      writeJson(tree, 'nx.json', {
+        $schema: './node_modules/nx/schemas/nx-schema.json',
+        plugins: ['@nx-devkit/typescript'],
+      })
+      return
+    }
     const errors: NonNullable<Parameters<typeof parse>[1]> = []
     const nxJson = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
     if (errors.length > 0) {

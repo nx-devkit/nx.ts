@@ -102,7 +102,7 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
       // Also remove NODE_AUTH_TOKEN and environment: npm from previously generated workflows
       // These break --provenance and can stall the workflow
       // Use simple string operations to avoid ReDoS-vulnerable regex
-      const setupNodeStart = migrated.indexOf('  - name: Setup Node.js')
+      const setupNodeStart = migrated.indexOf('      - name: Setup Node.js')
       const registryUrlEnd = migrated.indexOf(
         "registry-url: 'https://registry.npmjs.org'",
         setupNodeStart,
@@ -133,13 +133,22 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
         migrated = migrated.replace(envWithToken, envWithoutToken)
       }
 
-      // Remove environment: npm from the job
-      const envNpmLine = '    environment: npm'
-      const envNpmLineAlt = '  environment: npm'
-      if (migrated.includes(envNpmLine)) {
-        migrated = migrated.replace(envNpmLine + '\n', '')
-      } else if (migrated.includes(envNpmLineAlt)) {
-        migrated = migrated.replace(envNpmLineAlt + '\n', '')
+      // Remove environment: npm only from the release job
+      // Find the release job first, then remove environment: npm from it
+      const releaseJobStart = migrated.indexOf('  release:')
+      if (releaseJobStart !== -1) {
+        const nextJobStart = migrated.indexOf('\n  ', releaseJobStart + 1)
+        const jobContent =
+          nextJobStart !== -1
+            ? migrated.slice(releaseJobStart, nextJobStart)
+            : migrated.slice(releaseJobStart)
+        const beforeJob = migrated.slice(0, releaseJobStart)
+        const afterJob = nextJobStart !== -1 ? migrated.slice(nextJobStart) : ''
+        const envNpmLine = '    environment: npm'
+        if (jobContent.includes(envNpmLine)) {
+          const fixedJobContent = jobContent.replace(envNpmLine + '\n', '')
+          migrated = beforeJob + fixedJobContent + afterJob
+        }
       }
 
       tree.write(workflowPath, migrated)
