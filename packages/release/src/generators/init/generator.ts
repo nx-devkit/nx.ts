@@ -101,19 +101,46 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
 
       // Also remove NODE_AUTH_TOKEN and environment: npm from previously generated workflows
       // These break --provenance and can stall the workflow
-      migrated = migrated.replace(
-        /  - name: Setup Node\.js[\s\S]*?registry-url: 'https:\/\/registry\.npmjs\.org'/m,
-        `      - name: Setup Node.js\n        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4\n        with:\n          node-version: lts/*\n          check-latest: true\n          registry-url: 'https://registry.npmjs.org'`,
+      // Use simple string operations to avoid ReDoS-vulnerable regex
+      const setupNodeStart = migrated.indexOf('  - name: Setup Node.js')
+      const registryUrlEnd = migrated.indexOf(
+        "registry-url: 'https://registry.npmjs.org'",
+        setupNodeStart,
       )
+      if (setupNodeStart !== -1 && registryUrlEnd !== -1) {
+        const registryUrlLineEnd = migrated.indexOf('\n', registryUrlEnd)
+        if (registryUrlLineEnd !== -1) {
+          const before = migrated.slice(0, setupNodeStart)
+          const after = migrated.slice(registryUrlLineEnd + 1)
+          migrated =
+            before +
+            `      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: lts/*
+          check-latest: true
+          registry-url: 'https://registry.npmjs.org'
+` +
+            after
+        }
+      }
 
       // Remove NODE_AUTH_TOKEN from the Release step env
-      migrated = migrated.replace(
-        /env:\s*\n\s*GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}\s*\n\s*NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/m,
-        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
-      )
+      const envWithToken =
+        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}'
+      const envWithoutToken = 'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
+      if (migrated.includes(envWithToken)) {
+        migrated = migrated.replace(envWithToken, envWithoutToken)
+      }
 
       // Remove environment: npm from the job
-      migrated = migrated.replace(/\s*environment: npm\s*\n/m, '\n')
+      const envNpmLine = '    environment: npm'
+      const envNpmLineAlt = '  environment: npm'
+      if (migrated.includes(envNpmLine)) {
+        migrated = migrated.replace(envNpmLine + '\n', '')
+      } else if (migrated.includes(envNpmLineAlt)) {
+        migrated = migrated.replace(envNpmLineAlt + '\n', '')
+      }
 
       tree.write(workflowPath, migrated)
       console.log(`Migrated existing release.yml from --version to --releaseVersion`)
