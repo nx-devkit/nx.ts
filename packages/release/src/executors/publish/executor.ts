@@ -11,7 +11,7 @@ export interface NxReleasePublishOptions {
   /** Path to the package directory containing package.json. Default: project root. */
   packagePath?: string
   /** Version to release (x.y.z, or patch|minor|major vs npm latest). Default: "patch". */
-  version?: string
+  releaseVersion?: string
   /**
    * Execution mode:
    * - `full` (default): publish → bump commit + tag → push branch + tag → GitHub Release.
@@ -434,7 +434,7 @@ function resolveOptions(
   return {
     packageName: options.packageName ?? pkg.name,
     packagePath: options.packagePath ?? '.',
-    version: options.version ?? 'patch',
+    version: options.releaseVersion ?? 'patch',
     mode: options.mode ?? 'full',
     dryRun: options.dryRun ?? false,
     registry: options.registry ?? DEFAULT_REGISTRY,

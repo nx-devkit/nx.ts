@@ -1,7 +1,7 @@
 {
   "generators": {
     "init": {
-      "implementation": "./dist/generators/init/generator",
+      "implementation": "./dist/generators/init/generator.mjs",
       "schema": "./src/generators/init/schema.json",
       "description": "Sets up the release workflow: creates a tools project with the publish target, registers the plugin, and creates .github/workflows/release.yml."
     }

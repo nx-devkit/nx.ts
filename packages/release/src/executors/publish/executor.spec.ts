@@ -83,7 +83,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.1')
     mockFlow({ 'npm view': ok('0.4.1'), ...NO_REMOTE })
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch' })
+    const result = await publishExecutor({ packagePath: dir, releaseVersion: 'patch' })
     expect(result.success).toBe(true)
     expect(result.version).toBe('0.4.2')
     expect(result.published).toBe(true)
@@ -94,7 +94,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.2')
     mockFlow({ 'npm view': ok('0.4.2'), ...RELEASED })
 
-    const result = await publishExecutor({ packagePath: dir, version: '0.4.2' })
+    const result = await publishExecutor({ packagePath: dir, releaseVersion: '0.4.2' })
     expect(result.success).toBe(true)
     expect(result.skipped).toContain('already published, tagged, and released')
   })
@@ -110,7 +110,7 @@ describe('publishExecutor', () => {
       'gh release create': ok(),
     })
 
-    const result = await publishExecutor({ packagePath: dir, version: '0.4.2' })
+    const result = await publishExecutor({ packagePath: dir, releaseVersion: '0.4.2' })
     expect(result.success).toBe(true)
     expect(result.releaseCreated).toBe(true)
     expect(result.published).toBe(false)
@@ -199,7 +199,7 @@ describe('publishExecutor', () => {
       'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.3.9' })),
     })
 
-    await expect(publishExecutor({ packagePath: dir, version: 'patch' })).rejects.toThrow(
+    await expect(publishExecutor({ packagePath: dir, releaseVersion: 'patch' })).rejects.toThrow(
       'stale tag',
     )
   })
@@ -239,7 +239,7 @@ describe('publishExecutor', () => {
       'git show': ok(JSON.stringify({ name: '@test/pkg', version: '0.3.9' })),
     })
 
-    await expect(publishExecutor({ packagePath: dir, version: 'patch' })).rejects.toThrow(
+    await expect(publishExecutor({ packagePath: dir, releaseVersion: 'patch' })).rejects.toThrow(
       'stale tag',
     )
   })
@@ -248,7 +248,11 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.1')
     mockFlow()
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch', dryRun: true })
+    const result = await publishExecutor({
+      packagePath: dir,
+      releaseVersion: 'patch',
+      dryRun: true,
+    })
     expect(result.success).toBe(true)
     expect(result.skipped).toContain('dry run')
   })
@@ -257,7 +261,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.1')
     mockFlow({ 'npm view': fail('not found'), ...NO_REMOTE })
 
-    const result = await publishExecutor({ packagePath: dir, version: '1.0.0' })
+    const result = await publishExecutor({ packagePath: dir, releaseVersion: '1.0.0' })
     expect(result.success).toBe(true)
     expect(result.version).toBe('1.0.0')
   })
@@ -280,7 +284,11 @@ describe('publishExecutor', () => {
       'gh pr create': ok('https://github.com/x/y/pull/1'),
     })
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch', mode: 'bump' })
+    const result = await publishExecutor({
+      packagePath: dir,
+      releaseVersion: 'patch',
+      mode: 'bump',
+    })
     expect(result.success).toBe(true)
     expect(result.version).toBe('0.4.2')
     expect(result.published).toBe(false)
@@ -301,7 +309,11 @@ describe('publishExecutor', () => {
       'gh pr create': fail('a pull request already exists'),
     })
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch', mode: 'bump' })
+    const result = await publishExecutor({
+      packagePath: dir,
+      releaseVersion: 'patch',
+      mode: 'bump',
+    })
     expect(result.success).toBe(true)
     expect(result.prCreated).toBe(false)
     expect(result.skipped).toContain('release branch already exists')
@@ -316,7 +328,11 @@ describe('publishExecutor', () => {
       'gh pr create': ok('https://github.com/x/y/pull/9'),
     })
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch', mode: 'bump' })
+    const result = await publishExecutor({
+      packagePath: dir,
+      releaseVersion: 'patch',
+      mode: 'bump',
+    })
     expect(result.success).toBe(true)
     expect(result.prCreated).toBe(true)
     expect(result.skipped).not.toContain('release branch already exists')
@@ -377,7 +393,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '1.0.0-beta.2')
     mockFlow({ 'npm view': ok('1.0.0-beta.10'), 'git ls-remote --tags': ok('') })
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch' })
+    const result = await publishExecutor({ packagePath: dir, releaseVersion: 'patch' })
     expect(result.version).toBe('1.0.0-beta.10')
   })
 
@@ -385,7 +401,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '1.0.0-beta.2')
     mockFlow({ 'npm view': fail('not published'), 'git ls-remote --tags': ok('') })
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch' })
+    const result = await publishExecutor({ packagePath: dir, releaseVersion: 'patch' })
     expect(result.version).toBe('1.0.0')
   })
 
@@ -398,7 +414,7 @@ describe('publishExecutor', () => {
       'gh pr create': ok('https://github.com/x/y/pull/1'),
     })
 
-    await publishExecutor({ packagePath: dir, version: 'patch', mode: 'bump' })
+    await publishExecutor({ packagePath: dir, releaseVersion: 'patch', mode: 'bump' })
     expect(calls).toContainEqual(`git add ${dir}/package-lock.json`)
   })
 
@@ -410,7 +426,7 @@ describe('publishExecutor', () => {
       'gh pr create': ok('https://github.com/x/y/pull/1'),
     })
 
-    await publishExecutor({ packagePath: dir, version: 'patch', mode: 'bump' })
+    await publishExecutor({ packagePath: dir, releaseVersion: 'patch', mode: 'bump' })
     expect(calls).toContainEqual('git fetch origin main')
     expect(calls).toContainEqual('git checkout -B release/v0.4.2 origin/main')
   })
@@ -423,7 +439,7 @@ describe('publishExecutor', () => {
       'git diff --cached': fail('diff'),
     })
 
-    const result = await publishExecutor({ packagePath: dir, version: 'patch' })
+    const result = await publishExecutor({ packagePath: dir, releaseVersion: 'patch' })
     expect(result.success).toBe(true)
     expect(result.version).toBe('0.4.2')
     expect(result.published).toBe(false)
@@ -435,7 +451,7 @@ describe('publishExecutor', () => {
     const dir = makePkgDir('@test/pkg', '0.4.1')
     const calls = mockFlow({ 'npm view': ok('0.4.1'), ...NO_REMOTE })
 
-    await publishExecutor({ packagePath: dir, version: 'patch' })
+    await publishExecutor({ packagePath: dir, releaseVersion: 'patch' })
     const pushIdx = calls.indexOf('git push origin main'),
       publishIdx = calls.findIndex((c) => c.startsWith('npm publish')),
       tagIdx = calls.indexOf('git tag v0.4.2')

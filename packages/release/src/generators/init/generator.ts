@@ -122,7 +122,6 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    environment: npm
     timeout-minutes: 10
 
     steps:
@@ -156,10 +155,9 @@ jobs:
       - name: Release
         env:
           GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: \${{ secrets.NPM_TOKEN }}
         run: |
           npx nx run ${projectName}:release \\
-            --version="\${{ inputs.version }}" \\
+            --releaseVersion="\${{ inputs.version }}" \\
             --dryRun="\${{ inputs.dry-run }}"
 `
 
@@ -192,7 +190,7 @@ export async function initGenerator(
 
   const checklist = [
     `1. Install the plugin: npm install -D ${PLUGIN_NAME}`,
-    `2. Run a dry run: npx nx run ${projectName}:release --version=patch --dryRun=true`,
+    `2. Run a dry run: npx nx run ${projectName}:release --releaseVersion=patch --dryRun=true`,
     `3. Run a real release: gh workflow run release.yml -f version=patch -f dry-run=false`,
     '4. The workflow publishes to npm via OIDC, pushes the bump+tag to main, and creates a GitHub Release.',
   ]
