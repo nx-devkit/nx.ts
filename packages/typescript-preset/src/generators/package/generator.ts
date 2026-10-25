@@ -129,30 +129,43 @@ function ensureRootPackageJson(tree: Tree): void {
     if (missing.length > 0) {
       // Use jsonc-parser modify to preserve formatting and comments
       // Use array-element paths to preserve comments inside arrays/objects
+      // Handle case where workspaces doesn't exist yet - create it first
       const eol = raw.includes('\r\n') ? '\r\n' : '\n'
       const indentMatch = raw.match(/^\s*/)
       const indent = indentMatch ? indentMatch[0].length : 2
       const formattingOptions = { insertSpaces: true, tabSize: indent, eol }
       let updated = raw
       if (isObjectForm) {
-        // For object form, add missing globs to packages array
-        const existingPackages = existingWorkspaces.packages ?? []
-        for (const [index, glob] of missing.entries()) {
-          const edits = modify(
-            updated,
-            ['workspaces', 'packages', existingPackages.length + index],
-            glob,
-            { formattingOptions },
-          )
+        // For object form, ensure packages array exists, then add missing globs
+        if (existingWorkspaces.packages === undefined) {
+          // Create the packages array with missing globs
+          const edits = modify(updated, ['workspaces', 'packages'], missing, { formattingOptions })
           updated = applyEdits(updated, edits)
+        } else {
+          const existingPackages = existingWorkspaces.packages ?? []
+          for (const [index, glob] of missing.entries()) {
+            const edits = modify(
+              updated,
+              ['workspaces', 'packages', existingPackages.length + index],
+              glob,
+              { formattingOptions },
+            )
+            updated = applyEdits(updated, edits)
+          }
         }
       } else {
-        // For array form, add to the end of the array
-        for (const [index, glob] of missing.entries()) {
-          const edits = modify(updated, ['workspaces', workspaces.length + index], glob, {
-            formattingOptions,
-          })
+        // For array form, ensure workspaces array exists, then add missing globs
+        if (workspaces.length === 0) {
+          // Create the workspaces array with missing globs
+          const edits = modify(updated, ['workspaces'], missing, { formattingOptions })
           updated = applyEdits(updated, edits)
+        } else {
+          for (const [index, glob] of missing.entries()) {
+            const edits = modify(updated, ['workspaces', workspaces.length + index], glob, {
+              formattingOptions,
+            })
+            updated = applyEdits(updated, edits)
+          }
         }
       }
       tree.write('package.json', updated)
