@@ -4,7 +4,7 @@ import {
   formatFiles,
   addDependenciesToPackageJson,
 } from '@nx/devkit'
-import { parse, modify, applyEdits } from 'jsonc-parser'
+import { parse, modify, applyEdits, printParseErrorCode } from 'jsonc-parser'
 
 export interface NxTypescriptPackageOptions {
   /** Name of the new package. */
@@ -57,7 +57,9 @@ function readJsonc(tree: Tree, path: string): Record<string, unknown> | null {
   const errors: NonNullable<Parameters<typeof parse>[1]> = []
   const value = parse(raw, errors, { allowTrailingComma: true })
   if (errors.length > 0) {
-    throw new Error(`Failed to parse ${path}: ${errors.map((e) => e.message).join(', ')}`)
+    throw new Error(
+      `Failed to parse ${path}: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
+    )
   }
   return value as Record<string, unknown>
 }
@@ -133,11 +135,13 @@ function ensureNxJson(tree: Tree): void {
     })
   } else {
     const raw = tree.read('nx.json', 'utf-8')
-    if (raw === null) return
+    if (raw === null || raw.trim() === '') return
     const errors: NonNullable<Parameters<typeof parse>[1]> = []
     const nxJson = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
     if (errors.length > 0) {
-      throw new Error(`Failed to parse nx.json: ${errors.map((e) => e.message).join(', ')}`)
+      throw new Error(
+        `Failed to parse nx.json: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
+      )
     }
     const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : []
     const hasPreset = plugins.some(
@@ -369,10 +373,10 @@ export default defineConfig({
     tree.write(`${pkgPath}/tsdown.config.ts`, tsdownConfig)
   }
 
-  // Test file - create only when source file was created or already exists
+  // Test file - create only when source file was created by this generator
   // (don't create a test that imports from a missing source)
   const testFilePath = `${pkgPath}/src/index.test.ts`
-  if (options.test && (sourceCreated || tree.exists(sourceFilePath))) {
+  if (options.test && sourceCreated) {
     if (!tree.exists(testFilePath)) {
       if (options.nativeTest) {
         // Native Node test runner - use assert from node:assert/strict

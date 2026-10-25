@@ -91,10 +91,30 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
     // Try to migrate an existing generated workflow from --version to --releaseVersion
     // Only migrate if it matches the previously generated template exactly
     const existing = tree.read(workflowPath, 'utf-8')
-    const oldVersionFlag = '--version="\${{ inputs.version }}"'
-    const newVersionFlag = '--releaseVersion="\${{ inputs.version }}"'
-    if (existing.includes(oldVersionFlag) && !existing.includes(newVersionFlag)) {
-      const migrated = existing.replace(oldVersionFlag, newVersionFlag)
+
+    // Check if this is a previously generated workflow by looking for the exact Nx release step
+    const oldReleaseStep = `npx nx run ${projectName}:release \\\n            --version="\${{ inputs.version }}" \\\n            --dryRun="\${{ inputs.dry-run }}"`
+    const newReleaseStep = `npx nx run ${projectName}:release \\\n            --releaseVersion="\${{ inputs.version }}" \\\n            --dryRun="\${{ inputs.dry-run }}"`
+
+    if (existing.includes(oldReleaseStep) && !existing.includes(newReleaseStep)) {
+      let migrated = existing.replace(oldReleaseStep, newReleaseStep)
+
+      // Also remove NODE_AUTH_TOKEN and environment: npm from previously generated workflows
+      // These break --provenance and can stall the workflow
+      migrated = migrated.replace(
+        /  - name: Setup Node\.js[\s\S]*?registry-url: 'https:\/\/registry\.npmjs\.org'/m,
+        `      - name: Setup Node.js\n        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4\n        with:\n          node-version: lts/*\n          check-latest: true\n          registry-url: 'https://registry.npmjs.org'`,
+      )
+
+      // Remove NODE_AUTH_TOKEN from the Release step env
+      migrated = migrated.replace(
+        /env:\s*\n\s*GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}\s*\n\s*NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/m,
+        'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
+      )
+
+      // Remove environment: npm from the job
+      migrated = migrated.replace(/\s*environment: npm\s*\n/m, '\n')
+
       tree.write(workflowPath, migrated)
       console.log(`Migrated existing release.yml from --version to --releaseVersion`)
     }
