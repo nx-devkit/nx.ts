@@ -140,6 +140,7 @@ function ensureRootPackageJson(tree: Tree): void {
         pkg.workspaces = [...workspaces, ...missing]
       }
       // Use jsonc-parser modify to preserve formatting and comments
+      // Detect formatting from raw content
       const eol = raw.includes('\r\n') ? '\r\n' : '\n'
       const indentMatch = raw.match(/^\s*/)
       const indent = indentMatch ? indentMatch[0].length : 2

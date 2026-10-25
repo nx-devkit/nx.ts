@@ -89,7 +89,7 @@ function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: st
         version: '0.0.0',
         private: true,
         workspaces: workspaceGlobs,
-        packageManager: 'bun@latest',
+        packageManager: `${options.packageManager}@latest`,
       })
       return
     }
