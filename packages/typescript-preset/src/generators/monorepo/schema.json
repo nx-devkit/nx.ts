@@ -9,7 +9,11 @@
     "name": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^@?[a-z0-9-]+(?:/[a-z0-9-]+)?$",
+      "pattern": "^(?:@[a-z0-9-~][a-z0-9-~._]*\\/)?[a-z0-9-~][a-z0-9-~._]*$",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
       "description": "Name of the first package (also used as the workspace name). Must be a valid npm package name."
     },
     "packageDir": {
