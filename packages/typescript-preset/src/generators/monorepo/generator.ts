@@ -71,7 +71,12 @@ function getWorkspaceGlobs(packageDir: string): string[] {
   return [`${base}/*`, `${base}/@*/*`]
 }
 
-function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: string): void {
+function ensureRootPackageJson(
+  tree: Tree,
+  workspaceName: string,
+  packageDir: string,
+  packageManager: string,
+): void {
   const workspaceGlobs = getWorkspaceGlobs(packageDir)
   if (!tree.exists('package.json')) {
     writeJson(tree, 'package.json', {
@@ -79,7 +84,7 @@ function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: st
       version: '0.0.0',
       private: true,
       workspaces: workspaceGlobs,
-      packageManager: 'bun@latest',
+      packageManager: `${packageManager}@latest`,
     })
   } else {
     const raw = tree.read('package.json', 'utf-8')
@@ -89,7 +94,7 @@ function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: st
         version: '0.0.0',
         private: true,
         workspaces: workspaceGlobs,
-        packageManager: `${options.packageManager}@latest`,
+        packageManager: `${packageManager}@latest`,
       })
       return
     }
@@ -126,8 +131,8 @@ function ensureRootPackageJson(tree: Tree, workspaceName: string, packageDir: st
       // Use array-element paths to preserve comments inside arrays/objects
       // Handle case where workspaces doesn't exist yet - create it first
       const eol = raw.includes('\r\n') ? '\r\n' : '\n'
-      const indentMatch = raw.match(/^\s*/)
-      const indent = indentMatch ? indentMatch[0].length : 2
+      const indentMatch = raw.match(/^([ \t]+)\S/m)
+      const indent = indentMatch ? indentMatch[1].length : 2
       const formattingOptions = { insertSpaces: true, tabSize: indent, eol }
       let updated = raw
       if (isObjectForm) {
@@ -517,7 +522,7 @@ export async function monorepoGenerator(
   }
 
   // 1. Ensure root package.json with workspace config
-  ensureRootPackageJson(tree, name, packageDir)
+  ensureRootPackageJson(tree, name, packageDir, options.packageManager)
 
   // 2. Ensure nx.json with preset
   ensureNxJson(tree)

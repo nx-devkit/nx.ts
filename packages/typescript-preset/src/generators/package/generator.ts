@@ -131,8 +131,8 @@ function ensureRootPackageJson(tree: Tree): void {
       // Use array-element paths to preserve comments inside arrays/objects
       // Handle case where workspaces doesn't exist yet - create it first
       const eol = raw.includes('\r\n') ? '\r\n' : '\n'
-      const indentMatch = raw.match(/^\s*/)
-      const indent = indentMatch ? indentMatch[0].length : 2
+      const indentMatch = raw.match(/^([ \t]+)\S/m)
+      const indent = indentMatch ? indentMatch[1].length : 2
       const formattingOptions = { insertSpaces: true, tabSize: indent, eol }
       let updated = raw
       if (isObjectForm) {

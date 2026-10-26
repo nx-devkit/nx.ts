@@ -134,24 +134,16 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
         const stepStart = migrated.lastIndexOf('\n      - name: Release', releaseStepIdx)
         if (stepStart !== -1) {
           // Find the end of this step (next step or end of steps)
-          const stepsEnd = migrated.indexOf('\n    ', stepStart + 1)
-          const stepEnd = stepsEnd !== -1 ? stepsEnd : migrated.length
+          // Use next step marker (6 spaces + "- ") instead of first indented line
+          const nextStep = migrated.indexOf('\n      - ', stepStart + 1)
+          const stepEnd = nextStep !== -1 ? nextStep : migrated.length
           const stepContent = migrated.slice(stepStart, stepEnd)
 
           // Remove NODE_AUTH_TOKEN from env within this step
-          const envVariants = [
-            'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
-            'env:\n  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}',
-            'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n',
-          ]
-          const envClean = 'env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
-          let fixedStep = stepContent
-          for (const variant of envVariants) {
-            if (fixedStep.includes(variant)) {
-              fixedStep = fixedStep.replace(variant, envClean)
-              break
-            }
-          }
+          const fixedStep = stepContent
+            .split('\n')
+            .filter((line) => !line.trim().startsWith('NODE_AUTH_TOKEN:'))
+            .join('\n')
 
           // Replace the step in migrated
           migrated = migrated.slice(0, stepStart) + fixedStep + migrated.slice(stepEnd)
@@ -167,7 +159,7 @@ function createReleaseWorkflow(tree: Tree, projectName: string): void {
         for (let i = jobIdx + 1; i < lines.length; i++) {
           // Next job (2-space key) or next top-level key ends the release job
           const line = lines[i]
-          if (line && /^ {0,2}\S/.test(line) && i > jobIdx + 1) {
+          if (line !== undefined && /^ {0,2}\S/.test(line)) {
             end = i
             break
           }
