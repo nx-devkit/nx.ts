@@ -6,6 +6,34 @@ import {
 } from '@nx/devkit'
 import { parse, modify, applyEdits, printParseErrorCode } from 'jsonc-parser'
 
+/** Detect the indentation of a JSON/JSONC document, skipping block comments. */
+function detectIndent(text: string): number {
+  const lines = text.split('\n')
+  let inBlockComment = false
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // Skip block comment start/end
+    if (trimmed.startsWith('/*') && !trimmed.startsWith('//')) {
+      inBlockComment = true
+      continue
+    }
+    if (trimmed.endsWith('*/')) {
+      inBlockComment = false
+      continue
+    }
+    // Skip block comment continuation lines
+    if (inBlockComment) continue
+    // Skip single-line comments
+    if (trimmed.startsWith('//')) continue
+    // Find first non-empty, non-comment line with indentation
+    const indentMatch = line.match(/^([ \t]+)\S/)
+    if (indentMatch) {
+      return indentMatch[1].length
+    }
+  }
+  return 2
+}
+
 export interface NxTypescriptPackageOptions {
   /** Name of the new package. */
   name: string
@@ -131,8 +159,7 @@ function ensureRootPackageJson(tree: Tree): void {
       // Use array-element paths to preserve comments inside arrays/objects
       // Handle case where workspaces doesn't exist yet - create it first
       const eol = raw.includes('\r\n') ? '\r\n' : '\n'
-      const indentMatch = raw.match(/^([ \t]+)\S/m)
-      const indent = indentMatch ? indentMatch[1].length : 2
+      const indent = detectIndent(raw)
       const formattingOptions = { insertSpaces: true, tabSize: indent, eol }
       let updated = raw
       if (isObjectForm) {
@@ -217,8 +244,7 @@ function ensureNxJson(tree: Tree): void {
       // Use jsonc-parser modify to preserve formatting and comments
       // Detect formatting from raw content
       const eol = raw.includes('\r\n') ? '\r\n' : '\n'
-      const indentMatch = raw.match(/^\s*/)
-      const indent = indentMatch ? indentMatch[0].length : 2
+      const indent = detectIndent(raw)
       const edits = modify(raw, ['plugins'], filtered, {
         formattingOptions: { insertSpaces: true, tabSize: indent, eol },
       })
