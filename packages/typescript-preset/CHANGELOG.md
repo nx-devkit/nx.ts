@@ -1,3 +1,13 @@
+## 0.2.21 (2026-10-26)
+
+### 🩹 Fixes
+
+- **release:** fix init generator, version flag collision, and workflow NODE_AUTH_TOKEN ([#143](https://github.com/nx-devkit/nx.ts/pull/143), [#137](https://github.com/nx-devkit/nx.ts/issues/137))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.2.20 (2026-10-25)
 
 ### 🚀 Features

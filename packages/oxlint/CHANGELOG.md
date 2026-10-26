@@ -1,3 +1,7 @@
+## 0.1.20 (2026-10-26)
+
+This was a version bump only for @nx-devkit/oxlint to align it with other projects, there were no code changes.
+
 ## 0.1.19 (2026-10-22)
 
 This was a version bump only for @nx-devkit/oxlint to align it with other projects, there were no code changes.
