@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/sverka",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "description": "Nx plugin: a sverka config infers one cached Nx target per sverka step \u2014 no project.json required.",
   "keywords": [
