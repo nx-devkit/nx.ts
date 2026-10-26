@@ -76,6 +76,12 @@ describe('initGenerator', () => {
     expect(workflow).toContain('npx nx run tools:release')
     expect(workflow).toContain('contents: write')
     expect(workflow).toContain('id-token: write')
+    // No NODE_AUTH_TOKEN — breaks --provenance (OIDC)
+    expect(workflow).not.toContain('NODE_AUTH_TOKEN')
+    // No environment: npm — can stall waiting for approval
+    expect(workflow).not.toContain('environment: npm')
+    // Uses --releaseVersion (not --version, which is reserved by Nx)
+    expect(workflow).toContain('--releaseVersion=')
   })
 
   it('does not overwrite existing release.yml', async () => {

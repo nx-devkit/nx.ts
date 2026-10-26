@@ -4,7 +4,35 @@ import {
   formatFiles,
   addDependenciesToPackageJson,
 } from '@nx/devkit'
-import { parse } from 'jsonc-parser'
+import { parse, modify, applyEdits, printParseErrorCode } from 'jsonc-parser'
+
+/** Detect the indentation of a JSON/JSONC document, skipping block comments. */
+function detectIndent(text: string): number {
+  const lines = text.split('\n')
+  let inBlockComment = false
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // Skip block comment start/end
+    if (trimmed.startsWith('/*') && !trimmed.startsWith('//')) {
+      inBlockComment = true
+      continue
+    }
+    if (trimmed.endsWith('*/')) {
+      inBlockComment = false
+      continue
+    }
+    // Skip block comment continuation lines
+    if (inBlockComment) continue
+    // Skip single-line comments
+    if (trimmed.startsWith('//')) continue
+    // Find first non-empty, non-comment line with indentation
+    const indentMatch = line.match(/^([ \t]+)\S/)
+    if (indentMatch) {
+      return indentMatch[1].length
+    }
+  }
+  return 2
+}
 
 export interface NxTypescriptPackageOptions {
   /** Name of the new package. */
@@ -54,11 +82,14 @@ function readJsonc(tree: Tree, path: string): Record<string, unknown> | null {
   if (!tree.exists(path)) return null
   const raw = tree.read(path, 'utf8')
   if (raw === null) return null
-  try {
-    return parse(raw) as Record<string, unknown>
-  } catch (error) {
-    throw new Error(`Failed to parse ${path}`, { cause: error })
+  const errors: NonNullable<Parameters<typeof parse>[1]> = []
+  const value = parse(raw, errors, { allowTrailingComma: true })
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to parse ${path}: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
+    )
   }
+  return value as Record<string, unknown>
 }
 
 function writeJson(tree: Tree, path: string, value: unknown): void {
@@ -80,21 +111,39 @@ function ensureRootPackageJson(tree: Tree): void {
       packageManager: 'bun@latest',
     })
   } else {
-    const pkg = readJsonc(tree, 'package.json') ?? {}
+    const raw = tree.read('package.json', 'utf-8')
+    if (raw === null || raw.trim() === '') {
+      writeJson(tree, 'package.json', {
+        name: 'workspace',
+        version: '0.0.0',
+        private: true,
+        workspaces: workspaceGlobs,
+        packageManager: 'bun@latest',
+      })
+      return
+    }
+    const errors: NonNullable<Parameters<typeof parse>[1]> = []
+    const pkg = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
+    if (errors.length > 0) {
+      throw new Error(
+        `Failed to parse package.json: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
+      )
+    }
     const existingWorkspaces =
       (pkg.workspaces as
         | string[]
         | { packages?: string[]; apps?: string[]; libs?: string[] }
         | undefined) ?? []
     let workspaces: string[] = []
+    const isObjectForm =
+      typeof existingWorkspaces === 'object' &&
+      existingWorkspaces !== null &&
+      !Array.isArray(existingWorkspaces)
     if (Array.isArray(existingWorkspaces)) {
       workspaces = [...existingWorkspaces]
-    } else if (typeof existingWorkspaces === 'object' && existingWorkspaces !== null) {
-      workspaces = [
-        ...(existingWorkspaces.packages ?? []),
-        ...(existingWorkspaces.apps ?? []),
-        ...(existingWorkspaces.libs ?? []),
-      ]
+    } else if (isObjectForm) {
+      // Yarn Classic registers workspaces only from `packages`
+      workspaces = [...(existingWorkspaces.packages ?? [])]
     }
     const requiredWorkspaces = [
       'packages/*',
@@ -106,8 +155,47 @@ function ensureRootPackageJson(tree: Tree): void {
     ]
     const missing = requiredWorkspaces.filter((ws) => !workspaces.includes(ws))
     if (missing.length > 0) {
-      pkg.workspaces = [...workspaces, ...missing]
-      writeJson(tree, 'package.json', pkg)
+      // Use jsonc-parser modify to preserve formatting and comments
+      // Use array-element paths to preserve comments inside arrays/objects
+      // Handle case where workspaces doesn't exist yet - create it first
+      const eol = raw.includes('\r\n') ? '\r\n' : '\n'
+      const indent = detectIndent(raw)
+      const formattingOptions = { insertSpaces: true, tabSize: indent, eol }
+      let updated = raw
+      if (isObjectForm) {
+        // For object form, ensure packages array exists, then add missing globs
+        if (existingWorkspaces.packages === undefined) {
+          // Create the packages array with missing globs
+          const edits = modify(updated, ['workspaces', 'packages'], missing, { formattingOptions })
+          updated = applyEdits(updated, edits)
+        } else {
+          const existingPackages = existingWorkspaces.packages ?? []
+          for (const [index, glob] of missing.entries()) {
+            const edits = modify(
+              updated,
+              ['workspaces', 'packages', existingPackages.length + index],
+              glob,
+              { formattingOptions },
+            )
+            updated = applyEdits(updated, edits)
+          }
+        }
+      } else {
+        // For array form, ensure workspaces array exists, then add missing globs
+        if (workspaces.length === 0) {
+          // Create the workspaces array with missing globs
+          const edits = modify(updated, ['workspaces'], missing, { formattingOptions })
+          updated = applyEdits(updated, edits)
+        } else {
+          for (const [index, glob] of missing.entries()) {
+            const edits = modify(updated, ['workspaces', workspaces.length + index], glob, {
+              formattingOptions,
+            })
+            updated = applyEdits(updated, edits)
+          }
+        }
+      }
+      tree.write('package.json', updated)
     }
   }
 }
@@ -119,7 +207,22 @@ function ensureNxJson(tree: Tree): void {
       plugins: ['@nx-devkit/typescript'],
     })
   } else {
-    const nxJson = readJsonc(tree, 'nx.json') ?? {}
+    const raw = tree.read('nx.json', 'utf-8')
+    if (raw === null || raw.trim() === '') {
+      // Treat empty or whitespace-only nx.json like a missing file
+      writeJson(tree, 'nx.json', {
+        $schema: './node_modules/nx/schemas/nx-schema.json',
+        plugins: ['@nx-devkit/typescript'],
+      })
+      return
+    }
+    const errors: NonNullable<Parameters<typeof parse>[1]> = []
+    const nxJson = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
+    if (errors.length > 0) {
+      throw new Error(
+        `Failed to parse nx.json: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
+      )
+    }
     const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : []
     const hasPreset = plugins.some(
       (entry) =>
@@ -138,7 +241,14 @@ function ensureNxJson(tree: Tree): void {
       })
       filtered.push('@nx-devkit/typescript')
       nxJson.plugins = filtered
-      writeJson(tree, 'nx.json', nxJson)
+      // Use jsonc-parser modify to preserve formatting and comments
+      // Detect formatting from raw content
+      const eol = raw.includes('\r\n') ? '\r\n' : '\n'
+      const indent = detectIndent(raw)
+      const edits = modify(raw, ['plugins'], filtered, {
+        formattingOptions: { insertSpaces: true, tabSize: indent, eol },
+      })
+      tree.write('nx.json', applyEdits(raw, edits))
     }
   }
 }
@@ -148,6 +258,10 @@ function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): voi
     const pathAliasPrefix = pkgName.startsWith('@')
       ? pkgName.slice(0, pkgName.indexOf('/'))
       : `@${pkgName}`
+    // For scoped packages, include scope directory in path mapping
+    // e.g., @scope/my-pkg -> packages/@scope/*/src
+    const scopeDir = pkgName.startsWith('@') ? pkgName.slice(0, pkgName.indexOf('/')) : ''
+    const pathTarget = scopeDir ? `${directory}/${scopeDir}/*/src` : `${directory}/*/src`
     const tsconfigBase = {
       compilerOptions: {
         target: 'ES2024',
@@ -164,7 +278,7 @@ function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): voi
         noEmit: true,
         baseUrl: '.',
         paths: {
-          [`${pathAliasPrefix}/*`]: [`${directory}/*/src`],
+          [`${pathAliasPrefix}/*`]: [pathTarget],
         },
       },
     }
@@ -260,14 +374,17 @@ function createPackageStructure(
   writeJson(tree, `${pkgPath}/tsconfig.json`, tsconfigJson)
 
   // src/index.ts
-  if (!tree.exists(`${pkgPath}/src`)) {
+  const sourceFilePath = `${pkgPath}/src/index.ts`
+  let sourceCreated = false
+  if (!tree.exists(sourceFilePath)) {
     tree.write(
-      `${pkgPath}/src/index.ts`,
+      sourceFilePath,
       `export function hello(): string {
   return 'Hello from ${pkgName}!'
 }
 `,
     )
+    sourceCreated = true
   }
 
   // vitest.config.ts
@@ -335,9 +452,10 @@ export default defineConfig({
     tree.write(`${pkgPath}/tsdown.config.ts`, tsdownConfig)
   }
 
-  // Test file - check for test file specifically, not directory
+  // Test file - create only when source file was created by this generator
+  // (don't create a test that imports from a missing source)
   const testFilePath = `${pkgPath}/src/index.test.ts`
-  if (options.test) {
+  if (options.test && sourceCreated) {
     if (!tree.exists(testFilePath)) {
       if (options.nativeTest) {
         // Native Node test runner - use assert from node:assert/strict

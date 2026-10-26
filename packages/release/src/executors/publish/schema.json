@@ -13,7 +13,7 @@
       "type": "string",
       "description": "Path to the package directory containing package.json. Default: the project root."
     },
-    "version": {
+    "releaseVersion": {
       "type": "string",
       "description": "Version to release (x.y.z, or patch|minor|major vs npm latest). Default: patch."
     },

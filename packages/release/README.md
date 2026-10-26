@@ -23,7 +23,7 @@ npm install -D @nx-devkit/release
 npx nx g @nx-devkit/release:init
 
 # Dry run
-npx nx run tools:release --version=patch --dryRun=true
+npx nx run tools:release --releaseVersion=patch --dryRun=true
 
 # Real release (via GitHub Actions)
 gh workflow run release.yml -f version=patch -f dry-run=false
@@ -35,7 +35,7 @@ gh workflow run release.yml -f version=patch -f dry-run=false
 |--------|------|---------|-------------|
 | `packageName` | string | from `package.json` | npm package name to publish |
 | `packagePath` | string | project root | Path to the package directory |
-| `version` | string | `"patch"` | Version to release (x.y.z, or patch\|minor\|major) |
+| `releaseVersion` | string | `"patch"` | Version to release (x.y.z, or patch\|minor\|major) |
 | `dryRun` | boolean | `false` | Verify only — no publish, tag, push, or release |
 | `registry` | string | `https://registry.npmjs.org/` | npm registry URL |
 | `branch` | string | `"main"` | Branch to push the bump commit to |
