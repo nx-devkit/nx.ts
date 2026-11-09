@@ -1,4 +1,35 @@
 #!/usr/bin/env sh
-set -e
-bunx biome format --write --no-errors-on-unmatched
-git add -u
+# Re-exec with bash for array/mapfile/NUL-safe handling.
+if [ -z "${PRECOMMIT_BASH:-}" ]; then
+  export PRECOMMIT_BASH=1
+  exec bash "$0" "$@"
+fi
+set -euo pipefail
+
+# Format staged files with nx format (Oxfmt).
+# Preserve unstaged edits: skip files that also have unstaged changes, so we
+# never stage hunks the author did not select.
+mapfile -d '' staged < <(git diff --cached --name-only -z --diff-filter=ACMR) || true
+((${#staged[@]} == 0)) && exit 0
+
+mapfile -d '' unstaged_a < <(git diff --name-only -z --diff-filter=ACMR) || true
+declare -A unstaged=()
+for f in "${unstaged_a[@]+"${unstaged_a[@]}"}"; do unstaged["$f"]=1; done
+
+to_format=()
+to_stage=()
+for file in "${staged[@]}"; do
+  [[ -z "$file" ]] && continue
+  if [[ -n "${unstaged[$file]+x}" ]]; then
+    echo "pre-commit: skipping '$file' (has unstaged changes; format/stage it explicitly to preserve your unstaged selection)" >&2
+    continue
+  fi
+  to_format+=("$file")
+  to_stage+=("$file")
+done
+
+((${#to_format[@]} == 0)) && exit 0
+
+# nx format accepts newline-delimited paths via --stdin.
+printf '%s\n' "${to_format[@]}" | bunx nx format:write --stdin
+printf '%s\0' "${to_stage[@]}" | xargs -0 git add --
