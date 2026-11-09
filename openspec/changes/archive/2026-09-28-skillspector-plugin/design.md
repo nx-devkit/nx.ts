@@ -30,36 +30,38 @@ packages/skillspector/
 ## Plugin: createNodesV2
 
 ```ts
-import { createHash } from 'node:crypto';
+import { createHash } from 'node:crypto'
 
 export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
   '**/SKILL.md',
   (configFiles, options = {}, context) => {
-    const opts = { ...defaultOptions, ...options };
+    const opts = { ...defaultOptions, ...options }
     return configFiles
       .map((skillFile) => {
-        const skillDir = dirname(skillFile);
-        const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
-          .replace(/\\/g, '/');
+        const skillDir = dirname(skillFile)
+        const projectRoot = relative(
+          context.workspaceRoot,
+          resolve(context.workspaceRoot, skillDir),
+        ).replace(/\\/g, '/')
         // Collision-resistant project name (same algorithm as
         // @nx-devkit/skill): full path with slashes→dashes + first 8 hex
         // chars of SHA-256.
-        const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8);
-        const projectName = `${projectRoot.replace(/\//g, '-')}-${pathHash}`;
+        const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+        const projectName = `${projectRoot.replace(/\//g, '-')}-${pathHash}`
 
-        if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
+        if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null
 
         // Derive a unique per-skill SARIF path so concurrent scans don't overwrite
         // each other's reports.
-        const annotationsEnabled = opts.annotations ?? true;
-        const noLlm = opts.noLlm ?? true;
+        const annotationsEnabled = opts.annotations ?? true
+        const noLlm = opts.noLlm ?? true
         const sarifPath = opts.sarif
           ? opts.sarif.replace(/\.sarif$/, '') + `-${projectName}.sarif`
-          : undefined;
+          : undefined
         // Per-project annotations file (keyed like SARIF) so concurrent Nx
         // runs don't interleave writes to a shared file. The CI step
         // concatenates all per-project files.
-        const annotationsPath = `annotations-${projectName}.txt`;
+        const annotationsPath = `annotations-${projectName}.txt`
 
         const targets: Record<string, TargetConfiguration> = {
           [opts.scanTargetName]: {
@@ -70,10 +72,12 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
             cache: !annotationsEnabled && noLlm,
             ...(annotationsEnabled
               ? {}
-              : { outputs: [
-                  ...(sarifPath ? [`{workspaceRoot}/${sarifPath}`] : []),
-                  `{workspaceRoot}/findings-${projectName}.json`,
-                ] }),
+              : {
+                  outputs: [
+                    ...(sarifPath ? [`{workspaceRoot}/${sarifPath}`] : []),
+                    `{workspaceRoot}/findings-${projectName}.json`,
+                  ],
+                }),
             inputs: [
               '{projectRoot}/**/*',
               ...(opts.baseline ? [`{workspaceRoot}/${opts.baseline}`] : []),
@@ -95,13 +99,16 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
               ...(opts.baseline ? { baseline: opts.baseline } : {}),
             },
           },
-        };
+        }
 
-        return [skillFile, { projects: { [projectRoot]: { name: projectName, root: projectRoot, targets } } }];
+        return [
+          skillFile,
+          { projects: { [projectRoot]: { name: projectName, root: projectRoot, targets } } },
+        ]
       })
-      .filter((r): r is [string, CreateNodesResult] => r !== null);
+      .filter((r): r is [string, CreateNodesResult] => r !== null)
   },
-];
+]
 ```
 
 ## Scan executor

@@ -82,7 +82,7 @@
     "oxlint": "^1.0.0",
     "tsdown": "^0.22.0",
     "typescript": "^6.0.0 || ^7.0.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0 || ^5.0.0"
   },
   "peerDependenciesMeta": {
     "@biomejs/biome": {
@@ -103,8 +103,8 @@
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
-    "tsdown": "^0.22.3",
-    "vitest": "^4.1.11"
+    "tsdown": "^0.23.7",
+    "vitest": "^5.1.0"
   },
   "repository": {
     "type": "git",

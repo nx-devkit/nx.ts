@@ -76,7 +76,7 @@ nx run --project=app --target=ci:lint
 The target name is `<pipeline>:<step>` — the sverka step `ci/lint` becomes
 the Nx target `ci:lint`. The config's directory is the project root, so a
 config in `packages/app` gives the targets to that project (the project
-*name* comes from its `package.json` — `app` in the example below; without
+_name_ comes from its `package.json` — `app` in the example below; without
 a `package.json` the project is named after its path, `packages/app`).
 
 A step is inferred when an entry can reach it — a step that no entry
@@ -87,16 +87,16 @@ The plugin watches `sverka.config.ts`, `sverka.config.mts`,
 
 ## What the plugin infers
 
-| Nx target field | sverka source |
-|---|---|
-| target name | `<pipeline>:<step>` (configurable) |
-| `executor` | `@nx-devkit/sverka:step` — runs exactly one step |
-| `options.step` | the sverka step id (`ci/lint`) |
-| `options.entry` | the sverka entry that reaches the step (`ci/on-push`) |
-| `dependsOn` | the step's sverka dependencies (`control`, `value`, `artifact`) |
-| `inputs` | the project files, the sverka config, the consumed artifacts |
-| `outputs` | the files the step declares as outputs |
-| `cache` | `true` — every step is cached on its own |
+| Nx target field | sverka source                                                   |
+| --------------- | --------------------------------------------------------------- |
+| target name     | `<pipeline>:<step>` (configurable)                              |
+| `executor`      | `@nx-devkit/sverka:step` — runs exactly one step                |
+| `options.step`  | the sverka step id (`ci/lint`)                                  |
+| `options.entry` | the sverka entry that reaches the step (`ci/on-push`)           |
+| `dependsOn`     | the step's sverka dependencies (`control`, `value`, `artifact`) |
+| `inputs`        | the project files, the sverka config, the consumed artifacts    |
+| `outputs`       | the files the step declares as outputs                          |
+| `cache`         | `true` — every step is cached on its own                        |
 
 Concretely, for the config above:
 
@@ -155,7 +155,7 @@ Every step is cached on its own. Three rules keep the cache honest:
 
 1. **A step's own outputs are never its inputs.** The declared outputs, the
    imported artifacts and the files a shell step redirects into (`> file`)
-   are excluded from the inputs of *every* step of the config — otherwise a
+   are excluded from the inputs of _every_ step of the config — otherwise a
    step would invalidate itself (and its neighbours) on every run.
 2. **A consumer depends on its producer.** The consumed artifact is both an
    input of the consumer (its content decides the cache key) and a
@@ -166,14 +166,14 @@ Every step is cached on its own. Three rules keep the cache honest:
 
 Verified behaviour:
 
-| Situation | Result |
-|---|---|
-| run the same step twice | second run is a cache hit |
-| edit a source file of the project | the step re-runs |
-| change the artifact a producer emits | the consumer re-runs |
-| edit the sverka config | every step of the config re-runs |
+| Situation                            | Result                           |
+| ------------------------------------ | -------------------------------- |
+| run the same step twice              | second run is a cache hit        |
+| edit a source file of the project    | the step re-runs                 |
+| change the artifact a producer emits | the consumer re-runs             |
+| edit the sverka config               | every step of the config re-runs |
 
-The very first run of a *consumer* misses once — Nx computes the consumer's
+The very first run of a _consumer_ misses once — Nx computes the consumer's
 hash before the producer's output exists. This is stock Nx behaviour for
 every `build → test` chain (reproduced with a plain `nx:run-commands`
 pair), not something the plugin adds; it converges on the next run.
@@ -208,9 +208,9 @@ scripts and its Nx targets — and writes a `sverka.config.ts` with one step
 per check:
 
 ```ts
-new ShellStep(ci, "lint", { command: "bun run lint" })
-new ShellStep(ci, "test", { command: "bun run test" })
-new ShellStep(ci, "build", { command: "bun run build" })
+new ShellStep(ci, 'lint', { command: 'bun run lint' })
+new ShellStep(ci, 'test', { command: 'bun run test' })
+new ShellStep(ci, 'build', { command: 'bun run build' })
 ```
 
 GitHub-side checks (they verify the state of the repository, not the code)
@@ -221,15 +221,15 @@ nx g @nx-devkit/sverka:config --project=app \
   --githubChecks=main-green,review-debt,dependabot-alerts,code-scanning,secret-scanning
 ```
 
-| Check | What it verifies |
-|---|---|
-| `main-green` | every GitHub Actions check-run on `main` is green |
-| `review-debt` | no unresolved review threads in the last 20 merged PRs (GraphQL) |
-| `dependabot-alerts` | no open Dependabot alerts (advanced security) |
-| `code-scanning` | no open code-scanning alerts (advanced security) |
-| `secret-scanning` | no open secret-scanning alerts (advanced security) |
-| `stale-branches` | no remote branch left behind by a merged PR |
-| `open-prs` | lists the open PRs (informational) |
+| Check               | What it verifies                                                 |
+| ------------------- | ---------------------------------------------------------------- |
+| `main-green`        | every GitHub Actions check-run on `main` is green                |
+| `review-debt`       | no unresolved review threads in the last 20 merged PRs (GraphQL) |
+| `dependabot-alerts` | no open Dependabot alerts (advanced security)                    |
+| `code-scanning`     | no open code-scanning alerts (advanced security)                 |
+| `secret-scanning`   | no open secret-scanning alerts (advanced security)               |
+| `stale-branches`    | no remote branch left behind by a merged PR                      |
+| `open-prs`          | lists the open PRs (informational)                               |
 
 They land in a second pipeline (`repo-health`) with read-scoped permissions
 and the `GITHUB_TOKEN` secret, and are driven by the `gh` CLI — so they work
@@ -250,9 +250,9 @@ Register with options in `nx.json`:
     {
       "plugin": "@nx-devkit/sverka",
       "options": {
-        "entry": "ci/on-push",             // default: every entry
+        "entry": "ci/on-push", // default: every entry
         "targetName": "{pipeline}:{step}", // default
-        "cache": true,                    // default
+        "cache": true, // default
         "inputs": ["{workspaceRoot}/bun.lock"]
       }
     }
@@ -260,12 +260,12 @@ Register with options in `nx.json`:
 }
 ```
 
-| Option | Default | Description |
-|---|---|---|
-| `entry` | every entry | Restrict the inference to one sverka entry. |
+| Option       | Default             | Description                                            |
+| ------------ | ------------------- | ------------------------------------------------------ |
+| `entry`      | every entry         | Restrict the inference to one sverka entry.            |
 | `targetName` | `{pipeline}:{step}` | Target name template (`{pipeline}`, `{step}`, `{id}`). |
-| `inputs` | `[]` | Extra input globs for every inferred target. |
-| `cache` | `true` | Cache the inferred targets. |
+| `inputs`     | `[]`                | Extra input globs for every inferred target.           |
+| `cache`      | `true`              | Cache the inferred targets.                            |
 
 ## Troubleshooting
 

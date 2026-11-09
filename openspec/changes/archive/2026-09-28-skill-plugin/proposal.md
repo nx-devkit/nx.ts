@@ -15,13 +15,13 @@ Publishing as `@nx-devkit/skill` makes it available to any repo that contains `S
 - **API**: `createNodesV2` (Nx 22+ / 23+)
 - **Inferred targets**:
 
-| Target | Executor | Cache | Description |
-|---|---|---|---|
-| `build` | `@nx-devkit/skill:build` (custom executor) | true | Compile skill to skills-sh/claude/codex/agents/obsidian target |
-| `lint` | `nx:run-commands` (`npx markdownlint-cli2`) | true | Markdown linting |
-| `validate` | `nx:run-commands` | true | Validate SKILL.md frontmatter + schema |
-| `os-check` | `nx:run-commands` | true | Check OS-independence (no hardcoded paths) |
-| `size-check` | `nx:run-commands` | true | Check skill size budget |
+| Target       | Executor                                    | Cache | Description                                                    |
+| ------------ | ------------------------------------------- | ----- | -------------------------------------------------------------- |
+| `build`      | `@nx-devkit/skill:build` (custom executor)  | true  | Compile skill to skills-sh/claude/codex/agents/obsidian target |
+| `lint`       | `nx:run-commands` (`npx markdownlint-cli2`) | true  | Markdown linting                                               |
+| `validate`   | `nx:run-commands`                           | true  | Validate SKILL.md frontmatter + schema                         |
+| `os-check`   | `nx:run-commands`                           | true  | Check OS-independence (no hardcoded paths)                     |
+| `size-check` | `nx:run-commands`                           | true  | Check skill size budget                                        |
 
 ### Custom executor: `build`
 
@@ -32,17 +32,17 @@ The `build` executor wraps the skills compiler, imported as `@theplenkov/skills-
 ```ts
 export interface NxDevkitSkillOptions {
   /** Target name for build. Default: "build" */
-  buildTargetName?: string;
+  buildTargetName?: string
   /** Target name for lint. Default: "lint" */
-  lintTargetName?: string;
+  lintTargetName?: string
   /** Target name for validate. Default: "validate" */
-  validateTargetName?: string;
+  validateTargetName?: string
   /** Target name for os-check. Default: "os-check" */
-  osCheckTargetName?: string;
+  osCheckTargetName?: string
   /** Target name for size-check. Default: "size-check" */
-  sizeCheckTargetName?: string;
+  sizeCheckTargetName?: string
   /** Additional named inputs appended to the default skill inputs. */
-  skillInputs?: string[];
+  skillInputs?: string[]
 }
 ```
 

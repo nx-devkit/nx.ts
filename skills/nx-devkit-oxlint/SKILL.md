@@ -1,4 +1,5 @@
 ---
+
 name: nx-devkit-oxlint
 description: Zero-config Nx plugin that infers a `lint` target from .oxlintrc config files
 ---
@@ -19,9 +20,9 @@ Use this skill when:
 
 The plugin scans for `**/.oxlintrc.{json,yml,yaml,cjs,mjs,js,cts,mts}`. For each match (outside the workspace root), it injects a `lint` target:
 
-| Trigger file | Target | Executor | Command | Cache |
-|---|---|---|---|---|
-| `**/.oxlintrc.{json,yml,yaml,cjs,mjs,js,cts,mts}` | `lint` | `nx:run-commands` | `npx oxlint .` | true |
+| Trigger file                                      | Target | Executor          | Command        | Cache |
+| ------------------------------------------------- | ------ | ----------------- | -------------- | ----- |
+| `**/.oxlintrc.{json,yml,yaml,cjs,mjs,js,cts,mts}` | `lint` | `nx:run-commands` | `npx oxlint .` | true  |
 
 The `cwd` of the lint command is set to the project root.
 

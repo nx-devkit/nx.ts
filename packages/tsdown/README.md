@@ -29,9 +29,9 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger | Target | Command | Cacheable | Outputs |
-|---|---|---|---|---|
-| `tsdown.config.ts` | `build` | `tsdown` (via `nx:run-commands`, `cwd` = project root) | yes | `{projectRoot}/dist` |
+| Trigger            | Target  | Command                                                | Cacheable | Outputs              |
+| ------------------ | ------- | ------------------------------------------------------ | --------- | -------------------- |
+| `tsdown.config.ts` | `build` | `tsdown` (via `nx:run-commands`, `cwd` = project root) | yes       | `{projectRoot}/dist` |
 
 `build` declares `dependsOn: ["^build"]`, so upstream dependencies build first.
 

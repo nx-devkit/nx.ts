@@ -783,24 +783,23 @@ describe('renderExecutor', () => {
   })
 
   describe('the companion set', () => {
-    it.each([
-      'bpmn',
-      'excalidraw',
-      'mermaid',
-    ])('starts the %s companion for its type', async (type) => {
-      const file = `a.${type === 'mermaid' ? 'mmd' : type}`
-      writeFileSync(join(workspace, file), 'x -> y\n')
+    it.each(['bpmn', 'excalidraw', 'mermaid'])(
+      'starts the %s companion for its type',
+      async (type) => {
+        const file = `a.${type === 'mermaid' ? 'mmd' : type}`
+        writeFileSync(join(workspace, file), 'x -> y\n')
 
-      await renderExecutor({ file, krokiUrl: 'docker', output: 'a.svg' }, makeContext(workspace))
+        await renderExecutor({ file, krokiUrl: 'docker', output: 'a.svg' }, makeContext(workspace))
 
-      const companion = state.dockerCalls.find((call) => call[0] === 'run' && call.includes(type))
-      expect(companion).toBeDefined()
-      // The gateway is told where to find it.
-      const gateway = state.dockerCalls.find(
-        (call) => call[0] === 'run' && call.at(-1) === 'yuzutech/kroki:latest',
-      )
-      expect(gateway).toContain(`KROKI_${type.toUpperCase()}_HOST=${type}`)
-    })
+        const companion = state.dockerCalls.find((call) => call[0] === 'run' && call.includes(type))
+        expect(companion).toBeDefined()
+        // The gateway is told where to find it.
+        const gateway = state.dockerCalls.find(
+          (call) => call[0] === 'run' && call.at(-1) === 'yuzutech/kroki:latest',
+        )
+        expect(gateway).toContain(`KROKI_${type.toUpperCase()}_HOST=${type}`)
+      },
+    )
 
     it('starts no companion for a type a command covers', async () => {
       writeFileSync(join(workspace, 'a.mmd'), 'graph TD; A-->B\n')

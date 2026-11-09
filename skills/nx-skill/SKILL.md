@@ -1,4 +1,5 @@
 ---
+
 name: nx-skill
 description: Manage SKILL.md lifecycle through Nx — build, lint, validate, os-check, size-check, and security scan targets inferred from SKILL.md files. Covers @nx-devkit/skill and @nx-devkit/skillspector.
 ---
@@ -11,13 +12,13 @@ Two Nx plugins that turn `SKILL.md` files into first-class Nx projects with buil
 
 Scans for `**/SKILL.md` and infers 5 targets per skill:
 
-| Target | What it does | Executor |
-|---|---|---|
-| `build` | Compiles SKILL.md → skills-sh / claude / codex / agents / obsidian formats | `@nx-devkit/skill:build` (invokes the `skills-compiler` binary directly via `execFile`, `shell: false`) |
-| `lint` | Runs `markdownlint-cli2` on all markdown in the skill dir | `nx:run-commands` |
-| `validate` | Validates SKILL.md frontmatter and structure | `nx:run-commands` |
-| `os-check` | Checks OS-independence (no hardcoded paths, no platform-specific commands) | `nx:run-commands` |
-| `size-check` | Checks skill size is within limits | `nx:run-commands` |
+| Target       | What it does                                                               | Executor                                                                                                |
+| ------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `build`      | Compiles SKILL.md → skills-sh / claude / codex / agents / obsidian formats | `@nx-devkit/skill:build` (invokes the `skills-compiler` binary directly via `execFile`, `shell: false`) |
+| `lint`       | Runs `markdownlint-cli2` on all markdown in the skill dir                  | `nx:run-commands`                                                                                       |
+| `validate`   | Validates SKILL.md frontmatter and structure                               | `nx:run-commands`                                                                                       |
+| `os-check`   | Checks OS-independence (no hardcoded paths, no platform-specific commands) | `nx:run-commands`                                                                                       |
+| `size-check` | Checks skill size is within limits                                         | `nx:run-commands`                                                                                       |
 
 ### Collision-resistant project naming
 
@@ -37,12 +38,12 @@ bun add -D @nx-devkit/skill
 
 ```ts
 export interface NxDevkitSkillOptions {
-  buildTargetName?: string    // default "build"
-  lintTargetName?: string     // default "lint"
+  buildTargetName?: string // default "build"
+  lintTargetName?: string // default "lint"
   validateTargetName?: string // default "validate"
-  osCheckTargetName?: string  // default "os-check"
-  sizeCheckTargetName?: string// default "size-check"
-  skillInputs?: string[]      // additional input globs for build
+  osCheckTargetName?: string // default "os-check"
+  sizeCheckTargetName?: string // default "size-check"
+  skillInputs?: string[] // additional input globs for build
 }
 ```
 
@@ -58,8 +59,8 @@ npx nx run-many -t validate
 
 Scans for `**/SKILL.md` and infers a `scan` target per skill:
 
-| Target | What it does | Executor |
-|---|---|---|
+| Target | What it does                                                                      | Executor                                        |
+| ------ | --------------------------------------------------------------------------------- | ----------------------------------------------- |
 | `scan` | Runs `skillspector scan` with JSON output, writes SARIF, emits GitHub annotations | `@nx-devkit/skillspector:scan` (`shell: false`) |
 
 Fails on HIGH/CRITICAL findings. Annotation escaping is security-critical (`%` → `%25`, newlines encoded, `::` removed).
@@ -78,13 +79,13 @@ bun add -D @nx-devkit/skillspector
 
 ```ts
 export interface NxDevkitSkillspectorOptions {
-  scanTargetName?: string     // default "scan"
-  noLlm?: boolean             // default true
-  annotations?: boolean       // default true (disables caching when on)
-  failOnError?: boolean       // default true
-  skillspectorBin?: string    // default "skillspector"
-  sarif?: string              // SARIF output path prefix
-  baseline?: string           // baseline file path
+  scanTargetName?: string // default "scan"
+  noLlm?: boolean // default true
+  annotations?: boolean // default true (disables caching when on)
+  failOnError?: boolean // default true
+  skillspectorBin?: string // default "skillspector"
+  sarif?: string // SARIF output path prefix
+  baseline?: string // baseline file path
 }
 ```
 

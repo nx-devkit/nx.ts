@@ -8,15 +8,15 @@ This repository extends Nx with a minimal, **config-file-inference-only** plugin
 
 Six workspace packages under `packages/`:
 
-| Package | Scope | Role |
-|---|---|---|
-| `packages/tsdown` | `@nx-devkit/tsdown` | Tool plugin. Owns `build` target inference. |
-| `packages/oxlint` | `@nx-devkit/oxlint` | Tool plugin. Owns `lint` target inference. |
-| `packages/biome` | `@nx-devkit/biome` | Tool plugin. Owns `format`, `format-check`, `lint` inference. |
-| `packages/vitest` | `@nx-devkit/vitest` | Tool plugin. Owns `test`, `test:watch`, `test:coverage` inference for standalone consumers. |
-| `packages/boundaries` | `@nx-devkit/boundaries` | Boundary plugin. Owns the `check-boundaries` executor — linter-agnostic module-boundary enforcement via `nx.tags` + `depConstraints`. |
-| `packages/typescript-preset` | `@nx-devkit/typescript` | Preset plugin. Owns `typecheck`, `test`, `test:watch`, `test:coverage`. Exports reusable helpers. |
-| `packages/prepare-for-release` | `@nx-devkit/prepare-for-release` | Tool plugin. Owns the `prepare-for-release` executor + `init` generator that bootstraps a workspace of packages onto npm. |
+| Package                        | Scope                            | Role                                                                                                                                  |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/tsdown`              | `@nx-devkit/tsdown`              | Tool plugin. Owns `build` target inference.                                                                                           |
+| `packages/oxlint`              | `@nx-devkit/oxlint`              | Tool plugin. Owns `lint` target inference.                                                                                            |
+| `packages/biome`               | `@nx-devkit/biome`               | Tool plugin. Owns `format`, `format-check`, `lint` inference.                                                                         |
+| `packages/vitest`              | `@nx-devkit/vitest`              | Tool plugin. Owns `test`, `test:watch`, `test:coverage` inference for standalone consumers.                                           |
+| `packages/boundaries`          | `@nx-devkit/boundaries`          | Boundary plugin. Owns the `check-boundaries` executor — linter-agnostic module-boundary enforcement via `nx.tags` + `depConstraints`. |
+| `packages/typescript-preset`   | `@nx-devkit/typescript`          | Preset plugin. Owns `typecheck`, `test`, `test:watch`, `test:coverage`. Exports reusable helpers.                                     |
+| `packages/prepare-for-release` | `@nx-devkit/prepare-for-release` | Tool plugin. Owns the `prepare-for-release` executor + `init` generator that bootstraps a workspace of packages onto npm.             |
 
 Per-tool plugins (tsdown, oxlint, biome, vitest) consume `@nx-devkit/internal` (private, bundled at build) for shared helpers, so they do not duplicate inference logic.
 
@@ -24,25 +24,25 @@ Tool plugins emit `nx:run-commands` executors (no custom executor packages), wra
 
 ## File-trigger to target inference matrix
 
-| File trigger | Plugin | Inferred target | Executor | Cache | Notes |
-|---|---|---|---|---|---|
-| `**/tsdown.config.ts` | `@nx-devkit/tsdown` | `build` | `nx:run-commands` (`npx tsdown`) | true | outputs `{projectRoot}/dist`; dependsOn `^build` |
-| `**/tsconfig.json` | `@nx-devkit/typescript` | `typecheck` | `nx:run-commands` (`npx tsgo --build ${configFile}`) | true | `tsgo: boolean` option; inputs include `tsconfig.base.json` |
-| `**/vitest.config.{ts,js,mts,mjs,cts,cjs}` | `@nx-devkit/typescript` (preset) / `@nx-devkit/vitest` (standalone) | `test`, `test:watch`, `test:coverage` | `nx:run-commands` (`npx vitest run`) | true (test) / false (watch) | `test` dependsOn `^build` |
-| `**/.oxlintrc.{json,yaml,yml,js,mjs,cjs}` | `@nx-devkit/oxlint` | `lint` | `nx:run-commands` (`npx oxlint .`) | true | inputs include `.oxlintrc.*`, `src/**/*` |
-| `**/biome.json`, `biome.jsonc` | `@nx-devkit/biome` | `format`, `format-check`, `lint` | `nx:run-commands` (`npx biome ...`) | false (format) / true (check, lint) | format has side effects |
-| `**/eslint.config.*` | `@nx-devkit/typescript` (preset) | `lint` | `nx:run-commands` (`npx eslint .`) | true | owns `lint` only when oxlint does not |
-| `**/*.{test,spec}.{ts,js,mts,mjs}` under a project with no `vitest.config.*` | `@nx-devkit/typescript` (preset) | `test` (+ `test:tap`, `test:coverage` opt-in) | `nx:run-commands` (`node --test`) | true | native runner — `.ts` runs unflagged on Node ≥ 22.18, or on Node 22.6–22.17 with `NODE_OPTIONS=--experimental-strip-types` |
-| publishable `**/package.json` + `src/index.ts` (no `tsdown.config.*`) | `@nx-devkit/typescript` (preset) | `build`, `build:watch` | `@nx-devkit/typescript:build` | true | config-free tsdown; publishable = `exports`/`bin`, or `main` + `files` |
-| `**/package.json` with `nx.tags` (non-root) | `@nx-devkit/boundaries` | `check-boundaries` (on the root project) | `@nx-devkit/boundaries:check-boundaries` | true | target inferred only when ≥1 project declares tags |
-| `**/SKILL.md` | `@nx-devkit/skill` (+ `@nx-devkit/skillspector` adds `scan`) | `build`, `lint`, `validate`, `os-check`, `size-check` (+`scan`) | executors + `nx:run-commands` | true (build) / varies | project name `skills-<slug>-<hash>` |
-| `**/.markdownlint*.{json,jsonc,yaml,yml,cjs,mjs}` | `@nx-devkit/markdownlint` | `lint-md`, `lint-md:fix` | `nx:run-commands` (`markdownlint-cli2`) | true (lint) / false (fix) | `.markdownlint-cli2.*` is runner config (auto-discovered via `cwd`), not `--config` |
-| `**/openspec/config.yaml` | `@nx-devkit/openspec` | `spec-validate` + `spec-validate:<change-id>` per active change | `nx:run-commands` (`openspec validate`) | true | change dirs need `proposal.md`; `archive/` excluded |
-| `**/*.{puml,mmd,dot,d2,bpmn,excalidraw,...}` + fenced blocks in `*.md` | `@nx-devkit/diagrams` | `diagrams` + `diagram-<slug>` per file/block | `@nx-devkit/diagrams:render` | true | Kroki by default; `krokiUrl: "docker"` runs an ephemeral container; per-type `commands` overrides |
-| `nx.json` | `@nx-devkit/nx-cloud` | `nx-cloud-rotate` (root project) | `@nx-devkit/nx-cloud:rotate` | false | rebinds the workspace to a fresh Nx Cloud org; deletion of the old org is manual (no public API) |
-| non-root `**/package.json` with `name` + `private !== true` | `@nx-devkit/prepare-for-release` | `prepare-for-release` | `@nx-devkit/prepare-for-release:publish-placeholder` | false | publishes a minimal `0.0.0` placeholder so OIDC trust can be configured |
+| File trigger                                                                 | Plugin                                                              | Inferred target                                                 | Executor                                             | Cache                               | Notes                                                                                                                      |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `**/tsdown.config.ts`                                                        | `@nx-devkit/tsdown`                                                 | `build`                                                         | `nx:run-commands` (`npx tsdown`)                     | true                                | outputs `{projectRoot}/dist`; dependsOn `^build`                                                                           |
+| `**/tsconfig.json`                                                           | `@nx-devkit/typescript`                                             | `typecheck`                                                     | `nx:run-commands` (`npx tsgo --build ${configFile}`) | true                                | `tsgo: boolean` option; inputs include `tsconfig.base.json`                                                                |
+| `**/vitest.config.{ts,js,mts,mjs,cts,cjs}`                                   | `@nx-devkit/typescript` (preset) / `@nx-devkit/vitest` (standalone) | `test`, `test:watch`, `test:coverage`                           | `nx:run-commands` (`npx vitest run`)                 | true (test) / false (watch)         | `test` dependsOn `^build`                                                                                                  |
+| `**/.oxlintrc.{json,yaml,yml,js,mjs,cjs}`                                    | `@nx-devkit/oxlint`                                                 | `lint`                                                          | `nx:run-commands` (`npx oxlint .`)                   | true                                | inputs include `.oxlintrc.*`, `src/**/*`                                                                                   |
+| `**/biome.json`, `biome.jsonc`                                               | `@nx-devkit/biome`                                                  | `format`, `format-check`, `lint`                                | `nx:run-commands` (`npx biome ...`)                  | false (format) / true (check, lint) | format has side effects                                                                                                    |
+| `**/eslint.config.*`                                                         | `@nx-devkit/typescript` (preset)                                    | `lint`                                                          | `nx:run-commands` (`npx eslint .`)                   | true                                | owns `lint` only when oxlint does not                                                                                      |
+| `**/*.{test,spec}.{ts,js,mts,mjs}` under a project with no `vitest.config.*` | `@nx-devkit/typescript` (preset)                                    | `test` (+ `test:tap`, `test:coverage` opt-in)                   | `nx:run-commands` (`node --test`)                    | true                                | native runner — `.ts` runs unflagged on Node ≥ 22.18, or on Node 22.6–22.17 with `NODE_OPTIONS=--experimental-strip-types` |
+| publishable `**/package.json` + `src/index.ts` (no `tsdown.config.*`)        | `@nx-devkit/typescript` (preset)                                    | `build`, `build:watch`                                          | `@nx-devkit/typescript:build`                        | true                                | config-free tsdown; publishable = `exports`/`bin`, or `main` + `files`                                                     |
+| `**/package.json` with `nx.tags` (non-root)                                  | `@nx-devkit/boundaries`                                             | `check-boundaries` (on the root project)                        | `@nx-devkit/boundaries:check-boundaries`             | true                                | target inferred only when ≥1 project declares tags                                                                         |
+| `**/SKILL.md`                                                                | `@nx-devkit/skill` (+ `@nx-devkit/skillspector` adds `scan`)        | `build`, `lint`, `validate`, `os-check`, `size-check` (+`scan`) | executors + `nx:run-commands`                        | true (build) / varies               | project name `skills-<slug>-<hash>`                                                                                        |
+| `**/.markdownlint*.{json,jsonc,yaml,yml,cjs,mjs}`                            | `@nx-devkit/markdownlint`                                           | `lint-md`, `lint-md:fix`                                        | `nx:run-commands` (`markdownlint-cli2`)              | true (lint) / false (fix)           | `.markdownlint-cli2.*` is runner config (auto-discovered via `cwd`), not `--config`                                        |
+| `**/openspec/config.yaml`                                                    | `@nx-devkit/openspec`                                               | `spec-validate` + `spec-validate:<change-id>` per active change | `nx:run-commands` (`openspec validate`)              | true                                | change dirs need `proposal.md`; `archive/` excluded                                                                        |
+| `**/*.{puml,mmd,dot,d2,bpmn,excalidraw,...}` + fenced blocks in `*.md`       | `@nx-devkit/diagrams`                                               | `diagrams` + `diagram-<slug>` per file/block                    | `@nx-devkit/diagrams:render`                         | true                                | Kroki by default; `krokiUrl: "docker"` runs an ephemeral container; per-type `commands` overrides                          |
+| `nx.json`                                                                    | `@nx-devkit/nx-cloud`                                               | `nx-cloud-rotate` (root project)                                | `@nx-devkit/nx-cloud:rotate`                         | false                               | rebinds the workspace to a fresh Nx Cloud org; deletion of the old org is manual (no public API)                           |
+| non-root `**/package.json` with `name` + `private !== true`                  | `@nx-devkit/prepare-for-release`                                    | `prepare-for-release`                                           | `@nx-devkit/prepare-for-release:publish-placeholder` | false                               | publishes a minimal `0.0.0` placeholder so OIDC trust can be configured                                                    |
 
-Workspace root is skipped by every plugin *as an inference source*; `@nx-devkit/boundaries` is the exception that deliberately attaches its graph-global `check-boundaries` target to the root project — it skips the root only as a boundary *citizen*.
+Workspace root is skipped by every plugin _as an inference source_; `@nx-devkit/boundaries` is the exception that deliberately attaches its graph-global `check-boundaries` target to the root project — it skips the root only as a boundary _citizen_.
 
 ## Demo workspace plan
 
@@ -58,14 +58,14 @@ Workspace root is skipped by every plugin *as an inference source*; `@nx-devkit/
 
 `skills/` ships six installable skills for [skills.sh](https://skills.sh):
 
-| Skill | Purpose |
-|---|---|
-| `nx-devkit-tsdown` | Install + targets generated by `@nx-devkit/tsdown`. |
-| `nx-devkit-oxlint` | Install + targets generated by `@nx-devkit/oxlint`. |
-| `nx-devkit-biome` | Install + targets generated by `@nx-devkit/biome`. |
-| `nx-devkit-typescript` | Install + preset rationale + shared typecheck/test targets. |
-| `nx-vs-nx` | Positioning: we EXTEND Nx with config-file inference, we do NOT replace it. Comparison table vs `@nx/js`, `@nx/vite`, `@nx/eslint` plugins. |
-| `nx-e2e-demo` | Clone → `bun install` → run `apps/demo`. |
+| Skill                  | Purpose                                                                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nx-devkit-tsdown`     | Install + targets generated by `@nx-devkit/tsdown`.                                                                                         |
+| `nx-devkit-oxlint`     | Install + targets generated by `@nx-devkit/oxlint`.                                                                                         |
+| `nx-devkit-biome`      | Install + targets generated by `@nx-devkit/biome`.                                                                                          |
+| `nx-devkit-typescript` | Install + preset rationale + shared typecheck/test targets.                                                                                 |
+| `nx-vs-nx`             | Positioning: we EXTEND Nx with config-file inference, we do NOT replace it. Comparison table vs `@nx/js`, `@nx/vite`, `@nx/eslint` plugins. |
+| `nx-e2e-demo`          | Clone → `bun install` → run `apps/demo`.                                                                                                    |
 
 Each `SKILL.md` has YAML frontmatter (`name`, `description`) per the skills.sh spec and stays under 500 lines.
 

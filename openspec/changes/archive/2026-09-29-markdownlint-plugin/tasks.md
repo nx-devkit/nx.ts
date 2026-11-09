@@ -1,11 +1,11 @@
 # Tasks
 
-| Task | Bead |
-|---|---|
-| Scaffold package + plugin.ts + spec | nx_ts-034 |
-| init generator + spec | nx_ts-034 |
-| README + AGENTS.md | nx_ts-034 |
-| Dogfood in root nx.json, run lint-md | nx_ts-034 |
+| Task                                             | Bead      |
+| ------------------------------------------------ | --------- |
+| Scaffold package + plugin.ts + spec              | nx_ts-034 |
+| init generator + spec                            | nx_ts-034 |
+| README + AGENTS.md                               | nx_ts-034 |
+| Dogfood in root nx.json, run lint-md             | nx_ts-034 |
 | Release onboarding (prepare-for-release + trust) | nx_ts-034 |
 
 - [x] proposal + spec delta

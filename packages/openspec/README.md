@@ -27,10 +27,10 @@ Or manually:
 
 ## What it infers
 
-| Trigger | Target | Command | Cacheable | Inputs |
-|---|---|---|---|---|
-| `openspec/config.yaml` | `spec-validate` | `openspec validate --all --strict` (cwd = `{projectRoot}`) | yes | `<root>/openspec/**` |
-| `openspec/changes/<id>/proposal.md` (each dir) | `spec-validate:<id>` | `openspec validate '<id>' --strict` | yes | `<root>/openspec/changes/<id>/**` |
+| Trigger                                        | Target               | Command                                                    | Cacheable | Inputs                            |
+| ---------------------------------------------- | -------------------- | ---------------------------------------------------------- | --------- | --------------------------------- |
+| `openspec/config.yaml`                         | `spec-validate`      | `openspec validate --all --strict` (cwd = `{projectRoot}`) | yes       | `<root>/openspec/**`              |
+| `openspec/changes/<id>/proposal.md` (each dir) | `spec-validate:<id>` | `openspec validate '<id>' --strict`                        | yes       | `<root>/openspec/changes/<id>/**` |
 
 Per-change targets mean editing `changes/alpha/` re-validates only `alpha` — the aggregate `spec-validate` still exists for full sweeps (`nx run-many -t spec-validate` covers both).
 
@@ -53,9 +53,9 @@ npx nx run <name>:spec-validate:my-change
 
 ```ts
 export interface NxOpenSpecPluginOptions {
-  targetName?: string   // default 'spec-validate' (per-change: '<targetName>:<id>')
-  perChange?: boolean   // default true
-  strict?: boolean      // default true — appends --strict
+  targetName?: string // default 'spec-validate' (per-change: '<targetName>:<id>')
+  perChange?: boolean // default true
+  strict?: boolean // default true — appends --strict
 }
 ```
 

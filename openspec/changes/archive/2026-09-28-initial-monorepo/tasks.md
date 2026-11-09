@@ -56,14 +56,14 @@ Tasks map 1:1 to convoy beads. Status icons: `[ ]` pending, `[x]` done.
 
 ## Bead traceability
 
-| Bead | Title | Tasks covered |
-|---|---|---|
+| Bead              | Title                                    | Tasks covered       |
+| ----------------- | ---------------------------------------- | ------------------- |
 | `0a220f70` (this) | OpenSpec init + SPEC + monorepo skeleton | All of sections 1-7 |
-| `8c089491` | `@nx-devkit/tsdown` plugin | (subsequent bead) |
-| `d423389d` | `@nx-devkit/oxlint` plugin | (subsequent bead) |
-| `eac7202f` | `@nx-devkit/biome` plugin | (subsequent bead) |
-| `79ad4eee` | `@nx-devkit/typescript` preset plugin | (subsequent bead) |
-| `5bed80e9` | Wire 4 plugins + contract test | (subsequent bead) |
-| `3e5dcab7` | Demo workspace + e2e | (subsequent bead) |
-| `989f2411` | Skills (per-plugin + nx-vs-nx) | (subsequent bead) |
-| `f7fb7ee7` | Root README + CONTRIBUTING + 2 PRs | (subsequent bead) |
+| `8c089491`        | `@nx-devkit/tsdown` plugin               | (subsequent bead)   |
+| `d423389d`        | `@nx-devkit/oxlint` plugin               | (subsequent bead)   |
+| `eac7202f`        | `@nx-devkit/biome` plugin                | (subsequent bead)   |
+| `79ad4eee`        | `@nx-devkit/typescript` preset plugin    | (subsequent bead)   |
+| `5bed80e9`        | Wire 4 plugins + contract test           | (subsequent bead)   |
+| `3e5dcab7`        | Demo workspace + e2e                     | (subsequent bead)   |
+| `989f2411`        | Skills (per-plugin + nx-vs-nx)           | (subsequent bead)   |
+| `f7fb7ee7`        | Root README + CONTRIBUTING + 2 PRs       | (subsequent bead)   |

@@ -31,25 +31,25 @@ gh workflow run release.yml -f version=patch -f dry-run=false
 
 ## Executor options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `packageName` | string | from `package.json` | npm package name to publish |
-| `packagePath` | string | project root | Path to the package directory |
-| `releaseVersion` | string | `"patch"` | Version to release (x.y.z, or patch\|minor\|major) |
-| `dryRun` | boolean | `false` | Verify only — no publish, tag, push, or release |
-| `registry` | string | `https://registry.npmjs.org/` | npm registry URL |
-| `branch` | string | `"main"` | Branch to push the bump commit to |
-| `generateNotes` | boolean | `true` | Create a GitHub Release with auto-generated changelog |
-| `provenance` | boolean | `true` | Publish with `--provenance` (npm OIDC) |
+| Option           | Type    | Default                       | Description                                           |
+| ---------------- | ------- | ----------------------------- | ----------------------------------------------------- |
+| `packageName`    | string  | from `package.json`           | npm package name to publish                           |
+| `packagePath`    | string  | project root                  | Path to the package directory                         |
+| `releaseVersion` | string  | `"patch"`                     | Version to release (x.y.z, or patch\|minor\|major)    |
+| `dryRun`         | boolean | `false`                       | Verify only — no publish, tag, push, or release       |
+| `registry`       | string  | `https://registry.npmjs.org/` | npm registry URL                                      |
+| `branch`         | string  | `"main"`                      | Branch to push the bump commit to                     |
+| `generateNotes`  | boolean | `true`                        | Create a GitHub Release with auto-generated changelog |
+| `provenance`     | boolean | `true`                        | Publish with `--provenance` (npm OIDC)                |
 
 ## Generator options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `projectName` | string | `"tools"` | Name of the tools project |
-| `packageName` | string | from root `package.json` | npm package name |
-| `packagePath` | string | `"packages/cli"` | Path to the package directory |
-| `branch` | string | `"main"` | Branch to push to |
+| Option        | Type   | Default                  | Description                   |
+| ------------- | ------ | ------------------------ | ----------------------------- |
+| `projectName` | string | `"tools"`                | Name of the tools project     |
+| `packageName` | string | from root `package.json` | npm package name              |
+| `packagePath` | string | `"packages/cli"`         | Path to the package directory |
+| `branch`      | string | `"main"`                 | Branch to push to             |
 
 ## How it works
 

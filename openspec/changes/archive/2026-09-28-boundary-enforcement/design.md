@@ -62,8 +62,8 @@ Self-imports (source == target project) always allowed. Untagged projects are un
 
 ```ts
 export interface NxBoundariesOptions {
-  depConstraints?: DepConstraint[];   // [{sourceTag, onlyDependOnLibsWithTags}]
-  targetName?: string;                // default "check-boundaries"
+  depConstraints?: DepConstraint[] // [{sourceTag, onlyDependOnLibsWithTags}]
+  targetName?: string // default "check-boundaries"
 }
 ```
 

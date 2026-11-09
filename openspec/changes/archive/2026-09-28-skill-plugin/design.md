@@ -37,17 +37,19 @@ packages/skill/
 > because Nx expands it, not the shell.
 
 ```ts
-import { createHash } from 'node:crypto';
+import { createHash } from 'node:crypto'
 
 export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
   '**/SKILL.md',
   (configFiles, options = {}, context) => {
-    const opts = { ...defaultOptions, ...options };
+    const opts = { ...defaultOptions, ...options }
     return configFiles
       .map((skillFile) => {
-        const skillDir = dirname(skillFile);
-        const projectRoot = relative(context.workspaceRoot, resolve(context.workspaceRoot, skillDir))
-          .replace(/\\/g, '/');
+        const skillDir = dirname(skillFile)
+        const projectRoot = relative(
+          context.workspaceRoot,
+          resolve(context.workspaceRoot, skillDir),
+        ).replace(/\\/g, '/')
         // Collision-resistant project name: the full relative path with
         // slashes replaced by dashes, plus a short SHA-256 hash suffix (first
         // 8 hex chars / 32 bits). The hash makes collisions negligibly
@@ -55,10 +57,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
         // ~50% collision chance only near ~65K projects) for edge cases like
         // skills/a-/b vs skills/a/-b (both map to skills-a-b without the hash).
         // e.g. skills/code-review/act → skills-code-review-act-a1b2c3d4
-        const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8);
-        const projectName = `${projectRoot.replace(/\//g, '-')}-${pathHash}`;
+        const pathHash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 8)
+        const projectName = `${projectRoot.replace(/\//g, '-')}-${pathHash}`
 
-        if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null;
+        if (shouldSkipPath(projectRoot, context.workspaceRoot)) return null
 
         const skillInputs = [
           '{projectRoot}/SKILL.md',
@@ -66,13 +68,17 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
           '{projectRoot}/references/**/*',
           '{projectRoot}/assets/**/*',
           ...(opts.skillInputs ?? []),
-        ];
+        ]
 
         const targets: Record<string, TargetConfiguration> = {
           [opts.buildTargetName]: {
             executor: '@nx-devkit/skill:build',
             outputs: [`{workspaceRoot}/.build/skills/${projectName}`],
-            options: { target: 'skills-sh', outDir: `.build/skills/${projectName}`, path: projectRoot },
+            options: {
+              target: 'skills-sh',
+              outDir: `.build/skills/${projectName}`,
+              path: projectRoot,
+            },
             cache: true,
             inputs: [...skillInputs, '^production'],
           },
@@ -117,13 +123,16 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
               cwd: '{workspaceRoot}',
             },
           },
-        };
+        }
 
-        return [skillFile, { projects: { [projectRoot]: { name: projectName, root: projectRoot, targets } } }];
+        return [
+          skillFile,
+          { projects: { [projectRoot]: { name: projectName, root: projectRoot, targets } } },
+        ]
       })
-      .filter((r): r is [string, CreateNodesResult] => r !== null);
+      .filter((r): r is [string, CreateNodesResult] => r !== null)
   },
-];
+]
 ```
 
 ## Build executor
@@ -139,16 +148,16 @@ export default async function buildExecutor(
   // It is required — the project name is a dashed encoding of the full path and
   // cannot be resolved back to a filesystem path, so there is no safe fallback.
   if (!options.path) {
-    throw new Error('build executor requires options.path (the skill projectRoot)');
+    throw new Error('build executor requires options.path (the skill projectRoot)')
   }
-  const skillPath = path.resolve(context.root, options.path);
-  const outDir = path.resolve(context.root, options.outDir);
+  const skillPath = path.resolve(context.root, options.path)
+  const outDir = path.resolve(context.root, options.outDir)
   const result = await compileSkill({
     skillPath,
     target: options.target,
     outDir,
-  });
-  return { success: result.success };
+  })
+  return { success: result.success }
 }
 ```
 

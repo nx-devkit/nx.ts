@@ -29,9 +29,9 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 and inferLintTarget -->
 
-| Trigger | Target | Command | Cacheable | Inputs |
-|---|---|---|---|---|
-| `.oxlintrc.{json,yml,yaml,cjs,mjs,js,cts,mts}` | `lint` | `oxlint .` (via `nx:run-commands`, `cwd` = project root) | yes | `src/**`, `.oxlintrc.*`, `package.json` |
+| Trigger                                        | Target | Command                                                  | Cacheable | Inputs                                  |
+| ---------------------------------------------- | ------ | -------------------------------------------------------- | --------- | --------------------------------------- |
+| `.oxlintrc.{json,yml,yaml,cjs,mjs,js,cts,mts}` | `lint` | `oxlint .` (via `nx:run-commands`, `cwd` = project root) | yes       | `src/**`, `.oxlintrc.*`, `package.json` |
 
 Config files are read defensively: the plugin only checks the file exists and is within the size limit — JSON parse failures are tolerated, and non-JSON formats (yaml/js) are never parsed by the plugin. Real config semantics are delegated to `oxlint` at target runtime.
 

@@ -31,10 +31,7 @@ Scan `src/` and `test/` directories for files matching `testGlob` (default: `{sr
 The `createNodesV2` matcher is `**/tsconfig*.json`, so the Nx daemon only re-invokes the callback when tsconfig files change — NOT when test files are added or removed. To ensure the graph stays current, the plugin MUST use a single matcher that matches BOTH tsconfig and test files, so the primary callback (which does readdirSync discovery) is re-run when either changes:
 
 ```ts
-export const createNodesV2 = [
-  '**/{tsconfig*.json,*.{test,spec}.{ts,js,mts,mjs}}',
-  createNodes,
-];
+export const createNodesV2 = ['**/{tsconfig*.json,*.{test,spec}.{ts,js,mts,mjs}}', createNodes]
 ```
 
 This ensures the callback that emits `test`/`test:tap`/`test:coverage` targets is re-invoked when test files are added or removed, not just when tsconfig changes. The TDD tests MUST assert the `test` target itself updates (not merely that the daemon wakes up).
@@ -44,11 +41,14 @@ This ensures the callback that emits `test`/`test:tap`/`test:coverage` targets i
 ### Targets
 
 ```ts
-export function inferNativeTestTargets(projectRoot: string, options: {
-  testGlob: string;
-  tap: boolean;
-  coverage: boolean;
-}): Record<string, TargetConfiguration> {
+export function inferNativeTestTargets(
+  projectRoot: string,
+  options: {
+    testGlob: string
+    tap: boolean
+    coverage: boolean
+  },
+): Record<string, TargetConfiguration> {
   // Inputs are derived from testGlob so the cache hashes exactly the files
   // that node --test will execute, plus all project source files (tests import
   // source files, so changes to src/foo.ts must invalidate the cache) and
@@ -60,7 +60,7 @@ export function inferNativeTestTargets(projectRoot: string, options: {
     '{projectRoot}/package.json',
     '{projectRoot}/tsconfig.json',
     '^production',
-  ];
+  ]
   const targets: Record<string, TargetConfiguration> = {
     test: {
       executor: 'nx:run-commands',
@@ -71,7 +71,7 @@ export function inferNativeTestTargets(projectRoot: string, options: {
         cwd: projectRoot,
       },
     },
-  };
+  }
 
   if (options.tap) {
     targets['test:tap'] = {
@@ -83,7 +83,7 @@ export function inferNativeTestTargets(projectRoot: string, options: {
         cwd: projectRoot,
       },
       outputs: ['{projectRoot}/test-results.tap'],
-    };
+    }
   }
 
   if (options.coverage) {
@@ -95,10 +95,10 @@ export function inferNativeTestTargets(projectRoot: string, options: {
         command: `node --test --experimental-test-coverage "${options.testGlob}"`,
         cwd: projectRoot,
       },
-    };
+    }
   }
 
-  return targets;
+  return targets
 }
 ```
 

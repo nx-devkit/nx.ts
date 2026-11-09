@@ -2,7 +2,7 @@
 
 ## Why
 
-Nx Cloud free-tier quota is scoped **per organization**. When it is exhausted the only self-service recovery is to create a fresh organization and rebind the workspace. Nx itself does this via `POST /nx-cloud/v2/create-org-and-workspace` (the same call `nx connect-to-nx-cloud` makes) and writes the returned `nxCloudId` into `nx.json`. There is no public API to *delete* an organization — the server swagger was removed from the docs ([nrwl/nx#22654](https://github.com/nrwl/nx/pull/22654)), and `nx-cloud onboard` exposes `orgs list`/`orgs create` but no delete.
+Nx Cloud free-tier quota is scoped **per organization**. When it is exhausted the only self-service recovery is to create a fresh organization and rebind the workspace. Nx itself does this via `POST /nx-cloud/v2/create-org-and-workspace` (the same call `nx connect-to-nx-cloud` makes) and writes the returned `nxCloudId` into `nx.json`. There is no public API to _delete_ an organization — the server swagger was removed from the docs ([nrwl/nx#22654](https://github.com/nrwl/nx/pull/22654)), and `nx-cloud onboard` exposes `orgs list`/`orgs create` but no delete.
 
 Today that rotation is a manual curl + `nx.json` edit. Packaging it as a plugin makes it a one-command, CI-friendly operation.
 
@@ -15,8 +15,8 @@ Today that rotation is a manual curl + `nx.json` edit. Packaging it as a plugin 
 - **API**: `createNodesV2` (Nx 22+ / 23+)
 - **Inferred targets**:
 
-| Target | Executor | Cache | Description |
-|---|---|---|---|
+| Target            | Executor                     | Cache | Description                                                  |
+| ----------------- | ---------------------------- | ----- | ------------------------------------------------------------ |
 | `nx-cloud-rotate` | `@nx-devkit/nx-cloud:rotate` | false | Create a fresh Nx Cloud org + workspace and rebind `nx.json` |
 
 ### `rotate` executor
@@ -36,7 +36,7 @@ Registers `@nx-devkit/nx-cloud` (or a custom `pluginPath` for in-repo developmen
 ```ts
 export interface NxCloudPluginOptions {
   /** Target name inferred on the root project. Default: "nx-cloud-rotate" */
-  targetName?: string;
+  targetName?: string
 }
 ```
 
@@ -44,10 +44,10 @@ export interface NxCloudPluginOptions {
 
 ```ts
 export interface NxCloudRotateOptions {
-  workspaceName?: string;      // default: root package.json `name`
-  cloudUrl?: string;           // default: NX_CLOUD_API/NRWL_API env or https://cloud.nx.app
-  installationSource?: string; // default: "nx-devkit-nx-cloud"
-  dryRun?: boolean;            // default: false — call the API but do not rewrite nx.json
+  workspaceName?: string // default: root package.json `name`
+  cloudUrl?: string // default: NX_CLOUD_API/NRWL_API env or https://cloud.nx.app
+  installationSource?: string // default: "nx-devkit-nx-cloud"
+  dryRun?: boolean // default: false — call the API but do not rewrite nx.json
 }
 ```
 

@@ -47,13 +47,13 @@
   "dependencies": {
     "@nx/devkit": "^24.0.0",
     "jsonc-parser": "^3.3.1",
-    "tsdown": "^0.22.3"
+    "tsdown": "^0.23.7"
   },
   "devDependencies": {
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.6.6",
     "memfs": "^4.50.0",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.11",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
     "@nx-devkit/internal": "0.0.0"
   },
   "repository": {

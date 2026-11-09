@@ -29,11 +29,11 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger | Target | Command | Cacheable | Outputs |
-|---|---|---|---|---|
-| `vitest.config.{ts,js,mts,mjs,cts,cjs}` | `test` | `vitest run` | yes | `{projectRoot}/coverage` |
-| same | `test:watch` | `vitest` | no | — |
-| same | `test:coverage` | `vitest run --coverage` | yes | `{projectRoot}/coverage` |
+| Trigger                                 | Target          | Command                 | Cacheable | Outputs                  |
+| --------------------------------------- | --------------- | ----------------------- | --------- | ------------------------ |
+| `vitest.config.{ts,js,mts,mjs,cts,cjs}` | `test`          | `vitest run`            | yes       | `{projectRoot}/coverage` |
+| same                                    | `test:watch`    | `vitest`                | no        | —                        |
+| same                                    | `test:coverage` | `vitest run --coverage` | yes       | `{projectRoot}/coverage` |
 
 All targets declare `dependsOn: ["^build"]`, so upstream dependencies build first.
 

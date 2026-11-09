@@ -23,13 +23,13 @@
 
 ### 🚀 Features
 
-- ⚠️  **release:** the release version comes from conventional commits ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
+- ⚠️ **release:** the release version comes from conventional commits ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
 
 ### ⚠️  Breaking Changes
 
-- **release:** the release version comes from conventional commits  ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
+- **release:** the release version comes from conventional commits ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
   footer in the commit body marks the commit as
-    breaking (the spec promised it, the parser only looked at the subject);
+  breaking (the spec promised it, the parser only looked at the subject);
   - the commit type must be alphabetic, and the description must not be
     empty;
   - a pull request link is only rendered when it is a safe https URL — a
@@ -45,13 +45,13 @@
     repository's changelogs use;
   - stage 1's parity check covers the published set and the versions — the
     tag and release model change in stage 2, with the one-version model."
-  A	openspec/changes/release-dogfooding/proposal.md
-  A	openspec/changes/release-dogfooding/specs/release-dogfooding/spec.md
-  A	openspec/changes/release-dogfooding/tasks.md
-  A	packages/release/src/changelog.spec.ts
-  A	packages/release/src/changelog.ts
-  A	packages/release/src/version.spec.ts
-  A	packages/release/src/version.ts
+    A openspec/changes/release-dogfooding/proposal.md
+    A openspec/changes/release-dogfooding/specs/release-dogfooding/spec.md
+    A openspec/changes/release-dogfooding/tasks.md
+    A packages/release/src/changelog.spec.ts
+    A packages/release/src/changelog.ts
+    A packages/release/src/version.spec.ts
+    A packages/release/src/version.ts
 
 ### ❤️ Thank You
 

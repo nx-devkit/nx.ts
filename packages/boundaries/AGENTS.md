@@ -33,8 +33,8 @@ packages/boundaries/
 
 ```ts
 export interface NxBoundariesOptions {
-  depConstraints?: DepConstraint[];  // [{sourceTag, onlyDependOnLibsWithTags}]
-  targetName?: string;               // default "check-boundaries"
+  depConstraints?: DepConstraint[] // [{sourceTag, onlyDependOnLibsWithTags}]
+  targetName?: string // default "check-boundaries"
 }
 ```
 

@@ -26,20 +26,20 @@ This eliminates the need for consumers to install 4-5 separate plugins for a sta
 
 ```ts
 export interface NxDevkitTypescriptOptions {
-  tsgo?: boolean;              // existing — use tsgo instead of tsc
-  configFile?: string;         // existing — tsconfig filename
-  clean?: boolean;             // existing — pre-clean tsbuildinfo
+  tsgo?: boolean // existing — use tsgo instead of tsc
+  configFile?: string // existing — tsconfig filename
+  clean?: boolean // existing — pre-clean tsbuildinfo
 
   // NEW: native Node test runner
-  nativeTest?: boolean;        // default: true — infer node --test targets when no vitest config
-  testGlob?: string;           // default: '{src,test}/**/*.{test,spec}.{ts,js,mts,mjs}'
-  tap?: boolean;               // default: false — use TAP reporter instead of spec
-  coverage?: boolean;          // default: false — enable --experimental-test-coverage
+  nativeTest?: boolean // default: true — infer node --test targets when no vitest config
+  testGlob?: string // default: '{src,test}/**/*.{test,spec}.{ts,js,mts,mjs}'
+  tap?: boolean // default: false — use TAP reporter instead of spec
+  coverage?: boolean // default: false — enable --experimental-test-coverage
 
   // NEW: mega-preset delegation
-  oxlint?: boolean;            // default: true — infer lint target when .oxlintrc.* exists
-  biome?: boolean;             // default: true — infer format/format-check when biome.json exists
-  tsdown?: boolean;            // default: true — infer build target when tsdown.config.ts exists
+  oxlint?: boolean // default: true — infer lint target when .oxlintrc.* exists
+  biome?: boolean // default: true — infer format/format-check when biome.json exists
+  tsdown?: boolean // default: true — infer build target when tsdown.config.ts exists
 }
 ```
 

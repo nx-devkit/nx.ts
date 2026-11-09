@@ -34,10 +34,10 @@ packages/nx-cloud/
 
 ```ts
 export interface NxCloudRotateOptions {
-  workspaceName?: string;      // default: root package.json `name`
-  cloudUrl?: string;           // default: NX_CLOUD_API/NRWL_API env or https://cloud.nx.app
-  installationSource?: string; // default: "nx-devkit-nx-cloud"
-  dryRun?: boolean;            // default: false — call the API but do not rewrite nx.json
+  workspaceName?: string // default: root package.json `name`
+  cloudUrl?: string // default: NX_CLOUD_API/NRWL_API env or https://cloud.nx.app
+  installationSource?: string // default: "nx-devkit-nx-cloud"
+  dryRun?: boolean // default: false — call the API but do not rewrite nx.json
 }
 ```
 

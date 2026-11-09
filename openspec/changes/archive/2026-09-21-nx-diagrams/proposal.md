@@ -16,10 +16,10 @@ Kroki covers ~25 diagram types over one HTTP API and self-hosts via docker (`yuz
 
 ### Inferred targets (atomized, per diagram file)
 
-| Target | Executor | Cache | Description |
-|---|---|---|---|
-| `diagram-<relpath-slug>` | `@nx-devkit/diagrams:render` | true | Render one diagram file; inputs = source file, outputs = rendered image |
-| `diagrams` (aggregate) | `@nx-devkit/diagrams:render` batch mode | true | Renders all diagram files in the project; depends on nothing, one command convenience |
+| Target                   | Executor                                | Cache | Description                                                                           |
+| ------------------------ | --------------------------------------- | ----- | ------------------------------------------------------------------------------------- |
+| `diagram-<relpath-slug>` | `@nx-devkit/diagrams:render`            | true  | Render one diagram file; inputs = source file, outputs = rendered image               |
+| `diagrams` (aggregate)   | `@nx-devkit/diagrams:render` batch mode | true  | Renders all diagram files in the project; depends on nothing, one command convenience |
 
 Per-file targets give correct cache granularity — changing one `.puml` re-renders only that file.
 

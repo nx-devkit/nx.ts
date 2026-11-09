@@ -6,14 +6,14 @@ Zero-config Nx plugin that renders text-diagram sources to images — the Nx way
 
 Supported types (extension → renderer type; matching is case-insensitive, `.PUML` works too):
 
-| Extension | Type |
-|---|---|
-| `.puml`, `.plantuml` | `plantuml` |
-| `.mmd`, `.mermaid` | `mermaid` |
-| `.dot`, `.gv` | `graphviz` |
-| `.d2` | `d2` |
-| `.bpmn` | `bpmn` |
-| `.excalidraw` | `excalidraw` |
+| Extension            | Type         |
+| -------------------- | ------------ |
+| `.puml`, `.plantuml` | `plantuml`   |
+| `.mmd`, `.mermaid`   | `mermaid`    |
+| `.dot`, `.gv`        | `graphviz`   |
+| `.d2`                | `d2`         |
+| `.bpmn`              | `bpmn`       |
+| `.excalidraw`        | `excalidraw` |
 
 Markdown files (`**/*.md`) are sources too: every fenced block whose language maps to a type — ` ```mermaid `, ` ```plantuml `/`puml`, ` ```d2 `, ` ```dot `/`graphviz`, ` ```bpmn `, ` ```excalidraw ` — gets its own `diagram-<slug>-<n>` target rendering to `<fileName>-<n>.<format>` next to the file, where `<n>` is the block's 1-based ordinal among diagram fences in that file:
 
@@ -36,9 +36,7 @@ Or register manually in `nx.json`:
 
 ```jsonc
 {
-  "plugins": [
-    { "plugin": "@nx-devkit/diagrams", "options": {} }
-  ]
+  "plugins": [{ "plugin": "@nx-devkit/diagrams", "options": {} }]
 }
 ```
 
@@ -70,12 +68,12 @@ Per-file targets are the cache unit — each renders a single file, so unchanged
 {
   "plugin": "@nx-devkit/diagrams",
   "options": {
-    "format": "svg",                  // svg | png | jpeg (default: svg)
-    "krokiUrl": "https://kroki.io",   // or "docker" for an ephemeral local container; "" disables
+    "format": "svg", // svg | png | jpeg (default: svg)
+    "krokiUrl": "https://kroki.io", // or "docker" for an ephemeral local container; "" disables
     "krokiImage": "yuzutech/kroki:latest", // image used when krokiUrl is "docker"
-    "outputDir": "{fileDir}",         // workspace-relative; tokens: {fileDir} {fileName} {projectRoot}
-    "targetName": "diagrams",         // aggregate target name
-    "include": ["docs/**"],           // extra filters over matched files
+    "outputDir": "{fileDir}", // workspace-relative; tokens: {fileDir} {fileName} {projectRoot}
+    "targetName": "diagrams", // aggregate target name
+    "include": ["docs/**"], // extra filters over matched files
     "exclude": ["**/vendor/**"],
     "commands": {
       // per-type local renderers — win over Kroki when set
@@ -143,7 +141,7 @@ services:
 ```
 
 Run it (`docker compose up -d`) and point the plugin at it —
-`"krokiUrl": "http://localhost:8000"`. That is a *shared* stack; the
+`"krokiUrl": "http://localhost:8000"`. That is a _shared_ stack; the
 `"docker"` mode above is the serverless one (a stack per run, nothing
 shared, nothing left behind).
 

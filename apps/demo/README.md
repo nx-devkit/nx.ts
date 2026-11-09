@@ -1,14 +1,14 @@
 # @nx-devkit demo workspace
 
-A minimal Nx workspace that exercises all 4 inference plugins in the `@nx-devkit/*` family. Each project is configured by *config files only* (no `project.json`) — targets are inferred automatically by the plugins.
+A minimal Nx workspace that exercises all 4 inference plugins in the `@nx-devkit/*` family. Each project is configured by _config files only_ (no `project.json`) — targets are inferred automatically by the plugins.
 
 ## What this proves
 
-| Project            | Source files          | Type of project                            |
-| ------------------ | --------------------- | ------------------------------------------ |
-| `projects/library` | `tsdown.config.ts` + `tsconfig.json` + `.oxlintrc.json` + `biome.json` + `vitest.config.ts` | Library — exports `hello = 'world'`        |
-| `projects/app`     | Same config set + `src/main.ts` | Application — prints "app running"        |
-| `projects/monorepo-pkg` | Same config set, no tests | Workspace-pkg-style package (private `package.json`) |
+| Project                 | Source files                                                                                | Type of project                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `projects/library`      | `tsdown.config.ts` + `tsconfig.json` + `.oxlintrc.json` + `biome.json` + `vitest.config.ts` | Library — exports `hello = 'world'`                  |
+| `projects/app`          | Same config set + `src/main.ts`                                                             | Application — prints "app running"                   |
+| `projects/monorepo-pkg` | Same config set, no tests                                                                   | Workspace-pkg-style package (private `package.json`) |
 
 ## How to run the e2e
 
@@ -46,13 +46,13 @@ bunx nx run-many -t build typecheck lint format test
 
 ## Which plugin infers which target
 
-| Target       | Inferred by             | Trigger file                          |
-| ------------ | ----------------------- | ------------------------------------- |
-| `build`      | `@nx-devkit/tsdown`     | `tsdown.config.ts`                    |
-| `typecheck`  | `@nx-devkit/typescript` | `tsconfig.json`                       |
-| `lint`       | `@nx-devkit/oxlint` + `@nx-devkit/biome` | `.oxlintrc.json` + `biome.json` (biome wins on `lint`) |
-| `format`     | `@nx-devkit/biome`      | `biome.json`                          |
-| `test`       | `@nx-devkit/typescript` | `tsconfig.json` + `vitest.config.ts`  |
+| Target      | Inferred by                              | Trigger file                                           |
+| ----------- | ---------------------------------------- | ------------------------------------------------------ |
+| `build`     | `@nx-devkit/tsdown`                      | `tsdown.config.ts`                                     |
+| `typecheck` | `@nx-devkit/typescript`                  | `tsconfig.json`                                        |
+| `lint`      | `@nx-devkit/oxlint` + `@nx-devkit/biome` | `.oxlintrc.json` + `biome.json` (biome wins on `lint`) |
+| `format`    | `@nx-devkit/biome`                       | `biome.json`                                           |
+| `test`      | `@nx-devkit/typescript`                  | `tsconfig.json` + `vitest.config.ts`                   |
 
 ## Notes
 

@@ -33,13 +33,13 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts infer* functions and executors.json -->
 
-| Target | Runs | Purpose |
-|---|---|---|
-| `build` | `@nx-devkit/skill:build` executor — skills-compiler via `execFile`, no shell | Compiles the skill to a distribution target. |
-| `lint` | `markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json` (`--config` only when the file exists at workspace root) | Lints all skill Markdown. |
-| `validate` | `@nx-devkit/skill:validate` executor | Validates `SKILL.md` frontmatter and structure. |
-| `os-check` | `@nx-devkit/skill:os-check` executor | Flags OS-specific commands/paths that break cross-platform portability. |
-| `size-check` | `@nx-devkit/skill:size-check` executor | Enforces size budgets on the skill directory. |
+| Target       | Runs                                                                                                                             | Purpose                                                                 |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `build`      | `@nx-devkit/skill:build` executor — skills-compiler via `execFile`, no shell                                                     | Compiles the skill to a distribution target.                            |
+| `lint`       | `markdownlint-cli2 '{projectRoot}/**/*.md' --config .markdownlint.json` (`--config` only when the file exists at workspace root) | Lints all skill Markdown.                                               |
+| `validate`   | `@nx-devkit/skill:validate` executor                                                                                             | Validates `SKILL.md` frontmatter and structure.                         |
+| `os-check`   | `@nx-devkit/skill:os-check` executor                                                                                             | Flags OS-specific commands/paths that break cross-platform portability. |
+| `size-check` | `@nx-devkit/skill:size-check` executor                                                                                           | Enforces size budgets on the skill directory.                           |
 
 The `build` target's `inputs` are an explicit list — `SKILL.md`, `**/*.md`, `scripts/`, `references/`, `assets/`, `agents/` under the project root, plus `^production` — extended by any `skillInputs` you add. The `lint` target runs with `cwd` = workspace root; `{projectRoot}` in the command is the Nx macro, expanded by Nx before the shell runs it — the quotes keep the path literal. The executor targets receive the skill directory via the `path` option.
 
@@ -62,26 +62,29 @@ Project names are derived from the skill directory slug plus a 12-hex-char SHA-2
 ```jsonc
 {
   "plugins": [
-    ["@nx-devkit/skill", {
-      "buildTargetName": "build",
-      "lintTargetName": "lint",
-      "validateTargetName": "validate",
-      "osCheckTargetName": "os-check",
-      "sizeCheckTargetName": "size-check",
-      "skillInputs": []
-    }]
+    [
+      "@nx-devkit/skill",
+      {
+        "buildTargetName": "build",
+        "lintTargetName": "lint",
+        "validateTargetName": "validate",
+        "osCheckTargetName": "os-check",
+        "sizeCheckTargetName": "size-check",
+        "skillInputs": []
+      }
+    ]
   ]
 }
 ```
 
-| Option | Default | Effect |
-|---|---|---|
-| `buildTargetName` | `build` | Name of the build target. |
-| `lintTargetName` | `lint` | Name of the lint target. |
-| `validateTargetName` | `validate` | Name of the validate target. |
-| `osCheckTargetName` | `os-check` | Name of the OS-independence check target. |
-| `sizeCheckTargetName` | `size-check` | Name of the size-check target. |
-| `skillInputs` | `[]` | Extra input globs merged into the `build` target's inputs. |
+| Option                | Default      | Effect                                                     |
+| --------------------- | ------------ | ---------------------------------------------------------- |
+| `buildTargetName`     | `build`      | Name of the build target.                                  |
+| `lintTargetName`      | `lint`       | Name of the lint target.                                   |
+| `validateTargetName`  | `validate`   | Name of the validate target.                               |
+| `osCheckTargetName`   | `os-check`   | Name of the OS-independence check target.                  |
+| `sizeCheckTargetName` | `size-check` | Name of the size-check target.                             |
+| `skillInputs`         | `[]`         | Extra input globs merged into the `build` target's inputs. |
 
 All five target names must be non-empty and unique — on an empty or duplicate name the plugin logs a warning and skips that skill's project (other skills are unaffected).
 

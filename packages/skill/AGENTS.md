@@ -28,12 +28,12 @@ packages/skill/
 
 ```ts
 export interface NxDevkitSkillOptions {
-  buildTargetName?: string;    // default "build"
-  lintTargetName?: string;     // default "lint"
-  validateTargetName?: string; // default "validate"
-  osCheckTargetName?: string;  // default "os-check"
-  sizeCheckTargetName?: string;// default "size-check"
-  skillInputs?: string[];      // additional input globs for build
+  buildTargetName?: string // default "build"
+  lintTargetName?: string // default "lint"
+  validateTargetName?: string // default "validate"
+  osCheckTargetName?: string // default "os-check"
+  sizeCheckTargetName?: string // default "size-check"
+  skillInputs?: string[] // additional input globs for build
 }
 ```
 

@@ -1,4 +1,5 @@
 ---
+
 name: nx-devkit-typescript
 description: Preset Nx plugin — one command bootstraps typecheck, test, lint, format, and build targets from config files you already keep. No project.json required.
 ---
@@ -39,15 +40,15 @@ One plugin entry. The preset auto-detects everything else.
 
 For every `tsconfig.json` (outside the workspace root) the plugin infers a `typecheck` target. Depending on which config files are present in each project, it also infers:
 
-| Config file detected | Inferred target(s) |
-|---|---|
-| `tsconfig.json` | `typecheck` (tsgo or tsc) |
-| `vitest.config.*` | `test`, `test:watch`, `test:coverage` |
-| `*.test.ts` / `*.spec.ts` (no vitest) | `test` (native `node --test`) |
-| `.oxlintrc.*` | `lint` (oxlint, highest precedence) |
-| `eslint.config.*` | `lint` (eslint, fallback) |
-| `biome.json` / `biome.jsonc` | `format`, `format-check`, `lint` (fallback) |
-| `tsdown.config.*` | `build`, `build:watch` |
+| Config file detected                  | Inferred target(s)                          |
+| ------------------------------------- | ------------------------------------------- |
+| `tsconfig.json`                       | `typecheck` (tsgo or tsc)                   |
+| `vitest.config.*`                     | `test`, `test:watch`, `test:coverage`       |
+| `*.test.ts` / `*.spec.ts` (no vitest) | `test` (native `node --test`)               |
+| `.oxlintrc.*`                         | `lint` (oxlint, highest precedence)         |
+| `eslint.config.*`                     | `lint` (eslint, fallback)                   |
+| `biome.json` / `biome.jsonc`          | `format`, `format-check`, `lint` (fallback) |
+| `tsdown.config.*`                     | `build`, `build:watch`                      |
 
 ### Lint precedence
 
@@ -80,19 +81,19 @@ Pass options via the inline plugin tuple in `nx.json`:
 }
 ```
 
-| Option | Type | Default | Notes |
-|---|---|---|---|
-| `tsgo` | `boolean` | `true` | `true` uses `tsgo` (`@typescript/native-preview`); `false` uses `tsc` |
-| `configFile` | `string` | `"tsconfig.json"` | Trigger file basename |
-| `clean` | `boolean` | `false` | Pre-clean tsbuildinfo before typecheck |
-| `tap` | `boolean` | `false` | Infer `test:tap` with native Node TAP reporter |
-| `coverage` | `boolean` | `false` | Infer `test:coverage` for native Node runner |
-| `oxlint` | `boolean` | `true` | Infer `lint` from `.oxlintrc.*` |
-| `eslint` | `boolean` | `true` | Infer `lint` from `eslint.config.*` (fallback) |
-| `biome` | `boolean` | `true` | Infer `format`/`format-check`/`lint` from `biome.json` |
-| `tsdown` | `boolean` | `true` | Infer `build`/`build:watch` from `tsdown.config.*` |
-| `testGlob` | `string` | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files |
-| `specGlob` | `string` | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files |
+| Option       | Type      | Default                       | Notes                                                                 |
+| ------------ | --------- | ----------------------------- | --------------------------------------------------------------------- |
+| `tsgo`       | `boolean` | `true`                        | `true` uses `tsgo` (`@typescript/native-preview`); `false` uses `tsc` |
+| `configFile` | `string`  | `"tsconfig.json"`             | Trigger file basename                                                 |
+| `clean`      | `boolean` | `false`                       | Pre-clean tsbuildinfo before typecheck                                |
+| `tap`        | `boolean` | `false`                       | Infer `test:tap` with native Node TAP reporter                        |
+| `coverage`   | `boolean` | `false`                       | Infer `test:coverage` for native Node runner                          |
+| `oxlint`     | `boolean` | `true`                        | Infer `lint` from `.oxlintrc.*`                                       |
+| `eslint`     | `boolean` | `true`                        | Infer `lint` from `eslint.config.*` (fallback)                        |
+| `biome`      | `boolean` | `true`                        | Infer `format`/`format-check`/`lint` from `biome.json`                |
+| `tsdown`     | `boolean` | `true`                        | Infer `build`/`build:watch` from `tsdown.config.*`                    |
+| `testGlob`   | `string`  | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files                                            |
+| `specGlob`   | `string`  | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files                                                   |
 
 ## Verify it works
 

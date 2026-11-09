@@ -1,4 +1,5 @@
 ---
+
 name: nx-devkit-biome
 description: Nx plugin that infers format, format-check, and lint targets from biome.json/biome.jsonc
 ---
@@ -19,11 +20,11 @@ Use this skill when:
 
 The plugin scans for `**/biome.jsonc?`. For each match (outside the workspace root), it injects three targets:
 
-| Trigger | Target | Command | Cache |
-|---|---|---|---|
-| `**/biome.json` or `**/biome.jsonc` | `format` | `npx biome format --write .` | **false** (writes files) |
-| same | `format-check` | `npx biome format .` | true |
-| same | `lint` | `npx biome lint .` | true |
+| Trigger                             | Target         | Command                      | Cache                    |
+| ----------------------------------- | -------------- | ---------------------------- | ------------------------ |
+| `**/biome.json` or `**/biome.jsonc` | `format`       | `npx biome format --write .` | **false** (writes files) |
+| same                                | `format-check` | `npx biome format .`         | true                     |
+| same                                | `lint`         | `npx biome lint .`           | true                     |
 
 All three targets run with `cwd` set to the project root.
 

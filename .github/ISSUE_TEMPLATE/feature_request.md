@@ -1,4 +1,5 @@
 ---
+
 name: Feature request
 about: New target, new option, new plugin
 labels: enhancement
