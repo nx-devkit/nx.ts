@@ -1,3 +1,13 @@
+## 0.0.21 (2026-11-09)
+
+### 🩹 Fixes
+
+- **diagrams:** bump minimatch to ^11.0.5 (GHSA-g3hv-75wg-m249, alert #3) ([#152](https://github.com/nx-devkit/nx.ts/pull/152), [#3](https://github.com/nx-devkit/nx.ts/issues/3))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.20 (2026-10-26)
 
 This was a version bump only for @nx-devkit/diagrams to align it with other projects, there were no code changes.

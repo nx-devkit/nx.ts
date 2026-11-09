@@ -1,3 +1,7 @@
+## 0.0.15 (2026-11-09)
+
+This was a version bump only for @nx-devkit/boundaries to align it with other projects, there were no code changes.
+
 ## 0.0.14 (2026-10-26)
 
 This was a version bump only for @nx-devkit/boundaries to align it with other projects, there were no code changes.
