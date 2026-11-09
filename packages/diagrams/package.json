@@ -60,7 +60,7 @@
     "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.6.6",
     "memfs": "^4.50.0",
-    "minimatch": "^10.2.4",
+    "minimatch": "^11.0.5",
     "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
