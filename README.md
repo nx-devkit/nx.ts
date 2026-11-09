@@ -79,6 +79,8 @@ All `@nx-devkit/*` packages are pre-1.0: minor versions may add or change inferr
 - **Naming settled** — the `packages/typescript-preset` → `@nx-devkit/typescript` directory/package split is either accepted as documented or renamed once, before 1.0.
 - **Migrations shipped for breaks** — any change that alters consumer `nx.json` or project layout comes with an `nx migrate` entry (the preset already ships `migrations.json`).
 
+**Updating Nx.** Nx is always upgraded with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — in this repo or in any project that uses `@nx-devkit/*`. The peer range (`@nx/devkit` `^22 || ^23 || …`) is widened by a migration, not by a manual edit.
+
 ## When to use — and when not
 
 Use nx-devkit if your Nx workspace is a modern TypeScript toolchain and you want the project graph, caching, and `affected` without maintaining `project.json` targets per package — `tsconfig.json`, `vitest.config.ts`, `biome.json`, and friends *are* the project definition.

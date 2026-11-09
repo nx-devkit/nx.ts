@@ -73,4 +73,6 @@ Do **not** use them when:
 
 ## Compatibility
 
-All `@nx-devkit` plugins peer-depend on `@nx/devkit` >= 22 and are tested with Nx 22.x. They work in any Nx monorepo regardless of package manager (bun, npm, yarn, pnpm).
+All `@nx-devkit` plugins peer-depend on `@nx/devkit` >= 22 and are tested with Nx 22.x–24.x. They work in any Nx monorepo regardless of package manager (bun, npm, yarn, pnpm).
+
+**Updating Nx.** Always upgrade Nx with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — the `@nx/devkit` peer range is widened by a migration, not by a manual edit. The same rule applies to this repo itself.
