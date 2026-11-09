@@ -14,8 +14,6 @@
     "test": "bun run --filter='./packages/*' test",
     "lint": "node scripts/biome.mjs lint . && oxlint .",
     "lint:oxlint": "oxlint .",
-    "format": "nx format:write",
-    "format:check": "nx format:check",
     "spec:check": "bun run scripts/spec-check.ts",
     "check:spec": "bun run scripts/spec-check.ts",
     "spec:validate": "nx run nx-devkit-plugins:spec-validate",
