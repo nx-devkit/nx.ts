@@ -151,8 +151,11 @@ bun install
 # 5. Verify everything still works
 bun run lint && bun run test && bun run build
 
-# 6. Delete migrations.json — it is a transient artifact, never commit it
-rm migrations.json
+# 6. Delete migrations.json — it is a transient artifact, never commit it.
+#    Run from the WORKSPACE ROOT (not from a package dir) so you do not
+#    delete a package's tracked migrations.json. Skip this step if Nx
+#    generated no migrations.json (nothing to remove).
+rm -f migrations.json
 ```
 
 **Rules:**
