@@ -6,10 +6,10 @@ All packages under the `@nx-devkit` scope are pre-1.0. Only the latest published
 minor of each package receives fixes — upgrade to the newest release before
 reporting version-specific issues.
 
-| Version | Supported |
-|---|---|
-| Latest published | Yes |
-| Older versions | No |
+| Version          | Supported |
+| ---------------- | --------- |
+| Latest published | Yes       |
+| Older versions   | No        |
 
 ## Reporting a vulnerability
 
@@ -39,6 +39,6 @@ These plugins infer Nx targets that invoke locally-installed tool binaries
 hatch for local renderers; its inputs still deserve scrutiny (workspace paths
 are shell-quoted, but the command string is author-controlled by design).
 
-If you find a code path where *untrusted* input (a file in the repo, a config
+If you find a code path where _untrusted_ input (a file in the repo, a config
 value a contributor could sneak in) reaches a shell, a network endpoint, or a
 file write outside the workspace, that is in scope for this policy.

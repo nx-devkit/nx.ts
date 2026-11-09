@@ -28,13 +28,13 @@ packages/skillspector/
 
 ```ts
 export interface NxDevkitSkillspectorOptions {
-  scanTargetName?: string;    // default "scan"
-  noLlm?: boolean;            // default true
-  annotations?: boolean;      // default true
-  failOnError?: boolean;      // default true
-  skillspectorBin?: string;   // default "skillspector"
-  sarif?: string;             // SARIF output path prefix
-  baseline?: string;          // baseline file path
+  scanTargetName?: string // default "scan"
+  noLlm?: boolean // default true
+  annotations?: boolean // default true
+  failOnError?: boolean // default true
+  skillspectorBin?: string // default "skillspector"
+  sarif?: string // SARIF output path prefix
+  baseline?: string // baseline file path
 }
 ```
 

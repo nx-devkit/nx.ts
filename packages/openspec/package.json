@@ -44,9 +44,9 @@
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
-    "@types/node": "^26.0.0",
-    "@fission-ai/openspec": "^1.4.1",
-    "tsdown": "^0.22.3",
+    "@types/node": "^26.6.6",
+    "@fission-ai/openspec": "^1.16.0",
+    "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },

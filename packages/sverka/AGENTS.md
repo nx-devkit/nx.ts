@@ -10,14 +10,14 @@ steps and entries. This plugin turns every step into **its own Nx target**
 with its own inputs, outputs and cache entry — instead of one target that
 runs the whole workflow.
 
-| sverka concept | Nx concept |
-|---|---|
-| config file | project root (the config's directory) |
-| pipeline + step (`ci/lint`) | target `ci:lint` |
-| step dependency | `dependsOn` |
-| step output | target `outputs` |
-| consumed artifact | target `inputs` |
-| — | `cache: true` per target |
+| sverka concept              | Nx concept                            |
+| --------------------------- | ------------------------------------- |
+| config file                 | project root (the config's directory) |
+| pipeline + step (`ci/lint`) | target `ci:lint`                      |
+| step dependency             | `dependsOn`                           |
+| step output                 | target `outputs`                      |
+| consumed artifact           | target `inputs`                       |
+| —                           | `cache: true` per target              |
 
 ## File layout
 
@@ -50,10 +50,10 @@ packages/sverka/
 
 ```ts
 export interface NxDevkitSverkaOptions {
-  entry?: string      // default: every entry in the config
+  entry?: string // default: every entry in the config
   targetName?: string // default: "{pipeline}:{step}"
-  inputs?: string[]   // extra input globs for every target
-  cache?: boolean     // default: true
+  inputs?: string[] // extra input globs for every target
+  cache?: boolean // default: true
 }
 ```
 
@@ -94,7 +94,7 @@ target ci:lint { executor, inputs, outputs, dependsOn, cache }
   (`paths.ts`). Those paths are what the target declares as outputs.
 - **No self-invalidation.** A file a step writes into the project is an
   input of every step of the config — the plugin excludes the declared
-  outputs, the imported artifacts and the shell redirect targets of *all*
+  outputs, the imported artifacts and the shell redirect targets of _all_
   steps (`collectProjectWrites`).
 - **A broken config must not break the project graph.** The plugin warns and
   skips a config it cannot load.
@@ -110,7 +110,7 @@ target ci:lint { executor, inputs, outputs, dependsOn, cache }
   `<projectRoot>/.sverka/workspace/<stepId>/.outputs` — it changes on every
   run and MUST stay excluded from the inputs.
 - **`expandOutputs` (Nx) skips nothing** — a hidden output directory
-  (`.sverka/…`) is cached and restored like any other path, but the *inputs*
+  (`.sverka/…`) is cached and restored like any other path, but the _inputs_
   must exclude it explicitly or the cache never hits.
 - **The config is TypeScript.** Node strips the types (>= 22.18). A project
   without `"type": "module"` gets a `MODULE_TYPELESS_PACKAGE_JSON` warning
@@ -119,20 +119,20 @@ target ci:lint { executor, inputs, outputs, dependsOn, cache }
   the import URL so an edited config is re-evaluated instead of served from
   the ESM cache.
 - **`jsonc-parser` must stay a dependency.** `@nx-devkit/internal` is
-  bundled (`alwaysBundle`), and tsdown only externalizes *declared*
+  bundled (`alwaysBundle`), and tsdown only externalizes _declared_
   dependencies — without it, jsonc-parser is inlined into the chunk and
   its internal `require("./impl/*")` calls break at runtime (the same fix
   as `a90b406`).
 
 ## Extending
 
-| Task | Where |
-|---|---|
-| new target naming | `types.ts` (`DEFAULT_TARGET_NAME`) + `targets.ts` (`targetNameFor`) |
-| new input/output mapping | `targets.ts` (`buildStepTarget`) + `paths.ts` |
-| new executor option | `executors/step/schema.json` + `schema.d.ts` + `executor.ts` |
-| new GitHub check | `generators/config/github-checks.ts` (+ a `sh -n` test) |
-| new sverka config name | `graph.ts` (`SVERKA_CONFIG_NAMES`) + the glob in `plugin.ts` |
+| Task                     | Where                                                               |
+| ------------------------ | ------------------------------------------------------------------- |
+| new target naming        | `types.ts` (`DEFAULT_TARGET_NAME`) + `targets.ts` (`targetNameFor`) |
+| new input/output mapping | `targets.ts` (`buildStepTarget`) + `paths.ts`                       |
+| new executor option      | `executors/step/schema.json` + `schema.d.ts` + `executor.ts`        |
+| new GitHub check         | `generators/config/github-checks.ts` (+ a `sh -n` test)             |
+| new sverka config name   | `graph.ts` (`SVERKA_CONFIG_NAMES`) + the glob in `plugin.ts`        |
 
 ## Scope rules
 

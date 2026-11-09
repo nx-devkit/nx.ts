@@ -30,13 +30,13 @@ packages/diagrams/
 
 ```ts
 export interface NxDiagramsPluginOptions {
-  targetName?: string                 // aggregate target, default 'diagrams'
-  format?: 'svg' | 'png' | 'jpeg'     // default 'svg'
-  krokiUrl?: string                   // default 'https://kroki.io'; 'docker' = ephemeral container per run; '' disables
-  krokiImage?: string                 // image for 'docker' mode, default 'yuzutech/kroki:latest'
-  outputDir?: string                  // tokens {fileDir} {fileName} {projectRoot}, default '{fileDir}'
-  commands?: Record<string, string>   // per-type local renderer overrides
-  include?: string[]                  // extra glob filters (workspace-relative paths)
+  targetName?: string // aggregate target, default 'diagrams'
+  format?: 'svg' | 'png' | 'jpeg' // default 'svg'
+  krokiUrl?: string // default 'https://kroki.io'; 'docker' = ephemeral container per run; '' disables
+  krokiImage?: string // image for 'docker' mode, default 'yuzutech/kroki:latest'
+  outputDir?: string // tokens {fileDir} {fileName} {projectRoot}, default '{fileDir}'
+  commands?: Record<string, string> // per-type local renderer overrides
+  include?: string[] // extra glob filters (workspace-relative paths)
   exclude?: string[]
 }
 ```

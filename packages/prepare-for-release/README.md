@@ -29,7 +29,11 @@ npx nx run-many -t prepare-for-release
 Each target processes exactly one package; already-published packages skip via `npm view`. Opt a package out with `"private": true`, or exclude project-root prefixes via plugin options:
 
 ```jsonc
-{ "plugins": [{ "plugin": "@nx-devkit/prepare-for-release", "options": { "exclude": ["fixtures"] } }] }
+{
+  "plugins": [
+    { "plugin": "@nx-devkit/prepare-for-release", "options": { "exclude": ["fixtures"] } }
+  ]
+}
 ```
 
 <!-- sym:generators.json → generators.init.factory,schema -->
@@ -69,16 +73,16 @@ When npm demands a one-time password, the executor doesn't leave you guessing: i
 }
 ```
 
-| Option | Default | Effect |
-|---|---|---|
-| `packageJson` | unset | Process only this manifest (workspace-relative or absolute path). Set automatically by the per-package inferred target; leave unset for the `packages/*` scan. |
-| `scope` | every package in `packages/*` | Package scope prefixes to check. |
-| `placeholderTag` | `placeholder` | npm dist-tag applied to the placeholder publish. |
-| `placeholderVersion` | `0.0.0` | Version written into the temporary placeholder manifest. |
-| `registry` | `https://registry.npmjs.org/` | npm registry URL. |
-| `dryRun` | `false` | Report what would happen — no `npm pack`, no publish. |
-| `trust` | `false` | Run `npm trust github` for every checked package — including already-published (skipped) ones — not just newly published (requires MFA). With `dryRun: true` the trust commands are printed, not run. |
-| `trustRepo` | `NPM_TRUST_REPO` or `GITHUB_REPOSITORY` env, else `nx-devkit/nx.ts` | `owner/repo` slug for the `npm trust github` command. |
+| Option               | Default                                                             | Effect                                                                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packageJson`        | unset                                                               | Process only this manifest (workspace-relative or absolute path). Set automatically by the per-package inferred target; leave unset for the `packages/*` scan.                                        |
+| `scope`              | every package in `packages/*`                                       | Package scope prefixes to check.                                                                                                                                                                      |
+| `placeholderTag`     | `placeholder`                                                       | npm dist-tag applied to the placeholder publish.                                                                                                                                                      |
+| `placeholderVersion` | `0.0.0`                                                             | Version written into the temporary placeholder manifest.                                                                                                                                              |
+| `registry`           | `https://registry.npmjs.org/`                                       | npm registry URL.                                                                                                                                                                                     |
+| `dryRun`             | `false`                                                             | Report what would happen — no `npm pack`, no publish.                                                                                                                                                 |
+| `trust`              | `false`                                                             | Run `npm trust github` for every checked package — including already-published (skipped) ones — not just newly published (requires MFA). With `dryRun: true` the trust commands are printed, not run. |
+| `trustRepo`          | `NPM_TRUST_REPO` or `GITHUB_REPOSITORY` env, else `nx-devkit/nx.ts` | `owner/repo` slug for the `npm trust github` command.                                                                                                                                                 |
 
 ## Why placeholders
 

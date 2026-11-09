@@ -1,4 +1,5 @@
 ---
+
 name: Bug report
 about: Something inferred wrong, crashed, or failed
 labels: bug

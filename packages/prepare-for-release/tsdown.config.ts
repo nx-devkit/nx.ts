@@ -4,7 +4,7 @@ export default defineConfig({
   // No clean: executors.json resolves ./dist/executors/*.mjs at task start;
   // wiping dist mid-run-many breaks parallel tasks with ImplementationResolutionError.
   clean: false,
-  dts: true,
+  dts: { generator: 'oxc' },
   entry: {
     'executors/publish-placeholder/executor': 'src/executors/publish-placeholder/executor.ts',
     'generators/init/generator': 'src/generators/init/generator.ts',

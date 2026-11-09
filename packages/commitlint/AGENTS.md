@@ -23,8 +23,8 @@ packages/commitlint/
 
 ```ts
 export interface NxCommitlintPluginOptions {
-  targetName?: string  // default "commitlint"
-  args?: string        // default "--last"
+  targetName?: string // default "commitlint"
+  args?: string // default "--last"
 }
 ```
 

@@ -128,9 +128,14 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
 
 export default createNodesV2
 
-export const __testing = {
-  computeProjectName,
-  deriveSarifPath,
-  inferScanTarget,
-  SKILL_MD_GLOB,
+export const __testing: {
+  computeProjectName: typeof computeProjectName
+  deriveSarifPath: typeof deriveSarifPath
+  inferScanTarget: typeof inferScanTarget
+  SKILL_MD_GLOB: typeof SKILL_MD_GLOB
+} = {
+  computeProjectName: computeProjectName,
+  deriveSarifPath: deriveSarifPath,
+  inferScanTarget: inferScanTarget,
+  SKILL_MD_GLOB: SKILL_MD_GLOB,
 }

@@ -1,4 +1,5 @@
 ---
+
 name: nx-devkit-tsdown
 description: Zero-config Nx plugin that infers a `build` target from tsdown.config.ts files
 ---
@@ -19,8 +20,8 @@ Use this skill when:
 
 The plugin scans for `**/tsdown.config.ts`. For each match (outside the workspace root), it injects a `build` target:
 
-| Trigger file | Target | Executor |
-|---|---|---|
+| Trigger file          | Target  | Executor          |
+| --------------------- | ------- | ----------------- |
 | `**/tsdown.config.ts` | `build` | `nx:run-commands` |
 
 The inferred target:

@@ -29,18 +29,18 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 and buildCommand -->
 
-| Trigger | Target | Command | Cacheable | Inputs |
-|---|---|---|---|---|
-| `.markdownlint.{json,jsonc,yaml,yml,cjs,mjs}` (rules config) | `lint-md` | `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '<name>'` (cwd = `{projectRoot}`) | yes | `<root>/**/*.md`, config file |
-| `.markdownlint-cli2.*` (cli2 options config) | `lint-md` | same, without `--config` — cli2 auto-discovers it because cwd is the config's directory | yes | same |
-| either of the above | `lint-md:fix` | `markdownlint-cli2 --fix …` | no | — |
+| Trigger                                                      | Target        | Command                                                                                       | Cacheable | Inputs                        |
+| ------------------------------------------------------------ | ------------- | --------------------------------------------------------------------------------------------- | --------- | ----------------------------- |
+| `.markdownlint.{json,jsonc,yaml,yml,cjs,mjs}` (rules config) | `lint-md`     | `markdownlint-cli2 '**/*.md' '#**/node_modules/**' --config '<name>'` (cwd = `{projectRoot}`) | yes       | `<root>/**/*.md`, config file |
+| `.markdownlint-cli2.*` (cli2 options config)                 | `lint-md`     | same, without `--config` — cli2 auto-discovers it because cwd is the config's directory       | yes       | same                          |
+| either of the above                                          | `lint-md:fix` | `markdownlint-cli2 --fix …`                                                                   | no        | —                             |
 
 ### Config types
 
 Two file families trigger inference, and they mean different things:
 
-- **`.markdownlint.*`** — markdownlint *rules* config (`{ "default": true, "MD013": false }`). The plugin passes it via `--config` because cli2 does not auto-discover that filename.
-- **`.markdownlint-cli2.*`** — markdownlint-cli2 *runner* config (`globs`, `gitignore`, `frontMatter`, `customRules`). Never passed to `--config`; cli2 picks it up automatically.
+- **`.markdownlint.*`** — markdownlint _rules_ config (`{ "default": true, "MD013": false }`). The plugin passes it via `--config` because cli2 does not auto-discover that filename.
+- **`.markdownlint-cli2.*`** — markdownlint-cli2 _runner_ config (`globs`, `gitignore`, `frontMatter`, `customRules`). Never passed to `--config`; cli2 picks it up automatically.
 
 When both live in the same directory they merge into a single target pair — the rules config goes to `--config`, the cli2 config is auto-discovered.
 
@@ -71,9 +71,9 @@ npx nx run nx-devkit-plugins:lint-md:fix    # auto-fixable findings
 
 ```ts
 export interface NxMarkdownlintPluginOptions {
-  targetName?: string        // default 'lint-md'
-  fixTargetName?: string | false  // default 'lint-md:fix'; false disables
-  ignoreGlobs?: string[]     // default ['**/node_modules/**'], emitted as '#' negations
+  targetName?: string // default 'lint-md'
+  fixTargetName?: string | false // default 'lint-md:fix'; false disables
+  ignoreGlobs?: string[] // default ['**/node_modules/**'], emitted as '#' negations
 }
 ```
 

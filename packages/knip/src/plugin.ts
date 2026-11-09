@@ -108,4 +108,14 @@ export const createNodesV2: CreateNodesV2<NxKnipPluginOptions> = [
 
 export default createNodesV2
 
-export const __testing = { KNIP_GLOB, configRank, hasKnipKey, isKnipConfig }
+export const __testing: {
+  KNIP_GLOB: typeof KNIP_GLOB
+  configRank: typeof configRank
+  hasKnipKey: typeof hasKnipKey
+  isKnipConfig: typeof isKnipConfig
+} = {
+  KNIP_GLOB: KNIP_GLOB,
+  configRank: configRank,
+  hasKnipKey: hasKnipKey,
+  isKnipConfig: isKnipConfig,
+}

@@ -4,7 +4,7 @@
 
 A sverka config is the source of truth for a repository's checks: it defines
 pipelines, steps and entries, and it compiles to CI YAML. Locally, though,
-running a sverka workflow means running the *whole* entry — one command, no
+running a sverka workflow means running the _whole_ entry — one command, no
 per-step caching, no affected-file detection, no parallelism.
 
 An Nx integration fixes that: the config's steps become Nx targets, so each

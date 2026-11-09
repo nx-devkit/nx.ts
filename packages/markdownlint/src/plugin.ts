@@ -22,13 +22,13 @@ const MARKDOWNLINT_GLOB = '**/.markdownlint*.{json,jsonc,yaml,yml,cjs,mjs}'
  * the CLI, so a directory containing only those must not infer a target that
  * would silently ignore them.
  */
-const CLI2_PRECEDENCE = [
+const CLI2_PRECEDENCE: readonly string[] = [
   '.markdownlint-cli2.jsonc',
   '.markdownlint-cli2.yaml',
   '.markdownlint-cli2.cjs',
   '.markdownlint-cli2.mjs',
 ]
-const RULES_PRECEDENCE = [
+const RULES_PRECEDENCE: readonly string[] = [
   '.markdownlint.jsonc',
   '.markdownlint.json',
   '.markdownlint.yaml',
@@ -37,7 +37,7 @@ const RULES_PRECEDENCE = [
   '.markdownlint.mjs',
 ]
 
-function pickByPrecedence(files: string[], precedence: string[]): string | undefined {
+function pickByPrecedence(files: string[], precedence: readonly string[]): string | undefined {
   const names = new Set(files.map((f) => basename(f)))
   return precedence.find((name) => names.has(name))
 }
@@ -148,4 +148,14 @@ export const createNodesV2: CreateNodesV2<NxMarkdownlintPluginOptions> = [
 
 export default createNodesV2
 
-export const __testing = { buildCommand, CLI2_PRECEDENCE, RULES_PRECEDENCE, MARKDOWNLINT_GLOB }
+export const __testing: {
+  buildCommand: typeof buildCommand
+  CLI2_PRECEDENCE: typeof CLI2_PRECEDENCE
+  RULES_PRECEDENCE: typeof RULES_PRECEDENCE
+  MARKDOWNLINT_GLOB: typeof MARKDOWNLINT_GLOB
+} = {
+  buildCommand: buildCommand,
+  CLI2_PRECEDENCE: CLI2_PRECEDENCE,
+  RULES_PRECEDENCE: RULES_PRECEDENCE,
+  MARKDOWNLINT_GLOB: MARKDOWNLINT_GLOB,
+}

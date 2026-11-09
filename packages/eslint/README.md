@@ -31,10 +31,10 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger | Target | Command | Cacheable | Inputs |
-|---|---|---|---|---|
-| `eslint.config.{js,mjs,cjs,ts,mts,cts}` | `lint` | `npx eslint .` (cwd = `{projectRoot}`) | yes | `<root>/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}` + config files |
-| same | `lint:fix` | `npx eslint . --fix` | no | — |
+| Trigger                                 | Target     | Command                                | Cacheable | Inputs                                                       |
+| --------------------------------------- | ---------- | -------------------------------------- | --------- | ------------------------------------------------------------ |
+| `eslint.config.{js,mjs,cjs,ts,mts,cts}` | `lint`     | `npx eslint .` (cwd = `{projectRoot}`) | yes       | `<root>/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}` + config files |
+| same                                    | `lint:fix` | `npx eslint . --fix`                   | no        | —                                                            |
 
 ESLint auto-discovers `eslint.config.*` from the working directory. Multiple configs in one directory merge into a single target pair; every config file is a target input so edits bust the cache.
 
@@ -47,8 +47,8 @@ ESLint auto-discovers `eslint.config.*` from the working directory. Multiple con
     {
       "plugin": "@nx-devkit/eslint",
       "options": {
-        "targetName": "lint",  // rename the target pair
-        "fixTarget": false      // do not infer `lint:fix` (default: true)
+        "targetName": "lint", // rename the target pair
+        "fixTarget": false // do not infer `lint:fix` (default: true)
       }
     }
   ]

@@ -1,10 +1,10 @@
 # Tasks
 
-| Task | Bead |
-|---|---|
-| Scaffold package + plugin.ts + spec | nx_ts-bqr |
-| init generator + spec | nx_ts-bqr |
-| README + AGENTS.md | nx_ts-bqr |
+| Task                                       | Bead      |
+| ------------------------------------------ | --------- |
+| Scaffold package + plugin.ts + spec        | nx_ts-bqr |
+| init generator + spec                      | nx_ts-bqr |
+| README + AGENTS.md                         | nx_ts-bqr |
 | Dogfood in root nx.json, run spec-validate | nx_ts-bqr |
 
 - [x] proposal + spec delta

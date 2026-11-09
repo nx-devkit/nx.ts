@@ -1,4 +1,5 @@
 ---
+
 name: nx-vs-nx
 description: Explains how @nx-devkit plugins extend Nx without replacing it
 ---
@@ -24,12 +25,12 @@ Nx is a full-featured monorepo toolchain:
 
 The `@nx-devkit` plugins add **zero-config project inference** for specific tools:
 
-| Plugin | What It Infers | Trigger File |
-|---|---|---|
-| `@nx-devkit/tsdown` | `build` target | `**/tsdown.config.ts` |
-| `@nx-devkit/oxlint` | `lint` target | `**/.oxlintrc.{json,yml,...}` |
-| `@nx-devkit/biome` | `format`, `format-check`, `lint` targets | `**/biome.jsonc?` |
-| `@nx-devkit/typescript` | `typecheck`, `test`, `test:watch`, `test:coverage` targets | `**/tsconfig.json` |
+| Plugin                  | What It Infers                                             | Trigger File                  |
+| ----------------------- | ---------------------------------------------------------- | ----------------------------- |
+| `@nx-devkit/tsdown`     | `build` target                                             | `**/tsdown.config.ts`         |
+| `@nx-devkit/oxlint`     | `lint` target                                              | `**/.oxlintrc.{json,yml,...}` |
+| `@nx-devkit/biome`      | `format`, `format-check`, `lint` targets                   | `**/biome.jsonc?`             |
+| `@nx-devkit/typescript` | `typecheck`, `test`, `test:watch`, `test:coverage` targets | `**/tsconfig.json`            |
 
 Without these plugins, you would need to manually define targets in `project.json` for every project. With them, Nx automatically discovers projects and their capabilities.
 

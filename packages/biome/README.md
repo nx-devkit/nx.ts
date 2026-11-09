@@ -29,11 +29,11 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts infer* targets -->
 
-| Target | Default command | Cacheable | Inputs |
-|---|---|---|---|
-| `format` | `biome format --write .` | no (mutates source) | the matched `biome.json`/`biome.jsonc`, `**/*` |
-| `format-check` | `biome format .` | yes | the matched `biome.json`/`biome.jsonc`, `**/*` |
-| `lint` | `biome lint .` | yes | the matched `biome.json`/`biome.jsonc`, `**/*` |
+| Target         | Default command          | Cacheable           | Inputs                                         |
+| -------------- | ------------------------ | ------------------- | ---------------------------------------------- |
+| `format`       | `biome format --write .` | no (mutates source) | the matched `biome.json`/`biome.jsonc`, `**/*` |
+| `format-check` | `biome format .`         | yes                 | the matched `biome.json`/`biome.jsonc`, `**/*` |
+| `lint`         | `biome lint .`           | yes                 | the matched `biome.json`/`biome.jsonc`, `**/*` |
 
 All run via `nx:run-commands` with `cwd` = the project root.
 
@@ -54,20 +54,23 @@ Pass via the plugin tuple in `nx.json`. Each option overrides the command string
 ```jsonc
 {
   "plugins": [
-    ["@nx-devkit/biome", {
-      "formatCommand": "biome format --write .",
-      "formatCheckCommand": "biome format .",
-      "lintCommand": "biome lint ."
-    }]
+    [
+      "@nx-devkit/biome",
+      {
+        "formatCommand": "biome format --write .",
+        "formatCheckCommand": "biome format .",
+        "lintCommand": "biome lint ."
+      }
+    ]
   ]
 }
 ```
 
-| Option | Default | Effect |
-|---|---|---|
-| `formatCommand` | `biome format --write .` | Command for the `format` target. |
-| `formatCheckCommand` | `biome format .` | Command for the `format-check` target. |
-| `lintCommand` | `biome lint .` | Command for the `lint` target. |
+| Option               | Default                  | Effect                                 |
+| -------------------- | ------------------------ | -------------------------------------- |
+| `formatCommand`      | `biome format --write .` | Command for the `format` target.       |
+| `formatCheckCommand` | `biome format .`         | Command for the `format-check` target. |
+| `lintCommand`        | `biome lint .`           | Command for the `lint` target.         |
 
 ## Skip rules
 

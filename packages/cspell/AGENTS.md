@@ -23,8 +23,8 @@ packages/cspell/
 
 ```ts
 export interface NxCspellPluginOptions {
-  targetName?: string  // default "spell"
-  args?: string        // default "."
+  targetName?: string // default "spell"
+  args?: string // default "."
 }
 ```
 

@@ -14,9 +14,9 @@ The init generator registers the plugin in `nx.json` and installs the missing pe
 
 Any directory containing a cspell config gets a target on the owning project. When several config forms coexist in one directory, the first match in cspell's documented search order wins:
 
-| Config file | Inferred target |
-|---|---|
-| `cspell` key in `package.json`, `cspell.json`, `.cspell.json`, `cspell.config.{json,js,cjs,mjs,ts}`, `cspell.{yaml,yml}`, `.cspell.{yaml,yml}` | `spell` |
+| Config file                                                                                                                                    | Inferred target |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `cspell` key in `package.json`, `cspell.json`, `.cspell.json`, `cspell.config.{json,js,cjs,mjs,ts}`, `cspell.{yaml,yml}`, `.cspell.{yaml,yml}` | `spell`         |
 
 ```bash
 nx run my-app:spell          # npx cspell lint .
@@ -35,18 +35,18 @@ Register with options in `nx.json`:
     {
       "plugin": "@nx-devkit/cspell",
       "options": {
-        "targetName": "spell",        // default "spell"
-        "args": "."                   // default "."
+        "targetName": "spell", // default "spell"
+        "args": "." // default "."
       }
     }
   ]
 }
 ```
 
-| Option | Default | Description |
-|---|---|---|
-| `targetName` | `spell` | Target name. |
-| `args` | `.` | Arguments passed to `cspell lint`, e.g. `"src/**/*.md"` or `"--words-only ."`. |
+| Option       | Default | Description                                                                    |
+| ------------ | ------- | ------------------------------------------------------------------------------ |
+| `targetName` | `spell` | Target name.                                                                   |
+| `args`       | `.`     | Arguments passed to `cspell lint`, e.g. `"src/**/*.md"` or `"--words-only ."`. |
 
 ## License
 

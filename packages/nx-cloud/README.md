@@ -37,15 +37,15 @@ There is **no public API or CLI command** to delete an Nx Cloud organization —
 
 ## Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `workspaceName` | string | root `package.json` `name` | Name sent to create-org-and-workspace |
-| `cloudUrl` | string | `NX_CLOUD_API`/`NRWL_API` env or `https://cloud.nx.app` | Nx Cloud instance URL |
-| `installationSource` | string | `nx-devkit-nx-cloud` | Telemetry tag sent with the request |
-| `dryRun` | boolean | `false` | Call the API but do not rewrite `nx.json` |
+| Option               | Type    | Default                                                 | Description                               |
+| -------------------- | ------- | ------------------------------------------------------- | ----------------------------------------- |
+| `workspaceName`      | string  | root `package.json` `name`                              | Name sent to create-org-and-workspace     |
+| `cloudUrl`           | string  | `NX_CLOUD_API`/`NRWL_API` env or `https://cloud.nx.app` | Nx Cloud instance URL                     |
+| `installationSource` | string  | `nx-devkit-nx-cloud`                                    | Telemetry tag sent with the request       |
+| `dryRun`             | boolean | `false`                                                 | Call the API but do not rewrite `nx.json` |
 
 ## Notes
 
-- Works unauthenticated — same trust level as `nx connect-to-nx-cloud`. The created org is *unclaimed* until you open the onboarding URL.
+- Works unauthenticated — same trust level as `nx connect-to-nx-cloud`. The created org is _unclaimed_ until you open the onboarding URL.
 - If your old org was GitHub-connected, the replacement is a standard org; VCS integration must be re-linked in the dashboard.
 - Committing `nx.json` after rotation points CI at the new org immediately. **Warning:** the default `nxCloudId` grants `read-write` remote-cache access to anyone holding it — on public repos the committed ID is world-visible, so anyone can read and write your Nx Cloud cache. If that matters, rotate the org's access-level in the Nx Cloud dashboard or keep the repo private.

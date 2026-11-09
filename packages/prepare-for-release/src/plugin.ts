@@ -169,5 +169,8 @@ export const createNodesV2: CreateNodesV2<NxPrepareForReleasePluginOptions> = [
   },
 ]
 
-const plugin = { createNodesV2, name: PLUGIN_NAME }
+const plugin: { name: string; createNodesV2: typeof createNodesV2 } = {
+  createNodesV2,
+  name: PLUGIN_NAME,
+}
 export default plugin

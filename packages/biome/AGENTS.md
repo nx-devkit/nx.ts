@@ -22,9 +22,9 @@ packages/biome/
 ```ts
 export interface NxBiomePluginOptions {
   /** Run `lint` as part of `nx lint`. Default: false. */
-  checkOnLint?: boolean;
+  checkOnLint?: boolean
   /** Reuse biome's internal cache for `format-check`. Default: true. */
-  formatCache?: boolean;
+  formatCache?: boolean
 }
 ```
 

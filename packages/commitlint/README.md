@@ -14,9 +14,9 @@ The init generator registers the plugin in `nx.json` and installs the missing pe
 
 Any directory containing a commitlint config gets a target on the owning project. When several config forms coexist in one directory, the first match in [cosmiconfig's search order](https://github.com/cosmiconfig/cosmiconfig#usage) wins:
 
-| Config file | Inferred target |
-|---|---|
-| `commitlint` key in `package.json`, `.commitlintrc*` (`.json`/`.yaml`/`.yml`/`.js`/`.ts`/`.mjs`/`.cjs`/`.cts`), `commitlint.config.{js,ts,mjs,cjs,cts}` | `commitlint` |
+| Config file                                                                                                                                             | Inferred target |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `commitlint` key in `package.json`, `.commitlintrc*` (`.json`/`.yaml`/`.yml`/`.js`/`.ts`/`.mjs`/`.cjs`/`.cts`), `commitlint.config.{js,ts,mjs,cjs,cts}` | `commitlint`    |
 
 ```bash
 nx run my-app:commitlint          # npx commitlint --last
@@ -35,18 +35,18 @@ Register with options in `nx.json`:
     {
       "plugin": "@nx-devkit/commitlint",
       "options": {
-        "targetName": "commitlint",   // default "commitlint"
-        "args": "--last"              // default "--last"
+        "targetName": "commitlint", // default "commitlint"
+        "args": "--last" // default "--last"
       }
     }
   ]
 }
 ```
 
-| Option | Default | Description |
-|---|---|---|
-| `targetName` | `commitlint` | Target name. |
-| `args` | `--last` | Arguments passed to `commitlint`. Examples: `--edit .git/COMMIT_EDITMSG` (commit-msg hook), `--from origin/main` (CI range). |
+| Option       | Default      | Description                                                                                                                  |
+| ------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `targetName` | `commitlint` | Target name.                                                                                                                 |
+| `args`       | `--last`     | Arguments passed to `commitlint`. Examples: `--edit .git/COMMIT_EDITMSG` (commit-msg hook), `--from origin/main` (CI range). |
 
 ## License
 

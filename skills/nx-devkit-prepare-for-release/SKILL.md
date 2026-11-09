@@ -1,4 +1,5 @@
 ---
+
 name: nx-devkit-prepare-for-release
 description: General-purpose Nx tool plugin that bootstraps a workspace of packages onto npm by publishing 0.0.0 placeholders and emitting `npm trust github` commands for OIDC trusted publishing.
 ---
@@ -52,13 +53,13 @@ bunx nx run-many -t prepare-for-release \
 
 ```ts
 export interface NxPrepareForReleaseOptions {
-  scope?: string[];             // default: derived from packages/* names
-  placeholderTag?: string;      // default: "placeholder"
-  placeholderVersion?: string;  // default: "0.0.0"
-  registry?: string;            // default: "https://registry.npmjs.org/"
-  dryRun?: boolean;             // default: false
-  trust?: boolean;              // default: false — run `npm trust github` for all packages including already-published (requires MFA)
-  trustRepo?: string;           // default: process.env.NPM_TRUST_REPO or process.env.GITHUB_REPOSITORY or "nx-devkit/nx.ts"
+  scope?: string[] // default: derived from packages/* names
+  placeholderTag?: string // default: "placeholder"
+  placeholderVersion?: string // default: "0.0.0"
+  registry?: string // default: "https://registry.npmjs.org/"
+  dryRun?: boolean // default: false
+  trust?: boolean // default: false — run `npm trust github` for all packages including already-published (requires MFA)
+  trustRepo?: string // default: process.env.NPM_TRUST_REPO or process.env.GITHUB_REPOSITORY or "nx-devkit/nx.ts"
 }
 ```
 

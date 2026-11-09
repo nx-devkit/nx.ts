@@ -29,8 +29,8 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 and executors.json -->
 
-| Trigger | Target | Executor |
-|---|---|---|
+| Trigger    | Target | Executor                                                                                   |
+| ---------- | ------ | ------------------------------------------------------------------------------------------ |
 | `SKILL.md` | `scan` | `@nx-devkit/skillspector:scan` — spawns the `skillspector` binary via `execFile`, no shell |
 
 ## Inspect
@@ -48,28 +48,31 @@ npx nx run <name>:scan
 ```jsonc
 {
   "plugins": [
-    ["@nx-devkit/skillspector", {
-      "scanTargetName": "scan",
-      "noLlm": true,
-      "annotations": true,
-      "failOnError": true,
-      "skillspectorBin": "skillspector",
-      "sarif": "reports/skillspector.sarif",
-      "baseline": ".skillspector-baseline.json"
-    }]
+    [
+      "@nx-devkit/skillspector",
+      {
+        "scanTargetName": "scan",
+        "noLlm": true,
+        "annotations": true,
+        "failOnError": true,
+        "skillspectorBin": "skillspector",
+        "sarif": "reports/skillspector.sarif",
+        "baseline": ".skillspector-baseline.json"
+      }
+    ]
   ]
 }
 ```
 
-| Option | Default | Effect |
-|---|---|---|
-| `scanTargetName` | `scan` | Name of the inferred scan target. |
-| `noLlm` | `true` | Disable LLM-based analysis (static checks only). |
-| `annotations` | `true` | Write `annotations-<projectName>.txt` with `::error` workflow-command lines for code findings (skipped on a clean scan). |
-| `failOnError` | `true` | Fail the target when HIGH or CRITICAL findings are present. |
-| `skillspectorBin` | `skillspector` | Binary to invoke — override for local dev or vendored installs. |
-| `sarif` | — | Path **prefix** for the SARIF 2.1.0 report — `-<projectName>.sarif` is appended (any `.sarif` suffix is stripped first), so `reports/scan.sarif` produces `reports/scan-<name>.sarif`. |
-| `baseline` | — | Path to a baseline file suppressing known findings. |
+| Option            | Default        | Effect                                                                                                                                                                                 |
+| ----------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scanTargetName`  | `scan`         | Name of the inferred scan target.                                                                                                                                                      |
+| `noLlm`           | `true`         | Disable LLM-based analysis (static checks only).                                                                                                                                       |
+| `annotations`     | `true`         | Write `annotations-<projectName>.txt` with `::error` workflow-command lines for code findings (skipped on a clean scan).                                                               |
+| `failOnError`     | `true`         | Fail the target when HIGH or CRITICAL findings are present.                                                                                                                            |
+| `skillspectorBin` | `skillspector` | Binary to invoke — override for local dev or vendored installs.                                                                                                                        |
+| `sarif`           | —              | Path **prefix** for the SARIF 2.1.0 report — `-<projectName>.sarif` is appended (any `.sarif` suffix is stripped first), so `reports/scan.sarif` produces `reports/scan-<name>.sarif`. |
+| `baseline`        | —              | Path to a baseline file suppressing known findings.                                                                                                                                    |
 
 ## CI integration
 

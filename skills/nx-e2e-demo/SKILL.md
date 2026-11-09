@@ -1,4 +1,5 @@
 ---
+
 name: nx-e2e-demo
 description: End-to-end validation skill for verifying all @nx-devkit plugins work together
 ---
@@ -43,12 +44,7 @@ Initialize a workspace with `nx.json`:
 
 ```json
 {
-  "plugins": [
-    "@nx-devkit/tsdown",
-    "@nx-devkit/oxlint",
-    "@nx-devkit/biome",
-    "@nx-devkit/typescript"
-  ]
+  "plugins": ["@nx-devkit/tsdown", "@nx-devkit/oxlint", "@nx-devkit/biome", "@nx-devkit/typescript"]
 }
 ```
 

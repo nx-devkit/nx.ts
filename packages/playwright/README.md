@@ -29,11 +29,11 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger | Target | Command | Cacheable | Outputs |
-|---|---|---|---|---|
-| `playwright.config.{ts,js,mts,mjs,cjs,cts}` | `e2e` | `npx playwright test` (cwd = `{projectRoot}`) | yes | `test-results/`, `playwright-report/`, `blob-report/` |
-| same | `e2e:ui` | `npx playwright test --ui` | no | — |
-| same | `e2e:update-snapshots` | `npx playwright test --update-snapshots` | no | — |
+| Trigger                                     | Target                 | Command                                       | Cacheable | Outputs                                               |
+| ------------------------------------------- | ---------------------- | --------------------------------------------- | --------- | ----------------------------------------------------- |
+| `playwright.config.{ts,js,mts,mjs,cjs,cts}` | `e2e`                  | `npx playwright test` (cwd = `{projectRoot}`) | yes       | `test-results/`, `playwright-report/`, `blob-report/` |
+| same                                        | `e2e:ui`               | `npx playwright test --ui`                    | no        | —                                                     |
+| same                                        | `e2e:update-snapshots` | `npx playwright test --update-snapshots`      | no        | —                                                     |
 
 Playwright auto-discovers its config from the working directory, so the plugin never passes `--config`. Multiple configs in one directory merge into a single target set. Inputs cover the whole project tree — an app rebuild busts the e2e cache, which is what you want.
 
@@ -46,8 +46,8 @@ Playwright auto-discovers its config from the working directory, so the plugin n
     {
       "plugin": "@nx-devkit/playwright",
       "options": {
-        "targetName": "e2e",        // rename the target set
-        "extraTargets": false        // skip e2e:ui / e2e:update-snapshots (default: true)
+        "targetName": "e2e", // rename the target set
+        "extraTargets": false // skip e2e:ui / e2e:update-snapshots (default: true)
       }
     }
   ]

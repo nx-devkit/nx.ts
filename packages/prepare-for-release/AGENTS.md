@@ -30,14 +30,14 @@ packages/prepare-for-release/
 
 ```ts
 export interface NxPrepareForReleaseOptions {
-  scope?: string[];             // default: every package under packages/*
-  placeholderTag?: string;      // default: "placeholder"
-  placeholderVersion?: string;  // default: "0.0.0"
-  registry?: string;            // default: "https://registry.npmjs.org/"
-  dryRun?: boolean;             // default: false
-  trust?: boolean;              // default: false — run `npm trust github` for all packages including already-published (requires MFA)
-  trustRepo?: string;           // default: process.env.NPM_TRUST_REPO or process.env.GITHUB_REPOSITORY or "nx-devkit/nx.ts"
-  packageJson?: string;         // default: unset — when set, process only this manifest (per-package inferred target); unset = scan packages/* (tools-project mode)
+  scope?: string[] // default: every package under packages/*
+  placeholderTag?: string // default: "placeholder"
+  placeholderVersion?: string // default: "0.0.0"
+  registry?: string // default: "https://registry.npmjs.org/"
+  dryRun?: boolean // default: false
+  trust?: boolean // default: false — run `npm trust github` for all packages including already-published (requires MFA)
+  trustRepo?: string // default: process.env.NPM_TRUST_REPO or process.env.GITHUB_REPOSITORY or "nx-devkit/nx.ts"
+  packageJson?: string // default: unset — when set, process only this manifest (per-package inferred target); unset = scan packages/* (tools-project mode)
 }
 ```
 

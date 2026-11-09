@@ -44,13 +44,13 @@ sources — the release is dogfooding.
    packages are published, with the same content — the version differs,
    because the one-version model replaces the per-package versions. The tag
    and the GitHub Release model change here with it.
-3. *(optional)* **Split `release.yml` / `publish.yml`** the way adt-cli
+3. _(optional)_ **Split `release.yml` / `publish.yml`** the way adt-cli
    does: the publish is dispatched, because a push from `GITHUB_TOKEN`
    does not cascade into other workflows, and a separate workflow gets
    its own `workflow_ref` for the npm OIDC trust.
 
 ## Non-goals
 
-- No change to how a *consumer* releases their project — the plugin's
+- No change to how a _consumer_ releases their project — the plugin's
   single-package mode keeps working.
 - The npm OIDC trust stays on `release.yml` unless stage 3 happens.

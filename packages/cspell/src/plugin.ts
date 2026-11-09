@@ -104,4 +104,8 @@ export const createNodesV2: CreateNodesV2<NxCspellPluginOptions> = [
 
 export default createNodesV2
 
-export const __testing = { CSPELL_GLOB, configRank, hasCspellKey }
+export const __testing: {
+  CSPELL_GLOB: typeof CSPELL_GLOB
+  configRank: typeof configRank
+  hasCspellKey: typeof hasCspellKey
+} = { CSPELL_GLOB: CSPELL_GLOB, configRank: configRank, hasCspellKey: hasCspellKey }

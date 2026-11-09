@@ -1,4 +1,5 @@
 ---
+
 title: "@nx/js vs zero-config inference — an honest look at both sides of the Nx toolchain"
 description: "What the official Nx plugins give you, where they stop, and what a config-inference preset (tsdown, Biome, oxlint, tsgo) does differently. Fair trade-offs, not a pitch."
 tags: [nx, typescript, monorepo, webdev]
@@ -16,7 +17,7 @@ So I built `@nx-devkit/*` — inference plugins that derive targets from config 
 
 ## Two different models
 
-**Official plugins are generator-first.** `nx g @nx/js:lib` scaffolds a package, writes config files, registers executors, wires lint/test integration. The plugin's executors then *own* how the tool runs — options flow through Nx's executor schema into the tool.
+**Official plugins are generator-first.** `nx g @nx/js:lib` scaffolds a package, writes config files, registers executors, wires lint/test integration. The plugin's executors then _own_ how the tool runs — options flow through Nx's executor schema into the tool.
 
 **nx-devkit is inference-only.** No generators, no scaffolding. `createNodesV2` globs for config files you already keep and turns them into cacheable targets:
 
@@ -25,15 +26,15 @@ So I built `@nx-devkit/*` — inference plugins that derive targets from config 
 { "plugins": ["@nx-devkit/typescript"] }
 ```
 
-| File on disk | Targets you get |
-|---|---|
-| `tsconfig.json` | `typecheck` (tsgo, falls back to tsc) |
-| `vitest.config.ts` | `test`, `test:watch`, `test:coverage` |
-| `*.test.ts` (no vitest config) | `test` via native `node --test` |
-| `.oxlintrc.json` | `lint` (oxlint) |
-| `eslint.config.mjs` | `lint` (eslint, if oxlint doesn't own it) |
-| `biome.json` | `format`, `format-check` (+ `lint` fallback) |
-| `tsdown.config.ts` | `build`, `build:watch` |
+| File on disk                   | Targets you get                              |
+| ------------------------------ | -------------------------------------------- |
+| `tsconfig.json`                | `typecheck` (tsgo, falls back to tsc)        |
+| `vitest.config.ts`             | `test`, `test:watch`, `test:coverage`        |
+| `*.test.ts` (no vitest config) | `test` via native `node --test`              |
+| `.oxlintrc.json`               | `lint` (oxlint)                              |
+| `eslint.config.mjs`            | `lint` (eslint, if oxlint doesn't own it)    |
+| `biome.json`                   | `format`, `format-check` (+ `lint` fallback) |
+| `tsdown.config.ts`             | `build`, `build:watch`                       |
 
 Add `tsdown.config.ts` to a package → `build` appears on the next `nx run`, cacheable, with `dependsOn: ^build`. Delete it → gone. `nx show project` reflects reality, not a file you maintain. One prerequisite: the preset anchors on `**/tsconfig*.json` — a bare `vitest.config.ts` alone won't create a project.
 
@@ -68,9 +69,9 @@ They're not really competitors — they overlap on "turn a package into Nx targe
 
 ## The part that was harder than it looks
 
-`createNodesV2` globs are static — you can't "detect then glob". You glob for *config file shapes* and infer targets per match. A few things that bit me:
+`createNodesV2` globs are static — you can't "detect then glob". You glob for _config file shapes_ and infer targets per match. A few things that bit me:
 
-- **Lint precedence has to be explicit.** oxlint > eslint > biome — each gated on both its option *and* its config file. "Which tool owns `lint`" is a real UX decision; implicit last-write-wins produces flaky diffs.
+- **Lint precedence has to be explicit.** oxlint > eslint > biome — each gated on both its option _and_ its config file. "Which tool owns `lint`" is a real UX decision; implicit last-write-wins produces flaky diffs.
 - **Binaries must resolve like a user would invoke them.** `node_modules/.bin` walk-up resolution, because hoisted monorepo installs (pnpm, bun) break naive `require.resolve`.
 - **Executors beat `run-commands` for the heavy tools.** `execFile` on the tool's Node entry — no shell, bounded timeouts, large maxBuffer for compiler output.
 - **Single-package repos are the edge case.** A lone `tsconfig` at the root becomes the root project; when any nested config exists, the root is skipped unless `includeRoot: true` explicitly includes it (`includeRoot: false` always excludes it).

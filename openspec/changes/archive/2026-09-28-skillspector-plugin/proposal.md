@@ -17,9 +17,9 @@ This is a **separate package** from `@nx-devkit/skill` (the discovery plugin). T
 - **API**: `createNodesV2` (infers `scan` target) + custom `scan` executor
 - **Inferred target**:
 
-| Target | Executor | Cache | Description |
-|---|---|---|---|
-| `scan` | `@nx-devkit/skillspector:scan` (custom executor) | true | Run SkillSpector on skill directory, emit SARIF + annotations |
+| Target | Executor                                         | Cache | Description                                                   |
+| ------ | ------------------------------------------------ | ----- | ------------------------------------------------------------- |
+| `scan` | `@nx-devkit/skillspector:scan` (custom executor) | true  | Run SkillSpector on skill directory, emit SARIF + annotations |
 
 ### Custom executor: `scan`
 
@@ -38,19 +38,19 @@ Executor source moves from `theplenkov-ai/skills/actions/skillspector/nx-skillsp
 ```ts
 export interface NxDevkitSkillspectorOptions {
   /** Target name for scan. Default: "scan" */
-  scanTargetName?: string;
+  scanTargetName?: string
   /** Pass --no-llm to skillspector. Default: true */
-  noLlm?: boolean;
+  noLlm?: boolean
   /** Baseline file for suppression. Default: "" (none) */
-  baseline?: string;
+  baseline?: string
   /** SARIF output path template. Default: "" (no SARIF). A per-skill suffix is appended. */
-  sarif?: string;
+  sarif?: string
   /** Emit GitHub Actions annotations. Default: true */
-  annotations?: boolean;
+  annotations?: boolean
   /** Fail on high/critical findings. Default: true */
-  failOnError?: boolean;
+  failOnError?: boolean
   /** SkillSpector CLI binary. Default: "skillspector" */
-  skillspectorBin?: string;
+  skillspectorBin?: string
 }
 ```
 

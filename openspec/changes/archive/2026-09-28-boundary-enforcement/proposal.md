@@ -48,4 +48,4 @@ The goal: a linter-agnostic `check-boundaries` Nx target that works regardless o
 
 ## Interop note
 
-Consumers who *do* run official `@nx/oxlint` can already use its `boundaries-plugin`; this package exists for the ESLint-free / Biome path and for consumers who want a dedicated CI check independent of their linter.
+Consumers who _do_ run official `@nx/oxlint` can already use its `boundaries-plugin`; this package exists for the ESLint-free / Biome path and for consumers who want a dedicated CI check independent of their linter.

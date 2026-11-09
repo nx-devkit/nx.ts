@@ -22,7 +22,7 @@ packages/oxlint/
 ```ts
 export interface NxOxlintPluginOptions {
   /** Optional override for the .oxlintrc config file name. Default: ".oxlintrc.json". */
-  configFile?: string;
+  configFile?: string
 }
 ```
 

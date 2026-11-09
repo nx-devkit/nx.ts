@@ -34,14 +34,14 @@ packages/release/
 
 ```ts
 export interface NxReleasePublishOptions {
-  packageName?: string       // default: derived from package.json name
-  packagePath?: string       // default: project root
-  version?: string           // default: "patch" (or x.y.z, minor, major)
-  dryRun?: boolean           // default: false
-  registry?: string          // default: https://registry.npmjs.org/
-  branch?: string            // default: "main"
-  generateNotes?: boolean    // default: true
-  provenance?: boolean       // default: true
+  packageName?: string // default: derived from package.json name
+  packagePath?: string // default: project root
+  version?: string // default: "patch" (or x.y.z, minor, major)
+  dryRun?: boolean // default: false
+  registry?: string // default: https://registry.npmjs.org/
+  branch?: string // default: "main"
+  generateNotes?: boolean // default: true
+  provenance?: boolean // default: true
 }
 ```
 

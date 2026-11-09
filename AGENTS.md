@@ -8,20 +8,20 @@ A monorepo of **zero-config Nx inference plugins** under the `@nx-devkit` scope.
 
 ## Plugin matrix (scope ownership)
 
-| Package | Owns directory | Touch-allowed-for-beads |
-|---|---|---|
-| `packages/tsdown` | `packages/tsdown/**` | beads scoped to tsdown only |
-| `packages/oxlint` | `packages/oxlint/**` | beads scoped to oxlint only |
-| `packages/biome` | `packages/biome/**` | beads scoped to biome only |
-| `packages/typescript-preset` | `packages/typescript-preset/**` | beads scoped to typescript-preset only |
-| `packages/prepare-for-release` | `packages/prepare-for-release/**` | beads scoped to prepare-for-release only |
-| `packages/skill` | `packages/skill/**` | beads scoped to skill only |
-| `packages/sverka` | `packages/sverka/**` | beads scoped to sverka only |
-| `packages/skillspector` | `packages/skillspector/**` | beads scoped to skillspector only |
-| `packages/diagrams` | `packages/diagrams/**` | beads scoped to diagrams only |
-| `packages/nx-cloud` | `packages/nx-cloud/**` | beads scoped to nx-cloud only |
-| `packages/release` | `packages/release/**` | beads scoped to release only |
-| `tools/skills-compiler` | `tools/skills-compiler/**` | vendored upstream copy — prefer minimal diffs |
+| Package                        | Owns directory                    | Touch-allowed-for-beads                       |
+| ------------------------------ | --------------------------------- | --------------------------------------------- |
+| `packages/tsdown`              | `packages/tsdown/**`              | beads scoped to tsdown only                   |
+| `packages/oxlint`              | `packages/oxlint/**`              | beads scoped to oxlint only                   |
+| `packages/biome`               | `packages/biome/**`               | beads scoped to biome only                    |
+| `packages/typescript-preset`   | `packages/typescript-preset/**`   | beads scoped to typescript-preset only        |
+| `packages/prepare-for-release` | `packages/prepare-for-release/**` | beads scoped to prepare-for-release only      |
+| `packages/skill`               | `packages/skill/**`               | beads scoped to skill only                    |
+| `packages/sverka`              | `packages/sverka/**`              | beads scoped to sverka only                   |
+| `packages/skillspector`        | `packages/skillspector/**`        | beads scoped to skillspector only             |
+| `packages/diagrams`            | `packages/diagrams/**`            | beads scoped to diagrams only                 |
+| `packages/nx-cloud`            | `packages/nx-cloud/**`            | beads scoped to nx-cloud only                 |
+| `packages/release`             | `packages/release/**`             | beads scoped to release only                  |
+| `tools/skills-compiler`        | `tools/skills-compiler/**`        | vendored upstream copy — prefer minimal diffs |
 
 Per-package options interfaces, file layout, and TDD workflow are in each `packages/<name>/AGENTS.md` — read the one for your package before touching its directory.
 
@@ -71,7 +71,7 @@ git ls-remote --exit-code --heads "<head-repo>" "<branch>" >/dev/null 2>&1 \
   and reaches a shell.
 - The remote is the PR's **head** repository: for a fork PR, `origin` can be
   the base repo, and deleting there would hit an unrelated branch.
-- The repo has `delete_branch_on_merge` on, so GitHub removes the *remote*
+- The repo has `delete_branch_on_merge` on, so GitHub removes the _remote_
   branch on merge — step 3 is often a no-op. It stays conditional on
   purpose: deleting an already-removed ref exits non-zero.
 - Report the cleanup in the closing summary (branch, local + remote).
@@ -170,15 +170,15 @@ rm -f migrations.json
 
 The `@nx-devkit/typescript` preset is the **single recommended entry point** for consumers. It auto-detects all config files and infers every target:
 
-| Config file detected | Inferred target(s) |
-|---|---|
-| `tsconfig.json` | `typecheck` |
-| `vitest.config.*` | `test`, `test:watch`, `test:coverage` |
-| `*.test.ts` / `*.spec.ts` (no vitest) | `test` (native Node runner) |
-| `.oxlintrc.*` | `lint` (oxlint, highest precedence) |
-| `eslint.config.*` | `lint` (eslint, fallback) |
-| `biome.json` | `format`, `format-check`, `lint` (fallback) |
-| `tsdown.config.*` (or publishable `package.json` + `src/index.ts`), `tsdown` option enabled | `build`, `build:watch` |
+| Config file detected                                                                        | Inferred target(s)                          |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `tsconfig.json`                                                                             | `typecheck`                                 |
+| `vitest.config.*`                                                                           | `test`, `test:watch`, `test:coverage`       |
+| `*.test.ts` / `*.spec.ts` (no vitest)                                                       | `test` (native Node runner)                 |
+| `.oxlintrc.*`                                                                               | `lint` (oxlint, highest precedence)         |
+| `eslint.config.*`                                                                           | `lint` (eslint, fallback)                   |
+| `biome.json`                                                                                | `format`, `format-check`, `lint` (fallback) |
+| `tsdown.config.*` (or publishable `package.json` + `src/index.ts`), `tsdown` option enabled | `build`, `build:watch`                      |
 
 **Consumer nx.json should only register the preset:**
 

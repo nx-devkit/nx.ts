@@ -64,10 +64,10 @@ npx nx affected -t check-boundaries
 
 ## Options
 
-| Option | Default | Description |
-|---|---|---|
-| `depConstraints` | `[]` | `[{ sourceTag, onlyDependOnLibsWithTags }]` — same shape as the official rule |
-| `targetName` | `check-boundaries` | Inferred target name on the root project |
+| Option           | Default            | Description                                                                   |
+| ---------------- | ------------------ | ----------------------------------------------------------------------------- |
+| `depConstraints` | `[]`               | `[{ sourceTag, onlyDependOnLibsWithTags }]` — same shape as the official rule |
+| `targetName`     | `check-boundaries` | Inferred target name on the root project                                      |
 
 ## Non-goals (v1)
 

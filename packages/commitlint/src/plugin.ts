@@ -108,4 +108,8 @@ export const createNodesV2: CreateNodesV2<NxCommitlintPluginOptions> = [
 
 export default createNodesV2
 
-export const __testing = { COMMITLINT_GLOB, configRank, hasCommitlintKey }
+export const __testing: {
+  COMMITLINT_GLOB: typeof COMMITLINT_GLOB
+  configRank: typeof configRank
+  hasCommitlintKey: typeof hasCommitlintKey
+} = { COMMITLINT_GLOB: COMMITLINT_GLOB, configRank: configRank, hasCommitlintKey: hasCommitlintKey }

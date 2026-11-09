@@ -7,5 +7,5 @@
 # print to console by design, so detect-non-literal-fs-filename and
 # xss_no-mixed-html are false positives for that category of code.
 exclude_paths:
-  - 'tools/skills-compiler/**'
-  - 'scripts/**'
+  - "tools/skills-compiler/**"
+  - "scripts/**"

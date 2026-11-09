@@ -112,8 +112,12 @@ export const createNodesV2: CreateNodesV2 = [
 
 export default createNodesV2
 
-export const __testing = {
-  inferLintTarget,
-  readOxLintrc,
-  OXLINT_RC_GLOB,
+export const __testing: {
+  inferLintTarget: typeof inferLintTarget
+  readOxLintrc: typeof readOxLintrc
+  OXLINT_RC_GLOB: typeof OXLINT_RC_GLOB
+} = {
+  inferLintTarget: inferLintTarget,
+  readOxLintrc: readOxLintrc,
+  OXLINT_RC_GLOB: OXLINT_RC_GLOB,
 }

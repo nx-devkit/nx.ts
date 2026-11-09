@@ -307,4 +307,7 @@ export function isSkippedProjectRoot(projectRoot: string, workspaceRoot: string)
   return false
 }
 
-export const __testing = { SVERKA_GLOB, isSkippedProjectRoot }
+export const __testing: {
+  SVERKA_GLOB: typeof SVERKA_GLOB
+  isSkippedProjectRoot: typeof isSkippedProjectRoot
+} = { SVERKA_GLOB: SVERKA_GLOB, isSkippedProjectRoot: isSkippedProjectRoot }
