@@ -108,7 +108,7 @@ See `packages/prepare-for-release/src/executors/publish-placeholder/executor.ts`
 
 ## Updating Nx
 
-Nx is always upgraded with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — the `@nx/devkit` peer range is widened by a migration, not by a manual edit. The same rule applies to this repo itself.
+Nx is always upgraded with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — the `@nx/devkit` peer range is widened by hand in this PR (a manifest concern; `nx migrate` does not touch nested package manifests). The same rule applies to this repo itself.
 
 ## Build & test
 

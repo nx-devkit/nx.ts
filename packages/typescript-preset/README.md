@@ -149,7 +149,7 @@ A `tsconfig.json` is ignored when it sits under `node_modules`, escapes the work
 
 The package ships `migrations.json`; `nx migrate @nx-devkit/typescript` replaces legacy `nx:run-commands` typecheck/build targets that use `tsc|tsgo --build <config>` or `tsdown` with the dedicated executors. Only literal command forms are rewritten — shell composition, expansions, and quoted/globbed config paths are left untouched.
 
-**Updating Nx itself.** Always upgrade Nx with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — the `@nx/devkit` peer range (`^22 || ^23 || ^24`) is widened by a migration, not by a manual edit. The same rule applies to this repo itself.
+**Updating Nx itself.** Always upgrade Nx with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — the `@nx/devkit` peer range (`^22 || ^23 || ^24`) is widened by hand in this PR (a manifest concern; `nx migrate` does not touch nested package manifests). The same rule applies to this repo itself.
 
 ## For plugin authors
 

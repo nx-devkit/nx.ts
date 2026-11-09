@@ -12,7 +12,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/eslint eslint
 ```
 
-Depends on `@nx/devkit` `^22 || ^23`. Requires `eslint` `^9` (flat config) as a peer — legacy `.eslintrc.*` is not detected.
+Depends on `@nx/devkit` `^22 || ^23 || ^24`. Requires `eslint` `^9` (flat config) as a peer — legacy `.eslintrc.*` is not detected.
 
 ## Register
 
