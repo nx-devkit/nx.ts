@@ -151,6 +151,8 @@ The package ships `migrations.json`; `nx migrate @nx-devkit/typescript` replaces
 
 **Updating Nx itself.** Always upgrade Nx with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — the `@nx/devkit` peer range (`^22 || ^23 || ^24`) is widened by hand in this PR (a manifest concern; `nx migrate` does not touch nested package manifests). The same rule applies to this repo itself.
 
+**Upgrading the preset separately.** `nx migrate latest` upgrades `nx` and `@nx/*` but does not bump `@nx-devkit/typescript` (its `@nx/devkit` is a regular dependency, not a peer). After upgrading Nx, also run `nx migrate @nx-devkit/typescript` once a compatible release is published, so the preset pulls a devkit matching your Nx major. Until then, the `^22 || ^23 || ^24` range lets npm/pnpm resolve a compatible devkit automatically.
+
 ## For plugin authors
 
 The preset re-exports its inference helpers so sibling plugins can compose the same logic:
