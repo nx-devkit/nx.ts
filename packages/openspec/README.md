@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/openspec @fission-ai/openspec
 ```
 
-Depends on `@nx/devkit` `^22 || ^23`. Requires `@fission-ai/openspec` `^1` as the spec engine.
+Depends on `@nx/devkit` `^24`. Requires `@fission-ai/openspec` `^1` as the spec engine.
 
 ## Register
 

@@ -55,7 +55,7 @@
     "prepublishOnly": "npm run build -- --clean"
   },
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0",
+    "@nx/devkit": "^24.0.0",
     "@sverka/runtime": "^0.2.28",
     "@sverka/sdk": "^0.2.28",
     "@sverka/workflow": "^0.2.28",

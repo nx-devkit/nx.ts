@@ -62,8 +62,8 @@ The preset subsumes the standalone tsdown/oxlint/biome/vitest plugins; they stay
 
 ## Requirements
 
-- **Node.js** ≥ 22.14 — the preset discovers configs with `fs.globSync`, which does not exist on older lines
-- **Nx** `^22 || ^23` — installed automatically by `init` when missing
+- **Node.js** ≥ 22.18 (LTS: 22 "Jod", 24 "Krypton", 26 "Lithium" are all supported) — the preset discovers configs with `fs.globSync`, which does not exist on older lines
+- **Nx** `^24` — installed automatically by `init` when missing
 - **Package manager** — any of npm / pnpm / yarn / bun; binaries are resolved from `node_modules/.bin`
 - **Peer deps** — `typescript` is the only required peer; `@nx/devkit` ships as a regular dependency (auto-installed, its own peer range carries the `nx` compatibility). **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. `@typescript/native-preview` (tsgo) is optional and undeclared — add it for faster `typecheck`. `init` installs whatever is missing for the configs it detects.
 
@@ -78,6 +78,8 @@ All `@nx-devkit/*` packages are pre-1.0: minor versions may add or change inferr
 - **Verified compat range** — CI exercises the packed plugin against every supported Nx major (`e2e-packed` matrix), not just the newest.
 - **Naming settled** — the `packages/typescript-preset` → `@nx-devkit/typescript` directory/package split is either accepted as documented or renamed once, before 1.0.
 - **Migrations shipped for breaks** — any change that alters consumer `nx.json` or project layout comes with an `nx migrate` entry (the preset already ships `migrations.json`).
+
+**Updating Nx.** Nx is always upgraded with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — in this repo or in any project that uses `@nx-devkit/*`. The peer range (`@nx/devkit` `^24`) is set by the migration and not hand-bumped.
 
 ## When to use — and when not
 

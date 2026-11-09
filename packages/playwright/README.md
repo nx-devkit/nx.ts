@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/playwright @playwright/test
 ```
 
-Depends on `@nx/devkit` `^22 || ^23`. Requires `@playwright/test` `^1.40` as a peer. Browsers are installed separately — `npx playwright install` is a one-time consumer step, not part of the target.
+Depends on `@nx/devkit` `^24`. Requires `@playwright/test` `^1.40` as a peer. Browsers are installed separately — `npx playwright install` is a one-time consumer step, not part of the target.
 
 ## Register
 

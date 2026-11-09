@@ -45,10 +45,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0"
+    "@nx/devkit": "^24.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.0",
+    "@types/node": "^26.0.0",
     "tsdown": "^0.22.3",
     "vitest": "^5.0.0"
   },

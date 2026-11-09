@@ -81,6 +81,7 @@ git ls-remote --exit-code --heads "<head-repo>" "<branch>" >/dev/null 2>&1 \
 - **No manual version pins to silence scanners.** Dependency specs stay as ranges (`^x.y.z`). Do not pin or downgrade a dependency just to clear a transient alert (e.g. socket.dev `recentlyPublished`) — freshness is enforced once, centrally, by `minimumReleaseAge` in `bunfig.toml` (7 days). The resolver automatically skips too-fresh versions; manifests remain free to float to the latest release once it matures.
 - **`overrides` are reserved for real CVEs** — only when an upstream package pins a vulnerable transitive version with no upgrade path (e.g. nx pinning an old `smol-toml`). Remove the override once upstream ships a compatible fixed range.
 - **Prefer the latest supported major.** When touching a dependency, bump its spec to the latest line and let the release-age gate pick the concrete version.
+- **Nx is updated only via `nx migrate`.** Never hand-edit `nx` / `@nx/*` version specs in `package.json` (root or per-package) and never `bun add`/`npm install` a newer Nx by hand. Always run `nx migrate latest`, review `migrations.json`, run `nx migrate --run-migrations`, install, verify, then delete `migrations.json` and commit the migration separately (`chore: nx migrate to <version>`). This rule applies to this repo and to every consumer project that uses `@nx-devkit/*` (the skills tell consumers the same). Carve-out (scoped): the `@nx/devkit` peer range is the one exception — it is widened by hand in the manifest, because `nx migrate` does not touch nested package manifests. Everything else (root `nx`/`@nx/*` specs) goes through `nx migrate`.
 
 ## TDD workflow (canonical)
 
@@ -150,8 +151,11 @@ bun install
 # 5. Verify everything still works
 bun run lint && bun run test && bun run build
 
-# 6. Delete migrations.json — it is a transient artifact, never commit it
-rm migrations.json
+# 6. Delete migrations.json — it is a transient artifact, never commit it.
+#    Run from the WORKSPACE ROOT (not from a package dir) so you do not
+#    delete a package's tracked migrations.json. Skip this step if Nx
+#    generated no migrations.json (nothing to remove).
+rm -f migrations.json
 ```
 
 **Rules:**
