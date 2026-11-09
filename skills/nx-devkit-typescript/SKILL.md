@@ -133,7 +133,7 @@ nx migrate --run-migrations=migrations.json
 rm migrations.json
 ```
 
-The preset's `@nx/devkit` peer range (`^22 || ^23 || …`) is widened by a migration, not by a manual bump. The same rule applies to this repo itself.
+The preset's `@nx/devkit` peer range (`^24`) is set by the migration and not hand-bumped. The same rule applies to this repo itself.
 
 ## Skip rules
 

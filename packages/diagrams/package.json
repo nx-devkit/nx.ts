@@ -58,7 +58,7 @@
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
-    "@types/node": "^20.19.0",
+    "@types/node": "^26.0.0",
     "memfs": "^4.50.0",
     "minimatch": "^10.2.4",
     "tsdown": "^0.22.3",
