@@ -146,4 +146,4 @@ export const GITHUB_CHECKS: Record<string, GithubCheck> = {
 }
 
 /** Ids of the available GitHub checks. */
-export const GITHUB_CHECK_IDS = Object.keys(GITHUB_CHECKS)
+export const GITHUB_CHECK_IDS: string[] = Object.keys(GITHUB_CHECKS)
