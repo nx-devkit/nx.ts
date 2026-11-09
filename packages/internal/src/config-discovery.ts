@@ -14,7 +14,7 @@ export const VITEST_CONFIG_NAMES: readonly string[] = [
 export async function findConfigFile(
   projectRoot: string,
   workspaceRoot: string,
-  candidates: string[],
+  candidates: readonly string[],
 ): Promise<string | null> {
   const absProjectRoot = resolve(workspaceRoot, projectRoot)
   for (const name of candidates) {
