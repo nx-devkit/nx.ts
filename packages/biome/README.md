@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts). If you want the full Ty
 bun add -D @nx-devkit/biome @biomejs/biome
 ```
 
-Depends on `@nx/devkit` `^24 || ^24` (installed automatically — `nx` itself comes from your workspace via devkit's peer range). Requires the `@biomejs/biome` `^2` peer.
+Depends on `@nx/devkit` `^24` (installed automatically — `nx` itself comes from your workspace via devkit's peer range). Requires the `@biomejs/biome` `^2` peer.
 
 ## Register
 

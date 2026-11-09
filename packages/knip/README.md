@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/knip knip
 ```
 
-Depends on `@nx/devkit` `^24 || ^24`. Requires `knip` `^5 || ^6` as a peer.
+Depends on `@nx/devkit` `^24`. Requires `knip` `^5 || ^6` as a peer.
 
 ## Register
 

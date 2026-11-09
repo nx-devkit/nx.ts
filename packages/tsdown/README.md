@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts). If you want the full Ty
 bun add -D @nx-devkit/tsdown tsdown
 ```
 
-Depends on `@nx/devkit` `^24 || ^24` (installed automatically) and the `tsdown` binary — the target shells out to it via `nx:run-commands`.
+Depends on `@nx/devkit` `^24` (installed automatically) and the `tsdown` binary — the target shells out to it via `nx:run-commands`.
 
 ## Register
 

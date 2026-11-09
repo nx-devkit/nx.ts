@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/skill
 ```
 
-Depends on `@nx/devkit` `^24 || ^24` — installed automatically. The inferred targets also need their tools available: `build` invokes `skills-compiler` (resolved from `node_modules/.bin`, falling back to `PATH`) and `lint` runs `markdownlint-cli2` — add whichever you use. `validate`/`os-check`/`size-check` ship as executors inside this package — nothing extra to install:
+Depends on `@nx/devkit` `^24` — installed automatically. The inferred targets also need their tools available: `build` invokes `skills-compiler` (resolved from `node_modules/.bin`, falling back to `PATH`) and `lint` runs `markdownlint-cli2` — add whichever you use. `validate`/`os-check`/`size-check` ship as executors inside this package — nothing extra to install:
 
 ```bash
 bun add -D markdownlint-cli2   # plus the skills-compiler tool for `build`

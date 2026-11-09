@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/boundaries
 ```
 
-Depends on `@nx/devkit` `^24 || ^24` (installed automatically — `nx` itself comes from your workspace via devkit's peer range) and `typescript` `>=5` (the import scanner uses the TS parser).
+Depends on `@nx/devkit` `^24` (installed automatically — `nx` itself comes from your workspace via devkit's peer range) and `typescript` `>=5` (the import scanner uses the TS parser).
 
 ## Register
 
