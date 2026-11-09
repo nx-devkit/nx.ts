@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "packageName": {
+      "type": "string",
+      "description": "npm package name. Default: derived from package.json `name`."
+    },
+    "packagePath": {
+      "type": "string",
+      "description": "Path to the package directory containing package.json. Default: project root."
+    },
+    "version": {
+      "type": "string",
+      "description": "Version to generate changelog for. Required."
+    },
+    "from": {
+      "type": "string",
+      "description": "Previous version to diff from. Optional (uses previous tag)."
+    },
+    "firstRelease": {
+      "type": "boolean",
+      "description": "If true, this is the first release. Default: false.",
+      "default": false
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "If true, do not write CHANGELOG.md. Default: false.",
+      "default": false
+    },
+    "commit": {
+      "type": "boolean",
+      "description": "If true, commit the changelog. Default: false.",
+      "default": false
+    },
+    "branch": {
+      "type": "string",
+      "description": "Branch to target the release. Default: \"main\"."
+    }
+  },
+  "required": ["version"]
+}

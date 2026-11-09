@@ -82,7 +82,7 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
     expect(result).toBeDefined()
     const { projectRoot, project } = firstProject(result)
     expect(projectRoot).toBe(join('packages', 'foo'))
-    expect(project.targets['lint']).toBeDefined()
+    expect(project.targets.lint).toBeDefined()
   })
 
   it.each([
@@ -100,7 +100,7 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
     const result = callWith(join(tmp, 'packages', project, cfg))
     expect(result, `expected hit for ${cfg}`).toBeDefined()
     const { project: proj } = firstProject(result)
-    expect(proj.targets['lint']).toBeDefined()
+    expect(proj.targets.lint).toBeDefined()
   })
 
   it('skips the workspace root', () => {
@@ -132,7 +132,7 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
     makeProject('barlint', '.oxlintrc.json')
     const result = callWith(join(tmp, 'packages', 'barlint', '.oxlintrc.json'))
     const { projectRoot, project } = firstProject(result)
-    const lint = project.targets['lint']!
+    const lint = project.targets.lint!
     expect(lint.executor).toBe('nx:run-commands')
     expect(lint.options.command).toBe('oxlint .')
     expect(lint.options.cwd).toBe(projectRoot)
@@ -143,7 +143,7 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
     makeProject('bazinputs', '.oxlintrc.json')
     const result = callWith(join(tmp, 'packages', 'bazinputs', '.oxlintrc.json'))
     const { project } = firstProject(result)
-    const inputs = project.targets['lint']!.inputs
+    const inputs = project.targets.lint!.inputs
     expect(inputs).toEqual(
       expect.arrayContaining([
         '{projectRoot}/src/**/*',
@@ -232,7 +232,7 @@ describe('@nx-devkit/oxlint createNodesV2', () => {
         >
       ).find(([, { projects }]) => projects[join('packages', 'fallback')])
       expect(fallbackEntry).toBeDefined()
-      const lint = fallbackEntry![1].projects[join('packages', 'fallback')]!.targets['lint']!
+      const lint = fallbackEntry![1].projects[join('packages', 'fallback')]!.targets.lint!
       expect(lint.options.command).toBe('oxlint .')
       expect(lint.options.cwd).toBe(join('packages', 'fallback'))
     })

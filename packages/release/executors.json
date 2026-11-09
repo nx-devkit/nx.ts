@@ -4,6 +4,21 @@
       "implementation": "./dist/executors/publish/executor.mjs",
       "schema": "./src/executors/publish/schema.json",
       "description": "Publishes a package to npm via OIDC, pushes the version bump + tag to main, and creates a GitHub Release with auto-generated changelog. Idempotent."
+    },
+    "version": {
+      "implementation": "./dist/executors/version/executor.mjs",
+      "schema": "./src/executors/version/schema.json",
+      "description": "Bumps package version, commits the bump, tags the commit, and creates a GitHub Release with auto-generated changelog. Idempotent."
+    },
+    "changelog": {
+      "implementation": "./dist/executors/changelog/executor.mjs",
+      "schema": "./src/executors/changelog/schema.json",
+      "description": "Generates changelog for a package version. Idempotent."
+    },
+    "plan": {
+      "implementation": "./dist/executors/plan/executor.mjs",
+      "schema": "./src/executors/plan/schema.json",
+      "description": "Computes the candidate set of changed packages + dependents (nx-affected → plan). Idempotent."
     }
   }
 }

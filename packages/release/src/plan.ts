@@ -9,7 +9,7 @@
  * set of changed packages; the plan says what to publish, what to skip
  * and what the changelogs look like.
  */
-import { renderChangelog, type ChangelogAuthor, type ChangelogChange } from './changelog.js'
+import { type ChangelogAuthor, type ChangelogChange, renderChangelog } from './changelog.js'
 import { nextVersion, type ReleaseBump } from './version.js'
 
 /** A package that can be published. */

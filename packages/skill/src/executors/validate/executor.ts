@@ -47,8 +47,8 @@ export async function validateExecutor(
       let fm: unknown
       try {
         fm = parse(lines.slice(1, fmEnd).join('\n'))
-      } catch (err) {
-        errors.push(`frontmatter does not parse as YAML: ${(err as Error).message}`)
+      } catch (error) {
+        errors.push(`frontmatter does not parse as YAML: ${(error as Error).message}`)
         fm = undefined
       }
       if (fm !== undefined && (typeof fm !== 'object' || fm === null || Array.isArray(fm))) {
@@ -83,8 +83,8 @@ export async function validateExecutor(
     let meta: unknown
     try {
       meta = parse(readFileSync(openaiMeta, 'utf8'))
-    } catch (err) {
-      errors.push(`agents/openai.yaml does not parse as YAML: ${(err as Error).message}`)
+    } catch (error) {
+      errors.push(`agents/openai.yaml does not parse as YAML: ${(error as Error).message}`)
       meta = undefined
     }
     if (meta !== undefined && (typeof meta !== 'object' || meta === null || Array.isArray(meta))) {

@@ -38,13 +38,32 @@ function configRank(fileName: string): number {
   return idx === -1 ? PRECEDENCE.length : idx
 }
 
-function hasCommitlintKey(absPath: string): boolean {
-  try {
-    const pkg = JSON.parse(readFileSync(absPath, 'utf8'))
-    return typeof pkg === 'object' && pkg !== null && 'commitlint' in pkg
-  } catch {
-    return false
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let commitlintCache: Map<string, boolean> | null = new Map()
+
+function getCommitlintCache(): Map<string, boolean> | null {
+  return isTestMode() ? null : commitlintCache
+}
+
+function hasCommitlintKey(absPath: string, workspaceRoot: string): boolean {
+  // Use hoisted cache with workspace root in key for isolation
+  const commitlintMemCache = getCommitlintCache()
+  const cacheKey = `${workspaceRoot}#${absPath}`
+  let result = commitlintMemCache?.get(cacheKey)
+  if (result === undefined) {
+    try {
+      const pkg = JSON.parse(readFileSync(absPath, 'utf8'))
+      result = typeof pkg === 'object' && pkg !== null && 'commitlint' in pkg
+    } catch {
+      result = false
+    }
+    commitlintMemCache?.set(cacheKey, result)
   }
+  return result!
 }
 
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
@@ -82,7 +101,7 @@ export const createNodesV2: CreateNodesV2<NxCommitlintPluginOptions> = [
       if (winner === undefined) continue
       if (
         winner.split('/').pop() === 'package.json' &&
-        !hasCommitlintKey(resolve(workspaceRoot, winner))
+        !hasCommitlintKey(resolve(workspaceRoot, winner), workspaceRoot)
       )
         continue
 

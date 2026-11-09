@@ -21,12 +21,23 @@ export interface NxDevkitSkillspectorOptions {
 
 const SKILL_MD_GLOB = '**/SKILL.md'
 
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+const skillspectorCache = new Map<string, Record<string, TargetConfiguration>>()
+
+function getSkillspectorCache(): Map<string, Record<string, TargetConfiguration>> | null {
+  return isTestMode() ? null : skillspectorCache
+}
+
 /**
  * Compute injective project name: `${slug}-${hash12}` where slug is the
  * projectRoot with `/` replaced by `-`, and hash12 is the first 12 hex chars
  * of sha256(projectRoot). Same algorithm as @nx-devkit/skill.
  */
-function computeProjectName(projectRoot: string): string {
+export function computeProjectName(projectRoot: string): string {
   const slug = projectRoot.replace(/\//g, '-')
   const hash = createHash('sha256').update(projectRoot).digest('hex').slice(0, 12)
   return `${slug}-${hash}`
@@ -91,6 +102,21 @@ function inferScanTarget(
 export const createNodesV2: CreateNodesV2<NxDevkitSkillspectorOptions> = [
   SKILL_MD_GLOB,
   async (configFiles, opts = {}, context) => {
+    const workspaceRoot = context.workspaceRoot
+    const scanTargetName = opts.scanTargetName ?? 'scan'
+
+    // --- PERFORMANCE: Use hoisted cache ---
+    const skillspectorMemCache = getSkillspectorCache()
+    const cacheKey = `${workspaceRoot}-${JSON.stringify(opts)}`
+    let targets = skillspectorMemCache?.get(cacheKey)
+
+    if (targets === undefined) {
+      targets = {
+        scan: inferScanTarget('', '', opts), // Will be customized per project
+      }
+      skillspectorMemCache?.set(cacheKey, targets)
+    }
+
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> = []
 
     for (const configFile of configFiles) {

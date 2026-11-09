@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareVersions, planRelease, releaseBaseline, type ReleasePackage } from './plan.js'
+import { compareVersions, planRelease, type ReleasePackage, releaseBaseline } from './plan.js'
 
 const packages: ReleasePackage[] = [
   { name: '@nx-devkit/release', path: 'packages/release', version: '0.0.22' },

@@ -1,0 +1,23 @@
+name: "CodeQL Config"
+
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+
+paths-ignore:
+  - apps/
+  - .github/
+  - scripts/
+  - tools/
+  - skills/
+  - docs/
+
+paths:
+  - packages/
+  - .github/workflows/
+  - scripts/
+
+queries:
+  - uses: javascript-and-typescript
+  - uses: security-extended
+  - uses: security-and-quality

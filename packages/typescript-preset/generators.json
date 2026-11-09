@@ -16,6 +16,10 @@
       "factory": "./dist/generators/package/generator.mjs",
       "schema": "./src/generators/package/schema.json",
       "description": "Add a new package to an existing Nx monorepo with @nx-devkit/typescript preset. Creates package structure with inferred targets."
+    },
+    "sync-generator": {
+      "factory": "./dist/generators/sync-generator.mjs",
+      "description": "Sync generator that validates and fixes TypeScript project configuration drift."
     }
   }
 }

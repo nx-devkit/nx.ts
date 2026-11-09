@@ -1,10 +1,10 @@
 import {
+  addDependenciesToPackageJson,
+  formatFiles,
   type GeneratorCallback,
   type Tree,
-  formatFiles,
-  addDependenciesToPackageJson,
 } from '@nx/devkit'
-import { parse, modify, applyEdits, printParseErrorCode } from 'jsonc-parser'
+import { applyEdits, modify, parse, printParseErrorCode } from 'jsonc-parser'
 
 /** Detect the indentation of a JSON/JSONC document, skipping block comments. */
 function detectIndent(text: string): number {

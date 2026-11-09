@@ -1,4 +1,4 @@
-import { type GeneratorCallback, type Tree, joinPathFragments } from '@nx/devkit'
+import { type GeneratorCallback, joinPathFragments, type Tree } from '@nx/devkit'
 
 export interface NxPrepareForReleaseInitOptions {
   projectName?: string

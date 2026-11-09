@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "init-ci generator",
+  "description": "Generates a GitHub Actions release workflow using the local @nx-devkit/release executors for OIDC trusted publishing.",
+  "type": "object",
+  "properties": {
+    "projectName": {
+      "type": "string",
+      "description": "Name of the workspace project that hosts the prepare-for-release target.",
+      "default": "tools"
+    },
+    "pluginPath": {
+      "type": "string",
+      "description": "Module specifier for the plugin in nx.json plugins[]. Use a relative path or package name.",
+      "default": "@nx-devkit/prepare-for-release"
+    },
+    "registry": {
+      "type": "string",
+      "description": "npm registry URL. Default: https://registry.npmjs.org/.",
+      "default": "https://registry.npmjs.org/"
+    },
+    "generateNotes": {
+      "type": "boolean",
+      "description": "If true, create a GitHub Release with auto-generated changelog. Default: true.",
+      "default": true
+    },
+    "provenance": {
+      "type": "boolean",
+      "description": "If true, publish with --provenance (npm OIDC). Default: true.",
+      "default": true
+    }
+  },
+  "additionalProperties": false
+}

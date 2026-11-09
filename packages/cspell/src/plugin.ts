@@ -34,13 +34,32 @@ function configRank(fileName: string): number {
   return idx === -1 ? PRECEDENCE.length : idx
 }
 
-function hasCspellKey(absPath: string): boolean {
-  try {
-    const pkg = JSON.parse(readFileSync(absPath, 'utf8'))
-    return typeof pkg === 'object' && pkg !== null && 'cspell' in pkg
-  } catch {
-    return false
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let cspellCache: Map<string, boolean> | null = new Map()
+
+function getCspellCache(): Map<string, boolean> | null {
+  return isTestMode() ? null : cspellCache
+}
+
+function hasCspellKey(absPath: string, workspaceRoot: string): boolean {
+  // Use hoisted cache with workspace root in key for isolation
+  const cspellMemCache = getCspellCache()
+  const cacheKey = `${workspaceRoot}#${absPath}`
+  let result = cspellMemCache?.get(cacheKey)
+  if (result === undefined) {
+    try {
+      const pkg = JSON.parse(readFileSync(absPath, 'utf8'))
+      result = typeof pkg === 'object' && pkg !== null && 'cspell' in pkg
+    } catch {
+      result = false
+    }
+    cspellMemCache?.set(cacheKey, result)
   }
+  return result!
 }
 
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
@@ -78,7 +97,7 @@ export const createNodesV2: CreateNodesV2<NxCspellPluginOptions> = [
       if (winner === undefined) continue
       if (
         winner.split('/').pop() === 'package.json' &&
-        !hasCspellKey(resolve(workspaceRoot, winner))
+        !hasCspellKey(resolve(workspaceRoot, winner), workspaceRoot)
       )
         continue
 

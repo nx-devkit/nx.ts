@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { synthesize, type DefinitionGraph } from '@sverka/workflow'
+import { type DefinitionGraph, synthesize } from '@sverka/workflow'
 import { registerConfigHooks } from './config-hooks.js'
 
 /** Config file names looked for, in priority order. */

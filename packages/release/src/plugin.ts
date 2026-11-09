@@ -1,6 +1,6 @@
-import type { CreateNodesV2, ProjectConfiguration } from '@nx/devkit'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
+import type { CreateNodesV2, ProjectConfiguration } from '@nx/devkit'
 
 export interface NxReleasePluginOptions {
   /** Path to the tools project that hosts the release target. */
@@ -10,6 +10,17 @@ export interface NxReleasePluginOptions {
 }
 
 const PLUGIN_NAME = '@nx-devkit/release'
+
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+const releaseCache = new Map<string, boolean>()
+
+function getReleaseCache(): Map<string, boolean> | null {
+  return isTestMode() ? null : releaseCache
+}
 
 /**
  * Detect whether a project.json references the release executor shipped by
@@ -24,24 +35,33 @@ export function isReleaseProject(
   const projectRoot = isAbsolute(configDir) ? configDir : join(workspaceRoot, configDir)
   const projectJsonPath = join(projectRoot, 'project.json')
   if (!existsSync(projectJsonPath)) return false
-  let contents: string
-  try {
-    contents = readFileSync(projectJsonPath, 'utf8')
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT') return false
-    throw error
+
+  // Use hoisted cache
+  const releaseMemCache = getReleaseCache()
+  const cacheKey = `${workspaceRoot}#${projectRoot}`
+  let result = releaseMemCache?.get(cacheKey)
+  if (result === undefined) {
+    let contents: string
+    try {
+      contents = readFileSync(projectJsonPath, 'utf8')
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT') return false
+      throw error
+    }
+    try {
+      const raw = JSON.parse(contents) as Record<string, unknown>
+      const targets = (raw.targets ?? {}) as Record<string, Record<string, unknown>>
+      result = Object.values(targets).some(
+        (t) => typeof t.executor === 'string' && t.executor === executor,
+      )
+    } catch (error) {
+      if (error instanceof SyntaxError) return false
+      throw error
+    }
+    releaseMemCache?.set(cacheKey, result)
   }
-  try {
-    const raw = JSON.parse(contents) as Record<string, unknown>
-    const targets = (raw.targets ?? {}) as Record<string, Record<string, unknown>>
-    return Object.values(targets).some(
-      (t) => typeof t.executor === 'string' && t.executor === executor,
-    )
-  } catch (error) {
-    if (error instanceof SyntaxError) return false
-    throw error
-  }
+  return result
 }
 
 export const createNodesV2: CreateNodesV2<NxReleasePluginOptions> = [

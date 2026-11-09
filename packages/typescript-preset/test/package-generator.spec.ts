@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
 import type { Tree } from '@nx/devkit'
+import { describe, expect, it, vi } from 'vitest'
 import { packageGenerator } from '../src/generators/package/generator.js'
 
 function createTree(files: Record<string, string> = {}): {

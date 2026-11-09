@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest'
 import {
   addProjectConfiguration,
-  readProjectConfiguration,
   type ProjectConfiguration,
+  readProjectConfiguration,
   type Tree,
 } from '@nx/devkit'
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing'
-import replaceTypecheckExecutor from '../src/migrations/update-1-0-0/replace-typecheck-executor.js'
+import { describe, expect, it } from 'vitest'
 import replaceBuildExecutor from '../src/migrations/update-1-0-0/replace-build-executor.js'
+import replaceTypecheckExecutor from '../src/migrations/update-1-0-0/replace-typecheck-executor.js'
 
 function addProject(
   tree: Tree,

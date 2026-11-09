@@ -23,9 +23,7 @@ export async function findConfigFile(
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- candidate names are fixed config basenames joined to an Nx project root
       await access(candidate)
       return candidate
-    } catch {
-      continue
-    }
+    } catch {}
   }
   return null
 }

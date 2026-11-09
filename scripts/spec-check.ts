@@ -99,7 +99,7 @@ const seen = new Map<string, Finding[]>()
 for (const f of findings) {
   const k = `${f.key}`
   if (!seen.has(k)) seen.set(k, [])
-  seen.get(k)!.push(f)
+  seen.get(k)?.push(f)
 }
 
 const conflicts: Array<{ key: string; entries: Finding[] }> = []

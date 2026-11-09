@@ -1,15 +1,15 @@
 import { execFile } from 'node:child_process'
-import { mkdir, writeFile, realpath } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { mkdir, realpath, writeFile } from 'node:fs/promises'
 import {
   basename,
   dirname,
+  isAbsolute,
   join,
   relative,
   resolve as resolvePath,
-  isAbsolute,
   sep,
 } from 'node:path'
-import { createHash } from 'node:crypto'
 
 export interface ScanExecutorOptions {
   /** Path to the skill directory to scan (relative to workspace root). */

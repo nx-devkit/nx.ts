@@ -1,4 +1,4 @@
-import { test, expect } from "vitest";
+import { expect, test } from "vitest";
 import { hello } from "../src/index.ts";
 
 test("hello", () => {

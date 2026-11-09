@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { emitPluginManifest, emitSkills } from './common.js'
 import type { CompilerOptions, Skill } from '../types.js'
+import { emitPluginManifest, emitSkills } from './common.js'
 
 export function buildCodex(
   options: CompilerOptions,

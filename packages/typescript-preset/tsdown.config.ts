@@ -6,6 +6,7 @@ export default defineConfig({
     'src/generators/init/generator.ts',
     'src/generators/monorepo/generator.ts',
     'src/generators/package/generator.ts',
+    'src/generators/sync-generator.ts',
     'src/bin/init.ts',
     'src/migrations/update-1-0-0/replace-typecheck-executor.ts',
     'src/migrations/update-1-0-0/replace-build-executor.ts',
@@ -20,4 +21,5 @@ export default defineConfig({
   // builds start from a fresh checkout anyway.
   clean: false,
   deps: { alwaysBundle: ['@nx-devkit/internal'] },
+  external: ['@nx/devkit', 'nx', '@nx/devkit/internal'],
 })

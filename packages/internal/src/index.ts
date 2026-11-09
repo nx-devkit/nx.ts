@@ -2,18 +2,18 @@ import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { logger } from '@nx/devkit'
 
-export { detectIndent, parseJsonObject } from './jsonc.ts'
+export {
+  findConfigFile,
+  findVitestConfig,
+  VITEST_CONFIG_NAMES,
+} from './config-discovery.ts'
 export {
   installPeerDeps,
   readJson,
   registerPlugin,
   resolveRootProjectName,
 } from './init-generator.ts'
-export {
-  VITEST_CONFIG_NAMES,
-  findConfigFile,
-  findVitestConfig,
-} from './config-discovery.ts'
+export { detectIndent, parseJsonObject } from './jsonc.ts'
 export { inferVitestTargets } from './vitest-targets.ts'
 
 export function isVerbose(): boolean {
@@ -116,9 +116,7 @@ export function resolveBinLaunch(
         return { command: process.execPath, prependArgs: [binPath] }
       }
       return { command: binPath, prependArgs: [] }
-    } catch {
-      continue
-    }
+    } catch {}
   }
 
   // 2. `.bin` probe — POSIX symlinks resolve to the real JS entry.

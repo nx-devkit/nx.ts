@@ -1,6 +1,6 @@
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports'
 import { describe, expect, it } from 'vitest'
-import { createNodesV2, __testing } from './plugin.ts'
+import { __testing, createNodesV2 } from './plugin.ts'
 
 function makeContext(): CreateNodesContextV2 {
   return {

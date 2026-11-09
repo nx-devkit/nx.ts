@@ -11,6 +11,17 @@ export interface NxPlaywrightPluginOptions {
 // Playwright auto-discovers playwright.config.* in the working directory.
 const CONFIG_GLOB = '**/playwright.config.{ts,js,mts,mjs,cjs,cts}'
 
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let playwrightCache: Map<string, Record<string, TargetConfiguration> | null> | null = new Map()
+
+function getPlaywrightCache(): Map<string, Record<string, TargetConfiguration> | null> | null {
+  return isTestMode() ? null : playwrightCache
+}
+
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
   const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot || '.'))
   if (rel === '') return false
@@ -47,33 +58,41 @@ export const createNodesV2: CreateNodesV2<NxPlaywrightPluginOptions> = [
       // Every playwright.config in the dir is an input so edits bust the cache.
       const configInputs = sorted.map((f) => `${prefix}/${dir ? f.slice(dir.length + 1) : f}`)
 
-      const targets: Record<string, TargetConfiguration> = {
-        [targetName]: {
-          executor: 'nx:run-commands',
-          cache: true,
-          inputs: [`${prefix}/**/*`, ...configInputs],
-          outputs: [
-            '{projectRoot}/test-results',
-            '{projectRoot}/playwright-report',
-            '{projectRoot}/blob-report',
-          ],
-          options: { command: 'npx playwright test', cwd: '{projectRoot}' },
-        },
-      }
-      if (extraTargets) {
-        targets[`${targetName}:ui`] = {
-          executor: 'nx:run-commands',
-          cache: false,
-          options: { command: 'npx playwright test --ui', cwd: '{projectRoot}' },
+      // --- PERFORMANCE: Use hoisted cache ---
+      const playwrightMemCache = getPlaywrightCache()
+      const cacheKey = `${workspaceRoot}#${dir}-${JSON.stringify({ targetName, extraTargets })}`
+      let targets = playwrightMemCache?.get(cacheKey)
+
+      if (targets === undefined) {
+        targets = {
+          [targetName]: {
+            executor: 'nx:run-commands',
+            cache: true,
+            inputs: [`${prefix}/**/*`, ...configInputs],
+            outputs: [
+              '{projectRoot}/test-results',
+              '{projectRoot}/playwright-report',
+              '{projectRoot}/blob-report',
+            ],
+            options: { command: 'npx playwright test', cwd: '{projectRoot}' },
+          },
         }
-        targets[`${targetName}:update-snapshots`] = {
-          executor: 'nx:run-commands',
-          cache: false,
-          options: { command: 'npx playwright test --update-snapshots', cwd: '{projectRoot}' },
+        if (extraTargets) {
+          targets[`${targetName}:ui`] = {
+            executor: 'nx:run-commands',
+            cache: false,
+            options: { command: 'npx playwright test --ui', cwd: '{projectRoot}' },
+          }
+          targets[`${targetName}:update-snapshots`] = {
+            executor: 'nx:run-commands',
+            cache: false,
+            options: { command: 'npx playwright test --update-snapshots', cwd: '{projectRoot}' },
+          }
         }
+        playwrightMemCache?.set(cacheKey, targets)
       }
 
-      results.push([winner, { projects: { [dir]: { root: dir, targets } } }])
+      results.push([winner, { projects: { [dir]: { root: dir, targets: targets! } } }])
     }
     return results
   },

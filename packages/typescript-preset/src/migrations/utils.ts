@@ -13,7 +13,7 @@ import type { ProjectConfiguration, TargetConfiguration } from '@nx/devkit'
  * migrating would silently drop steps.
  */
 export function getSingleRunCommand(target: TargetConfiguration | undefined): string | null {
-  if (!target || target.executor !== 'nx:run-commands') return null
+  if (target?.executor !== 'nx:run-commands') return null
   const options = target.options as
     | {
         command?: string

@@ -35,13 +35,32 @@ function isKnipConfig(fileName: string): boolean {
   return configRank(fileName) < PRECEDENCE.length - 1
 }
 
-function hasKnipKey(absPath: string): boolean {
-  try {
-    const pkg = JSON.parse(readFileSync(absPath, 'utf8'))
-    return typeof pkg === 'object' && pkg !== null && 'knip' in pkg
-  } catch {
-    return false
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let knipCache: Map<string, boolean> | null = new Map()
+
+function getKnipCache(): Map<string, boolean> | null {
+  return isTestMode() ? null : knipCache
+}
+
+function hasKnipKey(absPath: string, workspaceRoot: string): boolean {
+  // Use hoisted cache with workspace root in key for isolation
+  const knipMemCache = getKnipCache()
+  const cacheKey = `${workspaceRoot}#${absPath}`
+  let result = knipMemCache?.get(cacheKey)
+  if (result === undefined) {
+    try {
+      const pkg = JSON.parse(readFileSync(absPath, 'utf8'))
+      result = typeof pkg === 'object' && pkg !== null && 'knip' in pkg
+    } catch {
+      result = false
+    }
+    knipMemCache?.set(cacheKey, result)
   }
+  return result!
 }
 
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
@@ -78,7 +97,11 @@ export const createNodesV2: CreateNodesV2<NxKnipPluginOptions> = [
       const winner = sorted.at(0)
       if (winner === undefined) continue
       const winnerName = winner.split('/').pop() ?? ''
-      if (winnerName === 'package.json' && !hasKnipKey(resolve(workspaceRoot, winner))) continue
+      if (
+        winnerName === 'package.json' &&
+        !hasKnipKey(resolve(workspaceRoot, winner), workspaceRoot)
+      )
+        continue
 
       const prefix = dir ? '{projectRoot}' : '{workspaceRoot}'
       // Every knip-bearing file in the dir must bust the cache — paths are relative to the project root ("" for the root project).

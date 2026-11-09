@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import type { Skill, PluginManifest, SkillLink } from './types.js'
+import type { PluginManifest, Skill, SkillLink } from './types.js'
 
 interface ParsedSkill {
   frontmatter: Record<string, unknown>
@@ -83,8 +83,8 @@ export function discoverSkills(skillsRoot: string): Map<string, Skill> {
         frontmatter,
         links: [],
       }
-      if (byName.has(name)) {
-        const existing = byName.get(name)!
+      const existing = byName.get(name)
+      if (existing) {
         throw new Error(
           `Duplicate skill name '${name}' found at '${rel}' and '${existing.root}'. Skill names must be unique across the entire skills tree.`,
         )

@@ -8,6 +8,7 @@ export default defineConfig({
   entry: {
     'executors/publish-placeholder/executor': 'src/executors/publish-placeholder/executor.ts',
     'generators/init/generator': 'src/generators/init/generator.ts',
+    'generators/init-ci/generator': 'src/generators/init-ci/generator.ts',
     index: 'src/index.ts',
     plugin: 'src/plugin.ts',
   },

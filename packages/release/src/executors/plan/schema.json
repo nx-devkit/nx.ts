@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "base": {
+      "type": "string",
+      "description": "Base branch to compare against. Default: \"main\".",
+      "default": "main"
+    },
+    "head": {
+      "type": "string",
+      "description": "Head branch to compare. Default: current HEAD.",
+      "default": "HEAD"
+    },
+    "includeDependents": {
+      "type": "boolean",
+      "description": "If true, include dependents of changed projects. Default: true.",
+      "default": true
+    },
+    "json": {
+      "type": "boolean",
+      "description": "If true, output as JSON. Default: false.",
+      "default": false
+    }
+  },
+  "required": []
+}

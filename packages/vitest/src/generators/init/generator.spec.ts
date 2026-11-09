@@ -72,6 +72,6 @@ describe('initGenerator', () => {
     await initGenerator(tree, {})
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}')
-    expect(pkg.devDependencies['vitest']).toBe('^4.0.0')
+    expect(pkg.devDependencies.vitest).toBe('^4.0.0')
   })
 })

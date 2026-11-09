@@ -8,9 +8,9 @@
  */
 import { computeReachableSteps } from '@sverka/sdk'
 import {
-  expandPipelineCalls,
   type DefinitionGraph,
   type EntryDefinition,
+  expandPipelineCalls,
   type PipelineDefinition,
   type StepDefinition,
 } from '@sverka/workflow'

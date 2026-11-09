@@ -1,8 +1,8 @@
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
-import { spawn, spawnSync } from 'node:child_process'
 import { glob } from 'tinyglobby'
 
 export interface NxPrepareForReleaseOptions {
@@ -26,6 +26,12 @@ export interface NxPrepareForReleaseOptions {
    * Throws if none are set.
    */
   trustRepo?: string
+  /** If true, write the npm web-auth approval URL to a file and print to stderr. Default: true. */
+  writeAuthUrl?: boolean
+  /** Maximum minutes to wait for npm web-auth approval. Default: 5. Set 0 to wait indefinitely. */
+  authTimeoutMinutes?: number
+  /** If true, attempt to open the approval URL in the default browser. Default: false. */
+  openAuthUrl?: boolean
 }
 
 export interface PublishPlaceholderResult {
@@ -42,9 +48,14 @@ const TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 const NPM_SUBPROCESS_TIMEOUT_MS = 120_000
 
 const EOTP_RE = /\bEOTP\b|one-time password/i
-const WEB_AUTH_TIMEOUT_MS = 5 * 60_000
+const _WEB_AUTH_TIMEOUT_MS = 5 * 60_000
 const WEB_AUTH_POLL_MS = 4_000
 const WEB_AUTH_FETCH_TIMEOUT_MS = 15_000
+
+// Default web-auth timeout in minutes (configurable via option)
+const DEFAULT_WEB_AUTH_TIMEOUT_MINUTES = 5
+const _WEB_AUTH_RETRY_POLL_MS = 2_000
+const _WEB_AUTH_RETRY_DEADLINE_MS = 30_000
 
 interface ResolvedOptions {
   registry: string
@@ -55,6 +66,9 @@ interface ResolvedOptions {
   trustRepo: string
   scope: string[] | undefined
   packageJson: string | undefined
+  writeAuthUrl: boolean
+  authTimeoutMinutes: number
+  openAuthUrl: boolean
 }
 
 function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
@@ -67,6 +81,9 @@ function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
     scope: options.scope,
     trust: options.trust ?? false,
     trustRepo: resolveTrustRepo(options.trustRepo),
+    writeAuthUrl: options.writeAuthUrl ?? true,
+    authTimeoutMinutes: options.authTimeoutMinutes ?? DEFAULT_WEB_AUTH_TIMEOUT_MINUTES,
+    openAuthUrl: options.openAuthUrl ?? false,
   }
 }
 
@@ -354,11 +371,6 @@ function readNpmAuthToken(registry: string, cwd: string): string | null {
   return null
 }
 
-interface WebAuthUrls {
-  authUrl: string
-  doneUrl: string
-}
-
 /**
  * npm masks the EOTP auth URL in non-TTY output. Replicating the publish
  * PUT with `npm-auth-type: web` makes the registry return the real
@@ -368,7 +380,7 @@ async function requestWebAuthUrls(
   pkgName: string,
   registry: string,
   token: string,
-): Promise<WebAuthUrls> {
+): Promise<{ authUrl: string; doneUrl: string }> {
   const base = registry.endsWith('/') ? registry.slice(0, -1) : registry
   const res = await fetch(`${base}/${pkgName.replaceAll('/', '%2f')}`, {
     body: '{}',
@@ -382,11 +394,11 @@ async function requestWebAuthUrls(
     signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
   })
   const text = await res.text()
-  let parsed: Partial<WebAuthUrls> = {}
+  let parsed: { authUrl?: string; doneUrl?: string } = {}
   try {
     const body: unknown = JSON.parse(text)
     if (typeof body === 'object' && body !== null) {
-      parsed = body as Partial<WebAuthUrls>
+      parsed = body as { authUrl?: string; doneUrl?: string }
     }
   } catch {
     // fall through to the error below
@@ -402,9 +414,28 @@ async function requestWebAuthUrls(
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Poll the registry done endpoint until the web approval yields an OTP. */
-async function pollForWebAuthOtp(doneUrl: string, token: string): Promise<string | null> {
-  const deadline = Date.now() + WEB_AUTH_TIMEOUT_MS
+async function pollForWebAuthOtp(
+  doneUrl: string,
+  token: string,
+  options: {
+    timeoutMinutes: number
+    pollIntervalMs: number
+    onProgress?: (remainingMinutes: number) => void
+  },
+): Promise<string | null> {
+  const timeoutMs =
+    options.timeoutMinutes > 0 ? options.timeoutMinutes * 60_000 : Number.MAX_SAFE_INTEGER
+  const deadline = Date.now() + timeoutMs
+  const lastProgressLog = 0
+
   while (Date.now() < deadline) {
+    const remainingMinutes = Math.ceil((deadline - Date.now()) / 60_000)
+
+    // Log progress every minute
+    if (options.onProgress && remainingMinutes !== lastProgressLog && remainingMinutes > 0) {
+      options.onProgress(remainingMinutes)
+    }
+
     const res = await fetch(doneUrl, {
       headers: { authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
@@ -464,14 +495,51 @@ async function publishOnePackage(
         )
       }
       const { authUrl, doneUrl } = await requestWebAuthUrls(name, resolved.registry, token)
-      console.log(
+
+      // Write auth URL to file if requested
+      if (resolved.writeAuthUrl) {
+        const authUrlPath = join(process.cwd(), '.nx', 'prepare-for-release', 'auth.txt')
+        await mkdir(dirname(authUrlPath), { recursive: true })
+        await writeFile(authUrlPath, `${authUrl}\n`, 'utf8')
+      }
+
+      // Print to stderr (always visible) in addition to stdout
+      const authMessage =
         `\n  npm requires one-time authorization for ${name}.\n` +
-          `  Open this URL to approve the publish:\n\n    ${authUrl}\n\n` +
-          `  Waiting for approval...`,
-      )
-      const otp = await pollForWebAuthOtp(doneUrl, token)
+        `  Open this URL to approve the publish:\n\n    ${authUrl}\n\n` +
+        `  Waiting for approval...`
+      console.log(authMessage)
+      process.stderr.write(`${authMessage}\n`)
+
+      // Try to open the URL in the browser if requested
+      if (resolved.openAuthUrl) {
+        try {
+          const { spawn: spawnChild } = await import('node:child_process')
+          const openCmd =
+            process.platform === 'darwin'
+              ? 'open'
+              : process.platform === 'win32'
+                ? 'start'
+                : 'xdg-open'
+          spawnChild(openCmd, [authUrl], { detached: true, stdio: 'ignore' }).unref()
+        } catch {
+          // Ignore errors opening the browser
+        }
+      }
+
+      const otp = await pollForWebAuthOtp(doneUrl, token, {
+        timeoutMinutes: resolved.authTimeoutMinutes,
+        pollIntervalMs: WEB_AUTH_POLL_MS,
+        onProgress: (remainingMinutes) => {
+          console.log(
+            `  Still waiting for approval... ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} remaining`,
+          )
+        },
+      })
       if (!otp) {
-        throw new Error(`Timed out waiting for npm web authorization for ${name}`)
+        throw new Error(
+          `Timed out waiting for npm web authorization for ${name} after ${resolved.authTimeoutMinutes} minute(s)`,
+        )
       }
       result = runNpmPublish(npmCmd, tarballPath, resolved, otp)
     }

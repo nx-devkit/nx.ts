@@ -45,13 +45,11 @@ function findPackageJsonDirs(workspaceRoot: string): string[] {
   const dirs: string[] = []
   const pkgsDir = join(workspaceRoot, 'packages')
   try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- pkgsDir is composed from the trusted workspaceRoot provided by Nx
     const entries = readdirSync(pkgsDir, { withFileTypes: true })
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
       if (entry.name === 'node_modules') continue
       try {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- entry.name is a directory entry under the trusted workspaceRoot, joined into a fixed package.json path
         statSync(join(pkgsDir, entry.name, 'package.json'))
         dirs.push(join('packages', entry.name))
       } catch {
@@ -64,12 +62,26 @@ function findPackageJsonDirs(workspaceRoot: string): string[] {
   return dirs
 }
 
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let oxlintrcCache: Map<string, Record<string, unknown> | null> | null = new Map()
+
+function getOxlintrcCache(): Map<string, Record<string, unknown> | null> | null {
+  return isTestMode() ? null : oxlintrcCache
+}
+
 export const createNodesV2: CreateNodesV2 = [
   OXLINT_RC_GLOB,
   (projectConfigurationFiles, _options, context) => {
     const workspaceRoot = context.workspaceRoot
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> = []
     const coveredRoots = new Set<string>()
+
+    // --- PERFORMANCE: Hoisted oxlintrc cache (disabled in test mode) ---
+    const oxlintrcMemCache = getOxlintrcCache()
 
     for (const configFilePath of projectConfigurationFiles) {
       const fileName = basename(configFilePath)
@@ -78,7 +90,12 @@ export const createNodesV2: CreateNodesV2 = [
       const projectRoot = dirname(configFilePath).replace(/\\/g, '/')
       if (shouldSkipPath(projectRoot, workspaceRoot)) continue
 
-      const config = readOxLintrc(join(workspaceRoot, configFilePath))
+      // Use hoisted oxlintrc cache
+      let config = oxlintrcMemCache?.get(configFilePath)
+      if (config === undefined) {
+        config = readOxLintrc(join(workspaceRoot, configFilePath))
+        oxlintrcMemCache?.set(configFilePath, config)
+      }
       if (config === null) continue
 
       coveredRoots.add(projectRoot)
@@ -91,7 +108,9 @@ export const createNodesV2: CreateNodesV2 = [
       results.push([configFilePath, { projects: { [projectRoot]: project } }])
     }
 
-    const rootConfig = readOxLintrc(join(workspaceRoot, '.oxlintrc.json'))
+    const rootConfigPath = join(workspaceRoot, '.oxlintrc.json')
+    // Don't cache root config - it's a single file per workspace and can change
+    const rootConfig = readOxLintrc(rootConfigPath)
     if (rootConfig !== null) {
       const allProjectRoots = findPackageJsonDirs(workspaceRoot)
       for (const projectRoot of allProjectRoots) {

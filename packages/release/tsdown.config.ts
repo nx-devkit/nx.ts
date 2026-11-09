@@ -7,6 +7,9 @@ export default defineConfig({
   dts: true,
   entry: {
     'executors/publish/executor': 'src/executors/publish/executor.ts',
+    'executors/version/executor': 'src/executors/version/executor.ts',
+    'executors/changelog/executor': 'src/executors/changelog/executor.ts',
+    'executors/plan/executor': 'src/executors/plan/executor.ts',
     'generators/init/generator': 'src/generators/init/generator.ts',
     index: 'src/index.ts',
     plugin: 'src/plugin.ts',

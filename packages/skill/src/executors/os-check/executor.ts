@@ -111,7 +111,7 @@ export async function osCheckExecutor(
         const lines = content.split('\n')
         lines.forEach((line, i) => {
           for (const { re, label, altRe } of PATTERNS) {
-            if (re.test(line) && !(altRe && altRe.test(content))) {
+            if (re.test(line) && !altRe?.test(content)) {
               violations.push(`${rel}:${i + 1} ${label}: ${line.trim().slice(0, 100)}`)
             }
           }

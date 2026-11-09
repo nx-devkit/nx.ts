@@ -242,6 +242,6 @@ export default proj
     // Both steps render as "lint" — the second one gets a unique name.
     expect(Object.keys(targets).sort()).toEqual(['lint', 'lint-2', 'test'])
     // The consumer depends on the *renamed* producer.
-    expect(targets['test']!.dependsOn).toEqual(['lint-2'])
+    expect(targets.test!.dependsOn).toEqual(['lint-2'])
   })
 })

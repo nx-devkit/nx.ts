@@ -2,13 +2,13 @@ import { globSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import {
   createProjectGraphAsync,
-  logger,
   type ExecutorContext,
+  logger,
   type ProjectGraph,
 } from '@nx/devkit'
 import { isVerbose, logDebug } from '@nx-devkit/internal'
-import { collectImports } from '../../imports.ts'
 import { isAllowed } from '../../constraints.ts'
+import { collectImports } from '../../imports.ts'
 import { loadTsPaths, resolveImport } from '../../resolve.ts'
 import { projectIndex, projectTags } from '../../tags.ts'
 import type { DepConstraint } from '../../types.ts'

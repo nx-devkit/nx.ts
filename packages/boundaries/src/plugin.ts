@@ -1,20 +1,39 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { logger, type CreateNodesV2 } from '@nx/devkit'
+import { type CreateNodesV2, logger } from '@nx/devkit'
 import { isVerbose, logDebug } from '@nx-devkit/internal'
 import type { NxBoundariesOptions } from './types.ts'
 
 const PLUGIN_NAME = '@nx-devkit/boundaries'
 
-function hasTags(packageJsonPath: string): boolean {
-  try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace package.json matched by the createNodesV2 glob
-    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as Record<string, unknown>
-    const nx = pkg.nx as Record<string, unknown> | undefined
-    return Array.isArray(nx?.tags) && nx.tags.length > 0
-  } catch {
-    return false
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let tagsCache: Map<string, boolean> | null = new Map()
+
+function getTagsCache(): Map<string, boolean> | null {
+  return isTestMode() ? null : tagsCache
+}
+
+function hasTags(packageJsonPath: string, workspaceRoot: string): boolean {
+  // Use hoisted cache with workspace root in key for isolation
+  const tagsMemCache = getTagsCache()
+  const cacheKey = `${workspaceRoot}#${packageJsonPath}`
+  let result = tagsMemCache?.get(cacheKey)
+  if (result === undefined) {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace package.json matched by the createNodesV2 glob
+      const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as Record<string, unknown>
+      const nx = pkg.nx as Record<string, unknown> | undefined
+      result = Array.isArray(nx?.tags) && nx.tags.length > 0
+    } catch {
+      result = false
+    }
+    tagsMemCache?.set(cacheKey, result)
   }
+  return result!
 }
 
 export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
@@ -31,7 +50,7 @@ export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
       if (dirname(normalized) === '.') {
         return false
       }
-      return hasTags(join(context.workspaceRoot, file))
+      return hasTags(join(context.workspaceRoot, file), context.workspaceRoot)
     })
 
     if (!anyTagged) {

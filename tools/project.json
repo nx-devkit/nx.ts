@@ -1,0 +1,37 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "tools",
+  "sourceRoot": "tools",
+  "targets": {
+    "release": {
+      "executor": "@nx-devkit/release:publish",
+      "options": {
+        "packagePath": "packages/cli",
+        "packageName": "nx-devkit-plugins"
+      }
+    },
+    "version": {
+      "executor": "@nx-devkit/release:version",
+      "options": {
+        "packagePath": "packages/cli",
+        "packageName": "nx-devkit-plugins"
+      }
+    },
+    "changelog": {
+      "executor": "@nx-devkit/release:changelog",
+      "options": {
+        "packagePath": "packages/cli",
+        "packageName": "nx-devkit-plugins"
+      }
+    },
+    "plan": {
+      "executor": "@nx-devkit/release:plan",
+      "options": {
+        "base": "main",
+        "head": "HEAD",
+        "includeDependents": true,
+        "json": true
+      }
+    }
+  }
+}

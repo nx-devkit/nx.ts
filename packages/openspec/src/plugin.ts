@@ -13,6 +13,17 @@ export interface NxOpenSpecPluginOptions {
 
 const OPENSPEC_GLOB = '**/openspec/config.yaml'
 
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let openspecCache: Map<string, string[] | null> | null = new Map()
+
+function getOpenspecCache(): Map<string, string[] | null> | null {
+  return isTestMode() ? null : openspecCache
+}
+
 function shouldSkipConfig(configDir: string, workspaceRoot: string): boolean {
   const rel = relative(workspaceRoot, resolve(workspaceRoot, configDir))
   if (rel === '') return false
@@ -21,18 +32,29 @@ function shouldSkipConfig(configDir: string, workspaceRoot: string): boolean {
 }
 
 /** Active change ids = subdirectories of openspec/changes/ containing proposal.md. */
-function listChangeIds(openspecDir: string): string[] {
-  const changesDir = join(openspecDir, 'changes')
-  if (!existsSync(changesDir)) return []
-  return readdirSync(changesDir, { withFileTypes: true })
-    .filter(
-      (e) =>
-        e.isDirectory() &&
-        e.name !== 'archive' &&
-        existsSync(join(changesDir, e.name, 'proposal.md')),
-    )
-    .map((e) => e.name)
-    .sort()
+function listChangeIds(openspecDir: string, workspaceRoot: string): string[] {
+  // Use hoisted cache
+  const openspecMemCache = getOpenspecCache()
+  const cacheKey = `${workspaceRoot}#${openspecDir}`
+  let result = openspecMemCache?.get(cacheKey)
+  if (result === undefined) {
+    const changesDir = join(openspecDir, 'changes')
+    if (!existsSync(changesDir)) {
+      result = []
+    } else {
+      result = readdirSync(changesDir, { withFileTypes: true })
+        .filter(
+          (e) =>
+            e.isDirectory() &&
+            e.name !== 'archive' &&
+            existsSync(join(changesDir, e.name, 'proposal.md')),
+        )
+        .map((e) => e.name)
+        .sort()
+    }
+    openspecMemCache?.set(cacheKey, result)
+  }
+  return result!
 }
 
 function sq(value: string): string {
@@ -68,12 +90,15 @@ export const createNodesV2: CreateNodesV2<NxOpenSpecPluginOptions> = [
       const specRoot = `${prefix}/openspec`
       const absOpenspecDir = resolve(workspaceRoot, openspecDir)
 
+      // --- PERFORMANCE: Use hoisted cache for change IDs ---
+      const changeIds = listChangeIds(absOpenspecDir, workspaceRoot)
+
       const targets: Record<string, TargetConfiguration> = {
         [targetName]: validateTarget(`openspec validate --all${strictFlag}`, [`${specRoot}/**`]),
       }
 
       if (perChange) {
-        for (const id of listChangeIds(absOpenspecDir)) {
+        for (const id of changeIds) {
           // Per-change inputs: only that change dir — editing change A does not re-validate change B.
           targets[`${targetName}:${id}`] = validateTarget(
             `openspec validate ${sq(id)}${strictFlag}`,

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { linksForFile, linkSuffix, rewriteBody } from './common.js'
 import type { CompilerOptions, Skill, SkillLink } from '../types.js'
+import { linkSuffix, linksForFile, rewriteBody } from './common.js'
 
 export function buildObsidian(options: CompilerOptions, skills: Skill[]): void {
   const skillsByName = new Map(skills.map((s) => [s.name, s]))

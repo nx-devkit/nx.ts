@@ -1,0 +1,266 @@
+import type { GeneratorCallback, Tree } from '@nx/devkit'
+
+export interface NxPrepareForReleaseInitCiOptions {
+  projectName?: string
+  pluginPath?: string
+  registry?: string
+  generateNotes?: boolean
+  provenance?: boolean
+}
+
+const DEFAULT_PROJECT_NAME = 'tools'
+const DEFAULT_PLUGIN_PATH = '@nx-devkit/prepare-for-release'
+const DEFAULT_REGISTRY = 'https://registry.npmjs.org/'
+
+function readJson(tree: Tree, path: string): Record<string, unknown> | null {
+  if (!tree.exists(path)) {
+    return null
+  }
+  try {
+    return JSON.parse(tree.read(path, 'utf8') ?? '{}') as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function writeJson(tree: Tree, path: string, value: unknown): void {
+  tree.write(path, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+function registerPlugin(tree: Tree, pluginPath: string): void {
+  const nxJson = readJson(tree, 'nx.json') ?? {}
+  const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : []
+  const alreadyRegistered = plugins.some(
+    (entry) =>
+      (typeof entry === 'string' && entry === pluginPath) ||
+      (typeof entry === 'object' &&
+        entry !== null &&
+        (entry as { plugin?: string }).plugin === pluginPath),
+  )
+  if (alreadyRegistered) {
+    return
+  }
+
+  plugins.push({ options: {}, plugin: pluginPath })
+  nxJson.plugins = plugins
+  writeJson(tree, 'nx.json', nxJson)
+}
+
+function ensureWorkflowFile(
+  tree: Tree,
+  _projectName: string,
+  _pluginPath: string,
+  _registry: string,
+  generateNotes: boolean,
+  provenance: boolean,
+): void {
+  const workflowPath = '.github/workflows/release.yml'
+
+  if (tree.exists(workflowPath)) {
+    console.log(`  ⊙ ${workflowPath} already exists — skipping`)
+    return
+  }
+
+  const _generateNotesStr = generateNotes ? 'true' : 'false'
+  const provenanceStr = provenance ? 'true' : 'false'
+
+  const workflow = `name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      specifier:
+        description: |
+          Force a version specifier for all release projects, bypassing
+          conventional-commit derivation (e.g. to ship metadata-only changes).
+          Leave at "none" for the usual retry-a-failed-publish dispatch.
+        required: false
+        type: choice
+        # 'none' sentinel: a bare dispatch is the documented retry path and
+        # must NOT force a bump — choice inputs default to the first option.
+        default: none
+        options: [none, patch, minor, major]
+
+jobs:
+  release:
+    # The release commit pushed by \`tools:version\` (message starts with
+    # "chore: release") must not re-trigger this job — loop guard.
+    # head_commit is populated atomically in the push event payload.
+    # workflow_dispatch (main only) is a manual retry path.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore: release'))
+    name: Publish packages via @nx-devkit/release (OIDC)
+    runs-on: ubuntu-latest
+    # Serialize release runs — a queued run must not interleave its version
+    # commit with an in-flight publish.
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    # https://docs.npmjs.com/trusted-publishers-with-npm-cli-and-github-actions
+    # OIDC trusted publishing requires:
+    #   1. npm >= 11.5 (installed by \`npm install -g npm@latest\` below)
+    #   2. \`registry-url\` on actions/setup-node (already configured)
+    #   3. \`NPM_CONFIG_PROVENANCE=true\` (set on the publish step)
+    #   4. \`id-token: write\` permission (declared at job level)
+    # No NODE_AUTH_TOKEN / NPM_TOKEN is needed; npm exchanges the GHA OIDC
+    # token for a short-lived npm registry token automatically.
+    permissions:
+      contents: write # release commits, tags, GitHub releases
+      id-token: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@latest
+      - name: Lint
+        run: bun run lint
+      - name: Check plugin/spec conflicts
+        run: bun run check:spec
+      - name: Build
+        run: bun run build
+      - name: Test
+        run: bun run test
+      - name: E2E
+        run: bash scripts/e2e.sh
+      - name: Packed-tarball E2E
+        # Consumer-level gate: packs every publishable package, installs the
+        # tarballs into a scratch workspace, and runs the real bootstrap.
+        # Catches broken artifacts (missing bin/files) before they ship.
+        env:
+          E2E_SKIP_BUILD: "1" # Build step above already produced dist/
+        run: bash scripts/e2e-packed.sh
+      - name: Compute candidate packages (nx-affected + dependents)
+        id: plan
+        run: |
+          npx nx run tools:plan --json > plan.json
+          cat plan.json
+      - name: Version packages (conventional commits via @nx-devkit/release)
+        # Derives per-project bumps from conventional commits, updates
+        # package.json versions, commits, and tags (@nx-devkit/x@y.z)
+        # LOCALLY. The push is deferred until after publish succeeds —
+        # otherwise a publish failure would leave tags marking unpublished
+        # versions as the baseline with no clean retry path. The version
+        # commit/tags die with the runner and the next run recomputes the
+        # same versions from the last pushed tag.
+        # \`gh auth setup-git\` scopes GITHUB_TOKEN to git ops in these steps
+        # only — checkout keeps persist-credentials: false.
+        run: |
+          gh auth setup-git
+          npx nx run tools:version --releaseVersion=\${{ github.event_name == 'workflow_dispatch' && inputs.specifier != 'none' && inputs.specifier || 'patch' }} --dryRun=false
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+      - name: "Rewrite workspace: protocols for npm publish"
+        # npm rejects the workspace: protocol — the only such dep is the
+        # private, bundled @nx-devkit/internal. Rewrites CI-tree manifests
+        # only; committed sources keep workspace:*.
+        run: bun scripts/rewrite-workspace-protocol.ts
+      - name: Publish via @nx-devkit/release (OIDC trust, no NPM_TOKEN)
+        run: npx nx run tools:publish
+        env:
+          NPM_CONFIG_PROVENANCE: '${provenanceStr}'
+      - name: Push release commit and tags
+        # Checkout is a detached HEAD — push HEAD to main explicitly.
+        # If a merge raced in during publish this push fails; the next run
+        # recomputes the same versions (baseline tag was never pushed) and
+        # self-heals — publish skips already-published versions.
+        run: |
+          git push origin HEAD:main
+          git push origin --tags
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+      - name: Generate project changelogs and GitHub releases
+        # Uses @nx-devkit/release:changelog per project
+        run: |
+          gh auth setup-git
+          for tag in $(git tag --points-at HEAD | grep '^@nx-devkit/'); do
+            project="\${tag%@*}"
+            version="\${tag##*@}"
+            prev=$(git tag --list "\${project}@*" --sort=-version:refname | sed -n '2p')
+            if [ -n "$prev" ]; then
+              npx nx run tools:changelog --version="$version" --from="$prev" --packageName="$project" --dryRun=false
+            else
+              npx nx run tools:changelog --version="$version" --firstRelease=true --packageName="$project" --dryRun=false
+            fi
+          done
+          if [ -n "$(git status --porcelain -- 'packages/*/CHANGELOG.md')" ]; then
+            git add 'packages/*/CHANGELOG.md'
+            # --no-verify: the pre-commit hook does \`git add -u\`, which would
+            # stage the CI-only workspace:* rewrites into this commit.
+            git commit --no-verify -m "chore(release): changelogs"
+            # A merge racing in during the loop rejects this push; unlike the
+            # version commit, a lost changelog commit is NOT recomputed by the
+            # next run (that run only sees its own tags). Rebase + retry —
+            # changelog-only commits cannot conflict.
+            pushed=false
+            for attempt in 1 2 3; do
+              if git push origin HEAD:main; then
+                pushed=true
+                break
+              fi
+              git fetch origin main && git rebase origin/main
+            done
+            if [ "$pushed" != true ]; then
+              echo "Failed to push changelogs after 3 attempts" >&2
+              exit 1
+            fi
+          fi
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+`
+
+  if (!tree.exists('.github/workflows')) {
+    tree.mkdir('.github/workflows')
+  }
+  tree.write(workflowPath, workflow)
+}
+
+export async function initCiGenerator(
+  tree: Tree,
+  options: NxPrepareForReleaseInitCiOptions = {},
+): Promise<GeneratorCallback> {
+  const projectName = options.projectName ?? DEFAULT_PROJECT_NAME
+  const pluginPath = options.pluginPath ?? DEFAULT_PLUGIN_PATH
+  const registry = options.registry ?? DEFAULT_REGISTRY
+  const generateNotes = options.generateNotes ?? true
+  const provenance = options.provenance ?? true
+
+  registerPlugin(tree, pluginPath)
+  ensureWorkflowFile(tree, projectName, pluginPath, registry, generateNotes, provenance)
+
+  const checklist = [
+    '1. The CI release workflow has been generated at .github/workflows/release.yml',
+    '2. Configure GitHub OIDC trusted publishing for each package:',
+    '   Run the trust commands printed by `bunx nx run tools:prepare-for-release --trust`',
+    '3. Ensure the repository has the correct permissions:',
+    '   - Settings > Actions > General > Workflow permissions: Read and write permissions',
+    '   - Settings > Actions > General > Allow GitHub Actions to create and approve pull requests',
+    '4. For User accounts (not Organizations):',
+    '   - Use job-level permissions + workflow_dispatch pattern (see workflow)',
+    "   - Note: id-token won't appear in GITHUB_TOKEN permissions log (GitHub display bug)",
+    '5. Run a test release:',
+    '   gh workflow run release.yml -f version=patch -f dry-run=true',
+    '6. Run a real release:',
+    '   gh workflow run release.yml -f version=patch -f dry-run=false',
+  ]
+  for (const line of checklist) {
+    console.log(line)
+  }
+
+  return () => {
+    /* No-op */
+  }
+}
+
+export default initCiGenerator

@@ -52,9 +52,8 @@ bun add -D @nx-devkit/typescript   # or npm/pnpm/yarn add -D
 | [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{mmd,puml,dot,d2,bpmn,excalidraw,…}` | `diagrams` target — renders diagram sources via Kroki or local command overrides |
 | [`@nx-devkit/sverka`](./packages/sverka/README.md) | `**/sverka.config.{ts,mts,js,mjs}` | One cached target per sverka step (`ci:lint`) — own inputs, outputs and cache per step |
 | [`@nx-devkit/nx-cloud`](./packages/nx-cloud/README.md) | `nx.json` | `nx-cloud-rotate` target on the root project — rebinds to a fresh Nx Cloud org/workspace |
-| [`@nx-devkit/release`](./packages/release/README.md) | `nx g @nx-devkit/release:init` | Automated npm releases: version bump, OIDC publish, tag push, GitHub Release — all idempotent |
+| [`@nx-devkit/release`](./packages/release/README.md) | `nx g @nx-devkit/release:init` | Automated npm releases: version bump, OIDC publish, tag push, GitHub Release — all idempotent. Also provides `publish` executor for CI automation. |
 | [`@nx-devkit/prepare-for-release`](./packages/prepare-for-release/README.md) | Every non-root `package.json` with `name` + `private !== true` | `prepare-for-release` target per package — idempotent npm placeholder publishing + OIDC trust |
-| [`@nx-devkit/release`](./packages/release/README.md) | `project.json` referencing the `publish` executor | Automated npm releases from CI — version bump, OIDC publish, git tag, GitHub Release |
 | [`@nx-devkit/nx-cloud`](./packages/nx-cloud/README.md) | `nx.json` at workspace root | `nx-cloud-rotate` target on the root project — roll over to a fresh Nx Cloud org when quota runs out |
 | [`@nx-devkit/diagrams`](./packages/diagrams/README.md) | `**/*.{puml,plantuml,mmd,mermaid,dot,gv,d2,bpmn,excalidraw}` + diagram fences in `*.md` | Cached, atomized `diagram-*` render targets via Kroki, Docker, or local renderers |
 
@@ -78,6 +77,8 @@ All `@nx-devkit/*` packages are pre-1.0: minor versions may add or change inferr
 - **Verified compat range** — CI exercises the packed plugin against every supported Nx major (`e2e-packed` matrix), not just the newest.
 - **Naming settled** — the `packages/typescript-preset` → `@nx-devkit/typescript` directory/package split is either accepted as documented or renamed once, before 1.0.
 - **Migrations shipped for breaks** — any change that alters consumer `nx.json` or project layout comes with an `nx migrate` entry (the preset already ships `migrations.json`).
+
+**Updating Nx.** Nx is always upgraded with `nx migrate` (`nx migrate latest` → review `migrations.json` → `nx migrate --run-migrations` → install → verify → delete `migrations.json`). Never hand-bump `nx`/`@nx/*` version specs or install a newer Nx by hand — in this repo or in any project that uses `@nx-devkit/*`. The peer range (`@nx/devkit` `^22 || ^23 || …`) is widened by a migration, not by a manual edit.
 
 ## When to use — and when not
 

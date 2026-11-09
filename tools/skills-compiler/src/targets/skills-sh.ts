@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stringify as stringifyYaml } from 'yaml'
-import { copySkillDirectory, linkSuffix, linksForFile, rewriteBody } from './common.js'
 import type { CompilerOptions, Skill, SkillLink } from '../types.js'
+import { copySkillDirectory, linkSuffix, linksForFile, rewriteBody } from './common.js'
 
 const DEFAULT_CANONICAL_SOURCE = 'theplenkov-ai/skills'
 

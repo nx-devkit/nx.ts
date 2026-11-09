@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
-import { GITHUB_CHECKS, GITHUB_CHECK_IDS } from './github-checks.ts'
+import { GITHUB_CHECK_IDS, GITHUB_CHECKS } from './github-checks.ts'
 
 describe('GitHub checks', () => {
   it('ships the documented checks', () => {

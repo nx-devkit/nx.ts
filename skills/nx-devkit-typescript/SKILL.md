@@ -121,6 +121,20 @@ import {
 } from '@nx-devkit/typescript'
 ```
 
+## Updating Nx
+
+Nx is always upgraded with `nx migrate` — never by hand-editing `nx`/`@nx/*` versions or installing a newer Nx directly:
+
+```bash
+nx migrate latest
+# review migrations.json, then:
+nx migrate --run-migrations=migrations.json
+# install, verify, then:
+rm migrations.json
+```
+
+The preset's `@nx/devkit` peer range (`^22 || ^23 || …`) is widened by a migration, not by a manual bump. The same rule applies to this repo itself.
+
 ## Skip rules
 
 Never creates a project at the workspace root. Ignores `tsconfig.json` under `node_modules` or outside the workspace.

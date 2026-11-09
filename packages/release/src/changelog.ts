@@ -104,6 +104,6 @@ function renderChange(change: ChangelogChange): string {
   const scope = change.scope ? `**${change.scope}:** ` : ''
   const marker = change.breaking ? BREAKING_MARKER : ''
   const url = change.pullRequest ? safePullRequestUrl(change.pullRequest.url) : undefined
-  const link = url ? `([#${change.pullRequest!.number}](${url}))` : ''
+  const link = url ? `([#${change.pullRequest?.number}](${url}))` : ''
   return `- ${marker}${scope}${change.description} ${link}`.trimEnd()
 }

@@ -1,5 +1,6 @@
-import type { CreateNodesFunctionV2 } from 'nx/src/project-graph/plugins/public-api'
 import { shouldSkipPath } from '@nx-devkit/internal'
+import type { CreateNodesFunctionV2 } from 'nx/src/project-graph/plugins/public-api'
+import type { CreateNodesV2 } from '@nx/devkit'
 
 const PLUGIN_NAME = '@nx-devkit/biome'
 const WORKSPACE_ROOT_MARKER = 'biome.json'
@@ -67,6 +68,17 @@ function inferBiomeTargets(
   }
 }
 
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let biomeCache: Map<string, Record<string, BiomeTarget> | null> | null = new Map()
+
+function getBiomeCache(): Map<string, Record<string, BiomeTarget> | null> | null {
+  return isTestMode() ? null : biomeCache
+}
+
 const createNodesFn: CreateNodesFunctionV2<BiomePluginOptions> = (
   configFiles,
   options,
@@ -75,6 +87,9 @@ const createNodesFn: CreateNodesFunctionV2<BiomePluginOptions> = (
   const workspaceRoot = context.workspaceRoot.replaceAll('\\', '/')
   const results: Array<readonly [string, BiomeProjectConfiguration]> = []
   const seenRoots = new Set<string>()
+
+  // --- PERFORMANCE: Hoisted biome cache (disabled in test mode) ---
+  const biomeMemCache = getBiomeCache()
 
   for (const configFile of configFiles) {
     const normalized = configFile.replaceAll('\\', '/')
@@ -95,12 +110,21 @@ const createNodesFn: CreateNodesFunctionV2<BiomePluginOptions> = (
 
     const configFileBasename = normalized.split('/').pop() ?? 'biome.json'
 
+    // --- PERFORMANCE: Use hoisted cache ---
+    const cacheKey = `${projectRoot}-${configFileBasename}-${JSON.stringify(options)}`
+    let targets = biomeMemCache?.get(cacheKey)
+
+    if (targets === undefined) {
+      targets = inferBiomeTargets(projectRoot, configFileBasename, options)
+      biomeMemCache?.set(cacheKey, targets)
+    }
+
     results.push([
       configFile,
       {
         projects: {
           [projectRoot]: {
-            targets: inferBiomeTargets(projectRoot, configFileBasename, options),
+            targets: targets!,
           },
         },
       },
@@ -110,9 +134,6 @@ const createNodesFn: CreateNodesFunctionV2<BiomePluginOptions> = (
   return results
 }
 
-export const createNodesV2: readonly [
-  '**/biome.json{,c}',
-  CreateNodesFunctionV2<BiomePluginOptions>,
-] = ['**/biome.json{,c}', createNodesFn]
+export const createNodesV2: CreateNodesV2<BiomePluginOptions> = ['**/biome.json{,c}', createNodesFn]
 
 export default { createNodesV2, name: PLUGIN_NAME }

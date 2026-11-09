@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
 import type { Tree } from '@nx/devkit'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { initGenerator } from './generator.ts'
 
 class MemTree {

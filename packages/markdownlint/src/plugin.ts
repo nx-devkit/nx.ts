@@ -142,6 +142,8 @@ export const createNodesV2: CreateNodesV2<NxMarkdownlintPluginOptions> = [
       )
       if (entry) results.push(entry)
     }
+    // Sort by anchorPath for deterministic output order
+    results.sort((a, b) => a[0].localeCompare(b[0]))
     return results
   },
 ]

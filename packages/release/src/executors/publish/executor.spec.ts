@@ -1,8 +1,9 @@
 /* eslint-disable one-var, node/no-sync, capitalized-comments -- test style follows repo conventions, not CodeFactor's default preset */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { publishExecutor } from './executor.ts'
 
 vi.mock('node:child_process', () => ({

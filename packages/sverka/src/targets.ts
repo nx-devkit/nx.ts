@@ -13,8 +13,8 @@
  */
 import type { TargetConfiguration } from '@nx/devkit'
 import type { DefinitionGraph, StepDefinition } from '@sverka/workflow'
-import { dependencyProducers, splitStepId } from './plan.js'
 import { stableOutputPaths, stepArtifactsRelativeDir } from './paths.js'
+import { dependencyProducers, splitStepId } from './plan.js'
 import { DEFAULT_TARGET_NAME, type NxDevkitSverkaOptions } from './types.js'
 
 /** Everything the mapping needs besides the step itself. */
@@ -50,7 +50,7 @@ function withoutStrings(command: string): string {
   let out = ''
   let quote: string | undefined
   for (let index = 0; index < command.length; index += 1) {
-    const char = command[index]!
+    const char = command[index]
     if (quote === undefined) {
       if (char === '"' || char === "'") {
         quote = char

@@ -1,4 +1,4 @@
-import { type GeneratorCallback, type Tree, addDependenciesToPackageJson } from '@nx/devkit'
+import { addDependenciesToPackageJson, type GeneratorCallback, type Tree } from '@nx/devkit'
 
 export interface NxTypescriptInitOptions {
   pluginPath?: string

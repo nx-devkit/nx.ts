@@ -1,0 +1,349 @@
+name: Main (post-merge, Nx affected)
+
+on:
+  push:
+    branches: [main]
+
+# Cancel previous run for same branch
+concurrency:
+  group: main-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write  # for CodeQL/SARIF upload
+  id-token: write         # for Nx Cloud if needed
+  pull-requests: write    # for boundary/sverka annotations
+
+jobs:
+  # ========================================================================
+  # AFFECTED ANALYSIS — determines what needs to run
+  # ========================================================================
+  affected:
+    name: Affected analysis
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.affected.outputs.projects }}
+      hasChanges: ${{ steps.affected.outputs.hasChanges }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Affected analysis
+        id: affected
+        run: |
+          echo "Calculating affected projects..."
+          AFFECTED=$(bun --bun node_modules/.bin/nx affected --base=main~1 --head=HEAD --json)
+          echo "$AFFECTED" | jq -r '.projects[]' | sort -u > affected.txt
+          echo "Affected projects:" && cat affected.txt
+          HAS_CHANGES=$(cat affected.txt | wc -l)
+          echo "hasChanges=$HAS_CHANGES" >> $GITHUB_OUTPUT
+          echo "projects=$(cat affected.txt | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
+
+  # ========================================================================
+  # CORE CHECKS — only on affected projects
+  # ========================================================================
+  core-checks:
+    name: Core checks (affected)
+    needs: affected
+    if: needs.affected.outputs.hasChanges != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [lint, format-check, typecheck, test]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build plugin dists (required for executors)
+        run: |
+          cd packages/typescript-preset && bun run build
+          cd ../skill && bun run build
+          cd ../skillspector && bun run build
+          cd ../diagrams && bun run build
+          cd ../sverka && bun run build
+      - name: Run ${{ matrix.target }} (affected)
+        run: |
+          AFFECTED=$(cat affected.txt 2>/dev/null | tr ',' '\n' | grep -v '^$' | tr '\n' ' ')
+          if [ -z "$AFFECTED" ]; then
+            echo "No affected projects for ${{ matrix.target }}"
+            exit 0
+          fi
+          echo "Running ${{ matrix.target }} on: $AFFECTED"
+          bun --bun node_modules/.bin/nx run-many -t ${{ matrix.target }} --projects=$AFFECTED --verbose
+
+  # ========================================================================
+  # NX-SPECIFIC CHECKS — boundaries, skills, diagrams, sverka
+  # ========================================================================
+  nx-specific:
+    name: Nx-specific checks (affected)
+    needs: affected
+    if: needs.affected.outputs.hasChanges != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [check-boundaries, validate, os-check, size-check, diagrams, sverka]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build plugin dists
+        run: |
+          cd packages/typescript-preset && bun run build
+          cd ../skill && bun run build
+          cd ../skillspector && bun run build
+          cd ../diagrams && bun run build
+          cd ../sverka && bun run build
+      - name: Install SkillSpector
+        if: matrix.target == 'scan'
+        run: |
+          python3 -m venv .tools/skillspector-venv
+          .tools/skillspector-venv/bin/pip install "git+https://github.com/NVIDIA/skillspector.git@v2.11.2"
+      - name: Run ${{ matrix.target }} (affected)
+        run: |
+          AFFECTED=$(cat affected.txt 2>/dev/null | tr ',' '\n' | grep -v '^$' | tr '\n' ' ')
+          if [ -z "$AFFECTED" ]; then
+            echo "No affected projects for ${{ matrix.target }}"
+            exit 0
+          fi
+          echo "Running ${{ matrix.target }} on: $AFFECTED"
+          if [ "${{ matrix.target }}" = "sverka" ]; then
+            # Sverka runs per-step, collect all skills
+            bun --bun node_modules/.bin/nx run-many -t sverka --projects=$AFFECTED --verbose
+          else
+            bun --bun node_modules/.bin/nx run-many -t ${{ matrix.target }} --projects=$AFFECTED --verbose
+          fi
+      - name: Emit annotations
+        if: always() && matrix.target != 'sverka' && matrix.target != 'diagrams'
+        run: cat annotations-*.txt 2>/dev/null || true
+
+  # ========================================================================
+  # SECURITY SCANNING — CodeQL, SARIF, dependencies
+  # ========================================================================
+  security:
+    name: Security scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: typescript, javascript, python
+          config-file: .github/codeql-config.yml
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:typescript"
+      - name: Run sverka security scan
+        run: |
+          bun install --frozen-lockfile
+          bun --bun node_modules/.bin/nx run-many -t sverka --verbose
+      - name: Upload sverka SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sverka-results.sarif
+          category: sverka
+
+  # ========================================================================
+  # RELEASE READINESS — verify publishable packages
+  # ========================================================================
+  release-readiness:
+    name: Release readiness
+    needs: affected
+    if: needs.affected.outputs.hasChanges != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build plugin dists
+        run: |
+          cd packages/typescript-preset && bun run build
+          cd ../skill && bun run build
+          cd ../skillspector && bun run build
+          cd ../diagrams && bun run build
+          cd ../sverka && bun run build
+          cd ../release && bun run build
+      - name: Check release readiness
+        run: |
+          AFFECTED=$(cat affected.txt 2>/dev/null | tr ',' '\n' | grep -v '^$' | tr '\n' ' ')
+          if [ -z "$AFFECTED" ]; then
+            echo "No affected publishable packages"
+            exit 0
+          fi
+          echo "Checking release readiness for: $AFFECTED"
+          # Check each affected package has proper version, publishConfig, etc.
+          for proj in $AFFECTED; do
+            if [[ "$proj" == packages/* ]]; then
+              pkg_json="$proj/package.json"
+              if [ -f "$pkg_json" ]; then
+                version=$(jq -r '.version' "$pkg_json")
+                private=$(jq -r '.private // false' "$pkg_json")
+                publish_config=$(jq -r '.publishConfig // {}' "$pkg_json")
+                echo "  $proj: version=$version, private=$private, publishConfig=$publish_config"
+                if [ "$private" = "true" ]; then
+                  echo "    ⚠ Skipping (private)"
+                  continue
+                fi
+                if [ -z "$version" ] || [ "$version" = "0.0.0" ]; then
+                  echo "    ✗ ERROR: version is $version"
+                  exit 1
+                fi
+                if ! echo "$publish_config" | grep -q '"access".*"public"'; then
+                  echo "    ✗ ERROR: publishConfig.access must be 'public'"
+                  exit 1
+                fi
+              fi
+            fi
+          done
+          echo "✓ All affected packages ready for release"
+
+  # ========================================================================
+  # NX CLOUD STATUS
+  # ========================================================================
+  nx-cloud:
+    name: Nx Cloud status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.repository == 'nx-devkit/nx.ts'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build nx-cloud
+        run: cd packages/nx-cloud && bun run build
+      - name: Check Nx Cloud connection
+        run: |
+          if [ -z "$NX_CLOUD_ACCESS_TOKEN" ]; then
+            echo "⚠ NX_CLOUD_ACCESS_TOKEN not set — skipping live check"
+            exit 0
+          fi
+          bun --bun node_modules/.bin/nx run nx-devkit:rotate --dry-run
+
+  # ========================================================================
+  # DOCUMENTATION CHECK — README structure, duplicates
+  # ========================================================================
+  docs-check:
+    name: Documentation check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.3.14'
+      - name: Check for duplicate package entries in README
+        run: |
+          # Check for duplicate package entries in README.md table
+          duplicates=$(grep -c '@nx-devkit/release' README.md)
+          if [ "$duplicates" -gt 1 ]; then
+            echo "✗ Duplicate @nx-devkit/release entries in README.md"
+            exit 1
+          fi
+          duplicates=$(grep -c '@nx-devkit/nx-cloud' README.md)
+          if [ "$duplicates" -gt 1 ]; then
+            echo "✗ Duplicate @nx-devkit/nx-cloud entries in README.md"
+            exit 1
+          fi
+          echo "✓ No duplicate package entries in README.md"
+      - name: Check package table consistency
+        run: |
+          # Verify all packages/* have corresponding README entries
+          for pkg in packages/*/; do
+            pkg_name=$(basename "$pkg")
+            if [ "$pkg_name" = "internal" ] || [ "$pkg_name" = "gh-debt" ]; then
+              continue
+            fi
+            # Check if package is mentioned in README
+            if ! grep -q "@nx-devkit/$pkg_name" README.md; then
+              echo "⚠ Package $pkg_name not mentioned in README.md"
+            fi
+          done
+          echo "✓ Package table consistency check passed"
+
+  # ========================================================================
+  # SUMMARY — aggregate status
+  # ========================================================================
+  summary:
+    name: Summary
+    needs: [core-checks, nx-specific, security, release-readiness, nx-cloud, docs-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "## Main Pipeline Summary"
+          echo ""
+          echo "| Job | Status |"
+          echo "|-----|--------|"
+          echo "| Core Checks | ${{ needs.core-checks.result }} |"
+          echo "| Nx-Specific | ${{ needs.nx-specific.result }} |"
+          echo "| Security | ${{ needs.security.result }} |"
+          echo "| Release Readiness | ${{ needs.release-readiness.result }} |"
+          echo "| Nx Cloud | ${{ needs.nx-cloud.result }} |"
+          echo "| Docs Check | ${{ needs.docs-check.result }} |"
+          echo ""
+          if [[ "${{ needs.core-checks.result }}" != "success" ]] || \
+             [[ "${{ needs.nx-specific.result }}" != "success" ]] || \
+             [[ "${{ needs.security.result }}" != "success" ]] || \
+             [[ "${{ needs.release-readiness.result }}" != "success" ]] || \
+             [[ "${{ needs.docs-check.result }}" != "success" ]]; then
+            echo "❌ Some jobs failed"
+            exit 1
+          else
+            echo "✅ All checks passed"
+          fi

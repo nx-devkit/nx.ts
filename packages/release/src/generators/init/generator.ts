@@ -1,4 +1,4 @@
-import { type GeneratorCallback, type Tree, joinPathFragments } from '@nx/devkit'
+import { type GeneratorCallback, joinPathFragments, type Tree } from '@nx/devkit'
 
 export interface NxReleaseInitOptions {
   /** Name of the tools project to create or update. Default: "tools". */
@@ -57,8 +57,8 @@ function ensureToolsProject(
     const existing = readJson(tree, projectJsonPath)
     if (existing) {
       const targets = (existing.targets ?? {}) as Record<string, Record<string, unknown>>
-      if (!targets['release']) {
-        targets['release'] = {
+      if (!targets.release) {
+        targets.release = {
           executor: `${PLUGIN_NAME}:publish`,
           options: { packagePath, packageName },
         }

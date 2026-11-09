@@ -1,11 +1,11 @@
 import path from 'node:path'
 import { discoverSkills, readPluginManifest, resolveClosure } from './resolver.js'
-import type { CompilerOptions, PluginDependency, Skill } from './types.js'
+import { buildAgents } from './targets/agents.js'
 import { buildClaude } from './targets/claude.js'
 import { buildCodex } from './targets/codex.js'
-import { buildAgents } from './targets/agents.js'
 import { buildObsidian } from './targets/obsidian.js'
 import { buildSkillsSh } from './targets/skills-sh.js'
+import type { CompilerOptions, PluginDependency, Skill } from './types.js'
 
 function findSkillByDir(skills: Map<string, Skill>, dir: string): Skill | undefined {
   const resolved = path.resolve(dir)

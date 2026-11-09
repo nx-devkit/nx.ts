@@ -14,6 +14,8 @@ export interface NxDevkitTypescriptOptions {
   biome?: boolean
   /** Infer `build` target from `tsdown.config.*` or a publishable `package.json` + `src/index.ts`. Default: true. */
   tsdown?: boolean
+  /** Auto-install husky git hooks. Default: false. */
+  husky?: boolean
   /** Glob for native test files. Default: double-star-slash-star.test.ts-js-mts-mjs. */
   testGlob?: string
   /** Glob for spec files. Default: double-star-slash-star.spec.ts-js-mts-mjs. */

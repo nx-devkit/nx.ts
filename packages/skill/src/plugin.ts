@@ -4,9 +4,9 @@ import { dirname, join, relative, resolve } from 'node:path'
 import {
   type CreateNodesResult,
   type CreateNodesV2,
-  type TargetConfiguration,
-  logger,
   workspaceRoot as defaultWorkspaceRoot,
+  logger,
+  type TargetConfiguration,
 } from '@nx/devkit'
 import { shouldSkipPath as internalShouldSkipPath } from '@nx-devkit/internal'
 
@@ -38,13 +38,24 @@ export interface NxDevkitSkillOptions {
 
 const PLUGIN_SCOPE = 'nx-devkit/skill'
 
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+const skillCache = new Map<string, Record<string, TargetConfiguration>>()
+
+function getSkillCache(): Map<string, Record<string, TargetConfiguration>> | null {
+  return isTestMode() ? null : skillCache
+}
+
 /**
  * Compute an injective project name from a project root.
  *
  * The slug replaces `/` with `-` and appends the first 12 hex chars of a
  * SHA-256 hash of the original (forward-slash) project root. This guarantees
- * that `skills/a-b` and `skills/a/b` — which would both slug to `skills-a-b`
- * — receive distinct project names.
+ * that `skills/a-b` and `skills/a/b` -- which would both slug to `skills-a-b` --
+ * receive distinct project names.
  */
 export function computeProjectName(projectRoot: string): string {
   const slug = projectRoot.replace(/\//g, '-')
@@ -76,7 +87,7 @@ function inferBuildTarget(projectRoot: string, projectName: string, additionalIn
 }
 
 function inferLintTarget(workspaceRoot: string) {
-  // --config only when the workspace actually has one — consumers without a
+  // --config only when the workspace actually has one -- consumers without a
   // .markdownlint.json get markdownlint's built-in defaults instead of an
   // error about a missing config file.
   const hasConfig = existsSync(join(workspaceRoot, '.markdownlint.json'))
@@ -133,6 +144,22 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
     const sizeCheckTargetName = options.sizeCheckTargetName ?? 'size-check'
     const additionalInputs = options.skillInputs ?? []
 
+    // --- PERFORMANCE: Use hoisted cache ---
+    const skillMemCache = getSkillCache()
+    const cacheKey = `${workspaceRoot}-${JSON.stringify({ buildTargetName, lintTargetName, validateTargetName, osCheckTargetName, sizeCheckTargetName, additionalInputs })}`
+    let targets = skillMemCache?.get(cacheKey)
+
+    if (targets === undefined) {
+      targets = {
+        build: inferBuildTarget('', '', additionalInputs), // Will be customized per project
+        lint: inferLintTarget(workspaceRoot),
+        validate: inferValidateTarget(''),
+        osCheck: inferOsCheckTarget(''),
+        sizeCheck: inferSizeCheckTarget(''),
+      }
+      skillMemCache?.set(cacheKey, targets)
+    }
+
     return configFiles
       .map((configFile) => {
         const dir = dirname(configFile)
@@ -166,9 +193,9 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
 
         logger.info(`[${PLUGIN_SCOPE}] Registering targets for ${projectRoot}`)
 
-        const targets: Record<string, TargetConfiguration> = {
+        const projectTargets: Record<string, TargetConfiguration> = {
           [buildTargetName]: inferBuildTarget(projectRoot, projectName, additionalInputs),
-          [lintTargetName]: inferLintTarget(workspaceRoot),
+          [lintTargetName]: targets!.lint,
           [validateTargetName]: inferValidateTarget(projectRoot),
           [osCheckTargetName]: inferOsCheckTarget(projectRoot),
           [sizeCheckTargetName]: inferSizeCheckTarget(projectRoot),
@@ -180,7 +207,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
             projects: {
               [projectRoot]: {
                 name: projectName,
-                targets,
+                targets: projectTargets,
               },
             },
           },
@@ -190,3 +217,5 @@ export const createNodesV2: CreateNodesV2<NxDevkitSkillOptions> = [
       .filter((result): result is [string, CreateNodesResult] => result !== null)
   },
 ]
+
+export default createNodesV2

@@ -475,8 +475,7 @@ describe('createNodesV2', () => {
       // Per-file targets only — the aggregate lists the same outputs again.
       const outputs = Object.entries(targets['.'] ?? {})
         .filter(([name]) => name !== 'diagrams')
-        .map(([, t]) => (t as { outputs: string[] }).outputs)
-        .flat()
+        .flatMap(([, t]) => (t as { outputs: string[] }).outputs)
       // Both nominal `readme-1.svg` collide → each gets its type suffix.
       expect(outputs.sort()).toEqual([
         '{workspaceRoot}/readme-1-mermaid.svg',

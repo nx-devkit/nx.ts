@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname as pathDirname, join } from 'node:path'
-import { logger, type ExecutorContext, type ProjectGraph } from '@nx/devkit'
+import { join, dirname as pathDirname } from 'node:path'
+import { type ExecutorContext, logger, type ProjectGraph } from '@nx/devkit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import checkBoundaries from './executor.ts'
 

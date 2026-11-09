@@ -8,6 +8,7 @@
   "version": 2,
   "plugins": [
     "./packages/typescript-preset/src/plugin.ts",
+    "./packages/release/src/plugin.ts",
     "./packages/prepare-for-release/src/plugin.ts",
     "./packages/nx-cloud/src/plugin.ts",
     "./packages/skill/src/plugin.ts",
@@ -100,5 +101,8 @@
     "test": {
       "cache": true
     }
+  },
+  "affected": {
+    "legacy": true
   }
 }

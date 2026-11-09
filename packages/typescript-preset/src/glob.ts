@@ -75,9 +75,7 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
       try {
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by glob under the project root
         if ((await stat(join(rootDir, m))).isFile()) return true
-      } catch {
-        continue
-      }
+      } catch {}
     }
     return false
   } catch (error) {

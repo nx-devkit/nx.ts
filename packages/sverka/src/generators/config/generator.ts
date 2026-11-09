@@ -1,7 +1,7 @@
 import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit'
-import { parse, type ParseError } from 'jsonc-parser'
 import { resolveRootProjectName } from '@nx-devkit/internal'
-import { GITHUB_CHECKS, GITHUB_CHECK_IDS } from './github-checks.js'
+import { type ParseError, parse } from 'jsonc-parser'
+import { GITHUB_CHECK_IDS, GITHUB_CHECKS } from './github-checks.js'
 
 export interface NxDevkitSverkaConfigOptions {
   /** Nx project the config describes. Default: the root project. */

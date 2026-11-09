@@ -301,7 +301,7 @@ describe('createNodesV2 integration', () => {
       const nestedCfg = touch(root, 'packages/foo/tsconfig.json')
       const result = await callCreateNodes([rootCfg, nestedCfg], { includeRoot: true }, root)
       expect(result).toHaveLength(2)
-      const keys = result.map(([, r]) => Object.keys(r.projects ?? {})).flat()
+      const keys = result.flatMap(([, r]) => Object.keys(r.projects ?? {}))
       expect(keys).toContain('.')
       expect(keys).toContain('packages/foo')
     } finally {

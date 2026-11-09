@@ -1,4 +1,4 @@
-import { getProjects, updateProjectConfiguration, type Tree } from '@nx/devkit'
+import { getProjects, type Tree, updateProjectConfiguration } from '@nx/devkit'
 import { cwdResolvesToProjectRoot, getSingleRunCommand, getTargetCwd } from '../utils.js'
 
 /**

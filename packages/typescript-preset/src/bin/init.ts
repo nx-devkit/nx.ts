@@ -8,8 +8,8 @@
  * generator at `@nx-devkit/typescript:init`.
  */
 
-import { existsSync, realpathSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { existsSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 

@@ -11,6 +11,17 @@ export interface NxEslintPluginOptions {
 // Flat-config only — legacy .eslintrc.* is out of scope (eslint >=9 default).
 const CONFIG_GLOB = '**/eslint.config.{js,mjs,cjs,ts,mts,cts}'
 
+function isTestMode(): boolean {
+  return process.env.NX_CACHE_PROJECT_GRAPH === 'false'
+}
+
+// --- Hoisted caches (disabled in test mode) ---
+let eslintCache: Map<string, Record<string, TargetConfiguration> | null> | null = new Map()
+
+function getEslintCache(): Map<string, Record<string, TargetConfiguration> | null> | null {
+  return isTestMode() ? null : eslintCache
+}
+
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
   const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot || '.'))
   if (rel === '') return false
@@ -47,23 +58,31 @@ export const createNodesV2: CreateNodesV2<NxEslintPluginOptions> = [
       // Every eslint.config in the dir is an input so edits bust the cache.
       const configInputs = sorted.map((f) => `${prefix}/${dir ? f.slice(dir.length + 1) : f}`)
 
-      const targets: Record<string, TargetConfiguration> = {
-        [targetName]: {
-          executor: 'nx:run-commands',
-          cache: true,
-          inputs: [`${prefix}/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}`, ...configInputs],
-          options: { command: 'npx eslint .', cwd: '{projectRoot}' },
-        },
-      }
-      if (fixTarget) {
-        targets[`${targetName}:fix`] = {
-          executor: 'nx:run-commands',
-          cache: false,
-          options: { command: 'npx eslint . --fix', cwd: '{projectRoot}' },
+      // --- PERFORMANCE: Use hoisted cache ---
+      const eslintMemCache = getEslintCache()
+      const cacheKey = `${workspaceRoot}#${dir}-${JSON.stringify({ targetName, fixTarget })}`
+      let targets = eslintMemCache?.get(cacheKey)
+
+      if (targets === undefined) {
+        targets = {
+          [targetName]: {
+            executor: 'nx:run-commands',
+            cache: true,
+            inputs: [`${prefix}/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}`, ...configInputs],
+            options: { command: 'npx eslint .', cwd: '{projectRoot}' },
+          },
         }
+        if (fixTarget) {
+          targets[`${targetName}:fix`] = {
+            executor: 'nx:run-commands',
+            cache: false,
+            options: { command: 'npx eslint . --fix', cwd: '{projectRoot}' },
+          }
+        }
+        eslintMemCache?.set(cacheKey, targets)
       }
 
-      results.push([winner, { projects: { [dir]: { root: dir, targets } } }])
+      results.push([winner, { projects: { [dir]: { root: dir, targets: targets! } } }])
     }
     return results
   },

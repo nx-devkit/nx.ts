@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
 import type { Tree } from '@nx/devkit'
+import { describe, expect, it, vi } from 'vitest'
 import { monorepoGenerator } from '../src/generators/monorepo/generator.js'
 
 function createTree(files: Record<string, string> = {}): {

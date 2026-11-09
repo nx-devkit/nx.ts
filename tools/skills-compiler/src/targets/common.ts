@@ -113,7 +113,7 @@ export function emitSkills(
     const skillMdPath = path.join(targetDir, 'SKILL.md')
     fs.rmSync(skillMdPath, { force: true })
     const body = rewriteBody(skill.body, linksForFile(skill, 'SKILL.md'), linkFormatter, skill)
-    const header = '---\n' + stringifyYaml(skill.frontmatter, { lineWidth: 0 }) + '---\n'
+    const header = `---\n${stringifyYaml(skill.frontmatter, { lineWidth: 0 })}---\n`
     fs.writeFileSync(skillMdPath, header + body, 'utf8')
   }
 }
