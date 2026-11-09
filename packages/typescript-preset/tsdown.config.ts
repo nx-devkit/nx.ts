@@ -13,7 +13,7 @@ export default defineConfig({
     'src/executors/build/executor.ts',
   ],
   format: ['esm'],
-  dts: { eager: true },
+  dts: { generator: 'oxc' },
   // No clean: executors.json resolves ./dist/executors/*.mjs while a parallel
   // `nx run-many` may rebuild this package — wiping dist mid-run breaks every
   // concurrent typecheck/build with ImplementationResolutionError. Release

@@ -81,5 +81,5 @@ export const createNodesV2: CreateNodesV2<NxReleasePluginOptions> = [
   },
 ]
 
-const plugin = { createNodesV2, name: PLUGIN_NAME }
+const plugin: import('@nx/devkit').NxPluginV2 = { createNodesV2: createNodesV2, name: PLUGIN_NAME }
 export default plugin

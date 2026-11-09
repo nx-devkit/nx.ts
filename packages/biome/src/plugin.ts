@@ -115,4 +115,8 @@ export const createNodesV2: readonly [
   CreateNodesFunctionV2<BiomePluginOptions>,
 ] = ['**/biome.json{,c}', createNodesFn]
 
-export default { createNodesV2, name: PLUGIN_NAME }
+const plugin: { name: string; createNodesV2: typeof createNodesV2 } = {
+  createNodesV2: createNodesV2,
+  name: PLUGIN_NAME,
+}
+export default plugin

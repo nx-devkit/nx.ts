@@ -2,14 +2,14 @@ import { access } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 // Order mirrors Vitest's own config lookup: ts, mts, cts, js, mjs, cjs.
-export const VITEST_CONFIG_NAMES = [
+export const VITEST_CONFIG_NAMES: readonly string[] = [
   'vitest.config.ts',
   'vitest.config.mts',
   'vitest.config.cts',
   'vitest.config.js',
   'vitest.config.mjs',
   'vitest.config.cjs',
-]
+] as const
 
 export async function findConfigFile(
   projectRoot: string,

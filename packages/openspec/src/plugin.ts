@@ -90,4 +90,7 @@ export const createNodesV2: CreateNodesV2<NxOpenSpecPluginOptions> = [
 
 export default createNodesV2
 
-export const __testing = { listChangeIds, OPENSPEC_GLOB }
+export const __testing: {
+  listChangeIds: typeof listChangeIds
+  OPENSPEC_GLOB: typeof OPENSPEC_GLOB
+} = { listChangeIds: listChangeIds, OPENSPEC_GLOB: OPENSPEC_GLOB }
