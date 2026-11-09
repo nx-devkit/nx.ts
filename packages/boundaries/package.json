@@ -48,7 +48,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nx/devkit": "^22.0.0 || ^23.0.0 || ^24.0.0",
+    "@nx/devkit": "^24.0.0",
     "jsonc-parser": "^3.3.1",
     "typescript": ">=5.0.0"
   },

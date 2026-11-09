@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "jsonc-parser": "^3.3.1",
-    "@nx/devkit": "^22.0.0 || ^23.0.0 || ^24.0.0"
+    "@nx/devkit": "^24.0.0"
   },
   "bugs": {
     "url": "https://github.com/nx-devkit/nx.ts/issues"
