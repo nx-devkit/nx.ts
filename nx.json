@@ -32,7 +32,27 @@
     "./packages/playwright/src/plugin.ts",
     "./packages/eslint/src/plugin.ts",
     "./packages/commitlint/src/plugin.ts",
-    "./packages/cspell/src/plugin.ts"
+    "./packages/cspell/src/plugin.ts",
+    {
+      "plugin": "@nx/oxlint",
+      "options": {
+        "targetName": "oxlint"
+      }
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "options": {
+        "typecheck": {
+          "targetName": "tsc:typecheck"
+        },
+        "build": {
+          "targetName": "build",
+          "configName": "tsconfig.lib.json",
+          "buildDepsName": "build-deps",
+          "watchDepsName": "watch-deps"
+        }
+      }
+    }
   ],
   "release": {
     "projects": [
