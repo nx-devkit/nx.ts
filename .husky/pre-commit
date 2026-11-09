@@ -1,4 +1,9 @@
 #!/usr/bin/env sh
 set -e
-bunx biome format --write --no-errors-on-unmatched
-git add -u
+
+# Format staged files with nx format (Oxfmt)
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -n "$files" ]; then
+  bunx nx format:write --files="$(echo "$files" | tr '\n' ',' | sed 's/,$//')"
+  echo "$files" | xargs -r git add --
+fi

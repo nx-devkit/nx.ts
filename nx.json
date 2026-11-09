@@ -7,7 +7,12 @@
   },
   "version": 2,
   "plugins": [
-    "./packages/typescript-preset/src/plugin.ts",
+    {
+      "plugin": "./packages/typescript-preset/src/plugin.ts",
+      "options": {
+        "biome": false
+      }
+    },
     "./packages/prepare-for-release/src/plugin.ts",
     "./packages/nx-cloud/src/plugin.ts",
     "./packages/skill/src/plugin.ts",
@@ -37,20 +42,6 @@
       "plugin": "@nx/oxlint",
       "options": {
         "targetName": "oxlint"
-      }
-    },
-    {
-      "plugin": "@nx/js/typescript",
-      "options": {
-        "typecheck": {
-          "targetName": "tsc:typecheck"
-        },
-        "build": {
-          "targetName": "build",
-          "configName": "tsconfig.lib.json",
-          "buildDepsName": "build-deps",
-          "watchDepsName": "watch-deps"
-        }
       }
     }
   ],
@@ -102,8 +93,8 @@
   "namedInputs": {
     "sharedGlobals": [
       "{workspaceRoot}/tsconfig.base.json",
-      "{workspaceRoot}/biome.json",
-      "{workspaceRoot}/.oxlintrc.json"
+      "{workspaceRoot}/.oxlintrc.json",
+      "{workspaceRoot}/.oxfmtrc.json"
     ]
   },
   "targetDefaults": {
