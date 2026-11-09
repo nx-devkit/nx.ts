@@ -10,7 +10,8 @@
     {
       "plugin": "./packages/typescript-preset/src/plugin.ts",
       "options": {
-        "biome": false
+        "biome": false,
+        "oxlint": false
       }
     },
     "./packages/prepare-for-release/src/plugin.ts",
@@ -41,7 +42,7 @@
     {
       "plugin": "@nx/oxlint",
       "options": {
-        "targetName": "oxlint"
+        "targetName": "lint"
       }
     }
   ],

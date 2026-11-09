@@ -31,10 +31,10 @@ describe('@nx-devkit/sverka:config', () => {
     await configGenerator(tree);
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/new ShellStep\(ci, ['"]lint['"]/);
-    expect(config).toMatch(/['"]bun run lint['"]/);
-    expect(config).toMatch(/['"]bun run test['"]/);
-    expect(config).toMatch(/['"]bun run build['"]/);
+    expect(config).toMatch(/new ShellStep\(ci, (['"])lint\1/);
+    expect(config).toMatch(/(['"])bun run lint\1/);
+    expect(config).toMatch(/(['"])bun run test\1/);
+    expect(config).toMatch(/(['"])bun run build\1/);
     expect(config).toContain('trigger: push()');
     expect(config).toContain('export default proj');
   });
@@ -46,8 +46,8 @@ describe('@nx-devkit/sverka:config', () => {
     await configGenerator(tree);
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/['"]lint['"]/);
-    expect(config).not.toMatch(/['"]test['"]/);
+    expect(config).toMatch(/(['"])lint\1/);
+    expect(config).not.toMatch(/(['"])test\1/);
   });
 
   it('resolves a project that Nx infers from its package.json', async () => {
@@ -61,8 +61,8 @@ describe('@nx-devkit/sverka:config', () => {
     await configGenerator(tree, { project: 'app' });
 
     const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/['"]lint['"]/);
-    expect(config).toMatch(/['"]npm run lint['"]/);
+    expect(config).toMatch(/(['"])lint\1/);
+    expect(config).toMatch(/(['"])npm run lint\1/);
   });
 
   it('uses the Nx target of a project that has no matching script', async () => {
@@ -72,7 +72,7 @@ describe('@nx-devkit/sverka:config', () => {
 
     await configGenerator(tree, { project: 'app' });
 
-    expect(appConfig(tree)).toMatch(/['"]nx run app:lint['"]/);
+    expect(appConfig(tree)).toMatch(/(['"])nx run app:lint\1/);
   });
 
   it('adds the GitHub checks to a repo-health pipeline', async () => {
@@ -84,9 +84,9 @@ describe('@nx-devkit/sverka:config', () => {
     });
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/new Pipeline\(proj, ["']repo-health["']/);
-    expect(config).toMatch(/new ShellStep\(repoHealth, ["']review-debt["']/);
-    expect(config).toMatch(/new ShellStep\(repoHealth, ["']secret-scanning["']/);
+    expect(config).toMatch(/new Pipeline\(proj, (['"])repo-health\1/);
+    expect(config).toMatch(/new ShellStep\(repoHealth, (['"])review-debt\1/);
+    expect(config).toMatch(/new ShellStep\(repoHealth, (['"])secret-scanning\1/);
     expect(config).toContain('gh api graphql');
     expect(config).toContain('secret-scanning/alerts');
     expect(config).toContain('trigger: manual()');
@@ -99,8 +99,8 @@ describe('@nx-devkit/sverka:config', () => {
     await configGenerator(tree, { checks: ['lint', 'test'] });
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/["']npm run lint["']/);
-    expect(config).toMatch(/["']npm run test["']/);
+    expect(config).toMatch(/(['"])npm run lint\1/);
+    expect(config).toMatch(/(['"])npm run test\1/);
   });
 
   it('rejects an unknown project', async () => {
@@ -135,8 +135,8 @@ describe('@nx-devkit/sverka:config', () => {
     await configGenerator(tree, { pipeline: 'my-ci' });
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/const ci = new Pipeline\(proj, ["']my-ci["']\)/);
-    expect(config).toMatch(/new ShellStep\(ci, ["']lint["']/);
+    expect(config).toMatch(/const ci = new Pipeline\(proj, (['"])my-ci\1\)/);
+    expect(config).toMatch(/new ShellStep\(ci, (['"])lint\1/);
   });
 
   it('reads a project.json with comments', async () => {
@@ -146,7 +146,7 @@ describe('@nx-devkit/sverka:config', () => {
 
     await configGenerator(tree, { project: 'app' });
 
-    expect(appConfig(tree)).toMatch(/["']nx run app:lint["']/);
+    expect(appConfig(tree)).toMatch(/(['"])nx run app:lint\1/);
   });
 
   it('emits a valid identifier for the entry export', async () => {
@@ -156,7 +156,7 @@ describe('@nx-devkit/sverka:config', () => {
     await configGenerator(tree, { entry: 'run-1' });
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/export const run1 = new Entry\(ci, ["']run-1["']/);
+    expect(config).toMatch(/export const run1 = new Entry\(ci, (['"])run-1\1/);
   });
 
   it('does not collide with the identifiers the generated file declares', async () => {
@@ -166,7 +166,7 @@ describe('@nx-devkit/sverka:config', () => {
     await configGenerator(tree, { entry: 'ci' });
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/export const ciEntry = new Entry\(ci, ["']ci["']/);
+    expect(config).toMatch(/export const ciEntry = new Entry\(ci, (['"])ci\1/);
   });
 
   it('refuses to overwrite an existing config', async () => {
@@ -193,7 +193,7 @@ describe('the entry identifier', () => {
     await configGenerator(tree, { entry: 'default' });
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/export const defaultEntry = new Entry\(ci, ["']default["']/);
+    expect(config).toMatch(/export const defaultEntry = new Entry\(ci, (['"])default\1/);
   });
 });
 
@@ -209,7 +209,7 @@ describe('the requested checks', () => {
     await configGenerator(tree, { checks: ['lint'], project: 'app' });
 
     const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/["']nx run app:lint["']/);
+    expect(config).toMatch(/(['"])nx run app:lint\1/);
   });
 
   it('prefers the script over the Nx target', async () => {
@@ -227,7 +227,7 @@ describe('the requested checks', () => {
     await configGenerator(tree, { checks: ['lint'], project: 'app' });
 
     const config = tree.read('packages/app/sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/["']npm run lint["']/);
+    expect(config).toMatch(/(['"])npm run lint\1/);
   });
 });
 
@@ -239,6 +239,6 @@ describe('the entry identifier', () => {
     await configGenerator(tree, { entry: 'Project' });
 
     const config = tree.read('sverka.config.ts', 'utf8') ?? '';
-    expect(config).toMatch(/export const ProjectEntry = new Entry\(ci, ["']Project["']/);
+    expect(config).toMatch(/export const ProjectEntry = new Entry\(ci, (['"])Project\1/);
   });
 });
