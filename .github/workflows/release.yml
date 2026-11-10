@@ -104,7 +104,10 @@ jobs:
         # but reset the local cloud client right before publish so nx fetches a
         # fresh bundle (no publish retry loop).
         run: |
-          npx nx reset --onlyCloud || true
+          # --no-onlyDaemon prevents --onlyCloud from selecting a full reset in Nx 24.0.5
+          # (all=true when other only* flags are undefined). Keep best-effort so a broken
+          # cloud client that can't be loaded for cleanup still gets its bundle removed.
+          npx nx reset --onlyCloud --no-onlyDaemon || true
           npx nx release publish --verbose
         env:
           NPM_CONFIG_PROVENANCE: 'true'
