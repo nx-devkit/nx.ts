@@ -50,8 +50,8 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "lts/*"
-          registry-url: "https://registry.npmjs.org"
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Upgrade npm for OIDC trusted publishing
@@ -71,7 +71,7 @@ jobs:
         # tarballs into a scratch workspace, and runs the real bootstrap.
         # Catches broken artifacts (missing bin/files) before they ship.
         env:
-          E2E_SKIP_BUILD: "1" # Build step above already produced dist/
+          E2E_SKIP_BUILD: '1' # Build step above already produced dist/
         run: bash scripts/e2e-packed.sh
       - name: Configure git identity for release commits
         run: |
@@ -92,7 +92,7 @@ jobs:
           npx nx release version --git-push=false ${{ github.event_name == 'workflow_dispatch' && inputs.specifier != 'none' && format('--specifier={0}', inputs.specifier) || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: "Rewrite workspace: protocols for npm publish"
+      - name: 'Rewrite workspace: protocols for npm publish'
         # npm rejects the workspace: protocol — the only such dep is the
         # private, bundled @nx-devkit/internal. Rewrites CI-tree manifests
         # only; committed sources keep workspace:*.
@@ -107,8 +107,8 @@ jobs:
           npx nx reset --onlyCloud || true
           npx nx release publish --verbose
         env:
-          NPM_CONFIG_PROVENANCE: "true"
-          NX_VERBOSE_LOGGING: "true"
+          NPM_CONFIG_PROVENANCE: 'true'
+          NX_VERBOSE_LOGGING: 'true'
       - name: Push release commit and tags
         # Checkout is a detached HEAD — push HEAD to main explicitly.
         # If a merge raced in during publish this push fails; the next run
