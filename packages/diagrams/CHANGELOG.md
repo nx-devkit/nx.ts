@@ -1,3 +1,7 @@
+## 0.0.22 (2026-11-10)
+
+This was a version bump only for @nx-devkit/diagrams to align it with other projects, there were no code changes.
+
 ## 0.0.21 (2026-11-09)
 
 ### 🩹 Fixes
