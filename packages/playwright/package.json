@@ -1,18 +1,33 @@
 {
   "name": "@nx-devkit/playwright",
-  "version": "0.0.6",
-  "license": "MIT",
-  "description": "Nx plugin: playwright.config files infer a cached e2e target (plus e2e:ui and e2e:update-snapshots) \u2014 Playwright without project.json.",
+  "version": "0.0.7",
+  "private": false,
+  "description": "Nx plugin: playwright.config files infer a cached e2e target (plus e2e:ui and e2e:update-snapshots) — Playwright without project.json.",
   "keywords": [
+    "browser-tests",
+    "e2e",
+    "monorepo",
     "nx",
     "nx-plugin",
     "playwright",
-    "e2e",
-    "browser-tests",
-    "monorepo",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/playwright",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/playwright"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
@@ -28,18 +43,13 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "generators.json",
-    "src/generators/init/schema.json",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "@playwright/test": "^1.40.0"
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
@@ -48,18 +58,8 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/playwright"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/playwright",
-  "dependencies": {
-    "@nx/devkit": "^24.0.0",
-    "jsonc-parser": "^3.3.1"
+  "peerDependencies": {
+    "@playwright/test": "^1.40.0"
   },
   "generators": "./generators.json"
 }

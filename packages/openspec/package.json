@@ -1,19 +1,34 @@
 {
   "name": "@nx-devkit/openspec",
-  "version": "0.0.7",
-  "license": "MIT",
-  "description": "Nx plugin: openspec/config.yaml infers a cached spec-validate target plus per-change spec-validate:<id> targets \u2014 no project.json needed.",
+  "version": "0.0.8",
+  "private": false,
+  "description": "Nx plugin: openspec/config.yaml infers a cached spec-validate target plus per-change spec-validate:<id> targets — no project.json needed.",
   "keywords": [
+    "monorepo",
     "nx",
     "nx-plugin",
     "openspec",
     "spec-driven",
     "specs",
     "validation",
-    "monorepo",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/openspec",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/openspec"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
@@ -29,39 +44,24 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "generators.json",
-    "src/generators/init/schema.json",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "@fission-ai/openspec": "^1.0.0"
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
+    "@fission-ai/openspec": "^1.16.0",
     "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.6.6",
-    "@fission-ai/openspec": "^1.16.0",
     "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/openspec"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/openspec",
-  "dependencies": {
-    "@nx/devkit": "^24.0.0",
-    "jsonc-parser": "^3.3.1"
+  "peerDependencies": {
+    "@fission-ai/openspec": "^1.0.0"
   },
   "generators": "./generators.json"
 }

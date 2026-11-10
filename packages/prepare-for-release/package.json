@@ -1,19 +1,36 @@
 {
   "name": "@nx-devkit/prepare-for-release",
-  "version": "0.1.25",
-  "license": "MIT",
+  "version": "0.1.26",
+  "private": false,
   "description": "Nx plugin that bootstraps npm publishing: 0.0.0 placeholder releases for unpublished packages plus OIDC trusted-publishing setup.",
   "keywords": [
-    "nx",
-    "nx-plugin",
+    "monorepo",
     "npm",
     "npm-publish",
+    "nx",
+    "nx-plugin",
     "oidc",
-    "trusted-publishing",
     "release",
-    "monorepo"
+    "trusted-publishing"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/prepare-for-release",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/prepare-for-release"
+  },
+  "files": [
+    "dist",
+    "executors.json",
+    "generators.json",
+    "src/executors/publish-placeholder/schema.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -33,24 +50,14 @@
     },
     "./package.json": "./package.json"
   },
-  "executors": "./executors.json",
-  "generators": "./generators.json",
-  "files": [
-    "dist",
-    "executors.json",
-    "generators.json",
-    "src/executors/publish-placeholder/schema.json",
-    "src/generators/init/schema.json",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
   "dependencies": {
-    "tinyglobby": "^0.2.0",
-    "@nx/devkit": "^24.0.0"
+    "@nx/devkit": "^24.0.0",
+    "tinyglobby": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
@@ -58,13 +65,6 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/prepare-for-release"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/prepare-for-release"
+  "executors": "./executors.json",
+  "generators": "./generators.json"
 }

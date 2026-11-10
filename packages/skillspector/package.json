@@ -1,19 +1,36 @@
 {
   "name": "@nx-devkit/skillspector",
-  "version": "0.1.22",
-  "license": "MIT",
-  "description": "Nx plugin for SkillSpector security scanning: any SKILL.md gets a scan target reporting vulnerabilities, secrets, and risky patterns \u2014 with SARIF output and CI annotations.",
+  "version": "0.1.23",
+  "private": false,
+  "description": "Nx plugin for SkillSpector security scanning: any SKILL.md gets a scan target reporting vulnerabilities, secrets, and risky patterns — with SARIF output and CI annotations.",
   "keywords": [
+    "agent-skills",
+    "llm-security",
     "nx",
     "nx-plugin",
+    "sarif",
     "security",
     "security-scanner",
-    "sarif",
-    "agent-skills",
-    "skillspector",
-    "llm-security"
+    "skillspector"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skillspector",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/skillspector"
+  },
+  "files": [
+    "dist",
+    "executors.json",
+    "README.md",
+    "./src/executors/scan/schema.json",
+    "generators.json",
+    "src/generators/init/schema.json"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -33,39 +50,22 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "executors": "./executors.json",
-  "files": [
-    "dist",
-    "executors.json",
-    "README.md",
-    "./src/executors/scan/schema.json",
-    "generators.json",
-    "src/generators/init/schema.json"
-  ],
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
-  "devDependencies": {
-    "@types/node": "^26.6.6",
-    "tsdown": "^0.23.7",
-    "typescript": "^6.0.3",
-    "vitest": "^5.1.0",
-    "@nx-devkit/internal": "0.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/skillspector"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skillspector",
   "dependencies": {
     "@nx/devkit": "^24.0.0",
     "jsonc-parser": "^3.3.1"
   },
+  "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
+    "@types/node": "^26.6.6",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "executors": "./executors.json",
   "generators": "./generators.json"
 }

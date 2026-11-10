@@ -1,18 +1,33 @@
 {
   "name": "@nx-devkit/eslint",
-  "version": "0.0.6",
-  "license": "MIT",
-  "description": "Nx plugin: eslint.config files infer a cached lint target (plus lint:fix) \u2014 ESLint without project.json.",
+  "version": "0.0.7",
+  "private": false,
+  "description": "Nx plugin: eslint.config files infer a cached lint target (plus lint:fix) — ESLint without project.json.",
   "keywords": [
+    "eslint",
+    "flat-config",
+    "lint",
+    "monorepo",
     "nx",
     "nx-plugin",
-    "eslint",
-    "lint",
-    "flat-config",
-    "monorepo",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/eslint",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/eslint"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
@@ -28,18 +43,13 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "generators.json",
-    "src/generators/init/schema.json",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "eslint": "^9.0.0"
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
@@ -49,18 +59,8 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/eslint"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/eslint",
-  "dependencies": {
-    "@nx/devkit": "^24.0.0",
-    "jsonc-parser": "^3.3.1"
+  "peerDependencies": {
+    "eslint": "^9.0.0"
   },
   "generators": "./generators.json"
 }

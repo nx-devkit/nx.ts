@@ -1,17 +1,32 @@
 {
   "name": "@nx-devkit/cspell",
-  "version": "0.0.5",
-  "license": "MIT",
-  "description": "Nx plugin: cspell config files infer a cached spell-check target \u2014 zero-config spelling lint without project.json.",
+  "version": "0.0.6",
+  "private": false,
+  "description": "Nx plugin: cspell config files infer a cached spell-check target — zero-config spelling lint without project.json.",
   "keywords": [
+    "cspell",
+    "lint",
     "nx",
     "nx-plugin",
-    "cspell",
     "spelling",
-    "lint",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/cspell",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/cspell"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
@@ -27,18 +42,13 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "generators.json",
-    "src/generators/init/schema.json",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "cspell": "^9.0.0"
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
@@ -47,18 +57,8 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/cspell"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/cspell",
-  "dependencies": {
-    "@nx/devkit": "^24.0.0",
-    "jsonc-parser": "^3.3.1"
+  "peerDependencies": {
+    "cspell": "^9.0.0"
   },
   "generators": "./generators.json"
 }

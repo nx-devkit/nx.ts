@@ -1,19 +1,39 @@
 {
   "name": "@nx-devkit/skill",
-  "version": "0.1.22",
-  "license": "MIT",
-  "description": "Nx plugin for agent skills: any SKILL.md becomes a project with build, lint, validate, os-check, and size-check targets \u2014 no project.json required.",
+  "version": "0.1.23",
+  "private": false,
+  "description": "Nx plugin for agent skills: any SKILL.md becomes a project with build, lint, validate, os-check, and size-check targets — no project.json required.",
   "keywords": [
+    "agent-skills",
+    "agentskills",
+    "ai-agent",
+    "claude-skills",
+    "llm",
     "nx",
     "nx-plugin",
-    "agent-skills",
-    "claude-skills",
-    "ai-agent",
-    "agentskills",
-    "llm",
     "skill"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skill",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/skill"
+  },
+  "files": [
+    "dist",
+    "executors.json",
+    "src/executors/build/schema.json",
+    "src/executors/validate/schema.json",
+    "src/executors/os-check/schema.json",
+    "src/executors/size-check/schema.json",
+    "README.md",
+    "generators.json",
+    "src/generators/init/schema.json"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -33,44 +53,24 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "executors": "./executors.json",
-  "files": [
-    "dist",
-    "executors.json",
-    "src/executors/build/schema.json",
-    "src/executors/validate/schema.json",
-    "src/executors/os-check/schema.json",
-    "src/executors/size-check/schema.json",
-    "README.md",
-    "generators.json",
-    "src/generators/init/schema.json"
-  ],
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run"
   },
-  "devDependencies": {
-    "@types/node": "^26.6.6",
-    "memfs": "^4.50.0",
-    "tsdown": "^0.23.7",
-    "typescript": "^6.0.3",
-    "vitest": "^5.1.0",
-    "@nx-devkit/internal": "0.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/skill"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/skill",
   "dependencies": {
     "@nx/devkit": "^24.0.0",
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.9.0"
   },
+  "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
+    "@types/node": "^26.6.6",
+    "memfs": "^4.50.0",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "executors": "./executors.json",
   "generators": "./generators.json"
 }

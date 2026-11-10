@@ -1,20 +1,35 @@
 {
   "name": "@nx-devkit/sverka",
-  "version": "0.0.3",
-  "license": "MIT",
-  "description": "Nx plugin: a sverka config infers one cached Nx target per sverka step \u2014 no project.json required.",
+  "version": "0.0.4",
+  "private": false,
+  "description": "Nx plugin: a sverka config infers one cached Nx target per sverka step — no project.json required.",
   "keywords": [
+    "ci",
     "nx",
     "nx-plugin",
     "sverka",
     "workflow",
-    "ci",
     "zero-config"
   ],
-  "private": false,
-  "publishConfig": {
-    "access": "public"
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/sverka",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
   },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/sverka"
+  },
+  "files": [
+    "dist",
+    "executors.json",
+    "generators.json",
+    "src/executors/step/schema.json",
+    "src/generators/init/schema.json",
+    "src/generators/config/schema.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -38,17 +53,9 @@
     },
     "./package.json": "./package.json"
   },
-  "executors": "./executors.json",
-  "generators": "./generators.json",
-  "files": [
-    "dist",
-    "executors.json",
-    "generators.json",
-    "src/executors/step/schema.json",
-    "src/generators/init/schema.json",
-    "src/generators/config/schema.json",
-    "README.md"
-  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "test": "vitest run",
@@ -68,13 +75,6 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/sverka"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/sverka"
+  "executors": "./executors.json",
+  "generators": "./generators.json"
 }

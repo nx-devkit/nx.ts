@@ -1,20 +1,35 @@
 {
   "name": "@nx-devkit/tsdown",
-  "version": "0.1.20",
-  "license": "MIT",
-  "description": "Standalone Nx plugin: infers a cached build target from tsdown.config.ts \u2014 no project.json required.",
+  "version": "0.1.21",
+  "private": false,
+  "description": "Standalone Nx plugin: infers a cached build target from tsdown.config.ts — no project.json required.",
   "keywords": [
-    "nx",
-    "nx-plugin",
-    "tsdown",
-    "rolldown",
     "build",
     "bundler",
-    "typescript",
     "monorepo",
+    "nx",
+    "nx-plugin",
+    "rolldown",
+    "tsdown",
+    "typescript",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/tsdown",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/tsdown"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "generators.json",
+    "src/generators/init/schema.json"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -34,12 +49,6 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "README.md",
-    "generators.json",
-    "src/generators/init/schema.json"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
@@ -50,20 +59,11 @@
     "tsdown": "^0.23.7"
   },
   "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.6.6",
     "memfs": "^4.50.0",
     "typescript": "^6.0.3",
-    "vitest": "^5.1.0",
-    "@nx-devkit/internal": "0.0.0"
+    "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/tsdown"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/tsdown",
   "generators": "./generators.json"
 }

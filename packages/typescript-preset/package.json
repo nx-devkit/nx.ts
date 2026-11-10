@@ -1,31 +1,52 @@
 {
   "name": "@nx-devkit/typescript",
-  "version": "0.2.22",
-  "license": "MIT",
+  "version": "0.2.23",
+  "private": false,
+  "description": "Preset Nx plugin that infers typecheck, test, lint, format, and build targets from config files you already keep — no project.json required. One-command bootstrap: npx @nx-devkit/typescript init",
   "keywords": [
+    "biome",
+    "eslint",
+    "monorepo",
     "nx",
     "nx-plugin",
     "nx-preset",
-    "typescript",
-    "monorepo",
-    "zero-config",
-    "typecheck",
-    "vitest",
     "oxlint",
-    "eslint",
-    "biome",
     "tsdown",
-    "tsgo"
+    "tsgo",
+    "typecheck",
+    "typescript",
+    "vitest",
+    "zero-config"
   ],
-  "private": false,
-  "type": "module",
-  "description": "Preset Nx plugin that infers typecheck, test, lint, format, and build targets from config files you already keep \u2014 no project.json required. One-command bootstrap: npx @nx-devkit/typescript init",
-  "main": "./dist/plugin.mjs",
-  "module": "./dist/plugin.mjs",
-  "types": "./dist/plugin.d.mts",
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/typescript-preset",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/typescript-preset"
+  },
   "bin": {
     "nx-devkit-typescript": "./dist/bin/init.mjs"
   },
+  "files": [
+    "dist",
+    "generators.json",
+    "executors.json",
+    "migrations.json",
+    "src/generators/init/schema.json",
+    "src/generators/monorepo/schema.json",
+    "src/generators/package/schema.json",
+    "src/executors/typecheck/schema.json",
+    "src/executors/build/schema.json",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "module": "./dist/plugin.mjs",
+  "types": "./dist/plugin.d.mts",
   "exports": {
     ".": {
       "types": "./dist/plugin.d.mts",
@@ -53,28 +74,20 @@
     },
     "./package.json": "./package.json"
   },
-  "generators": "./generators.json",
-  "executors": "./executors.json",
-  "nx-migrations": {
-    "migrations": "./migrations.json"
-  },
-  "files": [
-    "dist",
-    "generators.json",
-    "executors.json",
-    "migrations.json",
-    "src/generators/init/schema.json",
-    "src/generators/monorepo/schema.json",
-    "src/generators/package/schema.json",
-    "src/executors/typecheck/schema.json",
-    "src/executors/build/schema.json",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "npm run build -- --clean",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
+    "tsdown": "^0.23.7",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "@biomejs/biome": "^2.0.0",
@@ -101,22 +114,9 @@
       "optional": true
     }
   },
-  "devDependencies": {
-    "@nx-devkit/internal": "0.0.0",
-    "tsdown": "^0.23.7",
-    "vitest": "^5.1.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/typescript-preset"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/typescript-preset",
-  "dependencies": {
-    "@nx/devkit": "^24.0.0",
-    "jsonc-parser": "^3.3.1"
+  "executors": "./executors.json",
+  "generators": "./generators.json",
+  "nx-migrations": {
+    "migrations": "./migrations.json"
   }
 }

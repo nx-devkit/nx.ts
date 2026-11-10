@@ -1,19 +1,36 @@
 {
   "name": "@nx-devkit/boundaries",
-  "version": "0.0.15",
-  "license": "MIT",
-  "description": "Linter-agnostic Nx plugin: enforces module-boundary depConstraints between tagged projects \u2014 no ESLint, no project.json required.",
+  "version": "0.0.16",
+  "private": false,
+  "description": "Linter-agnostic Nx plugin: enforces module-boundary depConstraints between tagged projects — no ESLint, no project.json required.",
   "keywords": [
+    "architecture",
+    "enforce-module-boundaries",
+    "module-boundaries",
+    "monorepo",
     "nx",
     "nx-plugin",
-    "module-boundaries",
-    "enforce-module-boundaries",
-    "architecture",
     "typescript",
-    "monorepo",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/boundaries",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/boundaries"
+  },
+  "files": [
+    "dist",
+    "executors.json",
+    "README.md",
+    "src/executors/check-boundaries/schema.json",
+    "generators.json",
+    "src/generators/init/schema.json"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -33,15 +50,9 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "executors": "./executors.json",
-  "files": [
-    "dist",
-    "executors.json",
-    "README.md",
-    "src/executors/check-boundaries/schema.json",
-    "generators.json",
-    "src/generators/init/schema.json"
-  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "npm run build -- --clean",
@@ -59,17 +70,6 @@
     "tsdown": "^0.23.7",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/boundaries"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/boundaries",
-  "publishConfig": {
-    "access": "public"
-  },
+  "executors": "./executors.json",
   "generators": "./generators.json"
 }

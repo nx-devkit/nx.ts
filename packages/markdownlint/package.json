@@ -1,20 +1,35 @@
 {
   "name": "@nx-devkit/markdownlint",
-  "version": "0.0.7",
-  "license": "MIT",
-  "description": "Nx plugin: .markdownlint config files infer a cached lint-md target \u2014 Markdown linting without project.json.",
+  "version": "0.0.8",
+  "private": false,
+  "description": "Nx plugin: .markdownlint config files infer a cached lint-md target — Markdown linting without project.json.",
   "keywords": [
-    "nx",
-    "nx-plugin",
-    "markdownlint",
-    "markdown",
+    "docs",
     "lint",
     "linter",
-    "docs",
+    "markdown",
+    "markdownlint",
     "monorepo",
+    "nx",
+    "nx-plugin",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/markdownlint",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/markdownlint"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
@@ -30,18 +45,13 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "generators.json",
-    "src/generators/init/schema.json",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "markdownlint-cli2": "^0.24.0"
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
@@ -51,18 +61,8 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/markdownlint"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/markdownlint",
-  "dependencies": {
-    "@nx/devkit": "^24.0.0",
-    "jsonc-parser": "^3.3.1"
+  "peerDependencies": {
+    "markdownlint-cli2": "^0.24.0"
   },
   "generators": "./generators.json"
 }

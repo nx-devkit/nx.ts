@@ -1,20 +1,34 @@
 {
   "name": "@nx-devkit/biome",
-  "version": "0.1.21",
-  "license": "MIT",
-  "description": "Standalone Nx plugin: infers format, format-check, and lint targets from biome.json \u2014 no project.json required.",
+  "version": "0.1.22",
+  "private": false,
+  "description": "Standalone Nx plugin: infers format, format-check, and lint targets from biome.json — no project.json required.",
   "keywords": [
-    "nx",
-    "nx-plugin",
     "biome",
+    "format",
     "formatter",
     "linter",
-    "format",
-    "typescript",
     "monorepo",
+    "nx",
+    "nx-plugin",
+    "typescript",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/biome",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/biome"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json"
+  ],
   "type": "module",
   "main": "./dist/plugin.mjs",
   "module": "./dist/plugin.mjs",
@@ -30,17 +44,13 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "generators.json",
-    "src/generators/init/schema.json"
-  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "@biomejs/biome": "^2.0.0"
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
@@ -49,18 +59,8 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/biome"
-  },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/biome",
-  "dependencies": {
-    "@nx/devkit": "^24.0.0",
-    "jsonc-parser": "^3.3.1"
+  "peerDependencies": {
+    "@biomejs/biome": "^2.0.0"
   },
   "generators": "./generators.json"
 }

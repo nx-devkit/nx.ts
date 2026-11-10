@@ -1,19 +1,34 @@
 {
   "name": "@nx-devkit/vitest",
-  "version": "0.0.13",
-  "license": "MIT",
-  "description": "Standalone Nx plugin: infers cached test, test:watch, and test:coverage targets from vitest.config.* \u2014 no project.json required.",
+  "version": "0.0.14",
+  "private": false,
+  "description": "Standalone Nx plugin: infers cached test, test:watch, and test:coverage targets from vitest.config.* — no project.json required.",
   "keywords": [
+    "monorepo",
     "nx",
     "nx-plugin",
-    "vitest",
     "test",
     "testing",
     "typescript",
-    "monorepo",
+    "vitest",
     "zero-config"
   ],
-  "private": false,
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/vitest",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/vitest"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "generators.json",
+    "src/generators/init/schema.json"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -33,12 +48,9 @@
       "default": "./dist/generators/init/generator.mjs"
     }
   },
-  "files": [
-    "dist",
-    "README.md",
-    "generators.json",
-    "src/generators/init/schema.json"
-  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "npm run build -- --clean",
@@ -48,14 +60,6 @@
     "@nx/devkit": "^24.0.0",
     "jsonc-parser": "^3.3.1"
   },
-  "peerDependencies": {
-    "vitest": "^4.0.0 || ^5.0.0"
-  },
-  "peerDependenciesMeta": {
-    "vitest": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
     "@types/node": "^26.6.6",
@@ -64,17 +68,13 @@
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nx-devkit/nx.ts",
-    "directory": "packages/vitest"
+  "peerDependencies": {
+    "vitest": "^4.0.0 || ^5.0.0"
   },
-  "bugs": {
-    "url": "https://github.com/nx-devkit/nx.ts/issues"
-  },
-  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/vitest",
-  "publishConfig": {
-    "access": "public"
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   },
   "generators": "./generators.json"
 }
