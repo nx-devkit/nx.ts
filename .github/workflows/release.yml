@@ -98,9 +98,17 @@ jobs:
         # only; committed sources keep workspace:*.
         run: bun scripts/rewrite-workspace-protocol.ts
       - name: Publish via nx release (OIDC trust, no NPM_TOKEN)
-        run: npx nx release publish
+        # Nx Cloud client auto-update can occasionally fail to load a newly
+        # downloaded bundle (e.g. missing .nx/cache/cloud/<version> module),
+        # breaking nx startup before any publish runs. Keep Nx Cloud enabled,
+        # but reset the local cloud client right before publish so nx fetches a
+        # fresh bundle (no publish retry loop).
+        run: |
+          npx nx reset --onlyCloud || true
+          npx nx release publish --verbose
         env:
           NPM_CONFIG_PROVENANCE: "true"
+          NX_VERBOSE_LOGGING: "true"
       - name: Push release commit and tags
         # Checkout is a detached HEAD — push HEAD to main explicitly.
         # If a merge raced in during publish this push fails; the next run
