@@ -1,0 +1,99 @@
+name: release-preview
+
+# Maintains a single draft GitHub release ("next") whose body is the exact
+# changelog `nx release` will publish for the commits on main — the pending
+# release made visible. Runs the same version+changelog pipeline as
+# release.yml but never pushes, publishes, or creates real releases:
+# `nx release version --git-push=false` leaves a local commit that dies
+# with the runner, and nx.json's createRelease is patched to false so the
+# changelog step cannot open GitHub releases for unpublished versions.
+
+on:
+  push:
+    branches: [main]
+  # Re-run after a release ships so the draft reflects the NEXT pending
+  # batch (usually "nothing pending" → draft deleted).
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  preview:
+    # Same loop guard as release.yml: bot release commits ("chore(release)")
+    # must not retrigger. push events only — workflow_run/dispatch always run.
+    if: github.event_name != 'push' || (github.ref == 'refs/heads/main' && !startsWith(github.event.head_commit.message, 'chore(release)'))
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-preview
+      cancel-in-progress: true
+    permissions:
+      contents: write # draft release create/edit/delete via GITHUB_TOKEN
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 'lts/*'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Configure git identity for the local version commit
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+      - name: Version packages locally (conventional commits, no push)
+        # Identical derivation to release.yml — the local chore(release)
+        # commit and its tags never leave the runner.
+        run: npx nx release version --git-push=false
+      - name: Disable GitHub release creation for the preview
+        # nx.json sets changelog.projectChangelogs.createRelease: "github";
+        # without this patch the changelog step would create REAL GitHub
+        # releases for versions that were never published. The flag is not
+        # exposed on the CLI, so patch the config in this ephemeral tree.
+        run: |
+          sed -i 's/"createRelease": "github"/"createRelease": false/' nx.json
+          grep -q '"createRelease": false' nx.json || {
+            echo "createRelease patch did not apply — refusing to continue" >&2
+            exit 1
+          }
+      - name: Generate changelog entries locally
+        # Same loop as release.yml, minus git push and GitHub releases.
+        run: |
+          for tag in $(git tag --points-at HEAD | grep '^@nx-devkit/'); do
+            project="${tag%@*}"
+            version="${tag##*@}"
+            prev=$(git tag --list "${project}@*" --sort=-version:refname | sed -n '2p')
+            if [ -n "$prev" ]; then
+              npx nx release changelog "$version" -p "$project" --from "$prev" \
+                --git-commit=false --git-tag=false --git-push=false
+            else
+              npx nx release changelog "$version" -p "$project" --first-release \
+                --git-commit=false --git-tag=false --git-push=false
+            fi
+          done
+      - name: Assemble preview markdown
+        id: preview
+        run: bun scripts/release-preview.ts
+      - name: Upsert the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: ${{ steps.preview.outputs.title }}
+          HAS_RELEASE: ${{ steps.preview.outputs.has_release }}
+        run: |
+          tag="next"
+          existing=$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)
+          if [ "$HAS_RELEASE" != "true" ]; then
+            if [ -n "$existing" ]; then
+              gh release delete "$tag" --yes
+            fi
+            exit 0
+          fi
+          if [ -n "$existing" ]; then
+            gh release edit "$tag" --title "$TITLE" --notes-file tmp/release-preview.md
+          else
+            gh release create "$tag" --draft --target main \
+              --title "$TITLE" --notes-file tmp/release-preview.md
+          fi
