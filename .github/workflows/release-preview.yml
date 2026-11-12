@@ -17,6 +17,17 @@ on:
     workflows: [release]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      specifier:
+        description: >-
+          Force a version specifier for all release projects, bypassing
+          conventional-commit derivation — previews a release that pending
+          commits would not produce (demo/forced-release preview).
+          Leave at "none" for the usual pending-release preview.
+        required: false
+        type: choice
+        default: none
+        options: [none, patch, minor, major]
 
 jobs:
   preview:
@@ -51,7 +62,7 @@ jobs:
       - name: Version packages locally (conventional commits, no push)
         # Identical derivation to release.yml — the local chore(release)
         # commit and its tags never leave the runner.
-        run: npx nx release version --git-push=false
+        run: npx nx release version --git-push=false ${{ github.event_name == 'workflow_dispatch' && inputs.specifier != 'none' && format('--specifier={0}', inputs.specifier) || '' }}
       - name: Disable GitHub release creation for the preview
         # nx.json sets changelog.projectChangelogs.createRelease: "github";
         # without this patch the changelog step would create REAL GitHub
