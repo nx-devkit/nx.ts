@@ -18,12 +18,64 @@ on:
         options: [none, patch, minor, major]
 
 jobs:
+  check:
+    name: Check for pending release
+    runs-on: ubuntu-latest
+    # Same loop guard as the release job — bot release commits must not
+    # retrigger. Dispatch always evaluates; the release job ignores the
+    # result for workflow_dispatch anyway.
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)'))
+    permissions:
+      contents: read
+    outputs:
+      has_release: ${{ steps.detect.outputs.has_release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 'lts/*'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Configure git identity for the local version commit
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+      - name: Detect pending release
+        id: detect
+        # Same version derivation as the release job, local-only: a bump
+        # leaves a chore(release) commit carrying fresh @nx-devkit/* tags
+        # on HEAD; "no changes" leaves HEAD untouched, so tags on HEAD are
+        # exactly the pending release set. The local commit dies with the
+        # runner — nothing is pushed from this job.
+        run: |
+          npx nx release version --git-push=false
+          count=$(git tag --points-at HEAD | grep -c '^@nx-devkit/' || true)
+          if [ "$count" -gt 0 ]; then
+            echo "has_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_release=false" >> "$GITHUB_OUTPUT"
+          fi
+          git tag --points-at HEAD | grep '^@nx-devkit/' || echo "no pending release"
   release:
+    needs: check
     # The release commit pushed by `nx release version` (message starts with
     # "chore(release)") must not re-trigger this job — loop guard.
     # head_commit is populated atomically in the push event payload.
-    # workflow_dispatch (main only) is a manual retry path.
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release)'))
+    # workflow_dispatch (main only) is a manual retry path and always runs.
+    # Push events run only when the check job found a pending version bump —
+    # chore/ci/workflow-only commits skip the whole pipeline. A failed or
+    # skipped check leaves has_release unset, which still skips pushes.
+    # always() keeps workflow_dispatch independent of the check job's
+    # health — the manual retry path must not die with a flaky detector.
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+        (!startsWith(github.event.head_commit.message, 'chore(release)') &&
+          needs.check.outputs.has_release == 'true'))
     name: Publish packages via nx release (OIDC)
     runs-on: ubuntu-latest
     # Serialize release runs — a queued run must not interleave its version
