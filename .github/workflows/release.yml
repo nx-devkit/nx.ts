@@ -243,7 +243,14 @@ jobs:
         # only after the PR exists keeps a mid-run failure retryable —
         # the next run recomputes the same versions (baseline unmoved),
         # publish skips what is already on npm, and the PR updates.
-        run: git push origin --tags
+        # GH_TOKEN must be in env: the gh credential helper answers git's
+        # auth prompt by reading it — without it `git push` fails with
+        # "could not read Username" (hit on the first real release run).
+        run: |
+          gh auth setup-git
+          git push origin --tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean up a published "next" release
         # The draft was the button — its published form is transient.
         # Deleting release+tag lets the next preview batch reuse "next";
