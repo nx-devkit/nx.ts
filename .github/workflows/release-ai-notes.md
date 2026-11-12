@@ -15,13 +15,14 @@ engine:
   env:
     # BYOK: route Copilot CLI inference to AnyRouter instead of GitHub's
     # Copilot backend (org billing policy blocks it — see #174).
-    # Pinned $0 model: anyrouter/free smart-route keeps landing on a dead
-    # Antigravity upstream for agentic requests (3 consecutive EOL replies);
-    # nemotron verified on AnyRouter chat-completions + responses APIs.
+    # anyrouter/free is unusable: its only free upstream is a dead
+    # Antigravity backend that returns an EOL notice for every request.
+    # anyrouter/auto is health-aware and verified live on agentic-shaped
+    # requests; it may occasionally select a paid upstream — accepted.
     COPILOT_PROVIDER_BASE_URL: 'https://anyrouter.dev/api/v1'
     COPILOT_PROVIDER_TYPE: openai
     COPILOT_PROVIDER_WIRE_API: completions
-    COPILOT_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
+    COPILOT_MODEL: anyrouter/auto
     COPILOT_PROVIDER_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true
 network:
