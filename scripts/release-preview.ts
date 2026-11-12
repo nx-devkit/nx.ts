@@ -22,7 +22,7 @@ import { join } from 'node:path';
 const root = join(import.meta.dir, '..');
 
 const git = (...args: string[]): string =>
-  execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 15_000 }).trim();
 
 const emit = (fields: Record<string, string>): void => {
   const out = process.env.GITHUB_OUTPUT;
@@ -49,15 +49,18 @@ const parseTag = (tag: string): { name: string; version: string } | null => {
 const packageDirByName = new Map<string, string>();
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- packagesDir is a fixed workspace path
 for (const dir of readdirSync(join(root, 'packages'))) {
+  const manifestPath = join(root, 'packages', dir, 'package.json');
+  let raw: string;
   try {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- manifest path is built from packages/* directory entries
-    const pkg = JSON.parse(readFileSync(join(root, 'packages', dir, 'package.json'), 'utf8')) as {
-      name?: string;
-    };
-    if (pkg.name) packageDirByName.set(pkg.name, dir);
+    raw = readFileSync(manifestPath, 'utf8');
   } catch {
-    // not a package dir — skip
+    continue; // not a package dir
   }
+  // Parse outside the try — a malformed manifest must fail loud, not
+  // silently drop the package from the preview.
+  const pkg = JSON.parse(raw) as { name?: string };
+  if (pkg.name) packageDirByName.set(pkg.name, dir);
 }
 
 // First `## ` section of a CHANGELOG.md: version + body up to the next one.
@@ -90,10 +93,35 @@ interface Pending {
   bumpOnly: boolean;
 }
 
+// Tags already on the remote are published, not pending — e.g. a release
+// run that pushed version+tags and then failed before the changelog
+// commit leaves them on HEAD. ls-remote needs no auth on public repos;
+// on failure warn and keep everything (fail-open: a stale draft
+// self-corrects on the next run).
+let remoteTags = new Set<string>();
+try {
+  remoteTags = new Set(
+    git('ls-remote', '--tags', 'origin')
+      .split('\n')
+      .map(
+        (l) =>
+          l
+            .trim()
+            .split('refs/tags/')[1]
+            ?.replace(/\^\{\}$/, '') ?? '',
+      )
+      .filter(Boolean),
+  );
+} catch (error) {
+  console.error(
+    `release-preview: ls-remote failed (${String(error)}) — remote tag filter disabled`,
+  );
+}
+
 const pending: Pending[] = [];
 for (const tag of git('tag', '--points-at', 'HEAD').split('\n').filter(Boolean)) {
   const parsed = parseTag(tag);
-  if (!parsed) continue;
+  if (!parsed || remoteTags.has(tag)) continue;
   const dir = packageDirByName.get(parsed.name);
   if (!dir) {
     console.error(`release-preview: no packages/*/package.json named ${parsed.name} — skipped`);
@@ -109,7 +137,13 @@ for (const tag of git('tag', '--points-at', 'HEAD').split('\n').filter(Boolean))
   try {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is built from packages/* directory entries
     const section = firstSection(readFileSync(changelogPath, 'utf8'));
-    if (section) body = section.body;
+    if (section && section.version === parsed.version) {
+      body = section.body;
+    } else if (section) {
+      console.error(
+        `release-preview: ${parsed.name} CHANGELOG top is ${section.version}, expected ${parsed.version} — placeholder body kept`,
+      );
+    }
   } catch {
     // missing CHANGELOG.md — keep the placeholder body
   }
