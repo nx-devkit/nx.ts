@@ -33,10 +33,13 @@ jobs:
     # nx release changelog creates along the way use their own tag names and
     # are filtered out by the tag_name check — and GITHUB_TOKEN-created
     # releases never trigger workflows anyway.
+    # target_commitish is NOT checked here: the preview pins the draft's
+    # target to the previewed commit SHA (WYSIWYG), so it is a 40-hex SHA,
+    # not 'main'. Ancestry on main is verified by a step below instead —
+    # GH expressions cannot pattern-match a SHA.
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'release' && github.event.release.tag_name == 'next' &&
-        github.event.release.target_commitish == 'main')
+      (github.event_name == 'release' && github.event.release.tag_name == 'next')
     name: Publish packages via nx release (OIDC)
     runs-on: ubuntu-latest
     # Serialize release runs — a queued run must not interleave its version
@@ -66,6 +69,19 @@ jobs:
           # that commit and versions match what was previewed exactly.
           # Dispatch versions from latest main instead.
           ref: ${{ github.event_name == 'release' && github.sha || 'main' }}
+      - name: Verify release target is on main
+        # The tag may pin any commit (draft target is a SHA now). Only
+        # release commits that are ancestors of main may be versioned —
+        # compare status 'ahead'/'identical' means HEAD is in main's
+        # history; 'behind'/'diverged' means it is not.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          status=$(gh api "repos/${{ github.repository }}/compare/${{ github.sha }}...main" --jq .status)
+          case "$status" in
+            ahead|identical) ;;
+            *) echo "release commit ${{ github.sha }} is '$status' relative to main — refusing" >&2; exit 1 ;;
+          esac
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
