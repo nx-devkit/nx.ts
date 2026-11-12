@@ -30,8 +30,9 @@ concurrency:
   group: release-ai-notes-${{ github.ref }}
   cancel-in-progress: true
 if: >-
-  github.event_name == 'workflow_dispatch' ||
-  github.event.workflow_run.conclusion == 'success'
+  github.ref == 'refs/heads/main' &&
+  (github.event_name == 'workflow_dispatch' ||
+   github.event.workflow_run.conclusion == 'success')
 ---
 
 # Release AI Notes
