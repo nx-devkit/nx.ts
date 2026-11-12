@@ -11,19 +11,18 @@ permissions:
   contents: read
   actions: read # gh run list/download for the preview artifact
 engine:
-  id: copilot
+  id: claude
+  model: anyrouter/free
   env:
-    # BYOK: route Copilot CLI inference to AnyRouter instead of GitHub's
-    # Copilot backend (org billing policy blocks it — see #174).
-    # anyrouter/free is unusable: its only free upstream is a dead
-    # Antigravity backend that returns an EOL notice for every request.
-    # anyrouter/auto is health-aware and verified live on agentic-shaped
-    # requests; it may occasionally select a paid upstream — accepted.
-    COPILOT_PROVIDER_BASE_URL: 'https://anyrouter.dev/api/v1'
-    COPILOT_PROVIDER_TYPE: openai
-    COPILOT_PROVIDER_WIRE_API: completions
-    COPILOT_MODEL: anyrouter/auto
-    COPILOT_PROVIDER_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
+    # BYOK: route Claude Code inference to AnyRouter instead of Anthropic's
+    # API and GitHub's Copilot backend (org billing blocks both — see #174).
+    # Engine+route picked by probe matrix: claude and codex both passed
+    # anyrouter/free AND anyrouter/auto end-to-end with a real safe-output;
+    # claude chosen for its bash allowlist support (codex allows all bash).
+    # copilot cannot use "auto" (reserved-alias resolution bug) and
+    # gemini/pi/agy failed their probes.
+    ANTHROPIC_BASE_URL: 'https://anyrouter.dev/api'
+    ANTHROPIC_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true
 network:
   allowed: [defaults, github, anyrouter.dev]
