@@ -58,7 +58,7 @@
     "@types/node": "^26.6.6",
     "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "@fission-ai/openspec": "^1.0.0"

@@ -29,7 +29,12 @@
   "plugins": [
     {
       "plugin": "../../packages/typescript-preset/src/plugin.ts",
-      "options": { "tsgo": false }
+      "options": {
+        "tsgo": false
+      }
     }
-  ]
+  ],
+  "affected": {
+    "legacy": true
+  }
 }
