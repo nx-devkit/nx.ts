@@ -10,12 +10,15 @@ on:
 permissions:
   contents: read
   actions: read # gh run list/download for the preview artifact
-  copilot-requests: write
 engine:
-  id: copilot
+  id: claude
+  model: anyrouter/free
+  env:
+    ANTHROPIC_BASE_URL: 'https://anyrouter.dev/api'
+    ANTHROPIC_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true
 network:
-  allowed: [defaults, github]
+  allowed: [defaults, github, anyrouter.dev]
 tools:
   github:
     # gh-proxy: pre-authenticated gh CLI in bash for all GitHub READS.
