@@ -1,7 +1,15 @@
 flowchart LR
-  PR["push to main"] --> CI["ci.yml: lint, build, test, typecheck, skills, diagrams"]
-  PR --> REL["release.yml (not gated on CI)"]
-  REL --> VER["nx release version (conventional commits)"]
-  VER --> PUB["nx release publish (OIDC trusted publishing)"]
-  PUB --> TAG["push commit + tags"]
+  PUSH["push to main"] --> CI["ci.yml: lint, build, test, typecheck, skills, diagrams"]
+  PUSH --> PV["release-preview.yml"]
+  PUSH --> REL["release.yml"]
+  DISP["workflow_dispatch"] --> REL
+  PV --> NEXT["draft 'next' release: predicted versions + changelogs"]
+  REL --> CHK["check job: nx release version --git-push=false → has_release?"]
+  CHK -->|"no version bump"| SKIP["pipeline skipped"]
+  CHK -->|"bump pending"| GATE["lint · check:spec · build · test · e2e · packed-tarball e2e"]
+  GATE --> VER["nx release version (conventional commits)"]
+  VER --> REWR["rewrite workspace: protocols for npm publish"]
+  REWR --> PUB["nx release publish via npm (OIDC trusted publishing)"]
+  PUB --> TAG["push release commit + tags"]
   TAG --> CH["project changelogs + GitHub releases"]
+  TAG -.->|"workflow_run: refresh 'next' draft"| PV
