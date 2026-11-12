@@ -4,17 +4,17 @@ safe-outputs:
     update-next-release:
       description: "Prepend a Highlights section to the 'next' draft release — the only release this job can touch"
       runs-on: ubuntu-latest
-      output: "Highlights prepended to the next draft release"
+      output: 'Highlights prepended to the next draft release'
       permissions:
         contents: write
         actions: read
       inputs:
         body:
-          description: "Markdown Highlights section to prepend to the release body"
+          description: 'Markdown Highlights section to prepend to the release body'
           required: true
           type: string
         preview_run:
-          description: "ID of the release-preview run whose artifact the highlights describe"
+          description: 'ID of the release-preview run whose artifact the highlights describe'
           required: true
           type: string
       steps:

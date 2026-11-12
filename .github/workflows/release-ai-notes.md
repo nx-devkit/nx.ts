@@ -3,7 +3,7 @@ name: release-ai-notes
 description: "Prepends AI-generated release highlights to the 'next' draft release after release-preview updates it"
 on:
   workflow_run:
-    workflows: ["release-preview"]
+    workflows: ['release-preview']
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -23,7 +23,7 @@ tools:
     # to read-only tokens anyway; the preview artifact is the data channel.
     mode: gh-proxy
   cli-proxy: true
-  bash: ["safeoutputs", "cat", "gh:*"]
+  bash: ['safeoutputs', 'cat', 'gh:*']
 imports:
   - shared/update-next-release.md
 concurrency:
