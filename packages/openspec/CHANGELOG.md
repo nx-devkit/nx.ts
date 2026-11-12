@@ -1,3 +1,13 @@
+## 0.0.9 (2026-11-12)
+
+### 🩹 Fixes
+
+- **openspec:** include specs and config in per-change validate inputs ([#165](https://github.com/nx-devkit/nx.ts/pull/165))
+
+### ❤️ Thank You
+
+- Petr Plenkov @ThePlenkov
+
 ## 0.0.8 (2026-11-10)
 
 This was a version bump only for @nx-devkit/openspec to align it with other projects, there were no code changes.
