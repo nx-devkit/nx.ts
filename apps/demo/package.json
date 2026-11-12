@@ -2,8 +2,8 @@
   "name": "@nx-devkit/demo-workspace",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "description": "Minimal Nx workspace that exercises all 4 @nx-devkit/* inference plugins (tsdown, oxlint, biome, typescript-preset).",
+  "type": "module",
   "scripts": {
     "build": "nx run-many -t build",
     "typecheck": "nx run-many -t typecheck",
@@ -16,10 +16,10 @@
     "@nx-devkit/oxlint": "workspace:*",
     "@nx-devkit/tsdown": "workspace:*",
     "@nx-devkit/typescript": "workspace:*",
-    "@nx/devkit": "23.2.1",
+    "@nx/devkit": "24.0.6",
     "@typescript/native-preview": "^7.0.0-dev.20260621.1",
-    "nx": "23.2.1",
-    "vitest": "^4.1.11",
-    "typescript": "^6.0.3"
+    "nx": "24.0.6",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
   }
 }
