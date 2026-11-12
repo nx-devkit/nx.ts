@@ -102,7 +102,8 @@ for (const tag of git('tag', '--points-at', 'HEAD').split('\n').filter(Boolean))
   const tags = git('tag', '--list', `${parsed.name}@*`, '--sort=-version:refname')
     .split('\n')
     .filter(Boolean);
-  const prev = tags[tags.indexOf(tag) + 1];
+  const idx = tags.indexOf(tag);
+  const prev = idx >= 0 ? tags[idx + 1] : undefined;
   const changelogPath = join(root, 'packages', dir, 'CHANGELOG.md');
   let body = '_Changelog entry missing — see the release-preview workflow log._';
   try {
@@ -180,5 +181,10 @@ mkdirSync(join(root, 'tmp'), { recursive: true });
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- same fixed workspace path
 writeFileSync(bodyPath, `${sections.join('\n').trimEnd()}\n`);
 
-emit({ title, has_release: 'true', changed: String(changed.length), bumps: String(bumps.length) });
+emit({
+  title: title.replace(/\s*\n\s*/g, ' '),
+  has_release: 'true',
+  changed: String(changed.length),
+  bumps: String(bumps.length),
+});
 console.log(`release-preview: ${pending.length} package(s), ${changed.length} with changes`);
