@@ -1,8 +1,11 @@
 name: release
 
 on:
-  push:
-    branches: [main]
+  # No push trigger — releases are draft-driven. release-preview.yml keeps
+  # the "next" draft release updated with the pending version bumps; a
+  # human publishing that draft IS the release decision.
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       specifier:
@@ -24,64 +27,16 @@ env:
   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
 
 jobs:
-  check:
-    name: Check for pending release
-    runs-on: ubuntu-latest
-    # Same loop guard as the release job — bot release commits must not
-    # retrigger. Dispatch always evaluates; the release job ignores the
-    # result for workflow_dispatch anyway.
-    if: github.ref == 'refs/heads/main' && (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)'))
-    permissions:
-      contents: read
-    outputs:
-      has_release: ${{ steps.detect.outputs.has_release }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 'lts/*'
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Configure git identity for the local version commit
-        run: |
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-      - name: Detect pending release
-        id: detect
-        # Same version derivation as the release job, local-only: a bump
-        # leaves a chore(release) commit carrying fresh @nx-devkit/* tags
-        # on HEAD; "no changes" leaves HEAD untouched, so tags on HEAD are
-        # exactly the pending release set. The local commit dies with the
-        # runner — nothing is pushed from this job.
-        run: |
-          npx nx release version --git-push=false
-          count=$(git tag --points-at HEAD | grep -c '^@nx-devkit/' || true)
-          if [ "$count" -gt 0 ]; then
-            echo "has_release=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_release=false" >> "$GITHUB_OUTPUT"
-          fi
-          git tag --points-at HEAD | grep '^@nx-devkit/' || echo "no pending release"
   release:
-    needs: check
-    # The release commit pushed by `nx release version` (message starts with
-    # "chore(release)") must not re-trigger this job — loop guard.
-    # head_commit is populated atomically in the push event payload.
-    # workflow_dispatch (main only) is a manual retry path and always runs.
-    # Push events run only when the check job found a pending version bump —
-    # chore/ci/workflow-only commits skip the whole pipeline. A failed or
-    # skipped check leaves has_release unset, which still skips pushes.
-    # always() keeps workflow_dispatch independent of the check job's
-    # health — the manual retry path must not die with a flaky detector.
+    # Fires only for the "next" draft release being published (the release
+    # button) or a manual dispatch on main. Per-package GitHub releases that
+    # nx release changelog creates along the way use their own tag names and
+    # are filtered out by the tag_name check — and GITHUB_TOKEN-created
+    # releases never trigger workflows anyway.
     if: >-
-      always() && github.ref == 'refs/heads/main' &&
-      (github.event_name == 'workflow_dispatch' ||
-        (!startsWith(github.event.head_commit.message, 'chore(release)') &&
-          needs.check.outputs.has_release == 'true'))
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'release' && github.event.release.tag_name == 'next' &&
+        github.event.release.target_commitish == 'main')
     name: Publish packages via nx release (OIDC)
     runs-on: ubuntu-latest
     # Serialize release runs — a queued run must not interleave its version
@@ -98,13 +53,19 @@ jobs:
     # No NODE_AUTH_TOKEN / NPM_TOKEN is needed; npm exchanges the GHA OIDC
     # token for a short-lived npm registry token automatically.
     permissions:
-      contents: write # release commits, tags, GitHub releases
+      contents: write # tags, GitHub releases
+      pull-requests: write # the release PR carrying version bumps
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+          # A release event checks out the published tag's commit — the
+          # draft pinned its target to the previewed SHA, so the tag IS
+          # that commit and versions match what was previewed exactly.
+          # Dispatch versions from latest main instead.
+          ref: ${{ github.event_name == 'release' && github.sha || 'main' }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -136,26 +97,38 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
       - name: Version packages (conventional commits)
+        id: version
         # Derives per-project bumps from conventional commits, updates
         # package.json versions, commits, and tags (@nx-devkit/x@y.z)
-        # LOCALLY. The push is deferred until after publish succeeds —
-        # otherwise a publish failure would leave tags marking unpublished
-        # versions as the baseline with no clean retry path. The version
-        # commit/tags die with the runner and the next run recomputes the
-        # same versions from the last pushed tag.
+        # LOCALLY. Publish runs before anything reaches the remote: the
+        # commit+changelog files land on a release branch opened as a PR
+        # (the ruleset requires it), the tags push directly. A failed
+        # publish leaves no remote trace; the next run recomputes the same
+        # versions from the last pushed tag.
         # `gh auth setup-git` scopes GITHUB_TOKEN to git ops in these steps
         # only — checkout keeps persist-credentials: false.
         run: |
           gh auth setup-git
           npx nx release version --git-push=false ${{ github.event_name == 'workflow_dispatch' && inputs.specifier != 'none' && format('--specifier={0}', inputs.specifier) || '' }}
+          # Fresh @nx-devkit/* tags on HEAD = the pending release set. No
+          # tags means nothing to release (e.g. specifier=none dispatch on
+          # a quiet main) — downstream steps gate on this output.
+          count=$(git tag --points-at HEAD | grep -c '^@nx-devkit/' || true)
+          if [ "$count" -gt 0 ]; then
+            echo "has_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_release=false" >> "$GITHUB_OUTPUT"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Rewrite workspace: protocols for npm publish'
+        if: steps.version.outputs.has_release == 'true'
         # npm rejects the workspace: protocol — the only such dep is the
         # private, bundled @nx-devkit/internal. Rewrites CI-tree manifests
         # only; committed sources keep workspace:*.
         run: bun scripts/rewrite-workspace-protocol.ts
       - name: Publish via nx release (OIDC trust, no NPM_TOKEN)
+        if: steps.version.outputs.has_release == 'true'
         # Nx Cloud client auto-update can occasionally fail to load a newly
         # downloaded bundle (e.g. missing .nx/cache/cloud/<version> module),
         # breaking nx startup before any publish runs. Keep Nx Cloud enabled,
@@ -179,25 +152,50 @@ jobs:
         env:
           NPM_CONFIG_PROVENANCE: 'true'
           NX_VERBOSE_LOGGING: 'true'
-      - name: Push release commit and tags
-        # Checkout is a detached HEAD — push HEAD to main explicitly.
-        # If a merge raced in during publish this push fails; the next run
-        # recomputes the same versions (baseline tag was never pushed) and
-        # self-heals — publish skips already-published versions.
+      - name: Push release branch and open PR
+        if: steps.version.outputs.has_release == 'true'
+        # The version commit must exist on the remote BEFORE changelog
+        # generation: nx release changelog creates per-package GitHub
+        # releases whose target_commitish is HEAD — an unpushed SHA would
+        # 422. It lives on chore/release-publish (main is PR-only per the
+        # ruleset); tags still wait until last so a mid-run failure never
+        # moves nx's version baseline without its PR.
+        # Fixed branch + force push keeps retries idempotent; a duplicate
+        # `gh pr create` falls back to the existing PR's URL — and FAILS
+        # if none exists, so tags can never push without a PR.
         run: |
-          git push origin HEAD:main
-          git push origin --tags
+          gh auth setup-git
+          pending=$(comm -23 \
+            <(git tag -l '@nx-devkit/*' | sort) \
+            <(git ls-remote --tags origin 'refs/tags/@nx-devkit/*' \
+                | sed 's|.*refs/tags/||; s|\^{}$||' | sort -u))
+          git push origin HEAD:refs/heads/chore/release-publish --force
+          if ! gh pr create \
+            --head chore/release-publish \
+            --title "chore(release): publish" \
+            --body "Automated release produced by \`nx release\` — version bumps and changelogs. Packages are already published to npm (OIDC); merging stamps the versions on main.\n\nTags: $(echo "$pending" | tr '\n' ' ')"; then
+            url=$(gh pr list --head chore/release-publish --state open \
+              --json url --jq '.[0].url // empty')
+            if [ -z "$url" ]; then
+              echo "gh pr create failed and no open release PR exists" >&2
+              exit 1
+            fi
+            echo "release PR already exists: $url"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate project changelogs and GitHub releases
+        if: steps.version.outputs.has_release == 'true'
         # Standalone `nx release changelog` requires an explicit version, so
         # run once per tag the version step created (`git tag --points-at
-        # HEAD` = exactly the new tags on the release commit). --from is the
-        # project's previous tag so entries diff correctly; --git-* stay off
-        # and the generated CHANGELOG.md files land in a single guarded
-        # `chore(release)` commit (the push loop-guards itself). A rerun is
-        # a clean no-op: an unchanged entry produces no diff and nx skips
-        # remote release creation in CI instead of prompting.
+        # HEAD` = exactly the new tags on the version commit — pushed to the
+        # release branch above, so the GitHub releases' target_commitish
+        # resolves). --from is the project's previous tag so entries diff
+        # correctly; --git-* stay off and the generated CHANGELOG.md files
+        # land in a local `chore(release)` commit pushed onto the same
+        # branch (the repo ruleset requires PRs on main, no direct push).
+        # nx release changelog also creates the per-package GitHub releases
+        # via API at generation time.
         run: |
           gh auth setup-git
           for tag in $(git tag --points-at HEAD | grep '^@nx-devkit/'); do
@@ -217,22 +215,32 @@ jobs:
             # --no-verify: the pre-commit hook does `git add -u`, which would
             # stage the CI-only workspace:* rewrites into this commit.
             git commit --no-verify -m "chore(release): changelogs"
-            # A merge racing in during the loop rejects this push; unlike the
-            # version commit, a lost changelog commit is NOT recomputed by the
-            # next run (that run only sees its own tags). Rebase + retry —
-            # changelog-only commits cannot conflict.
-            pushed=false
-            for attempt in 1 2 3; do
-              if git push origin HEAD:main; then
-                pushed=true
-                break
-              fi
-              git fetch origin main && git rebase origin/main
-            done
-            if [ "$pushed" != true ]; then
-              echo "Failed to push changelogs after 3 attempts" >&2
-              exit 1
-            fi
+            # Land the changelog files on the release branch so the PR
+            # carries them (fast-forward on the version commit).
+            git push origin HEAD:chore/release-publish
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push release tags
+        if: steps.version.outputs.has_release == 'true'
+        # Last remote write: tags are nx's version baseline. Pushing them
+        # only after the PR exists keeps a mid-run failure retryable —
+        # the next run recomputes the same versions (baseline unmoved),
+        # publish skips what is already on npm, and the PR updates.
+        run: git push origin --tags
+      - name: Clean up a published "next" release
+        # The draft was the button — its published form is transient.
+        # Deleting release+tag lets the next preview batch reuse "next";
+        # without this the published release would shadow every future
+        # draft. Runs on failure and on workflow_dispatch too: a stranded
+        # *published* next (e.g. a cancelled run skipped this step) would
+        # block the preview mechanism — but a live draft must survive, so
+        # only isDraft=false is deleted.
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          is_draft=$(gh release view next --json isDraft --jq .isDraft 2>/dev/null || echo missing)
+          if [ "$is_draft" = "false" ]; then
+            gh release delete next --yes --cleanup-tag || true
+          fi
