@@ -4,6 +4,7 @@ description: 'Engine matrix probe: gemini x anyrouter/auto'
 on:
   workflow_dispatch:
   push:
+    branches: ['probe/**']
 permissions:
   contents: read
 engine:

@@ -4,6 +4,7 @@ description: 'Engine matrix probe: agy x anyrouter/free'
 on:
   workflow_dispatch:
   push:
+    branches: ['probe/**']
 permissions:
   contents: read
 engine:
