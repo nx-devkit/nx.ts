@@ -20,6 +20,16 @@ network:
 tools:
   cli-proxy: true
   bash: ['safeoutputs', 'cat']
+safe-outputs:
+  jobs:
+    probe-ok:
+      description: 'Probe heartbeat — proves the safe-output path works'
+      runs-on: ubuntu-latest
+      output: 'probe ok'
+      permissions:
+        contents: read
+      steps:
+        - run: echo "probe-ok received"
 concurrency:
   group: probe-pi-free
   cancel-in-progress: true
@@ -27,6 +37,6 @@ concurrency:
 
 # Engine probe
 
-This is an engine-compatibility probe. Do exactly one thing: call the
-`noop` safe output exactly once with an empty JSON object, then stop.
+This is an engine-compatibility probe. Do exactly one thing: run
+`safeoutputs probe_ok '{}'` exactly once, then stop.
 Do not do anything else.

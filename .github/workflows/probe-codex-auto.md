@@ -19,6 +19,16 @@ network:
 tools:
   cli-proxy: true
   bash: ['*']
+safe-outputs:
+  jobs:
+    probe-ok:
+      description: 'Probe heartbeat — proves the safe-output path works'
+      runs-on: ubuntu-latest
+      output: 'probe ok'
+      permissions:
+        contents: read
+      steps:
+        - run: echo "probe-ok received"
 concurrency:
   group: probe-codex-auto
   cancel-in-progress: true
@@ -29,6 +39,6 @@ concurrency:
 This is an engine-compatibility probe. Do exactly one thing: use
 your shell/bash tool to run this exact command once:
 
-    safeoutputs noop '{}'
+    safeoutputs probe_ok '{}'
 
 Then stop. Do not do anything else.
