@@ -97,6 +97,17 @@ jobs:
       - name: Assemble preview markdown
         id: preview
         run: bun scripts/release-preview.ts
+      - name: Upload preview body for the AI notes workflow
+        # release-ai-notes (gh-aw) cannot read draft releases — GitHub only
+        # lists drafts for push-access tokens, and strict mode forbids
+        # contents:write on the agent job. The artifact is the data channel
+        # instead: the agent downloads it with actions:read.
+        if: steps.preview.outputs.has_release == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-preview-body
+          path: tmp/release-preview.md
+          retention-days: 1
       - name: Upsert the draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
