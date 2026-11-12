@@ -67,9 +67,12 @@ jobs:
     # head_commit is populated atomically in the push event payload.
     # workflow_dispatch (main only) is a manual retry path and always runs.
     # Push events run only when the check job found a pending version bump —
-    # chore/ci/workflow-only commits skip the whole pipeline.
+    # chore/ci/workflow-only commits skip the whole pipeline. A failed or
+    # skipped check leaves has_release unset, which still skips pushes.
+    # always() keeps workflow_dispatch independent of the check job's
+    # health — the manual retry path must not die with a flaky detector.
     if: >-
-      github.ref == 'refs/heads/main' &&
+      always() && github.ref == 'refs/heads/main' &&
       (github.event_name == 'workflow_dispatch' ||
         (!startsWith(github.event.head_commit.message, 'chore(release)') &&
           needs.check.outputs.has_release == 'true'))

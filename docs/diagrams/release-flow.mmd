@@ -5,8 +5,8 @@ flowchart LR
   DISP["workflow_dispatch"] --> REL
   PV --> NEXT["draft 'next' release: predicted versions + changelogs"]
   REL --> CHK["check job: nx release version --git-push=false → has_release?"]
-  CHK -->|"no version bump"| SKIP["pipeline skipped"]
-  CHK -->|"bump pending"| GATE["lint · check:spec · build · test · e2e · packed-tarball e2e"]
+  CHK -->|"push: no version bump"| SKIP["pipeline skipped"]
+  CHK -->|"push: bump pending"| GATE["lint · check:spec · build · test · e2e · packed-tarball e2e"]
   GATE --> VER["nx release version (conventional commits)"]
   VER --> REWR["rewrite workspace: protocols for npm publish"]
   REWR --> PUB["nx release publish via npm (OIDC trusted publishing)"]
