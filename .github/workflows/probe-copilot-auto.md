@@ -3,8 +3,7 @@ name: probe-copilot-auto
 description: 'Engine matrix probe: copilot x anyrouter/auto'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

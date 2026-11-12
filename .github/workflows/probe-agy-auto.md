@@ -3,8 +3,7 @@ name: probe-agy-auto
 description: 'Engine matrix probe: agy x anyrouter/auto'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

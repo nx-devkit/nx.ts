@@ -3,8 +3,7 @@ name: probe-codex-auto
 description: 'Engine matrix probe: codex x anyrouter/auto'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

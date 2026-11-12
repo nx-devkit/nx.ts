@@ -3,8 +3,7 @@ name: probe-codex-free
 description: 'Engine matrix probe: codex x anyrouter/free'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

@@ -3,8 +3,7 @@ name: probe-pi-auto
 description: 'Engine matrix probe: pi x anyrouter/auto'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

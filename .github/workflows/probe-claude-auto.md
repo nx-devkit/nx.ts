@@ -3,8 +3,7 @@ name: probe-claude-auto
 description: 'Engine matrix probe: claude x anyrouter/auto'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

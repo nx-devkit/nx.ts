@@ -3,8 +3,7 @@ name: probe-agy-free
 description: 'Engine matrix probe: agy x anyrouter/free'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

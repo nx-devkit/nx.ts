@@ -3,8 +3,7 @@ name: probe-copilot-free
 description: 'Engine matrix probe: copilot x anyrouter/free'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:

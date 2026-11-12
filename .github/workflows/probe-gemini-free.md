@@ -3,8 +3,7 @@ name: probe-gemini-free
 description: 'Engine matrix probe: gemini x anyrouter/free'
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
+  push:
 permissions:
   contents: read
 engine:
