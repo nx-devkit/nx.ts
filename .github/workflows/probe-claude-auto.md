@@ -26,6 +26,9 @@ concurrency:
 
 # Engine probe
 
-This is an engine-compatibility probe. Do exactly one thing: call the
-`noop` safe output exactly once with an empty JSON object, then stop.
-Do not do anything else.
+This is an engine-compatibility probe. Do exactly one thing: use
+your shell/bash tool to run this exact command once:
+
+    safeoutputs noop '{}'
+
+Then stop. Do not do anything else.
