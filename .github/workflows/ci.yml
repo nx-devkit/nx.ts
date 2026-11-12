@@ -34,6 +34,8 @@ jobs:
         # catches stale locks after editing workflow .md sources or their
         # imports. Compiler version is read from the existing lockfile so
         # the check tracks upgrades instead of pinning a stale release.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           COMPILER="$(grep -ho '"compiler_version":"[^"]*"' .github/workflows/*.lock.yml 2>/dev/null | head -1 | cut -d'"' -f4)"
           if [ -n "$COMPILER" ]; then

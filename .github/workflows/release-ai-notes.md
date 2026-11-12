@@ -16,10 +16,11 @@ engine:
   env:
     # BYOK: route Claude Code inference to AnyRouter instead of Anthropic's
     # API and GitHub's Copilot backend (org billing blocks both — see #174).
-    # Engine+route picked by probe matrix: claude is the only engine that
-    # passed anyrouter/free AND anyrouter/auto end-to-end with a real
-    # safe-output; copilot cannot use "auto" (reserved-alias resolution
-    # bug) and gemini/pi/agy failed their probes.
+    # Engine+route picked by probe matrix: claude and codex both passed
+    # anyrouter/free AND anyrouter/auto end-to-end with a real safe-output;
+    # claude chosen for its bash allowlist support (codex allows all bash).
+    # copilot cannot use "auto" (reserved-alias resolution bug) and
+    # gemini/pi/agy failed their probes.
     ANTHROPIC_BASE_URL: 'https://anyrouter.dev/api'
     ANTHROPIC_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true
