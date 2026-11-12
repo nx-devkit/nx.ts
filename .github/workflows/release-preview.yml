@@ -107,7 +107,14 @@ jobs:
           existing=$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)
           if [ "$HAS_RELEASE" != "true" ]; then
             if [ -n "$existing" ]; then
-              gh release delete "$tag" --yes --cleanup-tag
+              # Draft releases never create the git ref — --cleanup-tag would
+              # 422 deleting refs/tags/next. Only pass it when the ref exists
+              # (e.g. someone published the draft).
+              if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+                gh release delete "$tag" --yes --cleanup-tag
+              else
+                gh release delete "$tag" --yes
+              fi
             fi
             exit 0
           fi
