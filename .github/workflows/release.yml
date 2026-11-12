@@ -17,6 +17,12 @@ on:
         default: none
         options: [none, patch, minor, major]
 
+# Nx Cloud CI access token (repo secret). Secrets are not injected into the
+# environment automatically — without this mapping every nx invocation in
+# these jobs logs 401 "insufficient access" warnings (metrics, ultracache).
+env:
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+
 jobs:
   check:
     name: Check for pending release
