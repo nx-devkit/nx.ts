@@ -17,12 +17,14 @@ engine:
     # Copilot backend (org billing policy blocks it — see #174).
     # anyrouter/free is unusable: its only free upstream is a dead
     # Antigravity backend that returns an EOL notice for every request.
-    # anyrouter/auto is health-aware and verified live on agentic-shaped
-    # requests; it may occasionally select a paid upstream — accepted.
+    # anyrouter/auto is rejected by gh-aw's model resolution ("auto" is a
+    # reserved Copilot alias needing catalog support AnyRouter lacks).
+    # anyrouter/latest is a health-aware smart route; observed resolving
+    # to meituan/longcat-2.5 via the free hermes-agent backend ($0).
     COPILOT_PROVIDER_BASE_URL: 'https://anyrouter.dev/api/v1'
     COPILOT_PROVIDER_TYPE: openai
     COPILOT_PROVIDER_WIRE_API: completions
-    COPILOT_MODEL: anyrouter/auto
+    COPILOT_MODEL: anyrouter/latest
     COPILOT_PROVIDER_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true
 network:

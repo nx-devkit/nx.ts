@@ -29,6 +29,22 @@ jobs:
           python-version: '3.13'
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: gh-aw lockfile freshness
+        # Regenerate .github/workflows/*.lock.yml and fail on any diff —
+        # catches stale locks after editing workflow .md sources or their
+        # imports. Compiler version is read from the existing lockfile so
+        # the check tracks upgrades instead of pinning a stale release.
+        run: |
+          COMPILER="$(grep -ho '"compiler_version":"[^"]*"' .github/workflows/*.lock.yml 2>/dev/null | head -1 | cut -d'"' -f4)"
+          if [ -n "$COMPILER" ]; then
+            gh extension install github/gh-aw --pin "$COMPILER"
+          else
+            gh extension install github/gh-aw
+          fi
+          gh aw compile
+          find .github/workflows -name '*.lock.yml' | bunx nx format:write --stdin
+          git add -N .github/workflows/
+          git diff --exit-code -- .github/workflows/
       - name: Format check
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
