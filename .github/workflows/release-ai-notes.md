@@ -12,15 +12,19 @@ permissions:
   actions: read # gh run list/download for the preview artifact
 engine:
   id: claude
-  model: anyrouter/free
+  model: anyrouter/auto
   env:
     # BYOK: route Claude Code inference to AnyRouter instead of Anthropic's
     # API and GitHub's Copilot backend (org billing blocks both — see #174).
-    # Engine+route picked by probe matrix: claude and codex both passed
-    # anyrouter/free AND anyrouter/auto end-to-end with a real safe-output;
-    # claude chosen for its bash allowlist support (codex allows all bash).
-    # copilot cannot use "auto" (reserved-alias resolution bug) and
-    # gemini/pi/agy failed their probes.
+    # Engine+route picked by probe matrix + production evidence: claude
+    # engine with anyrouter/auto — auto's health-aware routing consistently
+    # resolves to free upstreams (observed: cohere/north-mini-code via kilo,
+    # cost=0, 10/10 probes) while anyrouter/free intermittently routes
+    # agentic requests to a dead Antigravity upstream that returns an EOL
+    # notice as a 200 response (two production failures, issue #178).
+    # claude and codex both passed route probes; claude chosen for its bash
+    # allowlist support (codex allows all bash). copilot cannot use "auto"
+    # (reserved-alias resolution bug); gemini/pi/agy failed their probes.
     ANTHROPIC_BASE_URL: 'https://anyrouter.dev/api'
     ANTHROPIC_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true

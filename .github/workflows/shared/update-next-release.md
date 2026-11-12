@@ -23,6 +23,14 @@ safe-outputs:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
             set -euo pipefail
+            # Threat-detection gate: write only on a clean verdict.
+            # 'warning' means detection produced no verdict (tooling
+            # failure under continue-on-error) — fail closed rather than
+            # publish unverified agent output to the release draft.
+            case "${GH_AW_DETECTION_CONCLUSION:-}" in
+              success|skipped) ;;
+              *) echo "threat detection verdict absent/unclean: '${GH_AW_DETECTION_CONCLUSION:-<empty>}' — refusing to write" >&2; exit 1 ;;
+            esac
             item=$(jq -c '.items[] | select(.type == "update_next_release")' "$GH_AW_AGENT_OUTPUT" | head -1)
             [ -n "$item" ] || { echo "no update_next_release item in agent output" >&2; exit 1; }
             body=$(jq -r '.body // empty' <<<"$item")
