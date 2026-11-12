@@ -11,11 +11,16 @@ permissions:
   contents: read
   actions: read # gh run list/download for the preview artifact
 engine:
-  id: claude
-  model: anyrouter/free
+  id: copilot
   env:
-    ANTHROPIC_BASE_URL: 'https://anyrouter.dev/api'
-    ANTHROPIC_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
+    # BYOK: route Copilot CLI inference to AnyRouter instead of GitHub's
+    # Copilot backend (org billing policy blocks it — see #174).
+    # anyrouter/free = smart route across $0 models only (auto can hit paid).
+    COPILOT_PROVIDER_BASE_URL: 'https://anyrouter.dev/api/v1'
+    COPILOT_PROVIDER_TYPE: openai
+    COPILOT_PROVIDER_WIRE_API: completions
+    COPILOT_MODEL: anyrouter/free
+    COPILOT_PROVIDER_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true
 network:
   allowed: [defaults, github, anyrouter.dev]
