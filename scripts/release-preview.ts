@@ -220,5 +220,9 @@ emit({
   has_release: 'true',
   changed: String(changed.length),
   bumps: String(bumps.length),
+  // The pushed main commit this preview describes — the draft pins its
+  // target to it so publishing releases exactly what was previewed, even
+  // if main moved since.
+  base,
 });
 console.log(`release-preview: ${pending.length} package(s), ${changed.length} with changes`);

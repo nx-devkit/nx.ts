@@ -102,6 +102,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TITLE: ${{ steps.preview.outputs.title }}
           HAS_RELEASE: ${{ steps.preview.outputs.has_release }}
+          BASE_SHA: ${{ steps.preview.outputs.base }}
         run: |
           tag="next"
           existing=$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)
@@ -119,8 +120,11 @@ jobs:
             exit 0
           fi
           if [ -n "$existing" ]; then
-            gh release edit "$tag" --title "$TITLE" --notes-file tmp/release-preview.md
+            # Pin target to the previewed commit on every refresh — the
+            # draft is a snapshot of BASE_SHA, not a moving branch head.
+            gh release edit "$tag" --target "$BASE_SHA" \
+              --title "$TITLE" --notes-file tmp/release-preview.md
           else
-            gh release create "$tag" --draft --target main \
+            gh release create "$tag" --draft --target "$BASE_SHA" \
               --title "$TITLE" --notes-file tmp/release-preview.md
           fi

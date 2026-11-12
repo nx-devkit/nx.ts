@@ -61,9 +61,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          # A release event checks out the published tag by default — that
-          # is the draft-time commit. Always version from latest main.
-          ref: main
+          # A release event checks out the published tag's commit — the
+          # draft pinned its target to the previewed SHA, so the tag IS
+          # that commit and versions match what was previewed exactly.
+          # Dispatch versions from latest main instead.
+          ref: ${{ github.event_name == 'release' && github.sha || 'main' }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -150,17 +152,50 @@ jobs:
         env:
           NPM_CONFIG_PROVENANCE: 'true'
           NX_VERBOSE_LOGGING: 'true'
+      - name: Push release branch and open PR
+        if: steps.version.outputs.has_release == 'true'
+        # The version commit must exist on the remote BEFORE changelog
+        # generation: nx release changelog creates per-package GitHub
+        # releases whose target_commitish is HEAD — an unpushed SHA would
+        # 422. It lives on chore/release-publish (main is PR-only per the
+        # ruleset); tags still wait until last so a mid-run failure never
+        # moves nx's version baseline without its PR.
+        # Fixed branch + force push keeps retries idempotent; a duplicate
+        # `gh pr create` falls back to the existing PR's URL — and FAILS
+        # if none exists, so tags can never push without a PR.
+        run: |
+          gh auth setup-git
+          pending=$(comm -23 \
+            <(git tag -l '@nx-devkit/*' | sort) \
+            <(git ls-remote --tags origin 'refs/tags/@nx-devkit/*' \
+                | sed 's|.*refs/tags/||; s|\^{}$||' | sort -u))
+          git push origin HEAD:refs/heads/chore/release-publish --force
+          if ! gh pr create \
+            --head chore/release-publish \
+            --title "chore(release): publish" \
+            --body "Automated release produced by \`nx release\` — version bumps and changelogs. Packages are already published to npm (OIDC); merging stamps the versions on main.\n\nTags: $(echo "$pending" | tr '\n' ' ')"; then
+            url=$(gh pr list --head chore/release-publish --state open \
+              --json url --jq '.[0].url // empty')
+            if [ -z "$url" ]; then
+              echo "gh pr create failed and no open release PR exists" >&2
+              exit 1
+            fi
+            echo "release PR already exists: $url"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate project changelogs and GitHub releases
         if: steps.version.outputs.has_release == 'true'
         # Standalone `nx release changelog` requires an explicit version, so
         # run once per tag the version step created (`git tag --points-at
-        # HEAD` = exactly the new tags on the version commit — the changelog
-        # commit does not exist yet). --from is the project's previous tag so
-        # entries diff correctly; --git-* stay off and the generated
-        # CHANGELOG.md files land in a local `chore(release)` commit on the
-        # release branch (pushed by the next step — the repo ruleset requires
-        # PRs on main, no direct push). nx release changelog also creates the
-        # per-package GitHub releases via API at generation time.
+        # HEAD` = exactly the new tags on the version commit — pushed to the
+        # release branch above, so the GitHub releases' target_commitish
+        # resolves). --from is the project's previous tag so entries diff
+        # correctly; --git-* stay off and the generated CHANGELOG.md files
+        # land in a local `chore(release)` commit pushed onto the same
+        # branch (the repo ruleset requires PRs on main, no direct push).
+        # nx release changelog also creates the per-package GitHub releases
+        # via API at generation time.
         run: |
           gh auth setup-git
           for tag in $(git tag --points-at HEAD | grep '^@nx-devkit/'); do
@@ -180,35 +215,19 @@ jobs:
             # --no-verify: the pre-commit hook does `git add -u`, which would
             # stage the CI-only workspace:* rewrites into this commit.
             git commit --no-verify -m "chore(release): changelogs"
+            # Land the changelog files on the release branch so the PR
+            # carries them (fast-forward on the version commit).
+            git push origin HEAD:chore/release-publish
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Open the release PR, then push tags
+      - name: Push release tags
         if: steps.version.outputs.has_release == 'true'
-        # Order matters: the PR goes first, tags last. Orphaned remote tags
-        # would move nx's version baseline while package.json stamps sit
-        # unmerged in a PR — a retry would then compute the NEXT versions
-        # instead of recomputing these. Fixed branch name + force push keeps
-        # retries idempotent: same branch, PR updates in place, and a
-        # duplicate `gh pr create` falls back to printing the existing URL.
-        # npm publish already ran above: if the PR stalls, the registry is
-        # ahead of the repo until it merges.
-        run: |
-          gh auth setup-git
-          pending=$(comm -23 \
-            <(git tag -l '@nx-devkit/*' | sort) \
-            <(git ls-remote --tags origin 'refs/tags/@nx-devkit/*' \
-                | sed 's|.*refs/tags/||; s|\^{}$||' | sort -u))
-          git push origin HEAD:refs/heads/chore/release-publish --force
-          gh pr create \
-            --head chore/release-publish \
-            --title "chore(release): publish" \
-            --body "Automated release produced by \`nx release\` — version bumps and changelogs. Packages are already published to npm (OIDC); merging stamps the versions on main.\n\nTags: $(echo "$pending" | tr '\n' ' ')" \
-            || gh pr list --head chore/release-publish --state open \
-                --json url --jq '.[0].url'
-          git push origin --tags
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Last remote write: tags are nx's version baseline. Pushing them
+        # only after the PR exists keeps a mid-run failure retryable —
+        # the next run recomputes the same versions (baseline unmoved),
+        # publish skips what is already on npm, and the PR updates.
+        run: git push origin --tags
       - name: Clean up a published "next" release
         # The draft was the button — its published form is transient.
         # Deleting release+tag lets the next preview batch reuse "next";
