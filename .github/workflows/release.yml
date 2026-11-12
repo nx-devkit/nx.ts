@@ -108,6 +108,15 @@ jobs:
           # (all=true when other only* flags are undefined). Keep best-effort so a broken
           # cloud client that can't be loaded for cleanup still gets its bundle removed.
           npx nx reset --onlyCloud --no-onlyDaemon || true
+          # nx release publish runs registry ops through the detected package
+          # manager, and nx has no per-command override — cli.packageManager
+          # wins detectPackageManager(). Point it at npm for this step only:
+          # npm accepts scoped --@scope:registry args (bun >=1.4 rejects them,
+          # nrwl/nx#37723) and OIDC trusted publishing is npm-native anyway —
+          # bun publish lacks it, so nx would fall back to npm on auth errors.
+          # Restore on any exit so later steps still see bun.
+          trap 'git checkout -- nx.json' EXIT
+          sed -i 's/"packageManager": "bun"/"packageManager": "npm"/' nx.json
           npx nx release publish --verbose
         env:
           NPM_CONFIG_PROVENANCE: 'true'
