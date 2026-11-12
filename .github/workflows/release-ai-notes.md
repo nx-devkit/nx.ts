@@ -41,10 +41,10 @@ You maintain the human-facing summary of the pending release shown in the draft 
 
 ## Steps
 
-1. Find the latest completed `release-preview` run on `main`:
+1. Find the latest successful `release-preview` run on `main`:
 
    ```
-   gh run list --workflow release-preview --branch main --status completed --limit 1 --json databaseId
+   gh run list --workflow release-preview --branch main --status success --limit 1 --json databaseId
    ```
 
    If the list is empty, take no action — use the noop safe-output call.
