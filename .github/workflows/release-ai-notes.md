@@ -37,7 +37,7 @@ tools:
     # to read-only tokens anyway; the preview artifact is the data channel.
     mode: gh-proxy
   cli-proxy: true
-  bash: ['safeoutputs', 'cat', 'gh:*', 'sleep']
+  bash: ['safeoutputs', 'cat', 'gh:*', 'sleep:*']
 imports:
   - shared/update-next-release.md
 concurrency:
@@ -63,12 +63,13 @@ You maintain the human-facing summary of the pending release shown in the draft 
 
    If the list is empty, take no action — use the noop safe-output call.
 
-2. Download its `release-preview-body` artifact and read the markdown. Artifact blob fetches can 404 transiently right after the preview completes — retry before concluding it is missing:
+2. Download its `release-preview-body` artifact and read the markdown:
 
    ```bash
-   for i in 1 2 3; do gh run download <run-id> -n release-preview-body -D /tmp/preview && break; sleep $((i<3 ? 10 : 0)); done
-   cat /tmp/preview/release-preview.md
+   gh run download <run-id> -n release-preview-body -D /tmp/preview
    ```
+
+   Artifact blob fetches can 404 transiently right after the preview completes — if the download fails, run `sleep 30` and retry, up to 3 attempts before concluding the artifact is missing. Then read `/tmp/preview/release-preview.md`.
 
    If the artifact does not exist after retries (the preview found nothing pending and deleted the draft), take no action — noop.
 
