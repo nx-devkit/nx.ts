@@ -1,5 +1,12 @@
 ---
 safe-outputs:
+  threat-detection:
+    # Detection inherits the main engine+model (anyrouter/auto → currently
+    # cohere/north-mini-code), which writes a correct prose verdict but
+    # fails to call the threat_detection_result tool — every run ends in
+    # no_verdict → warning → safe outputs aborted. Give detection a
+    # stronger free smart route; observed resolving to meituan/longcat-2.5.
+    model: anyrouter/latest
   jobs:
     update-next-release:
       description: "Prepend a Highlights section to the 'next' draft release — the only release this job can touch"
