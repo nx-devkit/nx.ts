@@ -131,7 +131,10 @@ jobs:
       # Reusable-call overrides; native triggers leave inputs unset and the
       # || fallbacks reproduce this repo's conventions exactly.
       BRANCH: ${{ inputs.branch || 'main' }}
-      TAG_PREFIX: ${{ inputs.tag-prefix || '@nx-devkit/' }}
+      # `||` would collapse an explicit empty prefix (unscoped `pkg@1.2.3`
+      # tags are valid); on workflow_call the input default already applies,
+      # so only non-call events take the repository fallback.
+      TAG_PREFIX: ${{ github.event_name != 'workflow_call' && '@nx-devkit/' || inputs.tag-prefix }}
       RELEASE_BRANCH: ${{ inputs.release-branch || 'chore/release-publish' }}
       CHANGELOG_GLOB: ${{ inputs.changelog-glob || 'packages/*/CHANGELOG.md' }}
     steps:
@@ -192,8 +195,13 @@ jobs:
       - name: Custom verify commands
         # Reusable callers replace the nx.ts-specific chain above with
         # their own gate (or `true` to skip verification entirely).
+        # Caller-authored workflow config, passed as data (env) rather than
+        # interpolated into the script — same trust domain as the caller's
+        # own `run:` steps, but no template-injection surface.
         if: ${{ inputs.verify-command }}
-        run: ${{ inputs.verify-command }}
+        env:
+          VERIFY_COMMAND: ${{ inputs.verify-command }}
+        run: bash -c "$VERIFY_COMMAND"
       - name: Configure git identity for release commits
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"

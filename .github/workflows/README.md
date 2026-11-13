@@ -56,7 +56,6 @@ jobs:
       issues: write # gh-aw status/activation comments
       pull-requests: write # gh-aw status comments on PRs
       checks: read # gh-aw conclusion reporting
-      id-token: write # required by gh-aw even when admission is disabled
     uses: nx-devkit/nx.ts/.github/workflows/release-ai-notes.lock.yml@<ref>
     secrets:
       ANYROUTER_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
