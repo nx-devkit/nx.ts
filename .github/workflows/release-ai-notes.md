@@ -12,18 +12,18 @@ permissions:
   actions: read # gh run list/download for the preview artifact
 engine:
   id: claude
-  model: anyrouter/auto
+  model: anyrouter/latest
   env:
     # BYOK: route Claude Code inference to AnyRouter instead of Anthropic's
     # API and GitHub's Copilot backend (org billing blocks both — see #174).
     # Engine+route picked by probe matrix + production evidence: claude
-    # engine with anyrouter/auto — auto's health-aware routing consistently
-    # resolves to free upstreams (observed: cohere/north-mini-code via kilo,
-    # cost=0, 10/10 probes) while anyrouter/free intermittently routes
-    # agentic requests to a dead Antigravity upstream that returns an EOL
-    # notice as a 200 response (two production failures, issue #178).
-    # claude and codex both passed route probes; claude chosen for its bash
-    # allowlist support (codex allows all bash). copilot cannot use "auto"
+    # engine with anyrouter/latest — auto resolved to cohere/north-mini-code,
+    # too weak for this agentic task (transient artifact 404 → wrong terminal
+    # tool, run 43337696113). latest resolves to meituan/longcat-2.5
+    # (cost=0, reliable tool_use in probes). anyrouter/free intermittently
+    # routes to a dead Antigravity upstream (issue #178). claude and codex
+    # both passed route probes; claude chosen for its bash allowlist
+    # support (codex allows all bash). copilot cannot use "auto"
     # (reserved-alias resolution bug); gemini/pi/agy failed their probes.
     ANTHROPIC_BASE_URL: 'https://anyrouter.dev/api'
     ANTHROPIC_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
@@ -37,7 +37,7 @@ tools:
     # to read-only tokens anyway; the preview artifact is the data channel.
     mode: gh-proxy
   cli-proxy: true
-  bash: ['safeoutputs', 'cat', 'gh:*']
+  bash: ['safeoutputs', 'cat', 'gh:*', 'sleep']
 imports:
   - shared/update-next-release.md
 concurrency:
@@ -63,13 +63,14 @@ You maintain the human-facing summary of the pending release shown in the draft 
 
    If the list is empty, take no action — use the noop safe-output call.
 
-2. Download its `release-preview-body` artifact and read the markdown:
+2. Download its `release-preview-body` artifact and read the markdown. Artifact blob fetches can 404 transiently right after the preview completes — retry before concluding it is missing:
 
    ```bash
-   gh run download <run-id> -n release-preview-body -D /tmp/preview && cat /tmp/preview/release-preview.md
+   for i in 1 2 3; do gh run download <run-id> -n release-preview-body -D /tmp/preview && break; sleep 10; done
+   cat /tmp/preview/release-preview.md
    ```
 
-   If the artifact does not exist (the preview found nothing pending and deleted the draft), take no action — noop.
+   If the artifact does not exist after retries (the preview found nothing pending and deleted the draft), take no action — noop.
 
 3. Write a `## Highlights` section in Markdown:
    - One-line overall summary at the top, then 3–6 bullets maximum.
