@@ -190,6 +190,7 @@ const range = (p: Pending): string => `\`${p.name}\` — ${p.from ?? 'new'} → 
 const sections: string[] = [
   `**Next release preview** — what \`nx release\` will publish for the commits on \`main\`.`,
   `Regenerated on every push to \`main\` and removed when nothing is pending.`,
+  `**Publishing this draft ships the release** — publishing it is the release decision.`,
   ``,
   `Base: [\`${base.slice(0, 7)}\`](${repoUrl}/commit/${base}) · generated ${new Date().toISOString()}`,
 ];
