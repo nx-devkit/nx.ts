@@ -133,8 +133,12 @@ jobs:
           if [ -n "$existing" ]; then
             # Pin target to the previewed commit on every refresh — the
             # draft is a snapshot of BASE_SHA, not a moving branch head.
-            # --prerelease marks the preview as non-production ready.
-            gh release edit "$tag" --target "$BASE_SHA" --prerelease \
+            # --prerelease marks the preview as non-production ready, but
+            # only on drafts — never downgrade an already-published release.
+            is_draft=$(gh release view "$tag" --json isDraft --jq .isDraft)
+            prerelease_flag=()
+            [ "$is_draft" = "true" ] && prerelease_flag=(--prerelease)
+            gh release edit "$tag" --target "$BASE_SHA" "${prerelease_flag[@]}" \
               --title "$TITLE" --notes-file tmp/release-preview.md
           else
             gh release create "$tag" --draft --prerelease --target "$BASE_SHA" \
