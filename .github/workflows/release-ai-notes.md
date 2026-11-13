@@ -47,6 +47,8 @@ jobs:
   fetch_preview:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      actions: read
     outputs:
       run_id: ${{ steps.preview.outputs.run_id }}
       body: ${{ steps.preview.outputs.body }}
@@ -55,16 +57,28 @@ jobs:
         id: preview
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           RUN_ID=$(gh run list --workflow release-preview --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId // empty')
           BODY_FILE=/tmp/preview/release-preview.md
-          if [ -n "$RUN_ID" ] && gh run download "$RUN_ID" -n release-preview-body -D /tmp/preview 2>/dev/null && [ -f "$BODY_FILE" ]; then
+          rm -rf /tmp/preview
+          if [ -n "$RUN_ID" ]; then
+            for attempt in 1 2 3; do
+              if gh run download "$RUN_ID" -n release-preview-body -D /tmp/preview 2>/dev/null && [ -f "$BODY_FILE" ]; then
+                break
+              fi
+              rm -rf /tmp/preview
+              if [ "$attempt" -lt 3 ]; then sleep 10; fi
+            done
+          fi
+          if [ -n "$RUN_ID" ] && [ -f "$BODY_FILE" ]; then
+            DELIM="__PREVIEW_BODY_$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')__"
             {
               echo "run_id=$RUN_ID"
-              echo "body<<__PREVIEW_EOF__"
+              echo "body<<$DELIM"
               cat "$BODY_FILE"
-              echo "__PREVIEW_EOF__"
+              echo "$DELIM"
             } >> "$GITHUB_OUTPUT"
           else
             { echo "run_id="; echo "body="; } >> "$GITHUB_OUTPUT"
