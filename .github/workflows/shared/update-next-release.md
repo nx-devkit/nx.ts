@@ -28,6 +28,7 @@ safe-outputs:
         - name: Prepend highlights to the next draft
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GH_REPO: ${{ github.repository }}
           run: |
             set -euo pipefail
             # Threat-detection gate: write only on a clean verdict.
