@@ -29,6 +29,8 @@ on:
 permissions:
   contents: read
   actions: read # artifact lookup + gh run download for the preview body
+  issues: read # gh-aw GitHub toolsets require these reads
+  pull-requests: read
 engine:
   id: claude
   model: anyrouter/latest
