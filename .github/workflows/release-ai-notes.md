@@ -63,26 +63,34 @@ jobs:
           RUN_ID=$(gh run list --workflow release-preview --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId // empty')
           BODY_FILE=/tmp/preview/release-preview.md
           rm -rf /tmp/preview
-          if [ -n "$RUN_ID" ]; then
-            for attempt in 1 2 3; do
-              if gh run download "$RUN_ID" -n release-preview-body -D /tmp/preview 2>/dev/null && [ -f "$BODY_FILE" ]; then
-                break
-              fi
-              rm -rf /tmp/preview
-              if [ "$attempt" -lt 3 ]; then sleep 10; fi
-            done
-          fi
-          if [ -n "$RUN_ID" ] && [ -f "$BODY_FILE" ]; then
-            DELIM="__PREVIEW_BODY_$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')__"
-            {
-              echo "run_id=$RUN_ID"
-              echo "body<<$DELIM"
-              cat "$BODY_FILE"
-              echo "$DELIM"
-            } >> "$GITHUB_OUTPUT"
-          else
+          if [ -z "$RUN_ID" ]; then
             { echo "run_id="; echo "body="; } >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          # Absent artifact = preview found nothing pending → legitimate noop.
+          if ! gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name=="release-preview-body") | .id' | grep -q .; then
+            { echo "run_id="; echo "body="; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Artifact exists — download must succeed; fail loudly after retries.
+          for attempt in 1 2 3; do
+            if gh run download "$RUN_ID" -n release-preview-body -D /tmp/preview && [ -f "$BODY_FILE" ]; then
+              break
+            fi
+            rm -rf /tmp/preview
+            if [ "$attempt" -eq 3 ]; then
+              echo "release-preview-body exists on run $RUN_ID but download failed after 3 attempts" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          DELIM="__PREVIEW_BODY_$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')__"
+          {
+            echo "run_id=$RUN_ID"
+            echo "body<<$DELIM"
+            cat "$BODY_FILE"
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
 imports:
   - shared/update-next-release.md
 concurrency:
