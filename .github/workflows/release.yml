@@ -29,12 +29,13 @@ on:
       specifier:
         description: >-
           Force a version specifier for all release projects, bypassing
-          conventional-commit derivation. Leave at "none" for the usual
-          publish.
+          conventional-commit derivation. One of none|patch|minor|major —
+          anything else behaves as "none".
         required: false
-        type: choice
+        # workflow_call supports only boolean|number|string — `choice` is
+        # workflow_dispatch-only and would make GitHub reject this file.
+        type: string
         default: none
-        options: [none, patch, minor, major]
       branch:
         description: Default branch releases are cut from.
         required: false
@@ -56,7 +57,8 @@ on:
       release-branch:
         description: >-
           Branch the version+changelog commit is pushed to for the release
-          PR. Must be a branch the caller's rulesets allow.
+          PR. Must be a dedicated branch the caller's rulesets allow —
+          NEVER the base branch itself (the push is --force).
         required: false
         type: string
         default: chore/release-publish
@@ -128,6 +130,7 @@ jobs:
     env:
       # Reusable-call overrides; native triggers leave inputs unset and the
       # || fallbacks reproduce this repo's conventions exactly.
+      BRANCH: ${{ inputs.branch || 'main' }}
       TAG_PREFIX: ${{ inputs.tag-prefix || '@nx-devkit/' }}
       RELEASE_BRANCH: ${{ inputs.release-branch || 'chore/release-publish' }}
       CHANGELOG_GLOB: ${{ inputs.changelog-glob || 'packages/*/CHANGELOG.md' }}
@@ -141,18 +144,18 @@ jobs:
           # that commit and versions match what was previewed exactly.
           # Dispatch versions from latest main instead.
           ref: ${{ github.event_name == 'release' && github.sha || format('refs/heads/{0}', inputs.branch || 'main') }}
-      - name: Verify release target is on main
+      - name: Verify release target is on the release branch
         # The tag may pin any commit (draft target is a SHA now). Only
-        # release commits that are ancestors of main may be versioned —
-        # compare status 'ahead'/'identical' means HEAD is in main's
-        # history; 'behind'/'diverged' means it is not.
+        # release commits that are ancestors of the release branch may be
+        # versioned — compare status 'ahead'/'identical' means HEAD is in
+        # the branch's history; 'behind'/'diverged' means it is not.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          status=$(gh api "repos/${{ github.repository }}/compare/${{ github.sha }}...${{ inputs.branch || 'main' }}" --jq .status)
+          status=$(gh api "repos/${{ github.repository }}/compare/${{ github.sha }}...${BRANCH}" --jq .status)
           case "$status" in
             ahead|identical) ;;
-            *) echo "release commit ${{ github.sha }} is '$status' relative to main — refusing" >&2; exit 1 ;;
+            *) echo "release commit ${{ github.sha }} is '$status' relative to $BRANCH — refusing" >&2; exit 1 ;;
           esac
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -214,7 +217,9 @@ jobs:
           # Fresh @nx-devkit/* tags on HEAD = the pending release set. No
           # tags means nothing to release (e.g. specifier=none dispatch on
           # a quiet main) — downstream steps gate on this output.
-          count=$(git tag --points-at HEAD | grep -c "^${TAG_PREFIX}" || true)
+          # awk index() = literal prefix match (grep would treat the
+          # prefix as a regex — a '.' in a scope would over-match).
+          count=$(git tag --points-at HEAD | awk -v p="$TAG_PREFIX" 'index($0, p) == 1' | wc -l | tr -d ' ')
           if [ "$count" -gt 0 ]; then
             echo "has_release=true" >> "$GITHUB_OUTPUT"
           else
@@ -229,14 +234,18 @@ jobs:
         # only; committed sources keep workspace:*.
         # Reusable callers check out THEIR repo — the helper is fetched
         # from nx-devkit/nx.ts at the pinned source-ref when absent locally.
+        # It lands in tmp/ (gitignored, one level deep): the script resolves
+        # packages/ as join(import.meta.dir,'..','packages') — /tmp would
+        # resolve to '/packages'.
         env:
           SOURCE_REF: ${{ inputs.source-ref }}
         run: |
           script=scripts/rewrite-workspace-protocol.ts
           if [ ! -f "$script" ]; then
             [ -n "$SOURCE_REF" ] || { echo "scripts/rewrite-workspace-protocol.ts missing and source-ref input is empty" >&2; exit 1; }
-            curl -fsSL "https://raw.githubusercontent.com/nx-devkit/nx.ts/${SOURCE_REF}/scripts/rewrite-workspace-protocol.ts" -o /tmp/rewrite-workspace-protocol.ts
-            script=/tmp/rewrite-workspace-protocol.ts
+            mkdir -p tmp
+            curl -fsSL "https://raw.githubusercontent.com/nx-devkit/nx.ts/${SOURCE_REF}/scripts/rewrite-workspace-protocol.ts" -o tmp/rewrite-workspace-protocol.ts
+            script=tmp/rewrite-workspace-protocol.ts
           fi
           bun "$script"
       - name: Publish via nx release (OIDC trust, no NPM_TOKEN)
@@ -277,6 +286,13 @@ jobs:
         # if none exists, so tags can never push without a PR.
         run: |
           gh auth setup-git
+          # The release branch is pushed with --force — refuse to target
+          # the base branch itself or an older release target could
+          # discard newer commits.
+          if [ "$RELEASE_BRANCH" = "$BRANCH" ]; then
+            echo "release-branch must differ from branch ($BRANCH) — refusing" >&2
+            exit 1
+          fi
           pending=$(comm -23 \
             <(git tag -l "${TAG_PREFIX}*" | sort) \
             <(git ls-remote --tags origin "refs/tags/${TAG_PREFIX}*" \
@@ -284,6 +300,7 @@ jobs:
           git push origin HEAD:refs/heads/${RELEASE_BRANCH} --force
           if ! gh pr create \
             --head "$RELEASE_BRANCH" \
+            --base "$BRANCH" \
             --title "chore(release): publish" \
             --body "Automated release produced by \`nx release\` — version bumps and changelogs. Packages are already published to npm (OIDC); merging stamps the versions on main.\n\nTags: $(echo "$pending" | tr '\n' ' ')"; then
             url=$(gh pr list --head "$RELEASE_BRANCH" --state open \
@@ -310,7 +327,7 @@ jobs:
         # via API at generation time.
         run: |
           gh auth setup-git
-          for tag in $(git tag --points-at HEAD | grep "^${TAG_PREFIX}"); do
+          for tag in $(git tag --points-at HEAD | awk -v p="$TAG_PREFIX" 'index($0, p) == 1'); do
             project="${tag%@*}"
             version="${tag##*@}"
             prev=$(git tag --list "${project}@*" --sort=-version:refname | sed -n '2p')

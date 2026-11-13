@@ -77,16 +77,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ inputs.branch || 'main' }}
         run: |
           set -euo pipefail
+          # Capture the listing BEFORE the loop: inside process substitution
+          # a failed `gh api` is invisible to set -e and would look like
+          # "nothing pending" — a silent skip instead of a loud failure.
+          CANDIDATES=$(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=20" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[].workflow_run.id')
           # Newest non-expired release-preview-body artifact whose producing
-          # run is trustworthy: either THIS run (reusable callers chain
-          # preview+notes via needs:, so the caller run is still in
-          # progress with no conclusion — job ordering already guarantees
-          # the preview finished) or a completed+successful run. The lookup
-          # is artifact-name-keyed, not workflow-name-keyed: callers run the
-          # preview inside their own workflow, so `gh run list --workflow`
-          # cannot find it.
+          # run is trustworthy: THIS run (reusable callers chain preview+notes
+          # via needs:, so the caller run is still in progress with no
+          # conclusion — job ordering already guarantees the preview
+          # finished), or a completed+successful run on THIS repo's release
+          # branch. The branch+repository checks matter: a fork/PR run can
+          # upload a same-named artifact and would otherwise feed attacker
+          # markdown to the agent. Name-keyed, not workflow-name-keyed:
+          # callers run the preview inside their own workflow.
           RUN_ID=""
           while IFS= read -r candidate; do
             [ -n "$candidate" ] || continue
@@ -94,13 +101,15 @@ jobs:
               RUN_ID="$candidate"
               break
             fi
-            run_state=$(gh api "repos/$GH_REPO/actions/runs/$candidate" --jq '"\(.status) \(.conclusion // "")"')
-            if [ "${run_state%% *}" = "completed" ] && [ "${run_state##* }" = "success" ]; then
+            run_json=$(gh api "repos/$GH_REPO/actions/runs/$candidate")
+            if [ "$(jq -r '.status' <<<"$run_json")" = "completed" ] \
+              && [ "$(jq -r '.conclusion // ""' <<<"$run_json")" = "success" ] \
+              && [ "$(jq -r '.head_branch' <<<"$run_json")" = "$BRANCH" ] \
+              && [ "$(jq -r '.head_repository.full_name' <<<"$run_json")" = "$GH_REPO" ]; then
               RUN_ID="$candidate"
               break
             fi
-          done < <(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=20" \
-            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[].workflow_run.id')
+          done <<< "$CANDIDATES"
           BODY_FILE=/tmp/preview/release-preview.md
           rm -rf /tmp/preview
           if [ -z "$RUN_ID" ]; then

@@ -49,8 +49,13 @@ jobs:
     needs: preview
     if: github.event_name != 'release' && needs.preview.result == 'success'
     permissions:
+      # Mirror what the compiled workflow requests — a caller's token can
+      # only be intersected DOWN, never elevated, so grant the full set:
       contents: write # the safe-output writer edits the next draft
       actions: read # artifact lookup + gh run download
+      issues: write # gh-aw status/activation comments
+      pull-requests: write # gh-aw status comments on PRs
+      checks: read # gh-aw conclusion reporting
       id-token: write # required by gh-aw even when admission is disabled
     uses: nx-devkit/nx.ts/.github/workflows/release-ai-notes.lock.yml@<ref>
     secrets:
@@ -79,11 +84,12 @@ helper scripts (`scripts/release-preview.ts`,
 
 ### `release-preview.yml`
 
-| Input        | Type                               | Default      | Purpose                                                               |
-| ------------ | ---------------------------------- | ------------ | --------------------------------------------------------------------- |
-| `specifier`  | choice `none\|patch\|minor\|major` | `none`       | Force a version bump, bypassing conventional commits (preview demos). |
-| `branch`     | string                             | `main`       | Release branch the draft tracks.                                      |
-| `source-ref` | string                             | **required** | nx-devkit/nx.ts ref for helper scripts.                               |
+| Input        | Type                               | Default       | Purpose                                                                                                                                                   |
+| ------------ | ---------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `specifier`  | string `none\|patch\|minor\|major` | `none`        | Force a version bump, bypassing conventional commits (preview demos). `workflow_call` has no `choice` type — anything outside the list behaves as `none`. |
+| `branch`     | string                             | `main`        | Release branch the draft tracks.                                                                                                                          |
+| `tag-prefix` | string                             | `@nx-devkit/` | Tag prefix identifying releasable packages (`<prefix><project>@<version>`).                                                                               |
+| `source-ref` | string                             | **required**  | nx-devkit/nx.ts ref for helper scripts.                                                                                                                   |
 
 Secrets: `NX_CLOUD_ACCESS_TOKEN` (optional — only silences Nx Cloud 401s).
 
@@ -91,7 +97,7 @@ Secrets: `NX_CLOUD_ACCESS_TOKEN` (optional — only silences Nx Cloud 401s).
 
 | Input                    | Type    | Default                   | Purpose                                                                                               |
 | ------------------------ | ------- | ------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `specifier`              | choice  | `none`                    | Same as preview.                                                                                      |
+| `specifier`              | string  | `none`                    | Same as preview.                                                                                      |
 | `branch`                 | string  | `main`                    | Branch releases are cut from.                                                                         |
 | `source-ref`             | string  | **required**              | nx-devkit/nx.ts ref for helper scripts.                                                               |
 | `tag-prefix`             | string  | `@nx-devkit/`             | Tag prefix identifying releasable packages (`<prefix><project>@<version>`).                           |
@@ -120,8 +126,9 @@ reach the model; omit the job instead if you don't want AI notes).
 - Publishable packages under `packages/*/package.json` (the preview helper
   reads this layout) with generated `CHANGELOG.md` files matching
   `changelog-glob`.
-- npm **trusted publishing (OIDC)** configured for each package — npm CLI
-  ≥ 11.5, `registry-url` on `actions/setup-node`.
+- npm **trusted publishing (OIDC)** configured for each package on
+  npmjs.com. `release.yml` upgrades npm and sets `registry-url` itself —
+  no consumer setup needed beyond the OIDC trust config.
 - The draft tag is hardcoded to **`next`** across all three workflows.
 - `GITHUB_TOKEN` needs the permissions shown above; nothing else is
   required (no `NPM_TOKEN`, no PAT).
@@ -133,8 +140,10 @@ reach the model; omit the job instead if you don't want AI notes).
   pending".
 - `release-ai-notes` finds the newest non-expired artifact **by name** (not
   by workflow name — the caller's workflow has its own name) and accepts it
-  when it was produced by the current run or a completed+successful run.
-  The safe-output writer re-checks freshness against the newest artifact
-  before writing, so stale highlights are never applied.
+  only when produced by the current run or a completed+successful run on
+  the repo's release branch — fork/PR uploads of the same name are
+  rejected. The safe-output writer re-checks freshness against the newest
+  trusted artifact before writing, so stale highlights are rejected in all
+  but a sub-second check-then-write race.
 - Reusable callers must chain `ai-notes` with `needs: preview` in the same
   caller workflow so the artifact is in the same run.

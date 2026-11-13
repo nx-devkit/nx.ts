@@ -29,6 +29,7 @@ safe-outputs:
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             GH_REPO: ${{ github.repository }}
+            BRANCH: ${{ inputs.branch || 'main' }}
           run: |
             set -euo pipefail
             # Threat-detection gate: write only on a clean verdict.
@@ -60,16 +61,35 @@ safe-outputs:
             { printf '%s\n\n' "$body"; cat /tmp/old-body.md; } > /tmp/new-body.md
 
             # Stale-run fence, re-checked immediately before the write:
-            # only write highlights for the LATEST preview — a newer
-            # artifact means a newer preview superseded this body, and its
-            # own agent run summarizes the current body instead. The check
-            # is artifact-name-keyed (not workflow-name-keyed) so reusable
-            # callers work: they run the preview inside their own workflow
-            # where `gh run list --workflow release-preview` finds nothing.
-            latest=$(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=5" \
-              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')
+            # only write highlights for the LATEST trusted preview — a
+            # newer trusted artifact means a newer preview superseded this
+            # body, and its own agent run summarizes the current body
+            # instead. "Trusted" mirrors fetch_preview: this run, or a
+            # completed+successful run on this repo's release branch —
+            # failed/cancelled producers and foreign uploads (fork/PR runs
+            # can publish same-named artifacts) neither count as latest nor
+            # can mask staleness. Artifact-name-keyed, not workflow-name-
+            # keyed, so reusable callers work.
+            CANDIDATES=$(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=20" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[].workflow_run.id')
+            latest=""
+            while IFS= read -r candidate; do
+              [ -n "$candidate" ] || continue
+              if [ "$candidate" = "$GITHUB_RUN_ID" ]; then
+                latest="$candidate"
+                break
+              fi
+              run_json=$(gh api "repos/$GH_REPO/actions/runs/$candidate")
+              if [ "$(jq -r '.status' <<<"$run_json")" = "completed" ] \
+                && [ "$(jq -r '.conclusion // ""' <<<"$run_json")" = "success" ] \
+                && [ "$(jq -r '.head_branch' <<<"$run_json")" = "$BRANCH" ] \
+                && [ "$(jq -r '.head_repository.full_name' <<<"$run_json")" = "$GH_REPO" ]; then
+                latest="$candidate"
+                break
+              fi
+            done <<< "$CANDIDATES"
             if [ "$latest" != "$claimed" ]; then
-              echo "stale preview run $claimed (latest artifact run is ${latest:-none}) — skipping"
+              echo "stale preview run $claimed (latest trusted artifact run is ${latest:-none}) — skipping"
               exit 0
             fi
 
