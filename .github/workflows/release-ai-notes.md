@@ -68,7 +68,10 @@ jobs:
             exit 0
           fi
           # Absent artifact = preview found nothing pending → legitimate noop.
-          if ! gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name=="release-preview-body") | .id' | grep -q .; then
+          # gh api failure propagates via set -e — only a successful empty
+          # response means the artifact is genuinely absent.
+          ARTIFACT_IDS=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name=="release-preview-body") | .id')
+          if [ -z "$ARTIFACT_IDS" ]; then
             { echo "run_id="; echo "body="; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
