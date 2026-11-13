@@ -29,7 +29,10 @@ engine:
     ANTHROPIC_API_KEY: ${{ secrets.ANYROUTER_API_KEY }}
 strict: true
 network:
-  allowed: [defaults, github, anyrouter.dev]
+  # *.blob.core.windows.net: Actions artifact blobs live on Azure blob
+  # storage; without it `gh run download` gets a firewall 404 and the
+  # agent can never read the preview artifact.
+  allowed: [defaults, github, anyrouter.dev, '*.blob.core.windows.net']
 tools:
   github:
     # gh-proxy: pre-authenticated gh CLI in bash for all GitHub READS.
