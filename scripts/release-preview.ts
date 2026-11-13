@@ -22,7 +22,11 @@ import { join } from 'node:path';
 const root = join(import.meta.dir, '..');
 
 const git = (...args: string[]): string =>
-  execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 15_000 }).trim();
+  execFileSync('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 15_000,
+  }).trim();
 
 const emit = (fields: Record<string, string>): void => {
   const out = process.env.GITHUB_OUTPUT;
@@ -35,14 +39,15 @@ const emit = (fields: Record<string, string>): void => {
     );
 };
 
-// @scope/name@x.y.z — version must start with a digit so tags like
-// `@nx-devkit/foo@bar` cannot slip through.
+// name@x.y.z — scoped (`@scope/name@x.y.z`) or unscoped (`pkg@x.y.z`);
+// version must start with a digit so tags like `pkg@bar` cannot slip
+// through. The `v{version}` fixed-tag scheme is not this format.
 const parseTag = (tag: string): { name: string; version: string } | null => {
   const at = tag.lastIndexOf('@');
   if (at <= 0) return null;
   const name = tag.slice(0, at);
   const version = tag.slice(at + 1);
-  if (!name.startsWith('@') || !/^\d+\.\d+\.\d+/.test(version)) return null;
+  if (!name || !/^\d+\.\d+\.\d+/.test(version)) return null;
   return { name, version };
 };
 

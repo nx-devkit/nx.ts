@@ -131,10 +131,13 @@ jobs:
       # Reusable-call overrides; native triggers leave inputs unset and the
       # || fallbacks reproduce this repo's conventions exactly.
       BRANCH: ${{ inputs.branch || 'main' }}
-      # `||` would collapse an explicit empty prefix (unscoped `pkg@1.2.3`
-      # tags are valid); on workflow_call the input default already applies,
-      # so only non-call events take the repository fallback.
-      TAG_PREFIX: ${{ github.event_name != 'workflow_call' && '@nx-devkit/' || inputs.tag-prefix }}
+      # github.event_name inside a reusable call is the CALLER's event, so
+      # it cannot detect calls. source-ref is required only for
+      # workflow_call (never declared for native triggers) — its presence
+      # marks a call, where inputs.tag-prefix already carries its declared
+      # default. Off-call the fallback applies; on-call an explicit empty
+      # prefix survives because the inner || yields ''.
+      TAG_PREFIX: ${{ inputs.tag-prefix || (inputs.source-ref == '' && '@nx-devkit/' || '') }}
       RELEASE_BRANCH: ${{ inputs.release-branch || 'chore/release-publish' }}
       CHANGELOG_GLOB: ${{ inputs.changelog-glob || 'packages/*/CHANGELOG.md' }}
     steps:
@@ -160,6 +163,13 @@ jobs:
             ahead|identical) ;;
             *) echo "release commit ${{ github.sha }} is '$status' relative to $BRANCH — refusing" >&2; exit 1 ;;
           esac
+          # The release branch is pushed with --force later — refuse to
+          # target the base branch itself, and fail BEFORE any publish
+          # work rather than after packages are already on npm.
+          if [ "$RELEASE_BRANCH" = "$BRANCH" ]; then
+            echo "release-branch must differ from branch ($BRANCH) — refusing" >&2
+            exit 1
+          fi
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -201,7 +211,7 @@ jobs:
         if: ${{ inputs.verify-command }}
         env:
           VERIFY_COMMAND: ${{ inputs.verify-command }}
-        run: bash -c "$VERIFY_COMMAND"
+        run: bash -eo pipefail -c "$VERIFY_COMMAND"
       - name: Configure git identity for release commits
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -294,13 +304,6 @@ jobs:
         # if none exists, so tags can never push without a PR.
         run: |
           gh auth setup-git
-          # The release branch is pushed with --force — refuse to target
-          # the base branch itself or an older release target could
-          # discard newer commits.
-          if [ "$RELEASE_BRANCH" = "$BRANCH" ]; then
-            echo "release-branch must differ from branch ($BRANCH) — refusing" >&2
-            exit 1
-          fi
           pending=$(comm -23 \
             <(git tag -l "${TAG_PREFIX}*" | sort) \
             <(git ls-remote --tags origin "refs/tags/${TAG_PREFIX}*" \

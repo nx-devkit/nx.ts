@@ -85,7 +85,7 @@ jobs:
           # Capture the listing BEFORE the loop: inside process substitution
           # a failed `gh api` is invisible to set -e and would look like
           # "nothing pending" — a silent skip instead of a loud failure.
-          CANDIDATES=$(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=20" \
+          CANDIDATES=$(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=100" \
             --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[].workflow_run.id')
           # Newest non-expired release-preview-body artifact whose producing
           # run is trustworthy: THIS run (reusable callers chain preview+notes

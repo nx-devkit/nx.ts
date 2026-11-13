@@ -54,7 +54,7 @@ jobs:
       contents: write # the safe-output writer edits the next draft
       actions: read # artifact lookup + gh run download
       issues: write # gh-aw status/activation comments
-      pull-requests: write # gh-aw status comments on PRs
+      pull-requests: read # gh-aw reads PR context; the compiled jobs never write PRs
       checks: read # gh-aw conclusion reporting
     uses: nx-devkit/nx.ts/.github/workflows/release-ai-notes.lock.yml@<ref>
     secrets:
