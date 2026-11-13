@@ -19,6 +19,72 @@ on:
         # must NOT force a bump — choice inputs default to the first option.
         default: none
         options: [none, patch, minor, major]
+  # Reusable entrypoint: other repositories call this workflow via
+  # `uses: nx-devkit/nx.ts/.github/workflows/release.yml@<ref>` — typically
+  # from a caller triggered by `release: [published]` on their own "next"
+  # draft, or by workflow_dispatch. github.event_name inside the callee is
+  # the CALLER's event, so the release/dispatch guards below keep working.
+  workflow_call:
+    inputs:
+      specifier:
+        description: >-
+          Force a version specifier for all release projects, bypassing
+          conventional-commit derivation. Leave at "none" for the usual
+          publish.
+        required: false
+        type: choice
+        default: none
+        options: [none, patch, minor, major]
+      branch:
+        description: Default branch releases are cut from.
+        required: false
+        type: string
+        default: main
+      source-ref:
+        description: >-
+          Ref of nx-devkit/nx.ts the helper scripts are loaded from — pin
+          the same ref as the `uses:` call (tag, branch, or SHA).
+        required: true
+        type: string
+      tag-prefix:
+        description: >-
+          Release-tag prefix identifying this repo's packages — nx release
+          tags look like `<prefix><project>@<version>` (e.g. `@myorg/`).
+        required: false
+        type: string
+        default: '@nx-devkit/'
+      release-branch:
+        description: >-
+          Branch the version+changelog commit is pushed to for the release
+          PR. Must be a branch the caller's rulesets allow.
+        required: false
+        type: string
+        default: chore/release-publish
+      changelog-glob:
+        description: >-
+          Git pathspec glob for generated changelog files committed onto
+          the release branch.
+        required: false
+        type: string
+        default: 'packages/*/CHANGELOG.md'
+      verify-command:
+        description: >-
+          Replace the built-in verify chain (lint/check:spec/build/test/
+          e2e) with this shell command — e.g. `bun run lint && bun run
+          test`. Pass `true` to skip verification entirely.
+        required: false
+        type: string
+        default: ''
+      skip-workspace-rewrite:
+        description: >-
+          Skip the workspace:-protocol manifest rewrite — only needed when
+          the repo publishes packages with private workspace: deps.
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      NX_CLOUD_ACCESS_TOKEN:
+        required: false
 
 # Nx Cloud CI access token (repo secret). Secrets are not injected into the
 # environment automatically — without this mapping every nx invocation in
@@ -38,7 +104,7 @@ jobs:
     # not 'main'. Ancestry on main is verified by a step below instead —
     # GH expressions cannot pattern-match a SHA.
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', inputs.branch || 'main')) ||
       (github.event_name == 'release' && github.event.release.tag_name == 'next')
     name: Publish packages via nx release (OIDC)
     runs-on: ubuntu-latest
@@ -59,6 +125,12 @@ jobs:
       contents: write # tags, GitHub releases
       pull-requests: write # the release PR carrying version bumps
       id-token: write
+    env:
+      # Reusable-call overrides; native triggers leave inputs unset and the
+      # || fallbacks reproduce this repo's conventions exactly.
+      TAG_PREFIX: ${{ inputs.tag-prefix || '@nx-devkit/' }}
+      RELEASE_BRANCH: ${{ inputs.release-branch || 'chore/release-publish' }}
+      CHANGELOG_GLOB: ${{ inputs.changelog-glob || 'packages/*/CHANGELOG.md' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -68,7 +140,7 @@ jobs:
           # draft pinned its target to the previewed SHA, so the tag IS
           # that commit and versions match what was previewed exactly.
           # Dispatch versions from latest main instead.
-          ref: ${{ github.event_name == 'release' && github.sha || 'main' }}
+          ref: ${{ github.event_name == 'release' && github.sha || format('refs/heads/{0}', inputs.branch || 'main') }}
       - name: Verify release target is on main
         # The tag may pin any commit (draft target is a SHA now). Only
         # release commits that are ancestors of main may be versioned —
@@ -77,7 +149,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          status=$(gh api "repos/${{ github.repository }}/compare/${{ github.sha }}...main" --jq .status)
+          status=$(gh api "repos/${{ github.repository }}/compare/${{ github.sha }}...${{ inputs.branch || 'main' }}" --jq .status)
           case "$status" in
             ahead|identical) ;;
             *) echo "release commit ${{ github.sha }} is '$status' relative to main — refusing" >&2; exit 1 ;;
@@ -92,22 +164,33 @@ jobs:
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@latest
       - name: Lint
+        if: ${{ !inputs.verify-command }}
         run: bun run lint
       - name: Check plugin/spec conflicts
+        if: ${{ !inputs.verify-command }}
         run: bun run check:spec
       - name: Build
+        if: ${{ !inputs.verify-command }}
         run: bun run build
       - name: Test
+        if: ${{ !inputs.verify-command }}
         run: bun run test
       - name: E2E
+        if: ${{ !inputs.verify-command }}
         run: bash scripts/e2e.sh
       - name: Packed-tarball E2E
         # Consumer-level gate: packs every publishable package, installs the
         # tarballs into a scratch workspace, and runs the real bootstrap.
         # Catches broken artifacts (missing bin/files) before they ship.
+        if: ${{ !inputs.verify-command }}
         env:
           E2E_SKIP_BUILD: '1' # Build step above already produced dist/
         run: bash scripts/e2e-packed.sh
+      - name: Custom verify commands
+        # Reusable callers replace the nx.ts-specific chain above with
+        # their own gate (or `true` to skip verification entirely).
+        if: ${{ inputs.verify-command }}
+        run: ${{ inputs.verify-command }}
       - name: Configure git identity for release commits
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -125,11 +208,13 @@ jobs:
         # only — checkout keeps persist-credentials: false.
         run: |
           gh auth setup-git
-          npx nx release version --git-push=false ${{ github.event_name == 'workflow_dispatch' && inputs.specifier != 'none' && format('--specifier={0}', inputs.specifier) || '' }}
+          # Membership test covers workflow_dispatch AND workflow_call;
+          # inputs.specifier is empty for release/push events.
+          npx nx release version --git-push=false ${{ contains(fromJSON('["patch","minor","major"]'), inputs.specifier) && format('--specifier={0}', inputs.specifier) || '' }}
           # Fresh @nx-devkit/* tags on HEAD = the pending release set. No
           # tags means nothing to release (e.g. specifier=none dispatch on
           # a quiet main) — downstream steps gate on this output.
-          count=$(git tag --points-at HEAD | grep -c '^@nx-devkit/' || true)
+          count=$(git tag --points-at HEAD | grep -c "^${TAG_PREFIX}" || true)
           if [ "$count" -gt 0 ]; then
             echo "has_release=true" >> "$GITHUB_OUTPUT"
           else
@@ -138,11 +223,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Rewrite workspace: protocols for npm publish'
-        if: steps.version.outputs.has_release == 'true'
+        if: steps.version.outputs.has_release == 'true' && !inputs.skip-workspace-rewrite
         # npm rejects the workspace: protocol — the only such dep is the
         # private, bundled @nx-devkit/internal. Rewrites CI-tree manifests
         # only; committed sources keep workspace:*.
-        run: bun scripts/rewrite-workspace-protocol.ts
+        # Reusable callers check out THEIR repo — the helper is fetched
+        # from nx-devkit/nx.ts at the pinned source-ref when absent locally.
+        env:
+          SOURCE_REF: ${{ inputs.source-ref }}
+        run: |
+          script=scripts/rewrite-workspace-protocol.ts
+          if [ ! -f "$script" ]; then
+            [ -n "$SOURCE_REF" ] || { echo "scripts/rewrite-workspace-protocol.ts missing and source-ref input is empty" >&2; exit 1; }
+            curl -fsSL "https://raw.githubusercontent.com/nx-devkit/nx.ts/${SOURCE_REF}/scripts/rewrite-workspace-protocol.ts" -o /tmp/rewrite-workspace-protocol.ts
+            script=/tmp/rewrite-workspace-protocol.ts
+          fi
+          bun "$script"
       - name: Publish via nx release (OIDC trust, no NPM_TOKEN)
         if: steps.version.outputs.has_release == 'true'
         # Nx Cloud client auto-update can occasionally fail to load a newly
@@ -182,15 +278,15 @@ jobs:
         run: |
           gh auth setup-git
           pending=$(comm -23 \
-            <(git tag -l '@nx-devkit/*' | sort) \
-            <(git ls-remote --tags origin 'refs/tags/@nx-devkit/*' \
+            <(git tag -l "${TAG_PREFIX}*" | sort) \
+            <(git ls-remote --tags origin "refs/tags/${TAG_PREFIX}*" \
                 | sed 's|.*refs/tags/||; s|\^{}$||' | sort -u))
-          git push origin HEAD:refs/heads/chore/release-publish --force
+          git push origin HEAD:refs/heads/${RELEASE_BRANCH} --force
           if ! gh pr create \
-            --head chore/release-publish \
+            --head "$RELEASE_BRANCH" \
             --title "chore(release): publish" \
             --body "Automated release produced by \`nx release\` — version bumps and changelogs. Packages are already published to npm (OIDC); merging stamps the versions on main.\n\nTags: $(echo "$pending" | tr '\n' ' ')"; then
-            url=$(gh pr list --head chore/release-publish --state open \
+            url=$(gh pr list --head "$RELEASE_BRANCH" --state open \
               --json url --jq '.[0].url // empty')
             if [ -z "$url" ]; then
               echo "gh pr create failed and no open release PR exists" >&2
@@ -214,7 +310,7 @@ jobs:
         # via API at generation time.
         run: |
           gh auth setup-git
-          for tag in $(git tag --points-at HEAD | grep '^@nx-devkit/'); do
+          for tag in $(git tag --points-at HEAD | grep "^${TAG_PREFIX}"); do
             project="${tag%@*}"
             version="${tag##*@}"
             prev=$(git tag --list "${project}@*" --sort=-version:refname | sed -n '2p')
@@ -226,14 +322,14 @@ jobs:
                 --git-commit=false --git-tag=false --git-push=false
             fi
           done
-          if [ -n "$(git status --porcelain -- 'packages/*/CHANGELOG.md')" ]; then
-            git add 'packages/*/CHANGELOG.md'
+          if [ -n "$(git status --porcelain -- "$CHANGELOG_GLOB")" ]; then
+            git add "$CHANGELOG_GLOB"
             # --no-verify: the pre-commit hook does `git add -u`, which would
             # stage the CI-only workspace:* rewrites into this commit.
             git commit --no-verify -m "chore(release): changelogs"
             # Land the changelog files on the release branch so the PR
             # carries them (fast-forward on the version commit).
-            git push origin HEAD:chore/release-publish
+            git push origin HEAD:"$RELEASE_BRANCH"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -60,13 +60,16 @@ safe-outputs:
             { printf '%s\n\n' "$body"; cat /tmp/old-body.md; } > /tmp/new-body.md
 
             # Stale-run fence, re-checked immediately before the write:
-            # only write highlights for the LATEST SUCCESSFUL preview —
-            # a newer one means its own agent run summarizes the current
-            # body, and failed/cancelled runs never count.
-            latest=$(gh run list --workflow release-preview --branch main \
-              --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+            # only write highlights for the LATEST preview — a newer
+            # artifact means a newer preview superseded this body, and its
+            # own agent run summarizes the current body instead. The check
+            # is artifact-name-keyed (not workflow-name-keyed) so reusable
+            # callers work: they run the preview inside their own workflow
+            # where `gh run list --workflow release-preview` finds nothing.
+            latest=$(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=5" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')
             if [ "$latest" != "$claimed" ]; then
-              echo "stale preview run $claimed (latest is $latest) — skipping"
+              echo "stale preview run $claimed (latest artifact run is ${latest:-none}) — skipping"
               exit 0
             fi
 

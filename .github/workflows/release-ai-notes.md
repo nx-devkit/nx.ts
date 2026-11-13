@@ -7,9 +7,28 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+  # Reusable entrypoint for other repositories — call it from a caller
+  # workflow AFTER the preview job (needs:) so the body artifact lands in
+  # the same run. github.event_name inside the callee is the CALLER's
+  # event; inputs.disabled lets a caller keep the job wired but inert.
+  workflow_call:
+    inputs:
+      disabled:
+        description: 'Skip the agent run entirely (default: false)'
+        required: false
+        type: boolean
+        default: false
+      branch:
+        description: 'Default branch the release pipeline runs on'
+        required: false
+        type: string
+        default: main
+    secrets:
+      ANYROUTER_API_KEY:
+        required: false
 permissions:
   contents: read
-  actions: read # gh run list/download for the preview artifact
+  actions: read # artifact lookup + gh run download for the preview body
 engine:
   id: claude
   model: anyrouter/latest
@@ -60,22 +79,36 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          RUN_ID=$(gh run list --workflow release-preview --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId // empty')
+          # Newest non-expired release-preview-body artifact whose producing
+          # run is trustworthy: either THIS run (reusable callers chain
+          # preview+notes via needs:, so the caller run is still in
+          # progress with no conclusion — job ordering already guarantees
+          # the preview finished) or a completed+successful run. The lookup
+          # is artifact-name-keyed, not workflow-name-keyed: callers run the
+          # preview inside their own workflow, so `gh run list --workflow`
+          # cannot find it.
+          RUN_ID=""
+          while IFS= read -r candidate; do
+            [ -n "$candidate" ] || continue
+            if [ "$candidate" = "$GITHUB_RUN_ID" ]; then
+              RUN_ID="$candidate"
+              break
+            fi
+            run_state=$(gh api "repos/$GH_REPO/actions/runs/$candidate" --jq '"\(.status) \(.conclusion // "")"')
+            if [ "${run_state%% *}" = "completed" ] && [ "${run_state##* }" = "success" ]; then
+              RUN_ID="$candidate"
+              break
+            fi
+          done < <(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=20" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[].workflow_run.id')
           BODY_FILE=/tmp/preview/release-preview.md
           rm -rf /tmp/preview
           if [ -z "$RUN_ID" ]; then
             { echo "run_id="; echo "body="; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Absent artifact = preview found nothing pending → legitimate noop.
-          # gh api failure propagates via set -e — only a successful empty
-          # response means the artifact is genuinely absent.
-          ARTIFACT_IDS=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name=="release-preview-body") | .id')
-          if [ -z "$ARTIFACT_IDS" ]; then
-            { echo "run_id="; echo "body="; } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Artifact exists — download must succeed; fail loudly after retries.
+          # Artifact exists by construction (found via the artifacts API) —
+          # download must succeed; fail loudly after retries.
           for attempt in 1 2 3; do
             if gh run download "$RUN_ID" -n release-preview-body -D /tmp/preview && [ -f "$BODY_FILE" ]; then
               break
@@ -96,12 +129,18 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 imports:
   - shared/update-next-release.md
+# Cross-repo callers trigger this via workflow_call from event-driven
+# relays: the activation checkout would resolve the CALLER's repo and the
+# runtime import would 404 — bundle imports into the lockfile instead.
+inlined-imports: true
 concurrency:
   group: release-ai-notes-${{ github.ref }}
   cancel-in-progress: true
 if: >-
-  github.ref == 'refs/heads/main' &&
+  !inputs.disabled &&
+  github.ref == format('refs/heads/{0}', inputs.branch || 'main') &&
   (github.event_name == 'workflow_dispatch' ||
+   github.event_name == 'push' ||
    github.event.workflow_run.conclusion == 'success')
 ---
 
@@ -111,7 +150,7 @@ You maintain the human-facing summary of the pending release shown in the draft 
 
 ## Steps
 
-1. The `fetch_preview` job already resolved the latest successful `release-preview` run on `main` and inlined its `release-preview-body` artifact below. Preview run id: `${{ needs.fetch_preview.outputs.run_id }}` (empty when no successful preview exists).
+1. The `fetch_preview` job already resolved the newest `release-preview-body` artifact (and the run that produced it) and inlined its markdown below. Preview run id: `${{ needs.fetch_preview.outputs.run_id }}` (empty when no usable preview artifact exists).
 
    <preview-body>
    ${{ needs.fetch_preview.outputs.body }}
