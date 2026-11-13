@@ -66,7 +66,7 @@ You maintain the human-facing summary of the pending release shown in the draft 
 2. Download its `release-preview-body` artifact and read the markdown. Artifact blob fetches can 404 transiently right after the preview completes — retry before concluding it is missing:
 
    ```bash
-   for i in 1 2 3; do gh run download <run-id> -n release-preview-body -D /tmp/preview && break; sleep 10; done
+   for i in 1 2 3; do gh run download <run-id> -n release-preview-body -D /tmp/preview && break; sleep $((i<3 ? 10 : 0)); done
    cat /tmp/preview/release-preview.md
    ```
 
