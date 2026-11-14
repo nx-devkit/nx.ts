@@ -103,16 +103,17 @@ safe-outputs:
             # The producer workflow: native previews run release-preview.yml;
             # reusable callers produce the artifact inside their own caller
             # workflow — the github context here IS the caller's, so
-            # GITHUB_WORKFLOW_REF names it (release-ai-notes* means native).
+            # GITHUB_WORKFLOW_REF names it (the native ai-notes files mean
+            # the producer is our own release-preview.yml).
             wf_file="${GITHUB_WORKFLOW_REF#*.github/workflows/}"
             wf_file="${wf_file%@*}"
-            if [[ "$wf_file" == *release-ai-notes* ]]; then
-              producer="release-preview.yml"
-            else
-              producer="$wf_file"
-            fi
-            superseded=$(gh api "repos/$GH_REPO/actions/workflows/$producer/runs?branch=$BRANCH&per_page=20" \
-              --jq --arg self "$GITHUB_RUN_ID" --arg since "$claimed_created" --arg repo "$GH_REPO" \
+            case "$wf_file" in
+              release-ai-notes.lock.yml|release-ai-notes.md) producer="release-preview.yml" ;;
+              *) producer="$wf_file" ;;
+            esac
+            # gh api --jq is gojq without --arg — pipe to jq for variables.
+            superseded=$(gh api "repos/$GH_REPO/actions/workflows/$producer/runs?branch=$BRANCH&per_page=100" \
+              | jq --arg self "$GITHUB_RUN_ID" --arg since "$claimed_created" --arg repo "$GH_REPO" \
               '[.workflow_runs[] | select(.id != ($self | tonumber)) | select(.status != "completed") | select(.created_at > $since) | select(.head_repository.full_name == $repo)] | length')
             if [ "$superseded" != "0" ]; then
               echo "newer $producer run in progress — claimed preview $claimed is superseded, skipping"
