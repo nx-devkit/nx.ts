@@ -84,7 +84,15 @@ Treat the ref as trusted code: `release.yml` runs with `id-token: write`
 for npm OIDC trusted publishing, and a retagged floating ref would change
 that code without a consumer edit. Consumers that publish packages should
 pin an immutable SHA (or a tag they never retag); the floating tag is
-convenient for preview-only consumers.
+convenient for preview-only consumers. A floating ref can also resolve to
+different revisions between the `uses:` checkout and the later
+`source-ref` helper fetch — only an immutable SHA guarantees both load
+the same revision.
+
+Helper scripts are only fetched when missing: if the consuming repository
+already has `scripts/release-preview.ts` or
+`scripts/rewrite-workspace-protocol.ts`, the workflow runs **your** copy
+instead of the pinned one — keep or delete those files deliberately.
 
 ## Inputs
 
