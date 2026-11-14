@@ -53,11 +53,12 @@ on:
         default: main
       tag-prefix:
         description: >-
-          Release-tag prefix identifying this repo's packages — nx release
-          tags look like `<prefix><project>@<version>` (e.g. `@myorg/`).
+          Deprecated — accepted for backward compatibility and ignored.
+          The helper derives tag matching from nx.json's
+          release.releaseTag.pattern instead.
         required: false
         type: string
-        default: '@nx-devkit/'
+        default: ''
       source-ref:
         description: >-
           Ref of nx-devkit/nx.ts the helper scripts are loaded from — pin
@@ -86,14 +87,6 @@ jobs:
       github.ref == format('refs/heads/{0}', inputs.branch || 'main') &&
       (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)'))
     runs-on: ubuntu-latest
-    env:
-      # github.event_name inside a reusable call is the CALLER's event, so
-      # it cannot detect calls. source-ref is required only for
-      # workflow_call (never declared for native triggers) — its presence
-      # marks a call, where inputs.tag-prefix already carries its declared
-      # default. Off-call the fallback applies; on-call an explicit empty
-      # prefix survives because the inner || yields ''.
-      TAG_PREFIX: ${{ inputs.tag-prefix || (inputs.source-ref == '' && '@nx-devkit/' || '') }}
     concurrency:
       group: release-preview
       cancel-in-progress: true
@@ -132,24 +125,12 @@ jobs:
             echo "createRelease patch did not apply — refusing to continue" >&2
             exit 1
           }
-      - name: Generate changelog entries locally
-        # Same loop as release.yml, minus git push and GitHub releases.
-        run: |
-          # awk index() = literal prefix match (grep would treat the
-          # prefix as a regex — a '.' in a scope would over-match).
-          for tag in $(git tag --points-at HEAD | awk -v p="$TAG_PREFIX" 'index($0, p) == 1'); do
-            project="${tag%@*}"
-            version="${tag##*@}"
-            prev=$(git tag --list "${project}@*" --sort=-version:refname | sed -n '2p')
-            if [ -n "$prev" ]; then
-              npx nx release changelog "$version" -p "$project" --from "$prev" \
-                --git-commit=false --git-tag=false --git-push=false
-            else
-              npx nx release changelog "$version" -p "$project" --first-release \
-                --git-commit=false --git-tag=false --git-push=false
-            fi
-          done
       - name: Assemble preview markdown
+        # The helper owns the whole post-version pipeline: it reads
+        # nx.json's releaseTag.pattern, matches the new tags at HEAD to
+        # packages, runs `nx release changelog` per release (GitHub
+        # release creation stays patched off), and writes the draft body.
+        # Any tag scheme nx supports works — name@version, v{version}, …
         id: preview
         env:
           SOURCE_REF: ${{ inputs.source-ref }}

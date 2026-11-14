@@ -83,12 +83,11 @@ helper scripts (`scripts/release-preview.ts`,
 
 ### `release-preview.yml`
 
-| Input        | Type                               | Default       | Purpose                                                                                                                                                   |
-| ------------ | ---------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `specifier`  | string `none\|patch\|minor\|major` | `none`        | Force a version bump, bypassing conventional commits (preview demos). `workflow_call` has no `choice` type — anything outside the list behaves as `none`. |
-| `branch`     | string                             | `main`        | Release branch the draft tracks.                                                                                                                          |
-| `tag-prefix` | string                             | `@nx-devkit/` | Tag prefix identifying releasable packages (`<prefix><project>@<version>`).                                                                               |
-| `source-ref` | string                             | **required**  | nx-devkit/nx.ts ref for helper scripts.                                                                                                                   |
+| Input        | Type                               | Default      | Purpose                                                                                                                                                   |
+| ------------ | ---------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `specifier`  | string `none\|patch\|minor\|major` | `none`       | Force a version bump, bypassing conventional commits (preview demos). `workflow_call` has no `choice` type — anything outside the list behaves as `none`. |
+| `branch`     | string                             | `main`       | Release branch the draft tracks.                                                                                                                          |
+| `source-ref` | string                             | **required** | nx-devkit/nx.ts ref for helper scripts.                                                                                                                   |
 
 Secrets: `NX_CLOUD_ACCESS_TOKEN` (optional — only silences Nx Cloud 401s).
 
