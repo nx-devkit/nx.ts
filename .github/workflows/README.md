@@ -75,8 +75,9 @@ jobs:
 ```
 
 `<ref>` is whatever you pin the `uses:` calls to — a tag, branch, or commit
-SHA. Pin a SHA for stability; pass the **same** value as `source-ref` so
-helper scripts (`scripts/release-preview.ts`,
+SHA. The floating major tag **`release-action/v1`** tracks the latest
+published pipeline; pin a SHA for strict stability. Pass the **same** value
+as `source-ref` so helper scripts (`scripts/release-preview.ts`,
 `scripts/rewrite-workspace-protocol.ts`) load from the same revision.
 
 ## Inputs
