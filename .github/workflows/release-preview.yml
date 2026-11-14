@@ -51,6 +51,14 @@ on:
         required: false
         type: string
         default: main
+      tag-prefix:
+        description: >-
+          Deprecated — accepted for backward compatibility and ignored.
+          The helper derives tag matching from nx.json's
+          release.releaseTag.pattern instead.
+        required: false
+        type: string
+        default: ''
       source-ref:
         description: >-
           Ref of nx-devkit/nx.ts the helper scripts are loaded from — pin

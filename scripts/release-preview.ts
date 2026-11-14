@@ -55,18 +55,44 @@ interface NxJson {
   release?: {
     releaseTag?: { pattern?: string };
     projectsRelationship?: string;
+    projects?: string[];
   };
 }
 
+// nx.json is JSONC — comments and trailing commas are legal. Fast path
+// is plain JSON.parse; on failure strip full-line comments (safe: JSON
+// strings cannot span lines), block comments, and trailing commas, then
+// retry. A file that still fails to parse fails loud — silently
+// assuming defaults would generate the wrong tag scheme.
+const parseNxJson = (src: string): NxJson => {
+  try {
+    return JSON.parse(src) as NxJson;
+  } catch {
+    const stripped = src
+      .replace(/^\s*\/\/.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/,(\s*[}\]])/g, '$1');
+    return JSON.parse(stripped) as NxJson;
+  }
+};
+
 let nxJson: NxJson = {};
 try {
-  nxJson = JSON.parse(readFileSync(join(root, 'nx.json'), 'utf8')) as NxJson;
-} catch {
-  console.error('release-preview: nx.json missing or unreadable — assuming defaults');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- nx.json is a fixed workspace path
+  nxJson = parseNxJson(readFileSync(join(root, 'nx.json'), 'utf8'));
+} catch (error) {
+  if ((error as { code?: string }).code === 'ENOENT') {
+    console.error('release-preview: nx.json missing — assuming defaults');
+  } else {
+    throw error;
+  }
 }
-// nx default when releaseTag.pattern is unset.
-const tagPattern = nxJson.release?.releaseTag?.pattern ?? '{projectName}@{version}';
 const fixedRelationship = nxJson.release?.projectsRelationship === 'fixed';
+// nx defaults (nx-schema): fixed/unified → `v{version}`, independent →
+// `{projectName}@{version}`.
+const tagPattern =
+  nxJson.release?.releaseTag?.pattern ??
+  (fixedRelationship ? 'v{version}' : '{projectName}@{version}');
 // A pattern without a project token produces ONE tag for the whole
 // release (e.g. `v{version}`) — the workspace-changelog path.
 const singleTag = !/\{(projectName|projectNameForPackageRoot)/.test(tagPattern);
@@ -94,7 +120,21 @@ interface Pkg {
   name: string;
   version: string;
   dir: string;
+  private: boolean;
 }
+
+// nx never versions private packages, and release.projects (when set)
+// scopes the release to a subset — anything outside it keeps its disk
+// version forever and would look permanently "pending".
+const releaseProjects = nxJson.release?.projects ?? [];
+const inReleaseScope = (pkg: Pkg): boolean => {
+  if (pkg.private) return false;
+  if (releaseProjects.length === 0) return true;
+  return releaseProjects.some(
+    (e) =>
+      e === pkg.dir || e === pkg.name || e === `packages/${pkg.dir}` || e.endsWith(`/${pkg.dir}`),
+  );
+};
 
 const packages = new Map<string, Pkg>();
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- packagesDir is a fixed workspace path
@@ -109,9 +149,19 @@ for (const dir of readdirSync(join(root, 'packages'))) {
   }
   // Parse outside the try — a malformed manifest must fail loud, not
   // silently drop the package from the preview.
-  const pkg = JSON.parse(raw) as { name?: string; version?: string };
-  if (pkg.name && pkg.version)
-    packages.set(pkg.name, { name: pkg.name, version: pkg.version, dir });
+  const pkg = JSON.parse(raw) as {
+    name?: string;
+    version?: string;
+    private?: boolean;
+  };
+  if (!pkg.name || !pkg.version) continue;
+  const entry: Pkg = {
+    name: pkg.name,
+    version: pkg.version,
+    dir,
+    private: pkg.private === true,
+  };
+  if (inReleaseScope(entry)) packages.set(pkg.name, entry);
 }
 
 // First `## ` section of a CHANGELOG.md: version + body up to the next one.
@@ -239,21 +289,40 @@ if (singleTag || fixedRelationship) {
   // family has no released tag at all.
   const p = pending[0];
   runChangelog(p.version, null, null, !p.from);
-  const changelogPath = join(root, 'CHANGELOG.md');
+  // Workspace changelog first; consumers on per-project changelogs get
+  // an aggregate of packages/*/CHANGELOG.md sections for this version.
+  let section: { version: string; body: string } | null = null;
   try {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed workspace path
-    const section = firstSection(readFileSync(changelogPath, 'utf8'));
-    if (section && section.version === p.version) p.body = section.body;
+    section = firstSection(readFileSync(join(root, 'CHANGELOG.md'), 'utf8'));
+  } catch {
+    // no workspace CHANGELOG.md — try per-project below
+  }
+  if (section && section.version === p.version) {
+    p.body = section.body;
+  } else {
+    if (section)
+      console.error(
+        `release-preview: workspace CHANGELOG top is ${section.version}, expected ${p.version} — trying per-project changelogs`,
+      );
+    const parts: string[] = [];
+    for (const pkg of packages.values()) {
+      try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- path built from packages/* directory entries
+        const s = firstSection(
+          readFileSync(join(root, 'packages', pkg.dir, 'CHANGELOG.md'), 'utf8'),
+        );
+        if (s && s.version === p.version) parts.push(`#### \`${pkg.name}\`\n\n${s.body}`);
+      } catch {
+        // no per-package changelog for this project
+      }
+    }
+    if (parts.length > 0) p.body = parts.join('\n\n');
     else if (section)
       console.error(
-        `release-preview: workspace CHANGELOG top is ${section.version}, expected ${p.version} — placeholder body kept`,
+        `release-preview: no changelog section for ${p.version} — placeholder body kept`,
       );
-  } catch {
-    // missing root CHANGELOG.md — keep the placeholder body
   }
-  // Surface the member packages for the draft body.
-  const members = [...packages.values()].map((m) => m.name).sort();
-  p.body = `${p.body}\n\n<details><summary>Packages in this release (${members.length})</summary>\n\n${members.map((m) => `- \`${m}\``).join('\n')}\n\n</details>`;
 } else {
   for (const p of pending) {
     runChangelog(p.version, p.name, p.from, !p.from);
@@ -299,13 +368,17 @@ const title =
 const remote = git('remote', 'get-url', 'origin');
 const repoMatch = remote.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/);
 const repoUrl = repoMatch ? `https://github.com/${repoMatch[1]}/${repoMatch[2]}` : remote;
-// HEAD is the local chore(release) commit — HEAD~1 is the pushed main
-// commit the preview describes. Fall back to HEAD if the history is odd.
+// When the version step committed (version.git.commit), HEAD is the
+// local chore(release) commit and HEAD~1 is the pushed main commit the
+// preview describes. Consumers with git.commit=false leave HEAD on the
+// branch tip — link HEAD itself then.
 let base = 'HEAD';
 try {
-  base = git('rev-parse', 'HEAD~1');
+  if (/^chore\(release\)/.test(git('log', '-1', '--format=%s'))) {
+    base = git('rev-parse', 'HEAD~1');
+  }
 } catch {
-  // single-commit checkout — link HEAD instead
+  // single-commit checkout — keep HEAD
 }
 
 // Inverse of renderTag: extract the version a tag carries, for display.
@@ -335,11 +408,17 @@ const sections: string[] = [
 
 if (singleTag || fixedRelationship) {
   const p = pending[0];
+  // Member packages are listed separately from the changelog body so a
+  // missing changelog still surfaces the placeholder notice.
+  const members = [...packages.values()].map((m) => m.name).sort();
+  const details = `<details><summary>Packages in this release (${members.length})</summary>\n\n${members.map((m) => `- \`${m}\``).join('\n')}\n\n</details>`;
   sections.push(
     '',
     `### Release ${p.version}`,
     '',
     p.body || '_Changelog entry missing — see the release-preview workflow log._',
+    '',
+    details,
     '',
   );
 } else {
