@@ -235,9 +235,10 @@ const runChangelog = (
 if (singleTag || fixedRelationship) {
   // One release for the whole workspace — nx resolves the fixed group
   // itself; --from is omitted so nx derives the range like the repo's
-  // own release pipeline does.
+  // own release pipeline does. --first-release still applies when the
+  // family has no released tag at all.
   const p = pending[0];
-  runChangelog(p.version, null, null, false);
+  runChangelog(p.version, null, null, !p.from);
   const changelogPath = join(root, 'CHANGELOG.md');
   try {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed workspace path
@@ -307,7 +308,22 @@ try {
   // single-commit checkout — link HEAD instead
 }
 
-const range = (p: Pending): string => `\`${p.name}\` — ${p.from ?? 'new'} → ${p.version}`;
+// Inverse of renderTag: extract the version a tag carries, for display.
+// `{projectName}@{version}` + `@scope/name@1.2.3` → `1.2.3`,
+// `v{version}` + `v1.2.3` → `1.2.3`.
+const versionOf = (tag: string, name: string): string => {
+  const [pre, post = ''] = tagPattern.split('{version}');
+  const fill = (s: string): string =>
+    s.replaceAll('{projectNameForPackageRoot}', name).replaceAll('{projectName}', name);
+  const prefix = fill(pre);
+  const suffix = fill(post);
+  if (tag.startsWith(prefix) && tag.endsWith(suffix) && tag.length >= prefix.length + suffix.length)
+    return tag.slice(prefix.length, tag.length - suffix.length);
+  return tag;
+};
+
+const range = (p: Pending): string =>
+  `\`${p.name}\` — ${p.from ? versionOf(p.from, p.name) : 'new'} → ${p.version}`;
 
 const sections: string[] = [
   `**Next release preview** — what \`nx release\` will publish for the commits on \`main\`.`,
