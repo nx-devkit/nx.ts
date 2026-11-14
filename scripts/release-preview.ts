@@ -57,6 +57,10 @@ interface NxJson {
     projectsRelationship?: string;
     projects?: string[];
   };
+  changelog?: {
+    workspaceChangelog?: unknown;
+    projectChangelogs?: unknown;
+  };
 }
 
 // nx.json is JSONC — comments and trailing commas are legal. Fast path
@@ -289,22 +293,31 @@ if (singleTag || fixedRelationship) {
   // family has no released tag at all.
   const p = pending[0];
   runChangelog(p.version, null, null, !p.from);
-  // Workspace changelog first; consumers on per-project changelogs get
-  // an aggregate of packages/*/CHANGELOG.md sections for this version.
-  let section: { version: string; body: string } | null = null;
-  try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed workspace path
-    section = firstSection(readFileSync(join(root, 'CHANGELOG.md'), 'utf8'));
-  } catch {
-    // no workspace CHANGELOG.md — try per-project below
-  }
-  if (section && section.version === p.version) {
-    p.body = section.body;
-  } else {
-    if (section)
-      console.error(
-        `release-preview: workspace CHANGELOG top is ${section.version}, expected ${p.version} — trying per-project changelogs`,
-      );
+  // Pick the changelog path from nx.json's changelog config: a fixed
+  // relationship does not imply a workspace changelog. Workspace first
+  // when configured (or when nothing is — nx's default); per-project
+  // aggregate first when only projectChangelogs is set. The other path
+  // stays as fallback so mixed configs still produce content.
+  const hasWorkspaceChangelog = nxJson.changelog?.workspaceChangelog != null;
+  const hasProjectChangelogs = nxJson.changelog?.projectChangelogs != null;
+  const workspaceFirst = hasWorkspaceChangelog || !hasProjectChangelogs;
+
+  const fromWorkspace = (): string | null => {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed workspace path
+      const section = firstSection(readFileSync(join(root, 'CHANGELOG.md'), 'utf8'));
+      if (section && section.version === p.version) return section.body;
+      if (section)
+        console.error(
+          `release-preview: workspace CHANGELOG top is ${section.version}, expected ${p.version}`,
+        );
+    } catch {
+      // no workspace CHANGELOG.md
+    }
+    return null;
+  };
+
+  const fromProjects = (): string | null => {
     const parts: string[] = [];
     for (const pkg of packages.values()) {
       try {
@@ -317,12 +330,14 @@ if (singleTag || fixedRelationship) {
         // no per-package changelog for this project
       }
     }
-    if (parts.length > 0) p.body = parts.join('\n\n');
-    else if (section)
-      console.error(
-        `release-preview: no changelog section for ${p.version} — placeholder body kept`,
-      );
-  }
+    return parts.length > 0 ? parts.join('\n\n') : null;
+  };
+
+  p.body =
+    (workspaceFirst ? (fromWorkspace() ?? fromProjects()) : (fromProjects() ?? fromWorkspace())) ??
+    '';
+  if (!p.body)
+    console.error(`release-preview: no changelog section for ${p.version} — placeholder body kept`);
 } else {
   for (const p of pending) {
     runChangelog(p.version, p.name, p.from, !p.from);
@@ -374,7 +389,7 @@ const repoUrl = repoMatch ? `https://github.com/${repoMatch[1]}/${repoMatch[2]}`
 // branch tip — link HEAD itself then.
 let base = 'HEAD';
 try {
-  if (/^chore\(release\)/.test(git('log', '-1', '--format=%s'))) {
+  if (git('log', '-1', '--format=%s').startsWith('chore(release)')) {
     base = git('rev-parse', 'HEAD~1');
   }
 } catch {
