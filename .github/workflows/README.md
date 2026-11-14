@@ -75,9 +75,24 @@ jobs:
 ```
 
 `<ref>` is whatever you pin the `uses:` calls to — a tag, branch, or commit
-SHA. Pin a SHA for stability; pass the **same** value as `source-ref` so
-helper scripts (`scripts/release-preview.ts`,
+SHA. The floating major tag **`release-action/v1`** tracks the latest
+published pipeline; pass the **same** value as `source-ref` so helper
+scripts (`scripts/release-preview.ts`,
 `scripts/rewrite-workspace-protocol.ts`) load from the same revision.
+
+Treat the ref as trusted code: `release.yml` runs with `id-token: write`
+for npm OIDC trusted publishing, and a retagged floating ref would change
+that code without a consumer edit. Consumers that publish packages should
+pin an immutable SHA (or a tag they never retag); the floating tag is
+convenient for preview-only consumers. A floating ref can also resolve to
+different revisions between the `uses:` checkout and the later
+`source-ref` helper fetch — only an immutable SHA guarantees both load
+the same revision.
+
+Helper scripts are only fetched when missing: if the consuming repository
+already has `scripts/release-preview.ts` or
+`scripts/rewrite-workspace-protocol.ts`, the workflow runs **your** copy
+instead of the pinned one — keep or delete those files deliberately.
 
 ## Inputs
 
