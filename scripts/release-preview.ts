@@ -2,10 +2,10 @@
 // Assembles the "next release" preview consumed by release-preview.yml.
 //
 // Runs AFTER `nx release version --git-push=false` — the version step
-// leaves one local `chore(release)` commit carrying the new release
-// tag(s). This script derives the pending release from nx.json's
-// `release.releaseTag.pattern` (any scheme nx supports: `{projectName}@
-// {version}`, `v{version}`, …), generates the changelog entries via
+// leaves the new versions on disk (committed or not, depending on the
+// consumer's nx.json). This script derives the pending release by
+// comparing each manifest version against released git tags, generates
+// the changelog entries via
 // `nx release changelog` (GitHub release creation is patched off by the
 // workflow), and emits:
 //
@@ -145,12 +145,15 @@ interface Pending {
   bumpOnly: boolean;
 }
 
-// Tags already on the remote are published, not pending — e.g. a release
-// run that pushed version+tags and then failed before the changelog
-// commit leaves them on HEAD. ls-remote needs no auth on public repos;
-// on failure warn and keep everything (fail-open: a stale draft
-// self-corrects on the next run).
+// A package is pending when the version `nx release version` just wrote
+// to its manifest is not yet a released tag. Released-ness is checked
+// against remote tags — this works whether the consumer's nx.json
+// creates git tags during `version` (version.git.tag) or during
+// `changelog` (changelog.git.tag, the nx 23 default): in the latter
+// case no new tag exists at all yet, and in the former the new tag is
+// local-only so it is not on the remote either.
 let remoteTags = new Set<string>();
+let remoteOk = false;
 try {
   remoteTags = new Set(
     git('ls-remote', '--tags', 'origin')
@@ -164,36 +167,25 @@ try {
       )
       .filter(Boolean),
   );
+  remoteOk = true;
 } catch (error) {
   console.error(
-    `release-preview: ls-remote failed (${String(error)}) — remote tag filter disabled`,
+    `release-preview: ls-remote failed (${String(error)}) — falling back to local tags`,
   );
 }
-
-// Match each new tag at HEAD to the package whose rendered pattern
-// produced it. Pattern-agnostic: `name@version`, `v{version}`, or any
-// nx-supported interpolation.
-const tagToPkg = new Map<string, Pkg>();
-for (const pkg of packages.values()) {
-  const tag = renderTag(pkg.name, pkg.version);
-  if (!tagToPkg.has(tag)) tagToPkg.set(tag, pkg);
-}
-
-const headTags = git('tag', '--points-at', 'HEAD')
-  .split('\n')
-  .filter(Boolean)
-  .filter((t) => !remoteTags.has(t));
+// Fail-open fallback when ls-remote is unavailable: a local tag counts
+// as released unless it sits at HEAD — tags nx just created during
+// `version` point at the release commit and must stay pending.
+const headTags = new Set(git('tag', '--points-at', 'HEAD').split('\n').filter(Boolean));
+const localTags = new Set(git('tag', '--list').split('\n').filter(Boolean));
+const isReleased = (tag: string): boolean =>
+  remoteOk ? remoteTags.has(tag) : localTags.has(tag) && !headTags.has(tag);
 
 const pending: Pending[] = [];
 const seenTags = new Set<string>();
-for (const tag of headTags) {
-  const pkg = tagToPkg.get(tag);
-  if (!pkg) {
-    console.error(
-      `release-preview: tag ${tag} matches no packages/*/package.json under pattern "${tagPattern}" — skipped`,
-    );
-    continue;
-  }
+for (const pkg of packages.values()) {
+  const tag = renderTag(pkg.name, pkg.version);
+  if (isReleased(tag)) continue; // disk version already published
   if (seenTags.has(tag)) continue; // fixed lockstep: many packages → one tag
   seenTags.add(tag);
 
@@ -201,8 +193,7 @@ for (const tag of headTags) {
   const family = git('tag', '--list', tagGlob(pkg.name), '--sort=-version:refname')
     .split('\n')
     .filter(Boolean);
-  const idx = family.indexOf(tag);
-  const prevTag = idx >= 0 ? family[idx + 1] : undefined;
+  const prevTag = family.find(isReleased);
 
   pending.push({
     name: pkg.name,
