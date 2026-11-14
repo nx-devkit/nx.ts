@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
 // Assembles the "next release" preview consumed by release-preview.yml.
 //
-// Runs AFTER `nx release version --git-push=false` and the per-tag
-// `nx release changelog` loop — the version step leaves one local
-// `chore(release)` commit carrying every new `@scope/name@x.y.z` tag, and
-// the changelog step prepends the pending entry to each
-// packages/*/CHANGELOG.md. This script reads that state and emits:
+// Runs AFTER `nx release version --git-push=false` — the version step
+// leaves one local `chore(release)` commit carrying the new release
+// tag(s). This script derives the pending release from nx.json's
+// `release.releaseTag.pattern` (any scheme nx supports: `{projectName}@
+// {version}`, `v{version}`, …), generates the changelog entries via
+// `nx release changelog` (GitHub release creation is patched off by the
+// workflow), and emits:
 //
 //   - tmp/release-preview.md   draft release body
 //   - $GITHUB_OUTPUT           title=<one line>, has_release=true|false
@@ -28,6 +30,14 @@ const git = (...args: string[]): string =>
     timeout: 15_000,
   }).trim();
 
+const nx = (...args: string[]): string =>
+  execFileSync('npx', ['nx', ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 120_000,
+    stdio: ['ignore', 'pipe', 'inherit'],
+  }).trim();
+
 const emit = (fields: Record<string, string>): void => {
   const out = process.env.GITHUB_OUTPUT;
   if (out)
@@ -39,19 +49,54 @@ const emit = (fields: Record<string, string>): void => {
     );
 };
 
-// name@x.y.z — scoped (`@scope/name@x.y.z`) or unscoped (`pkg@x.y.z`);
-// version must start with a digit so tags like `pkg@bar` cannot slip
-// through. The `v{version}` fixed-tag scheme is not this format.
-const parseTag = (tag: string): { name: string; version: string } | null => {
-  const at = tag.lastIndexOf('@');
-  if (at <= 0) return null;
-  const name = tag.slice(0, at);
-  const version = tag.slice(at + 1);
-  if (!name || !/^\d+\.\d+\.\d+/.test(version)) return null;
-  return { name, version };
-};
+// ── nx.json release configuration ──────────────────────────────────────
 
-const packageDirByName = new Map<string, string>();
+interface NxJson {
+  release?: {
+    releaseTag?: { pattern?: string };
+    projectsRelationship?: string;
+  };
+}
+
+let nxJson: NxJson = {};
+try {
+  nxJson = JSON.parse(readFileSync(join(root, 'nx.json'), 'utf8')) as NxJson;
+} catch {
+  console.error('release-preview: nx.json missing or unreadable — assuming defaults');
+}
+// nx default when releaseTag.pattern is unset.
+const tagPattern = nxJson.release?.releaseTag?.pattern ?? '{projectName}@{version}';
+const fixedRelationship = nxJson.release?.projectsRelationship === 'fixed';
+// A pattern without a project token produces ONE tag for the whole
+// release (e.g. `v{version}`) — the workspace-changelog path.
+const singleTag = !/\{(projectName|projectNameForPackageRoot)/.test(tagPattern);
+
+// Render the tag pattern for a package@version. Unknown tokens stay
+// literal — an unmatched pattern simply yields no pending tag.
+const renderTag = (name: string, version: string): string =>
+  tagPattern
+    .replaceAll('{projectNameForPackageRoot}', name)
+    .replaceAll('{projectName}', name)
+    .replaceAll('{version}', version);
+
+// Glob matching this package's tag family, for finding the previous
+// release tag (`{projectName}@{version}` → `@scope/name@*`,
+// `v{version}` → `v*`).
+const tagGlob = (name: string): string =>
+  tagPattern
+    .replaceAll('{projectNameForPackageRoot}', name)
+    .replaceAll('{projectName}', name)
+    .replaceAll('{version}', '*');
+
+// ── workspace packages ─────────────────────────────────────────────────
+
+interface Pkg {
+  name: string;
+  version: string;
+  dir: string;
+}
+
+const packages = new Map<string, Pkg>();
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- packagesDir is a fixed workspace path
 for (const dir of readdirSync(join(root, 'packages'))) {
   const manifestPath = join(root, 'packages', dir, 'package.json');
@@ -64,8 +109,9 @@ for (const dir of readdirSync(join(root, 'packages'))) {
   }
   // Parse outside the try — a malformed manifest must fail loud, not
   // silently drop the package from the preview.
-  const pkg = JSON.parse(raw) as { name?: string };
-  if (pkg.name) packageDirByName.set(pkg.name, dir);
+  const pkg = JSON.parse(raw) as { name?: string; version?: string };
+  if (pkg.name && pkg.version)
+    packages.set(pkg.name, { name: pkg.name, version: pkg.version, dir });
 }
 
 // First `## ` section of a CHANGELOG.md: version + body up to the next one.
@@ -93,6 +139,7 @@ const isBumpOnly = (body: string): boolean =>
 interface Pending {
   name: string;
   version: string;
+  tag: string;
   from: string | null;
   body: string;
   bumpOnly: boolean;
@@ -123,41 +170,47 @@ try {
   );
 }
 
+// Match each new tag at HEAD to the package whose rendered pattern
+// produced it. Pattern-agnostic: `name@version`, `v{version}`, or any
+// nx-supported interpolation.
+const tagToPkg = new Map<string, Pkg>();
+for (const pkg of packages.values()) {
+  const tag = renderTag(pkg.name, pkg.version);
+  if (!tagToPkg.has(tag)) tagToPkg.set(tag, pkg);
+}
+
+const headTags = git('tag', '--points-at', 'HEAD')
+  .split('\n')
+  .filter(Boolean)
+  .filter((t) => !remoteTags.has(t));
+
 const pending: Pending[] = [];
-for (const tag of git('tag', '--points-at', 'HEAD').split('\n').filter(Boolean)) {
-  const parsed = parseTag(tag);
-  if (!parsed || remoteTags.has(tag)) continue;
-  const dir = packageDirByName.get(parsed.name);
-  if (!dir) {
-    console.error(`release-preview: no packages/*/package.json named ${parsed.name} — skipped`);
+const seenTags = new Set<string>();
+for (const tag of headTags) {
+  const pkg = tagToPkg.get(tag);
+  if (!pkg) {
+    console.error(
+      `release-preview: tag ${tag} matches no packages/*/package.json under pattern "${tagPattern}" — skipped`,
+    );
     continue;
   }
-  const tags = git('tag', '--list', `${parsed.name}@*`, '--sort=-version:refname')
+  if (seenTags.has(tag)) continue; // fixed lockstep: many packages → one tag
+  seenTags.add(tag);
+
+  // Previous release tag in this package's tag family.
+  const family = git('tag', '--list', tagGlob(pkg.name), '--sort=-version:refname')
     .split('\n')
     .filter(Boolean);
-  const idx = tags.indexOf(tag);
-  const prev = idx >= 0 ? tags[idx + 1] : undefined;
-  const changelogPath = join(root, 'packages', dir, 'CHANGELOG.md');
-  let body = '_Changelog entry missing — see the release-preview workflow log._';
-  try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is built from packages/* directory entries
-    const section = firstSection(readFileSync(changelogPath, 'utf8'));
-    if (section && section.version === parsed.version) {
-      body = section.body;
-    } else if (section) {
-      console.error(
-        `release-preview: ${parsed.name} CHANGELOG top is ${section.version}, expected ${parsed.version} — placeholder body kept`,
-      );
-    }
-  } catch {
-    // missing CHANGELOG.md — keep the placeholder body
-  }
+  const idx = family.indexOf(tag);
+  const prevTag = idx >= 0 ? family[idx + 1] : undefined;
+
   pending.push({
-    name: parsed.name,
-    version: parsed.version,
-    from: prev ? prev.slice(prev.lastIndexOf('@') + 1) : null,
-    body,
-    bumpOnly: isBumpOnly(body),
+    name: pkg.name,
+    version: pkg.version,
+    tag,
+    from: prevTag ?? null,
+    body: '',
+    bumpOnly: false,
   });
 }
 
@@ -167,16 +220,89 @@ if (pending.length === 0) {
   process.exit(0);
 }
 
+// ── changelog generation ───────────────────────────────────────────────
+// The workflow's old per-tag shell loop is replaced by this: the same
+// pattern logic that matched the tags now drives `nx release changelog`.
+// createRelease is already patched to false in nx.json by the workflow,
+// so nothing reaches GitHub.
+
+const runChangelog = (
+  version: string,
+  project: string | null,
+  from: string | null,
+  firstRelease: boolean,
+): void => {
+  const args = ['release', 'changelog', version];
+  if (project) args.push('-p', project);
+  if (from) args.push('--from', from);
+  else if (firstRelease) args.push('--first-release');
+  // Neither flag: nx derives the commit range itself (fixed groups).
+  args.push('--git-commit=false', '--git-tag=false', '--git-push=false');
+  nx(...args);
+};
+
+if (singleTag || fixedRelationship) {
+  // One release for the whole workspace — nx resolves the fixed group
+  // itself; --from is omitted so nx derives the range like the repo's
+  // own release pipeline does.
+  const p = pending[0];
+  runChangelog(p.version, null, null, false);
+  const changelogPath = join(root, 'CHANGELOG.md');
+  try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed workspace path
+    const section = firstSection(readFileSync(changelogPath, 'utf8'));
+    if (section && section.version === p.version) p.body = section.body;
+    else if (section)
+      console.error(
+        `release-preview: workspace CHANGELOG top is ${section.version}, expected ${p.version} — placeholder body kept`,
+      );
+  } catch {
+    // missing root CHANGELOG.md — keep the placeholder body
+  }
+  // Surface the member packages for the draft body.
+  const members = [...packages.values()].map((m) => m.name).sort();
+  p.body = `${p.body}\n\n<details><summary>Packages in this release (${members.length})</summary>\n\n${members.map((m) => `- \`${m}\``).join('\n')}\n\n</details>`;
+} else {
+  for (const p of pending) {
+    runChangelog(p.version, p.name, p.from, !p.from);
+  }
+}
+
+// Per-project changelog bodies (independent mode).
+if (!singleTag && !fixedRelationship) {
+  for (const p of pending) {
+    const pkg = packages.get(p.name);
+    if (!pkg) continue;
+    const changelogPath = join(root, 'packages', pkg.dir, 'CHANGELOG.md');
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is built from packages/* directory entries
+      const section = firstSection(readFileSync(changelogPath, 'utf8'));
+      if (section && section.version === p.version) {
+        p.body = section.body;
+      } else if (section) {
+        console.error(
+          `release-preview: ${p.name} CHANGELOG top is ${section.version}, expected ${p.version} — placeholder body kept`,
+        );
+      }
+    } catch {
+      // missing CHANGELOG.md — keep the placeholder body
+    }
+    p.bumpOnly = isBumpOnly(p.body);
+  }
+}
+
 const changed = pending.filter((p) => !p.bumpOnly);
 const bumps = pending.filter((p) => p.bumpOnly);
 
 const title =
-  changed.length > 0
-    ? `Next release — ${changed
-        .slice(0, 3)
-        .map((p) => `${p.name}@${p.version}`)
-        .join(', ')}${changed.length > 3 ? ` +${changed.length - 3} more` : ''}`
-    : `Next release — ${pending.length} package${pending.length === 1 ? '' : 's'}, version bumps only`;
+  singleTag || fixedRelationship
+    ? `Next release — ${pending[0].version}`
+    : changed.length > 0
+      ? `Next release — ${changed
+          .slice(0, 3)
+          .map((p) => `${p.name}@${p.version}`)
+          .join(', ')}${changed.length > 3 ? ` +${changed.length - 3} more` : ''}`
+      : `Next release — ${pending.length} package${pending.length === 1 ? '' : 's'}, version bumps only`;
 
 const remote = git('remote', 'get-url', 'origin');
 const repoMatch = remote.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/);
@@ -200,19 +326,30 @@ const sections: string[] = [
   `Base: [\`${base.slice(0, 7)}\`](${repoUrl}/commit/${base}) · generated ${new Date().toISOString()}`,
 ];
 
-if (changed.length > 0) {
-  sections.push('', `### Packages with changes (${changed.length})`, '');
-  for (const p of changed) {
-    sections.push(`#### ${range(p)}`, '', p.body, '');
+if (singleTag || fixedRelationship) {
+  const p = pending[0];
+  sections.push(
+    '',
+    `### Release ${p.version}`,
+    '',
+    p.body || '_Changelog entry missing — see the release-preview workflow log._',
+    '',
+  );
+} else {
+  if (changed.length > 0) {
+    sections.push('', `### Packages with changes (${changed.length})`, '');
+    for (const p of changed) {
+      sections.push(`#### ${range(p)}`, '', p.body, '');
+    }
   }
-}
 
-if (bumps.length > 0) {
-  sections.push(`### Version-only bumps (${bumps.length})`, '');
-  for (const p of bumps) {
-    sections.push(`- ${range(p)} — no code changes`);
+  if (bumps.length > 0) {
+    sections.push(`### Version-only bumps (${bumps.length})`, '');
+    for (const p of bumps) {
+      sections.push(`- ${range(p)} — no code changes`);
+    }
+    sections.push('');
   }
-  sections.push('');
 }
 
 const bodyPath = join(root, 'tmp', 'release-preview.md');
