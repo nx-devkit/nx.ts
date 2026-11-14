@@ -28,6 +28,45 @@ on:
         type: choice
         default: none
         options: [none, patch, minor, major]
+  # Reusable entrypoint: other repositories call this workflow via
+  # `uses: nx-devkit/nx.ts/.github/workflows/release-preview.yml@<ref>`.
+  # github.event_name inside the callee is the CALLER's event, so push /
+  # release / dispatch guards below keep working unchanged.
+  workflow_call:
+    inputs:
+      specifier:
+        description: >-
+          Force a version specifier for all release projects, bypassing
+          conventional-commit derivation. One of none|patch|minor|major —
+          anything else behaves as "none".
+        required: false
+        # workflow_call supports only boolean|number|string — `choice` is
+        # workflow_dispatch-only and would make GitHub reject this file.
+        type: string
+        default: none
+      branch:
+        description: >-
+          Default branch that receives release commits — the draft "next"
+          is only maintained while the caller's ref matches it.
+        required: false
+        type: string
+        default: main
+      tag-prefix:
+        description: >-
+          Release-tag prefix identifying this repo's packages — nx release
+          tags look like `<prefix><project>@<version>` (e.g. `@myorg/`).
+        required: false
+        type: string
+        default: '@nx-devkit/'
+      source-ref:
+        description: >-
+          Ref of nx-devkit/nx.ts the helper scripts are loaded from — pin
+          the same ref as the `uses:` call (tag, branch, or SHA).
+        required: true
+        type: string
+    secrets:
+      NX_CLOUD_ACCESS_TOKEN:
+        required: false
 
 # Same Nx Cloud token wiring as release.yml — the preview's nx invocations
 # hit the same 401s without it.
@@ -38,12 +77,23 @@ jobs:
   preview:
     # Same loop guard as release.yml: bot release commits ("chore(release)")
     # must not retrigger. push events only — workflow_run/dispatch always run.
-    # Every event must target main: a workflow_dispatch from a feature ref
-    # would otherwise replace the shared "next" draft with that branch's
-    # preview. push events are already main-only via branches: [main];
-    # workflow_run inherits the default-branch ref.
-    if: github.ref == 'refs/heads/main' && (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)'))
+    # Every event must target the release branch: a workflow_dispatch from a
+    # feature ref would otherwise replace the shared "next" draft with that
+    # branch's preview. push events are already branch-only via branches:
+    # [main]; workflow_run inherits the default-branch ref; workflow_call
+    # callers pass their branch through inputs.branch.
+    if: >-
+      github.ref == format('refs/heads/{0}', inputs.branch || 'main') &&
+      (github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(release)'))
     runs-on: ubuntu-latest
+    env:
+      # github.event_name inside a reusable call is the CALLER's event, so
+      # it cannot detect calls. source-ref is required only for
+      # workflow_call (never declared for native triggers) — its presence
+      # marks a call, where inputs.tag-prefix already carries its declared
+      # default. Off-call the fallback applies; on-call an explicit empty
+      # prefix survives because the inner || yields ''.
+      TAG_PREFIX: ${{ inputs.tag-prefix || (inputs.source-ref == '' && '@nx-devkit/' || '') }}
     concurrency:
       group: release-preview
       cancel-in-progress: true
@@ -67,7 +117,10 @@ jobs:
       - name: Version packages locally (conventional commits, no push)
         # Identical derivation to release.yml — the local chore(release)
         # commit and its tags never leave the runner.
-        run: npx nx release version --git-push=false ${{ github.event_name == 'workflow_dispatch' && inputs.specifier != 'none' && format('--specifier={0}', inputs.specifier) || '' }}
+        # Membership test instead of an event_name gate: inputs.specifier is
+        # populated for BOTH workflow_dispatch and workflow_call, and is empty
+        # for push/workflow_run — so 'none'/unset never produces a flag.
+        run: npx nx release version --git-push=false ${{ contains(fromJSON('["patch","minor","major"]'), inputs.specifier) && format('--specifier={0}', inputs.specifier) || '' }}
       - name: Disable GitHub release creation for the preview
         # nx.json sets changelog.projectChangelogs.createRelease: "github";
         # without this patch the changelog step would create REAL GitHub
@@ -82,7 +135,9 @@ jobs:
       - name: Generate changelog entries locally
         # Same loop as release.yml, minus git push and GitHub releases.
         run: |
-          for tag in $(git tag --points-at HEAD | grep '^@nx-devkit/'); do
+          # awk index() = literal prefix match (grep would treat the
+          # prefix as a regex — a '.' in a scope would over-match).
+          for tag in $(git tag --points-at HEAD | awk -v p="$TAG_PREFIX" 'index($0, p) == 1'); do
             project="${tag%@*}"
             version="${tag##*@}"
             prev=$(git tag --list "${project}@*" --sort=-version:refname | sed -n '2p')
@@ -96,13 +151,32 @@ jobs:
           done
       - name: Assemble preview markdown
         id: preview
-        run: bun scripts/release-preview.ts
+        env:
+          SOURCE_REF: ${{ inputs.source-ref }}
+        # Native runs have scripts/release-preview.ts in the checkout.
+        # Reusable callers check out THEIR repo — the helper is fetched
+        # from nx-devkit/nx.ts at the same ref the caller pinned in uses:.
+        # It lands in tmp/ (gitignored, one level deep) because the script
+        # resolves the workspace root as join(import.meta.dir,'..') —
+        # /tmp would resolve root to '/' and find no packages/.
+        run: |
+          script=scripts/release-preview.ts
+          if [ ! -f "$script" ]; then
+            [ -n "$SOURCE_REF" ] || { echo "scripts/release-preview.ts missing and source-ref input is empty" >&2; exit 1; }
+            mkdir -p tmp
+            curl -fsSL "https://raw.githubusercontent.com/nx-devkit/nx.ts/${SOURCE_REF}/scripts/release-preview.ts" -o tmp/release-preview.ts
+            script=tmp/release-preview.ts
+          fi
+          bun "$script"
+      - name: Ensure preview body file exists
+        # The artifact is uploaded unconditionally: an empty body marks
+        # "nothing pending". The ai-notes lookup is artifact-name-keyed
+        # (not workflow-name-keyed) so reusable callers work — the newest
+        # release-preview-body artifact always reflects the latest preview.
+        run: |
+          mkdir -p tmp
+          [ -f tmp/release-preview.md ] || : > tmp/release-preview.md
       - name: Upload preview body for the AI notes workflow
-        # release-ai-notes (gh-aw) cannot read draft releases — GitHub only
-        # lists drafts for push-access tokens, and strict mode forbids
-        # contents:write on the agent job. The artifact is the data channel
-        # instead: the agent downloads it with actions:read.
-        if: steps.preview.outputs.has_release == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-preview-body

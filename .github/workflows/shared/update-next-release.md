@@ -29,6 +29,7 @@ safe-outputs:
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             GH_REPO: ${{ github.repository }}
+            BRANCH: ${{ inputs.branch || 'main' }}
           run: |
             set -euo pipefail
             # Threat-detection gate: write only on a clean verdict.
@@ -60,13 +61,62 @@ safe-outputs:
             { printf '%s\n\n' "$body"; cat /tmp/old-body.md; } > /tmp/new-body.md
 
             # Stale-run fence, re-checked immediately before the write:
-            # only write highlights for the LATEST SUCCESSFUL preview —
-            # a newer one means its own agent run summarizes the current
-            # body, and failed/cancelled runs never count.
-            latest=$(gh run list --workflow release-preview --branch main \
-              --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+            # only write highlights for the LATEST trusted preview — a
+            # newer trusted artifact means a newer preview superseded this
+            # body, and its own agent run summarizes the current body
+            # instead. "Trusted" mirrors fetch_preview: this run, or a
+            # completed+successful run on this repo's release branch —
+            # failed/cancelled producers and foreign uploads (fork/PR runs
+            # can publish same-named artifacts) neither count as latest nor
+            # can mask staleness. Artifact-name-keyed, not workflow-name-
+            # keyed, so reusable callers work.
+            CANDIDATES=$(gh api "repos/$GH_REPO/actions/artifacts?name=release-preview-body&per_page=100" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[].workflow_run.id')
+            latest=""
+            while IFS= read -r candidate; do
+              [ -n "$candidate" ] || continue
+              if [ "$candidate" = "$GITHUB_RUN_ID" ]; then
+                latest="$candidate"
+                break
+              fi
+              run_json=$(gh api "repos/$GH_REPO/actions/runs/$candidate")
+              if [ "$(jq -r '.status' <<<"$run_json")" = "completed" ] \
+                && [ "$(jq -r '.conclusion // ""' <<<"$run_json")" = "success" ] \
+                && [ "$(jq -r '.head_branch' <<<"$run_json")" = "$BRANCH" ] \
+                && [ "$(jq -r '.head_repository.full_name' <<<"$run_json")" = "$GH_REPO" ]; then
+                latest="$candidate"
+                break
+              fi
+            done <<< "$CANDIDATES"
             if [ "$latest" != "$claimed" ]; then
-              echo "stale preview run $claimed (latest is $latest) — skipping"
+              echo "stale preview run $claimed (latest trusted artifact run is ${latest:-none}) — skipping"
+              exit 0
+            fi
+
+            # In-progress race: a NEWER preview may have started after the
+            # agent read its body but before this write — its artifact does
+            # not exist yet, so the scan above cannot see it. If a trusted
+            # producer run newer than the claimed one is still active, this
+            # body is already superseded; writing would pin stale highlights
+            # (the duplicate-Highlights guard then blocks the correction).
+            claimed_created=$(gh api "repos/$GH_REPO/actions/runs/$claimed" --jq '.created_at')
+            # The producer workflow: native previews run release-preview.yml;
+            # reusable callers produce the artifact inside their own caller
+            # workflow — the github context here IS the caller's, so
+            # GITHUB_WORKFLOW_REF names it (the native ai-notes files mean
+            # the producer is our own release-preview.yml).
+            wf_file="${GITHUB_WORKFLOW_REF#*.github/workflows/}"
+            wf_file="${wf_file%@*}"
+            case "$wf_file" in
+              release-ai-notes.lock.yml|release-ai-notes.md) producer="release-preview.yml" ;;
+              *) producer="$wf_file" ;;
+            esac
+            # gh api --jq is gojq without --arg — pipe to jq for variables.
+            superseded=$(gh api "repos/$GH_REPO/actions/workflows/$producer/runs?branch=$BRANCH&per_page=100" \
+              | jq --arg self "$GITHUB_RUN_ID" --arg since "$claimed_created" --arg repo "$GH_REPO" \
+              '[.workflow_runs[] | select(.id != ($self | tonumber)) | select(.status != "completed") | select(.created_at > $since) | select(.head_repository.full_name == $repo)] | length')
+            if [ "$superseded" != "0" ]; then
+              echo "newer $producer run in progress — claimed preview $claimed is superseded, skipping"
               exit 0
             fi
 
