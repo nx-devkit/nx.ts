@@ -1,5 +1,5 @@
 import { type GeneratorCallback, type Tree, addDependenciesToPackageJson } from '@nx/devkit';
-import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
+import { applyEdits, modify, parse as parseJsonc, type ParseError } from 'jsonc-parser';
 
 export interface NxTypescriptInitOptions {
   pluginPath?: string;
@@ -69,6 +69,7 @@ function getPluginOptions(entry: unknown): Record<string, unknown> {
 }
 
 function registerPlugin(tree: Tree, pluginPath: string): Record<string, unknown> {
+  const raw = tree.read('nx.json', 'utf8');
   const nxJson = readJson(tree, 'nx.json') ?? {};
   const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : [];
 
@@ -87,8 +88,16 @@ function registerPlugin(tree: Tree, pluginPath: string): Record<string, unknown>
     filtered.push(presetEntry);
   }
 
-  nxJson.plugins = filtered;
-  writeJson(tree, 'nx.json', nxJson);
+  if (raw !== null) {
+    // Patch `plugins` in place so comments/formatting in nx.json survive
+    const edits = modify(raw, ['plugins'], filtered, {
+      formattingOptions: { insertSpaces: true, tabSize: 2 },
+    });
+    tree.write('nx.json', applyEdits(raw, edits));
+  } else {
+    nxJson.plugins = filtered;
+    writeJson(tree, 'nx.json', nxJson);
+  }
   return existingOptions;
 }
 

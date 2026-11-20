@@ -85,4 +85,20 @@ describe('@nx-devkit/typescript init generator', () => {
 
     await expect(initGenerator(tree, {})).rejects.toThrow(/Failed to parse nx\.json/)
   })
+
+  it('preserves comments in nx.json when registering the plugin', async () => {
+    const { tree, files } = createTree({
+      'nx.json': '{\n  // workspace comment\n  "plugins": []\n}\n',
+    })
+
+    await initGenerator(tree, {})
+
+    const written = files.get('nx.json') ?? ''
+    expect(written).toContain('// workspace comment')
+    const nxJson = JSON.parse(written.replace(/\/\/.*$/gm, ''))
+    expect(nxJson.plugins).toContainEqual({
+      options: {},
+      plugin: '@nx-devkit/typescript',
+    })
+  })
 })

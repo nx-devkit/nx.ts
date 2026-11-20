@@ -56,7 +56,7 @@ Depends on `@nx/devkit` `^24` (installed automatically); `typescript` is the one
 
 ```bash
 bun add -D vitest oxlint eslint @biomejs/biome tsdown
-# tsgo (optional, not a declared peer): bun add -D @typescript/native-preview
+# tsgo (optional peer): bun add -D @typescript/native-preview
 ```
 
 ## What it infers
