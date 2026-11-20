@@ -10,7 +10,7 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/boundaries
 ```
 
-Depends on `@nx/devkit` `^24` (installed automatically — `nx` itself comes from your workspace via devkit's peer range) and `typescript` `>=5` (the import scanner uses the TS parser).
+Depends on `@nx/devkit` `^24` (installed automatically — `nx` itself comes from your workspace via devkit's peer range) and `typescript` `^5 || ^6` — the import scanner uses the TS parser's JS API (`ts.createSourceFile`), which the native `typescript@7` line does not ship.
 
 ## Register
 

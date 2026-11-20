@@ -91,6 +91,7 @@
   },
   "peerDependencies": {
     "@biomejs/biome": "^2.0.0",
+    "@typescript/native-preview": ">=7.0.0-dev.0",
     "eslint": "^9.0.0",
     "oxlint": "^1.0.0",
     "tsdown": "^0.22.0",
@@ -99,6 +100,9 @@
   },
   "peerDependenciesMeta": {
     "@biomejs/biome": {
+      "optional": true
+    },
+    "@typescript/native-preview": {
       "optional": true
     },
     "eslint": {
