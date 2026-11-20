@@ -354,11 +354,7 @@ function getMissingDevDeps(
     // eslint-disable-next-line security/detect-object-injection -- option is a literal DEP_RULES field
     if (option !== undefined && presetOptions[option] === false) continue;
     // eslint-disable-next-line security/detect-object-injection -- dep keys come from the literal DEP_RULES table
-    if (
-      hasAny(when) &&
-      !(dep in existing) &&
-      !satisfiedBy.some((alt) => alt in existing)
-    )
+    if (hasAny(when) && !(dep in existing) && !satisfiedBy.some((alt) => alt in existing))
       needed[dep] = DEP_VERSIONS[dep];
   }
 
