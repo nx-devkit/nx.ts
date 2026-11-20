@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import { resolveBinLaunch } from '@nx-devkit/internal'
 
 export interface TypecheckExecutorOptions {
-  /** Use @typescript/native-preview (tsgo) instead of tsc. Default: true. */
+  /** Prefer the native TypeScript compiler (tsgo from @typescript/native-preview, or the native `tsc` from typescript@7 / @typescript/native). Default: true. */
   tsgo?: boolean
   /** Name of the tsconfig file to build. Default: "tsconfig.json". */
   configFile?: string
@@ -65,6 +65,9 @@ export async function typecheckExecutor(
 
   // Check if tsgo is available when requested. Look in both the project
   // root and the workspace root — a project-local install is valid.
+  // `tsgo` exists only in the legacy @typescript/native-preview package.
+  // Under the recommended typescript@7 side-by-side alias (@typescript/native)
+  // `tsc` itself is the native compiler, so the fallback is already native.
   let useTsgo = tsgo
   if (useTsgo) {
     const workspaceNativePkg = join(workspaceRoot, 'node_modules', '@typescript', 'native-preview')

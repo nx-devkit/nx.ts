@@ -16,7 +16,7 @@ import {
   ESLINT_CONFIG_NAMES,
   OXLINTRC_NAMES,
   TSDOWN_CONFIG_NAMES,
-  checkNativePreview,
+  detectNativeTypescript,
   findConfigFile,
   findVitestConfig,
 } from './config.js'
@@ -114,7 +114,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
 
       const relProjectRoot = projectKey
 
-      const hasNativePreview = await checkNativePreview(projectRoot, workspaceRoot)
+      const nativeDep = await detectNativeTypescript(projectRoot, workspaceRoot)
 
       const typecheckTarget = inferTypecheckTarget(
         relProjectRoot,
@@ -123,7 +123,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           configFile: configFileName,
           clean,
         },
-        hasNativePreview,
+        nativeDep,
       )
 
       const targets: Record<string, TargetConfiguration> = {

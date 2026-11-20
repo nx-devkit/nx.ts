@@ -24,7 +24,7 @@ packages/typescript-preset/
 
 ```ts
 export interface NxDevkitTypescriptOptions {
-  /** Use the experimental `@typescript/native-preview` (`tsgo`) binary. Default: true. */
+  /** Prefer the native compiler — `tsc` from `@typescript/native` (typescript@7) or `tsgo` from the legacy `@typescript/native-preview`. Default: true. */
   tsgo?: boolean;
   /** Name of the tsconfig file to detect. Default: "tsconfig.json". */
   configFile?: string;

@@ -15,7 +15,7 @@ This:
 1. Installs `@nx-devkit/typescript` (plus `nx`/`@nx/devkit` when missing) into the workspace — the plugin is fetched from the npx cache to a real devDependency
 2. Registers `@nx-devkit/typescript` in `nx.json` — removing standalone `@nx-devkit/*` entries, preserving your existing preset options and non-nx-devkit plugins
 3. Detects config files at the workspace root and in `packages/`, `apps/`, `libs/`, `projects/` (nested project roots are found recursively)
-4. Adds devDependencies for the tools your configs imply (`typescript`, `@typescript/native-preview`, `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`)
+4. Adds devDependencies for the tools your configs imply (`typescript`, `@typescript/native`, `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`)
 5. Prints the detected projects and the targets each will get
 
 If the workspace has no Nx yet, the bootstrap installs `nx` + `@nx/devkit` first.
@@ -50,13 +50,11 @@ bun add -D @nx-devkit/typescript
 { "plugins": ["@nx-devkit/typescript"] }
 ```
 
-Depends on `@nx/devkit` `^24` (installed automatically); `typescript` is the one required peer — `>=3.0.0` (the `tsc --build` floor; the typecheck executor only shells `tsc`/`tsgo`), but keep the workspace devDep on TS ≤6 (see caveat below). The remaining tools are optional peers — install only what your configs use:
-
-> **Caveat — `typescript@7+`:** the native line no longer ships the JS compiler API (`ts.createSourceFile`, `readConfigFile`, …). Nx itself resolves the workspace `typescript` for its project-graph plugin, so `typescript@7` at the workspace root breaks `nx` on `nx@24`. Until your Nx version supports it, keep the workspace devDep on TS ≤6 — actual compilation/typechecking already goes through `tsgo` (`@typescript/native-preview`), which is the native compiler line.
+Depends on `@nx/devkit` `^24` (installed automatically); `typescript` is the one required peer. The remaining tools are optional peers — install only what your configs use:
 
 ```bash
 bun add -D vitest oxlint eslint @biomejs/biome tsdown
-# tsgo (optional peer): bun add -D @typescript/native-preview
+# tsgo (optional, not a declared peer): bun add -D @typescript/native@npm:typescript@^7
 ```
 
 ## What it infers
@@ -65,7 +63,7 @@ bun add -D vitest oxlint eslint @biomejs/biome tsdown
 
 | Config detected                                                    | Targets                                                            | Runs                                                                                                     |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `tsconfig.json` (or `configFile` option)                           | `typecheck`                                                        | `@nx-devkit/typescript:typecheck` executor — `tsgo --build` or `tsc --build`, shell-free, 10-min bounded |
+| `tsconfig.json` (or `configFile` option)                           | `typecheck`                                                        | `@nx-devkit/typescript:typecheck` executor — `tsc --build` (native under typescript@7) or `tsgo --build`, shell-free, 10-min bounded |
 | `vitest.config.*`                                                  | `test`, `test:watch`, `test:coverage`                              | `vitest run` / `vitest` / `vitest run --coverage`                                                        |
 | `*.test.*`/`*.spec.*` without Vitest                               | `test` (+ `test:tap`, `test:coverage` when enabled)                | native `node --test` (requires Node ≥ 22.18)                                                             |
 | `.oxlintrc.*` + `oxlint: true`                                     | `lint`                                                             | `oxlint .`                                                                                               |
@@ -115,10 +113,10 @@ Pass via the plugin tuple in `nx.json`:
         "tsdown": true,
         "testGlob": "**/*.test.{ts,js,mts,mjs}",
         "specGlob": "**/*.spec.{ts,js,mts,mjs}",
-        "includeRoot": true,
-      },
-    ],
-  ],
+        "includeRoot": true
+      }
+    ]
+  ]
 }
 ```
 
@@ -126,7 +124,7 @@ Pass via the plugin tuple in `nx.json`:
 
 | Option        | Type      | Default                       | Effect                                                                                                                                |
 | ------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `tsgo`        | `boolean` | `true`                        | `typecheck` runs `tsgo` when `@typescript/native-preview` is installed; falls back to `tsc` when absent or `tsgo: false`.             |
+| `tsgo`        | `boolean` | `true`                        | `typecheck` prefers the native compiler: `tsgo` from `@typescript/native-preview`, else `tsc` (native under `typescript@7`/`@typescript/native`). |
 | `configFile`  | `string`  | `"tsconfig.json"`             | Config basename that marks a directory as a project.                                                                                  |
 | `clean`       | `boolean` | `false`                       | `typecheck` runs `… --build --clean <config>` first.                                                                                  |
 | `tap`         | `boolean` | `false`                       | Adds `test:tap` — native runner, TAP reporter, `test-results.tap` output.                                                             |
@@ -182,7 +180,7 @@ import {
   globMatchAsync,
   globToRegExp,
   expandBraces,
-} from '@nx-devkit/typescript';
+} from '@nx-devkit/typescript'
 ```
 
 ## Verbose logging

@@ -40,12 +40,15 @@ export const TSDOWN_CONFIG_NAMES = [
 ]
 
 /**
- * Check if @typescript/native-preview is listed in the project's package.json.
+ * Which dependency supplies the native TypeScript compiler for a project:
+ * `'@typescript/native'` (typescript@7 — native `tsc`, the recommended
+ * side-by-side alias) or the legacy `'@typescript/native-preview` (`tsgo`).
+ * `false` when neither is declared.
  */
-export async function checkNativePreview(
+export async function detectNativeTypescript(
   projectRoot: string,
   workspaceRoot: string,
-): Promise<boolean> {
+): Promise<string | false> {
   const absProjectRoot = resolve(workspaceRoot, projectRoot)
   const pkgPath = join(absProjectRoot, 'package.json')
   try {
@@ -57,8 +60,20 @@ export async function checkNativePreview(
       ...(pkg.devDependencies as Record<string, string> | undefined),
       ...(pkg.peerDependencies as Record<string, string> | undefined),
     }
-    return '@typescript/native-preview' in allDeps
+    if ('@typescript/native' in allDeps) return '@typescript/native'
+    if ('@typescript/native-preview' in allDeps) return '@typescript/native-preview'
+    return false
   } catch {
     return false
   }
+}
+
+/**
+ * Check if @typescript/native-preview is listed in the project's package.json.
+ */
+export async function checkNativePreview(
+  projectRoot: string,
+  workspaceRoot: string,
+): Promise<boolean> {
+  return (await detectNativeTypescript(projectRoot, workspaceRoot)) !== false
 }

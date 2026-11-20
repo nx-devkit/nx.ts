@@ -131,12 +131,12 @@ describe('inferTypecheckTarget', () => {
     expect(ext?.externalDependencies).toEqual(['typescript'])
   })
 
-  it('uses @typescript/native-preview when tsgo=true', async () => {
+  it('uses @typescript/native when tsgo=true', async () => {
     const t = inferTypecheckTarget('/w/p', opts)
     const ext = t.inputs.find((i) => typeof i === 'object') as
       | { externalDependencies: string[] }
       | undefined
-    expect(ext?.externalDependencies).toEqual(['@typescript/native-preview'])
+    expect(ext?.externalDependencies).toEqual(['@typescript/native'])
   })
 
   it('sets clean=true when clean=true', async () => {

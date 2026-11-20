@@ -274,7 +274,7 @@ describe('monorepoGenerator', () => {
       const pkg = readJson(files, 'package.json')
       const devDeps = pkg.devDependencies as Record<string, string>
       expect(devDeps.typescript).toBeDefined()
-      expect(devDeps['@typescript/native-preview']).toBeDefined()
+      expect(devDeps['@typescript/native']).toBeDefined()
       expect(devDeps.vitest).toBeDefined()
       expect(devDeps.oxlint).toBeDefined()
       expect(devDeps['@biomejs/biome']).toBeDefined()

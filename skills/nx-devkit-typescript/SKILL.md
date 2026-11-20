@@ -83,7 +83,7 @@ Pass options via the inline plugin tuple in `nx.json`:
 
 | Option       | Type      | Default                       | Notes                                                                 |
 | ------------ | --------- | ----------------------------- | --------------------------------------------------------------------- |
-| `tsgo`       | `boolean` | `true`                        | `true` uses `tsgo` (`@typescript/native-preview`); `false` uses `tsc` |
+| `tsgo`       | `boolean` | `true`                        | `true` prefers the native compiler (`@typescript/native` / `tsgo`); `false` uses `tsc` |
 | `configFile` | `string`  | `"tsconfig.json"`             | Trigger file basename                                                 |
 | `clean`      | `boolean` | `false`                       | Pre-clean tsbuildinfo before typecheck                                |
 | `tap`        | `boolean` | `false`                       | Infer `test:tap` with native Node TAP reporter                        |
