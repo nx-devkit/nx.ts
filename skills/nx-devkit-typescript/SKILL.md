@@ -1,5 +1,4 @@
 ---
-
 name: nx-devkit-typescript
 description: Preset Nx plugin — one command bootstraps typecheck, test, lint, format, and build targets from config files you already keep. No project.json required.
 ---
@@ -74,26 +73,26 @@ Pass options via the inline plugin tuple in `nx.json`:
         "biome": true,
         "tsdown": true,
         "testGlob": "**/*.test.{ts,js,mts,mjs}",
-        "specGlob": "**/*.spec.{ts,js,mts,mjs}"
-      }
-    ]
-  ]
+        "specGlob": "**/*.spec.{ts,js,mts,mjs}",
+      },
+    ],
+  ],
 }
 ```
 
-| Option       | Type      | Default                       | Notes                                                                 |
-| ------------ | --------- | ----------------------------- | --------------------------------------------------------------------- |
-| `tsgo`       | `boolean` | `true`                        | `true` uses `tsgo` (`@typescript/native-preview`); `false` uses `tsc` |
-| `configFile` | `string`  | `"tsconfig.json"`             | Trigger file basename                                                 |
-| `clean`      | `boolean` | `false`                       | Pre-clean tsbuildinfo before typecheck                                |
-| `tap`        | `boolean` | `false`                       | Infer `test:tap` with native Node TAP reporter                        |
-| `coverage`   | `boolean` | `false`                       | Infer `test:coverage` for native Node runner                          |
-| `oxlint`     | `boolean` | `true`                        | Infer `lint` from `.oxlintrc.*`                                       |
-| `eslint`     | `boolean` | `true`                        | Infer `lint` from `eslint.config.*` (fallback)                        |
-| `biome`      | `boolean` | `true`                        | Infer `format`/`format-check`/`lint` from `biome.json`                |
-| `tsdown`     | `boolean` | `true`                        | Infer `build`/`build:watch` from `tsdown.config.*`                    |
-| `testGlob`   | `string`  | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files                                            |
-| `specGlob`   | `string`  | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files                                                   |
+| Option       | Type      | Default                       | Notes                                                                                  |
+| ------------ | --------- | ----------------------------- | -------------------------------------------------------------------------------------- |
+| `tsgo`       | `boolean` | `true`                        | `true` prefers the native compiler (`@typescript/native` / `tsgo`); `false` uses `tsc` |
+| `configFile` | `string`  | `"tsconfig.json"`             | Trigger file basename                                                                  |
+| `clean`      | `boolean` | `false`                       | Pre-clean tsbuildinfo before typecheck                                                 |
+| `tap`        | `boolean` | `false`                       | Infer `test:tap` with native Node TAP reporter                                         |
+| `coverage`   | `boolean` | `false`                       | Infer `test:coverage` for native Node runner                                           |
+| `oxlint`     | `boolean` | `true`                        | Infer `lint` from `.oxlintrc.*`                                                        |
+| `eslint`     | `boolean` | `true`                        | Infer `lint` from `eslint.config.*` (fallback)                                         |
+| `biome`      | `boolean` | `true`                        | Infer `format`/`format-check`/`lint` from `biome.json`                                 |
+| `tsdown`     | `boolean` | `true`                        | Infer `build`/`build:watch` from `tsdown.config.*`                                     |
+| `testGlob`   | `string`  | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files                                                             |
+| `specGlob`   | `string`  | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files                                                                    |
 
 ## Verify it works
 
@@ -119,7 +118,7 @@ import {
   shouldSkipPath,
   isVerbose,
   logDebug,
-} from '@nx-devkit/typescript'
+} from '@nx-devkit/typescript';
 ```
 
 ## Updating Nx

@@ -122,7 +122,7 @@ if grep -rl '"workspace:' node_modules/@nx-devkit/*/package.json; then
 fi
 
 echo "==> Running an inferred target against the installed tarballs"
-# The init generator already installed typescript + native-preview; give
+# The init generator already installed typescript + @typescript/native; give
 # typecheck a real input so tsc/tsgo has something to check.
 cat > index.ts <<'TS'
 export const ok = (): boolean => true

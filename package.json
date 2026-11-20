@@ -29,7 +29,7 @@
     "@nx/oxlint": "24.0.5",
     "@swc/helpers": "~0.5.24",
     "@types/node": "^26.6.6",
-    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "husky": "^9.1.7",
     "knip": "^6.45.1",
     "markdownlint-cli2": "^0.24.1",
@@ -37,7 +37,7 @@
     "oxfmt": "^0.72.0",
     "oxlint": "^1.93.0",
     "tsdown": "^0.23.7",
-    "typescript": "^6.0.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.1.0"
   },
   "engines": {

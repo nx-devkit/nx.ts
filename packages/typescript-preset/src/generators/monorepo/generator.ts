@@ -72,8 +72,8 @@ const DEP_VERSIONS: Record<string, string> = {
   eslint: '^9.0.0',
   '@biomejs/biome': '^2.0.0',
   vitest: '^4.1.9',
-  typescript: '^6.0.3',
-  '@typescript/native-preview': '^7.0.0-dev.20260707.2',
+  typescript: 'npm:@typescript/typescript6@^6.0.2',
+  '@typescript/native': 'npm:typescript@^7.0.2',
 };
 
 function readJson(tree: Tree, path: string): Record<string, unknown> | null {
@@ -444,10 +444,10 @@ function getMissingDevDeps(
 
   const needed: Record<string, string> = {};
 
-  // Always need typescript and @typescript/native-preview for typecheck
+  // Always need typescript and the native compiler for typecheck
   if (!('typescript' in existing)) needed.typescript = DEP_VERSIONS.typescript;
-  if (!('@typescript/native-preview' in existing))
-    needed['@typescript/native-preview'] = DEP_VERSIONS['@typescript/native-preview'];
+  if (!('@typescript/native' in existing) && !('@typescript/native-preview' in existing))
+    needed['@typescript/native'] = DEP_VERSIONS['@typescript/native'];
 
   if (options.test && !options.nativeTest) {
     if (!('vitest' in existing)) needed.vitest = DEP_VERSIONS.vitest;

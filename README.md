@@ -11,7 +11,7 @@ Zero-config Nx plugins for modern TypeScript tooling. Register one plugin and ge
 Nx's project graph, caching, and `affected` detection are excellent; its built-in TypeScript tooling is not. nx-devkit keeps the graph and replaces the toolchain:
 
 - **tsdown** instead of `tsc` emit for builds
-- **tsgo** (`@typescript/native-preview`) for typecheck, with `tsc` fallback
+- **TypeScript 7** (`@typescript/native` → `typescript@7`, or legacy `@typescript/native-preview`/`tsgo`) for typecheck, with `tsc` fallback
 - **oxlint / ESLint / Biome** for lint, **Biome** for format
 - **Vitest**, or the native `node --test` runner when no Vitest config exists
 - **`createNodesV2` inference** — targets appear because `tsconfig.json` or `biome.json` exists, not because someone edited `project.json`
@@ -65,7 +65,7 @@ The preset subsumes the standalone tsdown/oxlint/biome/vitest plugins; they stay
 - **Node.js** ≥ 22.18 (LTS: 22 "Jod", 24 "Krypton", 26 "Lithium" are all supported) — the preset discovers configs with `fs.globSync`, which does not exist on older lines
 - **Nx** `^24` — installed automatically by `init` when missing
 - **Package manager** — any of npm / pnpm / yarn / bun; binaries are resolved from `node_modules/.bin`
-- **Peer deps** — `typescript` is the only required peer; `@nx/devkit` ships as a regular dependency (auto-installed, its own peer range carries the `nx` compatibility). **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. `@typescript/native-preview` (tsgo) is optional and undeclared — add it for faster `typecheck`. `init` installs whatever is missing for the configs it detects.
+- **Peer deps** — `typescript` is the only required peer; `@nx/devkit` ships as a regular dependency (auto-installed, its own peer range carries the `nx` compatibility). **Optional tool peers** — `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`: install only what your configs imply. The native compiler (typescript@7 via the `@typescript/native` alias, or `@typescript/native-preview`/`tsgo`) is optional and undeclared — add it for faster `typecheck`. `init` installs whatever is missing for the configs it detects.
 
 ## Stability
 
