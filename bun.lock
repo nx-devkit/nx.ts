@@ -64,7 +64,7 @@
       "dependencies": {
         "@nx/devkit": "^24.0.0",
         "jsonc-parser": "^3.3.1",
-        "typescript": ">=5.0.0",
+        "typescript": "^5.0.0 || ^6.0.0",
       },
       "devDependencies": {
         "@nx-devkit/internal": "0.0.0",
@@ -377,14 +377,16 @@
       },
       "peerDependencies": {
         "@biomejs/biome": "^2.0.0",
+        "@typescript/native-preview": ">=7.0.0-dev.0",
         "eslint": "^9.0.0",
         "oxlint": "^1.0.0",
         "tsdown": "^0.22.0",
-        "typescript": "^6.0.0 || ^7.0.0",
+        "typescript": ">=3.0.0",
         "vitest": "^4.0.0 || ^5.0.0",
       },
       "optionalPeers": [
         "@biomejs/biome",
+        "@typescript/native-preview",
         "eslint",
         "oxlint",
         "tsdown",
@@ -2124,6 +2126,8 @@
     "@nx-devkit/biome/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
 
     "@nx-devkit/boundaries/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
+
+    "@nx-devkit/boundaries/typescript": ["@typescript/typescript6@6.0.2", "", { "dependencies": { "@typescript/old": "npm:typescript@^6" }, "bin": { "tsc6": "bin/tsc6" } }, "sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w=="],
 
     "@nx-devkit/commitlint/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
 
