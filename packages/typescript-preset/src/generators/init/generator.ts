@@ -1,4 +1,5 @@
 import { type GeneratorCallback, type Tree, addDependenciesToPackageJson } from '@nx/devkit';
+import { applyEdits, modify, parse as parseJsonc, type ParseError } from 'jsonc-parser';
 
 export interface NxTypescriptInitOptions {
   pluginPath?: string;
@@ -15,11 +16,15 @@ function readJson(tree: Tree, path: string): Record<string, unknown> | null {
   }
   const raw = tree.read(path, 'utf8');
   if (raw === null) return null;
-  try {
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch (error) {
-    throw new Error(`Failed to parse ${path}`, { cause: error });
+  const errors: ParseError[] = [];
+  const parsed = parseJsonc(raw, errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  }) as Record<string, unknown>;
+  if (errors.length > 0) {
+    throw new Error(`Failed to parse ${path}`);
   }
+  return parsed;
 }
 
 function writeJson(tree: Tree, path: string, value: unknown): void {
@@ -64,6 +69,7 @@ function getPluginOptions(entry: unknown): Record<string, unknown> {
 }
 
 function registerPlugin(tree: Tree, pluginPath: string): Record<string, unknown> {
+  const raw = tree.read('nx.json', 'utf8');
   const nxJson = readJson(tree, 'nx.json') ?? {};
   const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : [];
 
@@ -82,9 +88,30 @@ function registerPlugin(tree: Tree, pluginPath: string): Record<string, unknown>
     filtered.push(presetEntry);
   }
 
-  nxJson.plugins = filtered;
-  writeJson(tree, 'nx.json', nxJson);
+  if (raw !== null) {
+    // Patch `plugins` in place so comments/formatting in nx.json survive
+    const edits = modify(raw, ['plugins'], filtered, {
+      formattingOptions: detectFormattingOptions(raw),
+    });
+    tree.write('nx.json', applyEdits(raw, edits));
+  } else {
+    nxJson.plugins = filtered;
+    writeJson(tree, 'nx.json', nxJson);
+  }
   return existingOptions;
+}
+
+function detectFormattingOptions(raw: string): { insertSpaces: boolean; tabSize: number } {
+  for (const line of raw.split('\n')) {
+    const match = /^(\s+)"/.exec(line);
+    if (match) {
+      const indent = match[1];
+      return indent.includes('\t')
+        ? { insertSpaces: false, tabSize: 4 }
+        : { insertSpaces: true, tabSize: indent.length };
+    }
+  }
+  return { insertSpaces: true, tabSize: 2 };
 }
 
 function ensurePackageJson(tree: Tree): void {
@@ -327,7 +354,11 @@ function getMissingDevDeps(
     // eslint-disable-next-line security/detect-object-injection -- option is a literal DEP_RULES field
     if (option !== undefined && presetOptions[option] === false) continue;
     // eslint-disable-next-line security/detect-object-injection -- dep keys come from the literal DEP_RULES table
-    if (hasAny(when) && !(dep in existing) && !satisfiedBy.some((alt) => alt in existing))
+    if (
+      hasAny(when) &&
+      !(dep in existing) &&
+      !satisfiedBy.some((alt) => alt in existing)
+    )
       needed[dep] = DEP_VERSIONS[dep];
   }
 

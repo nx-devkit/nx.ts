@@ -52,6 +52,8 @@ bun add -D @nx-devkit/typescript
 
 Depends on `@nx/devkit` `^24` (installed automatically); `typescript` is the one required peer. The remaining tools are optional peers — install only what your configs use:
 
+> **Caveat — `typescript@7` at the workspace root:** the native line no longer ships the JS compiler API (`ts.createSourceFile`, `readConfigFile`, …), which `nx@24` needs for its project-graph plugin. Use the Microsoft-recommended side-by-side aliases instead — `"typescript": "npm:@typescript/typescript6@^6"` keeps a TS 6 API for tools while `"@typescript/native": "npm:typescript@^7"` supplies the native `tsc` for real typecheck/build. A direct `typescript@7` devDep breaks `nx` on `nx@24`.
+
 ```bash
 bun add -D vitest oxlint eslint @biomejs/biome tsdown
 # tsgo (optional, not a declared peer): bun add -D @typescript/native@npm:typescript@^7
