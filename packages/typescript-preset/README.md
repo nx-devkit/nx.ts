@@ -50,7 +50,9 @@ bun add -D @nx-devkit/typescript
 { "plugins": ["@nx-devkit/typescript"] }
 ```
 
-Depends on `@nx/devkit` `^24` (installed automatically); `typescript` is the one required peer. The remaining tools are optional peers — install only what your configs use:
+Depends on `@nx/devkit` `^24` (installed automatically); `typescript` is the one required peer — any version works (`>=3.0.0`, the `tsc --build` floor; the typecheck executor only shells `tsc`/`tsgo`). The remaining tools are optional peers — install only what your configs use:
+
+> **Caveat — `typescript@7+`:** the native line no longer ships the JS compiler API (`ts.createSourceFile`, `readConfigFile`, …). Nx itself resolves the workspace `typescript` for its project-graph plugin, so `typescript@7` at the workspace root breaks `nx` on `nx@24`. Until your Nx version supports it, keep the workspace devDep on TS ≤6 — actual compilation/typechecking already goes through `tsgo` (`@typescript/native-preview`), which is the native compiler line.
 
 ```bash
 bun add -D vitest oxlint eslint @biomejs/biome tsdown
@@ -113,10 +115,10 @@ Pass via the plugin tuple in `nx.json`:
         "tsdown": true,
         "testGlob": "**/*.test.{ts,js,mts,mjs}",
         "specGlob": "**/*.spec.{ts,js,mts,mjs}",
-        "includeRoot": true
-      }
-    ]
-  ]
+        "includeRoot": true,
+      },
+    ],
+  ],
 }
 ```
 
@@ -180,7 +182,7 @@ import {
   globMatchAsync,
   globToRegExp,
   expandBraces,
-} from '@nx-devkit/typescript'
+} from '@nx-devkit/typescript';
 ```
 
 ## Verbose logging

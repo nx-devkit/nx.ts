@@ -74,7 +74,7 @@ const DEP_VERSIONS: Record<string, string> = {
   eslint: '^9.0.0',
   '@biomejs/biome': '^2.0.0',
   vitest: '^4.1.9',
-  typescript: '^7.0.2',
+  typescript: '^6.0.3',
   '@typescript/native-preview': '^7.0.0-dev.20260621.1',
 };
 
