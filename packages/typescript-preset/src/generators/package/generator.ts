@@ -3,58 +3,58 @@ import {
   type Tree,
   formatFiles,
   addDependenciesToPackageJson,
-} from '@nx/devkit'
-import { parse, modify, applyEdits, printParseErrorCode } from 'jsonc-parser'
+} from '@nx/devkit';
+import { parse, modify, applyEdits, printParseErrorCode } from 'jsonc-parser';
 
 /** Detect the indentation of a JSON/JSONC document, skipping block comments. */
 function detectIndent(text: string): number {
-  const lines = text.split('\n')
-  let inBlockComment = false
+  const lines = text.split('\n');
+  let inBlockComment = false;
   for (const line of lines) {
-    const trimmed = line.trim()
+    const trimmed = line.trim();
     // Skip block comment start/end
     if (trimmed.startsWith('/*') && !trimmed.startsWith('//')) {
-      inBlockComment = true
-      continue
+      inBlockComment = true;
+      continue;
     }
     if (trimmed.endsWith('*/')) {
-      inBlockComment = false
-      continue
+      inBlockComment = false;
+      continue;
     }
     // Skip block comment continuation lines
-    if (inBlockComment) continue
+    if (inBlockComment) continue;
     // Skip single-line comments
-    if (trimmed.startsWith('//')) continue
+    if (trimmed.startsWith('//')) continue;
     // Find first non-empty, non-comment line with indentation
-    const indentMatch = line.match(/^([ \t]+)\S/)
+    const indentMatch = line.match(/^([ \t]+)\S/);
     if (indentMatch) {
-      return indentMatch[1].length
+      return indentMatch[1].length;
     }
   }
-  return 2
+  return 2;
 }
 
 export interface NxTypescriptPackageOptions {
   /** Name of the new package. */
-  name: string
+  name: string;
   /** Directory to create the package in. Default: "packages". */
-  directory?: 'packages' | 'apps' | 'libs'
+  directory?: 'packages' | 'apps' | 'libs';
   /** Skip adding dependencies to package.json. Default: false. */
-  skipInstall?: boolean
+  skipInstall?: boolean;
   /** Package manager to use for install instructions. Default: "bun". */
-  packageManager?: 'bun' | 'npm' | 'pnpm' | 'yarn'
+  packageManager?: 'bun' | 'npm' | 'pnpm' | 'yarn';
   /** Include test configuration (vitest). Default: true. */
-  test?: boolean
+  test?: boolean;
   /** Include lint configuration (oxlint). Default: true. */
-  lint?: boolean
+  lint?: boolean;
   /** Include format configuration (biome). Default: true. */
-  format?: boolean
+  format?: boolean;
   /** Include build configuration (tsdown). Default: true. */
-  build?: boolean
+  build?: boolean;
   /** Use native Node test runner instead of vitest. Default: false. */
-  nativeTest?: boolean
+  nativeTest?: boolean;
   /** Parent package to add as a dependency (for internal deps). */
-  parent?: string
+  parent?: string;
 }
 
 const DEFAULT_OPTIONS: Required<Omit<NxTypescriptPackageOptions, 'name' | 'parent'>> = {
@@ -66,7 +66,7 @@ const DEFAULT_OPTIONS: Required<Omit<NxTypescriptPackageOptions, 'name' | 'paren
   format: true,
   build: true,
   nativeTest: false,
-}
+};
 
 const DEP_VERSIONS: Record<string, string> = {
   tsdown: '^0.22.3',
@@ -76,32 +76,32 @@ const DEP_VERSIONS: Record<string, string> = {
   vitest: '^4.1.9',
   typescript: '^6.0.3',
   '@typescript/native-preview': '^7.0.0-dev.20260707.2',
-}
+};
 
 function readJsonc(tree: Tree, path: string): Record<string, unknown> | null {
-  if (!tree.exists(path)) return null
-  const raw = tree.read(path, 'utf8')
-  if (raw === null) return null
-  const errors: NonNullable<Parameters<typeof parse>[1]> = []
-  const value = parse(raw, errors, { allowTrailingComma: true })
+  if (!tree.exists(path)) return null;
+  const raw = tree.read(path, 'utf8');
+  if (raw === null) return null;
+  const errors: NonNullable<Parameters<typeof parse>[1]> = [];
+  const value = parse(raw, errors, { allowTrailingComma: true });
   if (errors.length > 0) {
     throw new Error(
       `Failed to parse ${path}: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
-    )
+    );
   }
-  return value as Record<string, unknown>
+  return value as Record<string, unknown>;
 }
 
 function writeJson(tree: Tree, path: string, value: unknown): void {
-  tree.write(path, `${JSON.stringify(value, null, 2)}\n`)
+  tree.write(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function getWorkspaceGlobs(): string[] {
-  return ['packages/*', 'packages/@*/*', 'apps/*', 'apps/@*/*', 'libs/*', 'libs/@*/*']
+  return ['packages/*', 'packages/@*/*', 'apps/*', 'apps/@*/*', 'libs/*', 'libs/@*/*'];
 }
 
 function ensureRootPackageJson(tree: Tree): void {
-  const workspaceGlobs = getWorkspaceGlobs()
+  const workspaceGlobs = getWorkspaceGlobs();
   if (!tree.exists('package.json')) {
     writeJson(tree, 'package.json', {
       name: 'workspace',
@@ -109,9 +109,9 @@ function ensureRootPackageJson(tree: Tree): void {
       private: true,
       workspaces: workspaceGlobs,
       packageManager: 'bun@latest',
-    })
+    });
   } else {
-    const raw = tree.read('package.json', 'utf-8')
+    const raw = tree.read('package.json', 'utf-8');
     if (raw === null || raw.trim() === '') {
       writeJson(tree, 'package.json', {
         name: 'workspace',
@@ -119,31 +119,31 @@ function ensureRootPackageJson(tree: Tree): void {
         private: true,
         workspaces: workspaceGlobs,
         packageManager: 'bun@latest',
-      })
-      return
+      });
+      return;
     }
-    const errors: NonNullable<Parameters<typeof parse>[1]> = []
-    const pkg = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
+    const errors: NonNullable<Parameters<typeof parse>[1]> = [];
+    const pkg = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>;
     if (errors.length > 0) {
       throw new Error(
         `Failed to parse package.json: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
-      )
+      );
     }
     const existingWorkspaces =
       (pkg.workspaces as
         | string[]
         | { packages?: string[]; apps?: string[]; libs?: string[] }
-        | undefined) ?? []
-    let workspaces: string[] = []
+        | undefined) ?? [];
+    let workspaces: string[] = [];
     const isObjectForm =
       typeof existingWorkspaces === 'object' &&
       existingWorkspaces !== null &&
-      !Array.isArray(existingWorkspaces)
+      !Array.isArray(existingWorkspaces);
     if (Array.isArray(existingWorkspaces)) {
-      workspaces = [...existingWorkspaces]
+      workspaces = [...existingWorkspaces];
     } else if (isObjectForm) {
       // Yarn Classic registers workspaces only from `packages`
-      workspaces = [...(existingWorkspaces.packages ?? [])]
+      workspaces = [...(existingWorkspaces.packages ?? [])];
     }
     const requiredWorkspaces = [
       'packages/*',
@@ -152,50 +152,50 @@ function ensureRootPackageJson(tree: Tree): void {
       'apps/@*/*',
       'libs/*',
       'libs/@*/*',
-    ]
-    const missing = requiredWorkspaces.filter((ws) => !workspaces.includes(ws))
+    ];
+    const missing = requiredWorkspaces.filter((ws) => !workspaces.includes(ws));
     if (missing.length > 0) {
       // Use jsonc-parser modify to preserve formatting and comments
       // Use array-element paths to preserve comments inside arrays/objects
       // Handle case where workspaces doesn't exist yet - create it first
-      const eol = raw.includes('\r\n') ? '\r\n' : '\n'
-      const indent = detectIndent(raw)
-      const formattingOptions = { insertSpaces: true, tabSize: indent, eol }
-      let updated = raw
+      const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+      const indent = detectIndent(raw);
+      const formattingOptions = { insertSpaces: true, tabSize: indent, eol };
+      let updated = raw;
       if (isObjectForm) {
         // For object form, ensure packages array exists, then add missing globs
         if (existingWorkspaces.packages === undefined) {
           // Create the packages array with missing globs
-          const edits = modify(updated, ['workspaces', 'packages'], missing, { formattingOptions })
-          updated = applyEdits(updated, edits)
+          const edits = modify(updated, ['workspaces', 'packages'], missing, { formattingOptions });
+          updated = applyEdits(updated, edits);
         } else {
-          const existingPackages = existingWorkspaces.packages ?? []
+          const existingPackages = existingWorkspaces.packages ?? [];
           for (const [index, glob] of missing.entries()) {
             const edits = modify(
               updated,
               ['workspaces', 'packages', existingPackages.length + index],
               glob,
               { formattingOptions },
-            )
-            updated = applyEdits(updated, edits)
+            );
+            updated = applyEdits(updated, edits);
           }
         }
       } else {
         // For array form, ensure workspaces array exists, then add missing globs
         if (workspaces.length === 0) {
           // Create the workspaces array with missing globs
-          const edits = modify(updated, ['workspaces'], missing, { formattingOptions })
-          updated = applyEdits(updated, edits)
+          const edits = modify(updated, ['workspaces'], missing, { formattingOptions });
+          updated = applyEdits(updated, edits);
         } else {
           for (const [index, glob] of missing.entries()) {
             const edits = modify(updated, ['workspaces', workspaces.length + index], glob, {
               formattingOptions,
-            })
-            updated = applyEdits(updated, edits)
+            });
+            updated = applyEdits(updated, edits);
           }
         }
       }
-      tree.write('package.json', updated)
+      tree.write('package.json', updated);
     }
   }
 }
@@ -205,25 +205,25 @@ function ensureNxJson(tree: Tree): void {
     writeJson(tree, 'nx.json', {
       $schema: './node_modules/nx/schemas/nx-schema.json',
       plugins: ['@nx-devkit/typescript'],
-    })
+    });
   } else {
-    const raw = tree.read('nx.json', 'utf-8')
+    const raw = tree.read('nx.json', 'utf-8');
     if (raw === null || raw.trim() === '') {
       // Treat empty or whitespace-only nx.json like a missing file
       writeJson(tree, 'nx.json', {
         $schema: './node_modules/nx/schemas/nx-schema.json',
         plugins: ['@nx-devkit/typescript'],
-      })
-      return
+      });
+      return;
     }
-    const errors: NonNullable<Parameters<typeof parse>[1]> = []
-    const nxJson = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>
+    const errors: NonNullable<Parameters<typeof parse>[1]> = [];
+    const nxJson = parse(raw, errors, { allowTrailingComma: true }) as Record<string, unknown>;
     if (errors.length > 0) {
       throw new Error(
         `Failed to parse nx.json: ${errors.map((e) => printParseErrorCode(e.error)).join(', ')}`,
-      )
+      );
     }
-    const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : []
+    const plugins = Array.isArray(nxJson.plugins) ? (nxJson.plugins as unknown[]) : [];
     const hasPreset = plugins.some(
       (entry) =>
         (typeof entry === 'string' && entry === '@nx-devkit/typescript') ||
@@ -232,23 +232,23 @@ function ensureNxJson(tree: Tree): void {
           entry !== null &&
           !Array.isArray(entry) &&
           (entry as { plugin?: string }).plugin === '@nx-devkit/typescript'),
-    )
+    );
     if (!hasPreset) {
       // Remove any standalone @nx-devkit/* entries
       const filtered = plugins.filter((entry) => {
-        const name = typeof entry === 'string' ? entry : (entry as { plugin?: string }).plugin
-        return !name?.startsWith('@nx-devkit/')
-      })
-      filtered.push('@nx-devkit/typescript')
-      nxJson.plugins = filtered
+        const name = typeof entry === 'string' ? entry : (entry as { plugin?: string }).plugin;
+        return !name?.startsWith('@nx-devkit/');
+      });
+      filtered.push('@nx-devkit/typescript');
+      nxJson.plugins = filtered;
       // Use jsonc-parser modify to preserve formatting and comments
       // Detect formatting from raw content
-      const eol = raw.includes('\r\n') ? '\r\n' : '\n'
-      const indent = detectIndent(raw)
+      const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+      const indent = detectIndent(raw);
       const edits = modify(raw, ['plugins'], filtered, {
         formattingOptions: { insertSpaces: true, tabSize: indent, eol },
-      })
-      tree.write('nx.json', applyEdits(raw, edits))
+      });
+      tree.write('nx.json', applyEdits(raw, edits));
     }
   }
 }
@@ -257,11 +257,11 @@ function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): voi
   if (!tree.exists('tsconfig.base.json')) {
     const pathAliasPrefix = pkgName.startsWith('@')
       ? pkgName.slice(0, pkgName.indexOf('/'))
-      : `@${pkgName}`
+      : `@${pkgName}`;
     // For scoped packages, include scope directory in path mapping
     // e.g., @scope/my-pkg -> packages/@scope/*/src
-    const scopeDir = pkgName.startsWith('@') ? pkgName.slice(0, pkgName.indexOf('/')) : ''
-    const pathTarget = scopeDir ? `${directory}/${scopeDir}/*/src` : `${directory}/*/src`
+    const scopeDir = pkgName.startsWith('@') ? pkgName.slice(0, pkgName.indexOf('/')) : '';
+    const pathTarget = scopeDir ? `${directory}/${scopeDir}/*/src` : `${directory}/*/src`;
     const tsconfigBase = {
       compilerOptions: {
         target: 'ES2024',
@@ -281,8 +281,8 @@ function ensureTsconfigBase(tree: Tree, directory: string, pkgName: string): voi
           [`${pathAliasPrefix}/*`]: [pathTarget],
         },
       },
-    }
-    writeJson(tree, 'tsconfig.base.json', tsconfigBase)
+    };
+    writeJson(tree, 'tsconfig.base.json', tsconfigBase);
   }
 }
 
@@ -291,19 +291,19 @@ function validatePackageName(name: string): void {
   if (!/^(@[a-z0-9-~][a-z0-9-~._]*\/)?[a-z0-9-~][a-z0-9-~._]*$/.test(name)) {
     throw new Error(
       `Invalid package name: "${name}". Must be a valid npm package name (e.g., "my-pkg" or "@scope/my-pkg").`,
-    )
+    );
   }
 }
 
 function findParentPackage(tree: Tree, parent: string): string | null {
   // Search in packages/, apps/, libs/ for the parent package
   for (const dir of ['packages', 'apps', 'libs']) {
-    const parentPath = `${dir}/${parent}/package.json`
+    const parentPath = `${dir}/${parent}/package.json`;
     if (tree.exists(parentPath)) {
-      return parentPath
+      return parentPath;
     }
   }
-  return null
+  return null;
 }
 
 function createPackageStructure(
@@ -312,11 +312,11 @@ function createPackageStructure(
   pkgName: string,
   options: Required<Omit<NxTypescriptPackageOptions, 'name' | 'parent'>> & { parent?: string },
 ): void {
-  const pkgPath = `${directory}/${pkgName}`
+  const pkgPath = `${directory}/${pkgName}`;
 
   // Check if package already exists
   if (tree.exists(`${pkgPath}/package.json`)) {
-    throw new Error(`Package already exists at ${pkgPath}`)
+    throw new Error(`Package already exists at ${pkgPath}`);
   }
 
   // package.json
@@ -343,21 +343,21 @@ function createPackageStructure(
       'format:check': 'nx format-check',
     },
     devDependencies: {},
-  }
+  };
 
   // Add parent as dependency if specified
   if (options.parent) {
     packageJson.dependencies = {
       ...packageJson.dependencies,
       [options.parent]: 'workspace:*',
-    }
+    };
   }
 
-  writeJson(tree, `${pkgPath}/package.json`, packageJson)
+  writeJson(tree, `${pkgPath}/package.json`, packageJson);
 
   // tsconfig.json - compute extends path based on package depth
-  const depth = pkgName.split('/').length
-  const extendsPath = `${'../'.repeat(depth + 1)}tsconfig.base.json`
+  const depth = pkgName.split('/').length;
+  const extendsPath = `${'../'.repeat(depth + 1)}tsconfig.base.json`;
   const tsconfigJson = {
     extends: extendsPath,
     compilerOptions: {
@@ -370,12 +370,12 @@ function createPackageStructure(
     },
     include: ['src/**/*', '*.config.*', '*.config.ts'],
     exclude: ['node_modules', 'dist'],
-  }
-  writeJson(tree, `${pkgPath}/tsconfig.json`, tsconfigJson)
+  };
+  writeJson(tree, `${pkgPath}/tsconfig.json`, tsconfigJson);
 
   // src/index.ts
-  const sourceFilePath = `${pkgPath}/src/index.ts`
-  let sourceCreated = false
+  const sourceFilePath = `${pkgPath}/src/index.ts`;
+  let sourceCreated = false;
   if (!tree.exists(sourceFilePath)) {
     tree.write(
       sourceFilePath,
@@ -383,8 +383,8 @@ function createPackageStructure(
   return 'Hello from ${pkgName}!'
 }
 `,
-    )
-    sourceCreated = true
+    );
+    sourceCreated = true;
   }
 
   // vitest.config.ts
@@ -397,8 +397,8 @@ export default defineConfig({
     environment: 'node',
   },
 })
-`
-    tree.write(`${pkgPath}/vitest.config.ts`, vitestConfig)
+`;
+    tree.write(`${pkgPath}/vitest.config.ts`, vitestConfig);
   }
 
   // .oxlintrc.json
@@ -407,8 +407,8 @@ export default defineConfig({
       $schema: 'https://oxc.rs/schemas/oxlintrc.json',
       plugins: ['oxc'],
       rules: {},
-    }
-    writeJson(tree, `${pkgPath}/.oxlintrc.json`, oxlintrc)
+    };
+    writeJson(tree, `${pkgPath}/.oxlintrc.json`, oxlintrc);
   }
 
   // biome.json
@@ -433,8 +433,8 @@ export default defineConfig({
           semicolons: 'always',
         },
       },
-    }
-    writeJson(tree, `${pkgPath}/biome.json`, biomeConfig)
+    };
+    writeJson(tree, `${pkgPath}/biome.json`, biomeConfig);
   }
 
   // tsdown.config.ts - only write when build is enabled
@@ -448,13 +448,13 @@ export default defineConfig({
   platform: 'node',
   clean: true,
 })
-`
-    tree.write(`${pkgPath}/tsdown.config.ts`, tsdownConfig)
+`;
+    tree.write(`${pkgPath}/tsdown.config.ts`, tsdownConfig);
   }
 
   // Test file - create only when source file was created by this generator
   // (don't create a test that imports from a missing source)
-  const testFilePath = `${pkgPath}/src/index.test.ts`
+  const testFilePath = `${pkgPath}/src/index.test.ts`;
   if (options.test && sourceCreated) {
     if (!tree.exists(testFilePath)) {
       if (options.nativeTest) {
@@ -469,7 +469,7 @@ test('hello returns greeting', () => {
   assert.strictEqual(hello(), 'Hello from ${pkgName}!')
 })
 `,
-        )
+        );
       } else {
         // Vitest test file
         tree.write(
@@ -481,7 +481,7 @@ test('hello returns greeting', () => {
   expect(hello()).toBe('Hello from ${pkgName}!')
 })
 `,
-        )
+        );
       }
     }
   }
@@ -491,33 +491,33 @@ function getMissingDevDeps(
   tree: Tree,
   options: Required<Omit<NxTypescriptPackageOptions, 'name' | 'parent'>> & { parent?: string },
 ): Record<string, string> {
-  const pkg = readJsonc(tree, 'package.json') ?? {}
+  const pkg = readJsonc(tree, 'package.json') ?? {};
   const existing = {
     ...(pkg.dependencies as Record<string, string> | undefined),
     ...(pkg.devDependencies as Record<string, string> | undefined),
-  }
+  };
 
-  const needed: Record<string, string> = {}
+  const needed: Record<string, string> = {};
 
   // Always need typescript and @typescript/native-preview for typecheck (at root)
-  if (!('typescript' in existing)) needed.typescript = DEP_VERSIONS.typescript
+  if (!('typescript' in existing)) needed.typescript = DEP_VERSIONS.typescript;
   if (!('@typescript/native-preview' in existing))
-    needed['@typescript/native-preview'] = DEP_VERSIONS['@typescript/native-preview']
+    needed['@typescript/native-preview'] = DEP_VERSIONS['@typescript/native-preview'];
 
   if (options.test && !options.nativeTest) {
-    if (!('vitest' in existing)) needed.vitest = DEP_VERSIONS.vitest
+    if (!('vitest' in existing)) needed.vitest = DEP_VERSIONS.vitest;
   }
   if (options.lint) {
-    if (!('oxlint' in existing)) needed.oxlint = DEP_VERSIONS.oxlint
+    if (!('oxlint' in existing)) needed.oxlint = DEP_VERSIONS.oxlint;
   }
   if (options.format) {
-    if (!('@biomejs/biome' in existing)) needed['@biomejs/biome'] = DEP_VERSIONS['@biomejs/biome']
+    if (!('@biomejs/biome' in existing)) needed['@biomejs/biome'] = DEP_VERSIONS['@biomejs/biome'];
   }
   if (options.build) {
-    if (!('tsdown' in existing)) needed.tsdown = DEP_VERSIONS.tsdown
+    if (!('tsdown' in existing)) needed.tsdown = DEP_VERSIONS.tsdown;
   }
 
-  return needed
+  return needed;
 }
 
 function printPackageSummary(
@@ -527,45 +527,45 @@ function printPackageSummary(
   packageManager: 'bun' | 'npm' | 'pnpm' | 'yarn',
   options: Required<Omit<NxTypescriptPackageOptions, 'name' | 'parent'>> & { parent?: string },
 ): void {
-  console.log('')
-  console.log(`✅ Package "${pkgName}" created in ${directory}/!`)
-  console.log('')
-  console.log('Structure:')
-  console.log(`  ${directory}/`)
-  console.log(`  └── ${pkgName}/`)
-  console.log(`      ├── package.json`)
-  console.log(`      ├── tsconfig.json`)
-  console.log(`      ├── src/index.ts`)
-  if (options.test && !options.nativeTest) console.log(`      ├── vitest.config.ts`)
-  if (options.lint) console.log(`      ├── .oxlintrc.json`)
-  if (options.format) console.log(`      ├── biome.json`)
-  if (options.build) console.log(`      ├── tsdown.config.ts`)
-  console.log('')
+  console.log('');
+  console.log(`✅ Package "${pkgName}" created in ${directory}/!`);
+  console.log('');
+  console.log('Structure:');
+  console.log(`  ${directory}/`);
+  console.log(`  └── ${pkgName}/`);
+  console.log(`      ├── package.json`);
+  console.log(`      ├── tsconfig.json`);
+  console.log(`      ├── src/index.ts`);
+  if (options.test && !options.nativeTest) console.log(`      ├── vitest.config.ts`);
+  if (options.lint) console.log(`      ├── .oxlintrc.json`);
+  if (options.format) console.log(`      ├── biome.json`);
+  if (options.build) console.log(`      ├── tsdown.config.ts`);
+  console.log('');
 
-  console.log('Available targets:')
-  const targets: string[] = ['typecheck']
+  console.log('Available targets:');
+  const targets: string[] = ['typecheck'];
   if (options.test) {
     if (options.nativeTest) {
-      targets.push('test')
+      targets.push('test');
     } else {
-      targets.push('test', 'test:watch', 'test:coverage')
+      targets.push('test', 'test:watch', 'test:coverage');
     }
   }
-  if (options.lint) targets.push('lint')
-  if (options.format) targets.push('format', 'format-check')
-  if (options.build) targets.push('build', 'build:watch')
-  console.log(`  ${directory}/${pkgName} → ${targets.join(', ')}`)
-  console.log('')
+  if (options.lint) targets.push('lint');
+  if (options.format) targets.push('format', 'format-check');
+  if (options.build) targets.push('build', 'build:watch');
+  console.log(`  ${directory}/${pkgName} → ${targets.join(', ')}`);
+  console.log('');
 
   if (options.parent) {
-    console.log(`Added dependency on ${options.parent} (workspace:*)`)
-    console.log('')
+    console.log(`Added dependency on ${options.parent} (workspace:*)`);
+    console.log('');
   }
 
   if (Object.keys(installedDeps).length > 0) {
-    console.log('Added devDependencies to root package.json:')
+    console.log('Added devDependencies to root package.json:');
     for (const [name, version] of Object.entries(installedDeps)) {
-      console.log(`  ${name}: ${version}`)
+      console.log(`  ${name}: ${version}`);
     }
     const installDepsCmd =
       packageManager === 'bun'
@@ -574,72 +574,74 @@ function printPackageSummary(
           ? 'pnpm install'
           : packageManager === 'yarn'
             ? 'yarn install'
-            : 'npm install'
-    console.log(`Run \`${installDepsCmd}\` to install them.`)
-    console.log('')
+            : 'npm install';
+    console.log(`Run \`${installDepsCmd}\` to install them.`);
+    console.log('');
   }
 
-  console.log('Next steps:')
+  console.log('Next steps:');
   console.log(
     `  nx typecheck ${pkgName}   # or nx test ${pkgName}, nx lint ${pkgName}, nx build ${pkgName}`,
-  )
-  console.log('')
-  console.log('To add another package:')
-  console.log(`  nx g @nx-devkit/typescript:package <name>`)
+  );
+  console.log('');
+  console.log('To add another package:');
+  console.log(`  nx g @nx-devkit/typescript:package <name>`);
 }
 
 export async function packageGenerator(
   tree: Tree,
   options: NxTypescriptPackageOptions,
 ): Promise<GeneratorCallback> {
-  const mergedOptions = { ...DEFAULT_OPTIONS, ...options }
-  const { name, directory, skipInstall, packageManager, parent } = mergedOptions
+  const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
+  const { name, directory, skipInstall, packageManager, parent } = mergedOptions;
 
-  validatePackageName(name)
+  validatePackageName(name);
 
   if (parent) {
     if (!/^(@[a-z0-9-~][a-z0-9-~._]*\/)?[a-z0-9-~][a-z0-9-~._]*$/.test(parent)) {
-      throw new Error(`Invalid parent package name: "${parent}". Must be a valid npm package name.`)
+      throw new Error(
+        `Invalid parent package name: "${parent}". Must be a valid npm package name.`,
+      );
     }
   }
 
   // 1. Ensure root package.json with workspace config
-  ensureRootPackageJson(tree)
+  ensureRootPackageJson(tree);
 
   // 2. Ensure nx.json with preset
-  ensureNxJson(tree)
+  ensureNxJson(tree);
 
   // 3. Ensure tsconfig.base.json
-  ensureTsconfigBase(tree, directory, name)
+  ensureTsconfigBase(tree, directory, name);
 
   // 4. Verify parent exists if specified
   if (parent) {
-    const parentPath = findParentPackage(tree, parent)
+    const parentPath = findParentPackage(tree, parent);
     if (!parentPath) {
-      throw new Error(`Parent package "${parent}" not found in workspace.`)
+      throw new Error(`Parent package "${parent}" not found in workspace.`);
     }
   }
 
   // 5. Create package structure
-  createPackageStructure(tree, directory, name, { ...mergedOptions, parent })
+  createPackageStructure(tree, directory, name, { ...mergedOptions, parent });
 
   // 6. Install missing peer deps
-  let installCallback: GeneratorCallback = () => {}
-  let installedDeps: Record<string, string> = {}
+  let installCallback: GeneratorCallback = () => {};
+  let installedDeps: Record<string, string> = {};
 
   if (!skipInstall) {
-    installedDeps = getMissingDevDeps(tree, { ...mergedOptions, parent })
+    installedDeps = getMissingDevDeps(tree, { ...mergedOptions, parent });
     if (Object.keys(installedDeps).length > 0) {
-      installCallback = addDependenciesToPackageJson(tree, {}, installedDeps)
+      installCallback = addDependenciesToPackageJson(tree, {}, installedDeps);
     }
   }
 
   // 7. Print summary with installed deps
-  printPackageSummary(name, directory, installedDeps, packageManager, { ...mergedOptions, parent })
+  printPackageSummary(name, directory, installedDeps, packageManager, { ...mergedOptions, parent });
 
-  await formatFiles(tree)
+  await formatFiles(tree);
 
-  return () => installCallback()
+  return () => installCallback();
 }
 
-export default packageGenerator
+export default packageGenerator;

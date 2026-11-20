@@ -29,11 +29,11 @@ Or manually:
       "options": {
         "depConstraints": [
           { "sourceTag": "type:app", "onlyDependOnLibsWithTags": ["type:feature", "type:util"] },
-          { "sourceTag": "type:feature", "onlyDependOnLibsWithTags": ["type:util"] }
-        ]
-      }
-    }
-  ]
+          { "sourceTag": "type:feature", "onlyDependOnLibsWithTags": ["type:util"] },
+        ],
+      },
+    },
+  ],
 }
 ```
 
