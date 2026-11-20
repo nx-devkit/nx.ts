@@ -1,88 +1,122 @@
-import { describe, expect, it } from 'vitest'
-import { initGenerator } from '../src/generators/init/generator.js'
+import { describe, expect, it } from 'vitest';
+import { initGenerator } from '../src/generators/init/generator.js';
 
 function createTree(files: Record<string, string> = {}): {
-  tree: import('@nx/devkit').Tree
-  files: Map<string, string>
+  tree: import('@nx/devkit').Tree;
+  files: Map<string, string>;
 } {
-  const fileMap = new Map<string, string>(Object.entries(files))
+  const fileMap = new Map<string, string>(Object.entries(files));
 
   const tree: import('@nx/devkit').Tree = {
     exists: (path: string) => fileMap.has(path),
     read: (path: string) => fileMap.get(path) ?? null,
     write: (path: string, content: string) => {
-      fileMap.set(path, content)
+      fileMap.set(path, content);
     },
     delete: (path: string) => {
-      fileMap.delete(path)
+      fileMap.delete(path);
     },
     listChanges: () => [],
     rename: () => {},
     root: '/workspace',
-  }
+  };
 
-  return { tree, files: fileMap }
+  return { tree, files: fileMap };
 }
 
 describe('@nx-devkit/typescript init generator', () => {
   it('registers the plugin in nx.json', async () => {
     const { tree, files } = createTree({
       'nx.json': JSON.stringify({ plugins: [] }),
-    })
+    });
 
-    await initGenerator(tree, {})
+    await initGenerator(tree, {});
 
-    const nxJson = JSON.parse(files.get('nx.json') ?? '{}')
+    const nxJson = JSON.parse(files.get('nx.json') ?? '{}');
     expect(nxJson.plugins).toContainEqual({
       options: {},
       plugin: '@nx-devkit/typescript',
-    })
-  })
+    });
+  });
 
   it('does not duplicate the plugin if already registered', async () => {
     const { tree, files } = createTree({
       'nx.json': JSON.stringify({
         plugins: [{ options: {}, plugin: '@nx-devkit/typescript' }],
       }),
-    })
+    });
 
-    await initGenerator(tree, {})
+    await initGenerator(tree, {});
 
-    const nxJson = JSON.parse(files.get('nx.json') ?? '{}')
-    expect(nxJson.plugins).toHaveLength(1)
-  })
+    const nxJson = JSON.parse(files.get('nx.json') ?? '{}');
+    expect(nxJson.plugins).toHaveLength(1);
+  });
 
   it('respects custom pluginPath', async () => {
     const { tree, files } = createTree({
       'nx.json': JSON.stringify({ plugins: [] }),
-    })
+    });
 
-    await initGenerator(tree, { pluginPath: './packages/typescript-preset/src/plugin.ts' })
+    await initGenerator(tree, { pluginPath: './packages/typescript-preset/src/plugin.ts' });
 
-    const nxJson = JSON.parse(files.get('nx.json') ?? '{}')
+    const nxJson = JSON.parse(files.get('nx.json') ?? '{}');
     expect(nxJson.plugins).toContainEqual({
       options: {},
       plugin: './packages/typescript-preset/src/plugin.ts',
-    })
-  })
+    });
+  });
 
   it('creates nx.json if it does not exist', async () => {
-    const { tree, files } = createTree({})
+    const { tree, files } = createTree({});
 
-    await initGenerator(tree, {})
+    await initGenerator(tree, {});
 
-    const nxJson = JSON.parse(files.get('nx.json') ?? '{}')
+    const nxJson = JSON.parse(files.get('nx.json') ?? '{}');
     expect(nxJson.plugins).toContainEqual({
       options: {},
       plugin: '@nx-devkit/typescript',
-    })
-  })
+    });
+  });
 
   it('throws on malformed nx.json instead of overwriting', async () => {
     const { tree } = createTree({
       'nx.json': '{ invalid json !!!',
-    })
+    });
 
-    await expect(initGenerator(tree, {})).rejects.toThrow(/Failed to parse nx\.json/)
-  })
-})
+    await expect(initGenerator(tree, {})).rejects.toThrow(/Failed to parse nx\.json/);
+  });
+
+  it('preserves comments in nx.json when registering the plugin', async () => {
+    const { tree, files } = createTree({
+      'nx.json': '{\n  // workspace comment\n  "plugins": []\n}\n',
+    });
+
+    await initGenerator(tree, {});
+
+    const written = files.get('nx.json') ?? '';
+    expect(written).toContain('// workspace comment');
+    const nxJson = JSON.parse(written.replace(/\/\/.*$/gm, ''));
+    expect(nxJson.plugins).toContainEqual({
+      options: {},
+      plugin: '@nx-devkit/typescript',
+    });
+  });
+
+  it('keeps the existing indentation when rewriting plugins', async () => {
+    const { tree, files } = createTree({
+      'nx.json': '{\n    "plugins": [\n        "nx/jest"\n    ]\n}\n',
+    });
+
+    await initGenerator(tree, {});
+
+    const written = files.get('nx.json') ?? '';
+    expect(written).toContain('\n    "plugins"');
+    expect(written).toContain('\n        "nx/jest"');
+    const nxJson = JSON.parse(written);
+    expect(nxJson.plugins).toContain('nx/jest');
+    expect(nxJson.plugins).toContainEqual({
+      options: {},
+      plugin: '@nx-devkit/typescript',
+    });
+  });
+});

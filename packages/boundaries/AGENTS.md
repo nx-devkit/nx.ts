@@ -33,8 +33,8 @@ packages/boundaries/
 
 ```ts
 export interface NxBoundariesOptions {
-  depConstraints?: DepConstraint[] // [{sourceTag, onlyDependOnLibsWithTags}]
-  targetName?: string // default "check-boundaries"
+  depConstraints?: DepConstraint[]; // [{sourceTag, onlyDependOnLibsWithTags}]
+  targetName?: string; // default "check-boundaries"
 }
 ```
 
@@ -45,6 +45,7 @@ export interface NxBoundariesOptions {
 - The plugin emits the target ONLY when ≥1 non-root project declares `nx.tags` — a vacuous pass is a false green.
 - Constraint semantics MUST match `@nx/enforce-module-boundaries`: matching sourceTag → target must share ≥1 allowed tag; untagged sources permissive; self-imports allowed.
 - Import scanning MUST use the TypeScript parser (`ts.createSourceFile`) — never regexes.
+- `typescript` stays on `^5.0.0 || ^6.0.0`: `ts.createSourceFile` needs the JS compiler API, which `typescript@7+` (native) no longer ships. The rest of the workspace builds on the latest TS — do not "fix" this ceiling when bumping TS repo-wide.
 
 ## TDD workflow
 
