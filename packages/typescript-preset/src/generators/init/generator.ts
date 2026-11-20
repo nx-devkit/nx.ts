@@ -1,5 +1,5 @@
 import { type GeneratorCallback, type Tree, addDependenciesToPackageJson } from '@nx/devkit';
-import { parse as parseJsonc } from 'jsonc-parser';
+import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 
 export interface NxTypescriptInitOptions {
   pluginPath?: string;
@@ -16,11 +16,15 @@ function readJson(tree: Tree, path: string): Record<string, unknown> | null {
   }
   const raw = tree.read(path, 'utf8');
   if (raw === null) return null;
-  try {
-    return parseJsonc(raw) as Record<string, unknown>;
-  } catch (error) {
-    throw new Error(`Failed to parse ${path}`, { cause: error });
+  const errors: ParseError[] = [];
+  const parsed = parseJsonc(raw, errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  }) as Record<string, unknown>;
+  if (errors.length > 0) {
+    throw new Error(`Failed to parse ${path}`);
   }
+  return parsed;
 }
 
 function writeJson(tree: Tree, path: string, value: unknown): void {
