@@ -91,7 +91,7 @@ function registerPlugin(tree: Tree, pluginPath: string): Record<string, unknown>
   if (raw !== null) {
     // Patch `plugins` in place so comments/formatting in nx.json survive
     const edits = modify(raw, ['plugins'], filtered, {
-      formattingOptions: { insertSpaces: true, tabSize: 2 },
+      formattingOptions: detectFormattingOptions(raw),
     });
     tree.write('nx.json', applyEdits(raw, edits));
   } else {
@@ -99,6 +99,19 @@ function registerPlugin(tree: Tree, pluginPath: string): Record<string, unknown>
     writeJson(tree, 'nx.json', nxJson);
   }
   return existingOptions;
+}
+
+function detectFormattingOptions(raw: string): { insertSpaces: boolean; tabSize: number } {
+  for (const line of raw.split('\n')) {
+    const match = /^(\s+)"/.exec(line);
+    if (match) {
+      const indent = match[1];
+      return indent.includes('\t')
+        ? { insertSpaces: false, tabSize: 4 }
+        : { insertSpaces: true, tabSize: indent.length };
+    }
+  }
+  return { insertSpaces: true, tabSize: 2 };
 }
 
 function ensurePackageJson(tree: Tree): void {

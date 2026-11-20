@@ -101,4 +101,22 @@ describe('@nx-devkit/typescript init generator', () => {
       plugin: '@nx-devkit/typescript',
     });
   });
+
+  it('keeps the existing indentation when rewriting plugins', async () => {
+    const { tree, files } = createTree({
+      'nx.json': '{\n    "plugins": [\n        "nx/jest"\n    ]\n}\n',
+    });
+
+    await initGenerator(tree, {});
+
+    const written = files.get('nx.json') ?? '';
+    expect(written).toContain('\n    "plugins"');
+    expect(written).toContain('\n        "nx/jest"');
+    const nxJson = JSON.parse(written);
+    expect(nxJson.plugins).toContain('nx/jest');
+    expect(nxJson.plugins).toContainEqual({
+      options: {},
+      plugin: '@nx-devkit/typescript',
+    });
+  });
 });
