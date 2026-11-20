@@ -548,7 +548,7 @@ export async function monorepoGenerator(
   }
 
   // 1. Ensure root package.json with workspace config
-  ensureRootPackageJson(tree, name, packageDir, options.packageManager);
+  ensureRootPackageJson(tree, name, packageDir, packageManager);
 
   // 2. Ensure nx.json with preset
   ensureNxJson(tree);

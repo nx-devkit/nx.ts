@@ -66,7 +66,9 @@ export async function detectNativeTypescript(
 }
 
 /**
- * Check if @typescript/native-preview is listed in the project's package.json.
+ * Check if a native TypeScript compiler (`@typescript/native` or the
+ * legacy `@typescript/native-preview`) is listed in the project's
+ * package.json.
  */
 export async function checkNativePreview(
   projectRoot: string,
