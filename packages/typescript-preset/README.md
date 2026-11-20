@@ -61,16 +61,16 @@ bun add -D vitest oxlint eslint @biomejs/biome tsdown
 
 <!-- target table consistent with src/targets/*.ts and src/plugin.ts skip rules -->
 
-| Config detected                                                    | Targets                                                            | Runs                                                                                                     |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Config detected                                                    | Targets                                                            | Runs                                                                                                                                 |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `tsconfig.json` (or `configFile` option)                           | `typecheck`                                                        | `@nx-devkit/typescript:typecheck` executor — `tsc --build` (native under typescript@7) or `tsgo --build`, shell-free, 10-min bounded |
-| `vitest.config.*`                                                  | `test`, `test:watch`, `test:coverage`                              | `vitest run` / `vitest` / `vitest run --coverage`                                                        |
-| `*.test.*`/`*.spec.*` without Vitest                               | `test` (+ `test:tap`, `test:coverage` when enabled)                | native `node --test` (requires Node ≥ 22.18)                                                             |
-| `.oxlintrc.*` + `oxlint: true`                                     | `lint`                                                             | `oxlint .`                                                                                               |
-| `eslint.config.*` + `eslint: true`                                 | `lint` (if oxlint did not provide it)                              | `eslint .`                                                                                               |
-| `biome.json{,c}` + `biome: true`                                   | `format`, `format-check` (+ `lint` if no earlier tool provided it) | `biome format --write .` / `biome format .` / `biome lint .`                                             |
-| `tsdown.config.*`                                                  | `build`, `build:watch`                                             | `@nx-devkit/typescript:build` executor — `tsdown` / `tsdown --watch`                                     |
-| publishable `package.json` + `src/index.ts` (no `tsdown.config.*`) | `build`, `build:watch`                                             | config-free tsdown — same executor; publishable = `exports` or `bin` field, or `main` + `files`          |
+| `vitest.config.*`                                                  | `test`, `test:watch`, `test:coverage`                              | `vitest run` / `vitest` / `vitest run --coverage`                                                                                    |
+| `*.test.*`/`*.spec.*` without Vitest                               | `test` (+ `test:tap`, `test:coverage` when enabled)                | native `node --test` (requires Node ≥ 22.18)                                                                                         |
+| `.oxlintrc.*` + `oxlint: true`                                     | `lint`                                                             | `oxlint .`                                                                                                                           |
+| `eslint.config.*` + `eslint: true`                                 | `lint` (if oxlint did not provide it)                              | `eslint .`                                                                                                                           |
+| `biome.json{,c}` + `biome: true`                                   | `format`, `format-check` (+ `lint` if no earlier tool provided it) | `biome format --write .` / `biome format .` / `biome lint .`                                                                         |
+| `tsdown.config.*`                                                  | `build`, `build:watch`                                             | `@nx-devkit/typescript:build` executor — `tsdown` / `tsdown --watch`                                                                 |
+| publishable `package.json` + `src/index.ts` (no `tsdown.config.*`) | `build`, `build:watch`                                             | config-free tsdown — same executor; publishable = `exports` or `bin` field, or `main` + `files`                                      |
 
 All `nx:run-commands` targets run with `cwd` = the project root and resolve binaries from `node_modules/.bin`. The executors resolve the tool's Node entry directly and walk up ancestor `node_modules` directories — hoisted monorepo installs work, on Windows too.
 
@@ -113,29 +113,29 @@ Pass via the plugin tuple in `nx.json`:
         "tsdown": true,
         "testGlob": "**/*.test.{ts,js,mts,mjs}",
         "specGlob": "**/*.spec.{ts,js,mts,mjs}",
-        "includeRoot": true
-      }
-    ]
-  ]
+        "includeRoot": true,
+      },
+    ],
+  ],
 }
 ```
 
 <!-- option reference consistent with src/types.ts NxDevkitTypescriptOptions -->
 
-| Option        | Type      | Default                       | Effect                                                                                                                                |
-| ------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Option        | Type      | Default                       | Effect                                                                                                                                            |
+| ------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tsgo`        | `boolean` | `true`                        | `typecheck` prefers the native compiler: `tsgo` from `@typescript/native-preview`, else `tsc` (native under `typescript@7`/`@typescript/native`). |
-| `configFile`  | `string`  | `"tsconfig.json"`             | Config basename that marks a directory as a project.                                                                                  |
-| `clean`       | `boolean` | `false`                       | `typecheck` runs `… --build --clean <config>` first.                                                                                  |
-| `tap`         | `boolean` | `false`                       | Adds `test:tap` — native runner, TAP reporter, `test-results.tap` output.                                                             |
-| `coverage`    | `boolean` | `false`                       | Adds `test:coverage` — native runner, `--experimental-test-coverage`.                                                                 |
-| `oxlint`      | `boolean` | `true`                        | `.oxlintrc.*` infers `lint`.                                                                                                          |
-| `eslint`      | `boolean` | `true`                        | `eslint.config.*` infers `lint` (below oxlint in precedence).                                                                         |
-| `biome`       | `boolean` | `true`                        | `biome.json{,c}` infers `format`/`format-check` (+ `lint` fallback).                                                                  |
-| `tsdown`      | `boolean` | `true`                        | `tsdown.config.*` — or a publishable `package.json` + `src/index.ts` — infers `build`/`build:watch`.                                  |
-| `testGlob`    | `string`  | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files.                                                                                                           |
-| `specGlob`    | `string`  | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files.                                                                                                                  |
-| `includeRoot` | `boolean` | auto                          | `true`: root is always a project. `false`: never. Unset: only when it is the sole project — self-corrects when nested configs appear. |
+| `configFile`  | `string`  | `"tsconfig.json"`             | Config basename that marks a directory as a project.                                                                                              |
+| `clean`       | `boolean` | `false`                       | `typecheck` runs `… --build --clean <config>` first.                                                                                              |
+| `tap`         | `boolean` | `false`                       | Adds `test:tap` — native runner, TAP reporter, `test-results.tap` output.                                                                         |
+| `coverage`    | `boolean` | `false`                       | Adds `test:coverage` — native runner, `--experimental-test-coverage`.                                                                             |
+| `oxlint`      | `boolean` | `true`                        | `.oxlintrc.*` infers `lint`.                                                                                                                      |
+| `eslint`      | `boolean` | `true`                        | `eslint.config.*` infers `lint` (below oxlint in precedence).                                                                                     |
+| `biome`       | `boolean` | `true`                        | `biome.json{,c}` infers `format`/`format-check` (+ `lint` fallback).                                                                              |
+| `tsdown`      | `boolean` | `true`                        | `tsdown.config.*` — or a publishable `package.json` + `src/index.ts` — infers `build`/`build:watch`.                                              |
+| `testGlob`    | `string`  | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files.                                                                                                                       |
+| `specGlob`    | `string`  | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files.                                                                                                                              |
+| `includeRoot` | `boolean` | auto                          | `true`: root is always a project. `false`: never. Unset: only when it is the sole project — self-corrects when nested configs appear.             |
 
 ## Skip rules
 
@@ -180,7 +180,7 @@ import {
   globMatchAsync,
   globToRegExp,
   expandBraces,
-} from '@nx-devkit/typescript'
+} from '@nx-devkit/typescript';
 ```
 
 ## Verbose logging

@@ -1,7 +1,7 @@
-import { basename, dirname, relative, resolve } from 'node:path'
-import type { CreateNodesResult, CreateNodesV2, TargetConfiguration } from '@nx/devkit'
+import { basename, dirname, relative, resolve } from 'node:path';
+import type { CreateNodesResult, CreateNodesV2, TargetConfiguration } from '@nx/devkit';
 
-import type { NxDevkitTypescriptOptions } from './types.js'
+import type { NxDevkitTypescriptOptions } from './types.js';
 import {
   shouldSkipPath,
   logDebug,
@@ -9,8 +9,8 @@ import {
   resetCachedEnv,
   mapWithConcurrency,
   inferVitestTargets,
-} from '@nx-devkit/internal'
-import { globMatchAsync } from './glob.js'
+} from '@nx-devkit/internal';
+import { globMatchAsync } from './glob.js';
 import {
   BIOME_CONFIG_NAMES,
   ESLINT_CONFIG_NAMES,
@@ -19,53 +19,53 @@ import {
   detectNativeTypescript,
   findConfigFile,
   findVitestConfig,
-} from './config.js'
-import { inferTypecheckTarget } from './targets/typecheck.js'
-import { inferNativeTestTargets } from './targets/native-test.js'
-import { inferOxlintTarget, inferEslintTarget } from './targets/lint.js'
-import { inferBiomeTargets } from './targets/format.js'
+} from './config.js';
+import { inferTypecheckTarget } from './targets/typecheck.js';
+import { inferNativeTestTargets } from './targets/native-test.js';
+import { inferOxlintTarget, inferEslintTarget } from './targets/lint.js';
+import { inferBiomeTargets } from './targets/format.js';
 import {
   hasConfigFreeTsdownEntry,
   inferTsdownBuildTarget,
   inferTsdownWatchTarget,
-} from './targets/build.js'
+} from './targets/build.js';
 
 // Re-export everything for backward compatibility
-export type { NxDevkitTypescriptOptions }
-export { shouldSkipPath, isVerbose, resetCachedEnv, logDebug }
-export { globMatch, globMatchAsync, globToRegExp, expandBraces } from './glob.js'
-export { inferTypecheckTarget } from './targets/typecheck.js'
-export { inferVitestTargets } from '@nx-devkit/internal'
-export { inferNativeTestTargets } from './targets/native-test.js'
-export { inferOxlintTarget, inferEslintTarget } from './targets/lint.js'
-export { inferBiomeTargets } from './targets/format.js'
+export type { NxDevkitTypescriptOptions };
+export { shouldSkipPath, isVerbose, resetCachedEnv, logDebug };
+export { globMatch, globMatchAsync, globToRegExp, expandBraces } from './glob.js';
+export { inferTypecheckTarget } from './targets/typecheck.js';
+export { inferVitestTargets } from '@nx-devkit/internal';
+export { inferNativeTestTargets } from './targets/native-test.js';
+export { inferOxlintTarget, inferEslintTarget } from './targets/lint.js';
+export { inferBiomeTargets } from './targets/format.js';
 export {
   hasConfigFreeTsdownEntry,
   inferTsdownBuildTarget,
   inferTsdownWatchTarget,
-} from './targets/build.js'
+} from './targets/build.js';
 
-const PLUGIN_SCOPE = 'nx-typescript'
+const PLUGIN_SCOPE = 'nx-typescript';
 
 export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
   '**/tsconfig*.json',
   async (configFiles, options = {}, context) => {
-    const configFileName = options.configFile ?? 'tsconfig.json'
-    const tsgo = options.tsgo ?? true
-    const clean = options.clean ?? false
-    const tap = options.tap ?? false
-    const coverage = options.coverage ?? false
-    const oxlint = options.oxlint ?? true
-    const eslint = options.eslint ?? true
-    const biome = options.biome ?? true
-    const tsdown = options.tsdown ?? true
-    const testGlob = options.testGlob ?? '**/*.test.{ts,js,mts,mjs}'
-    const specGlob = options.specGlob ?? '**/*.spec.{ts,js,mts,mjs}'
-    const workspaceRoot = context.workspaceRoot
+    const configFileName = options.configFile ?? 'tsconfig.json';
+    const tsgo = options.tsgo ?? true;
+    const clean = options.clean ?? false;
+    const tap = options.tap ?? false;
+    const coverage = options.coverage ?? false;
+    const oxlint = options.oxlint ?? true;
+    const eslint = options.eslint ?? true;
+    const biome = options.biome ?? true;
+    const tsdown = options.tsdown ?? true;
+    const testGlob = options.testGlob ?? '**/*.test.{ts,js,mts,mjs}';
+    const specGlob = options.specGlob ?? '**/*.spec.{ts,js,mts,mjs}';
+    const workspaceRoot = context.workspaceRoot;
 
     const filteredConfigFiles = configFiles.filter(
       (configFile) => basename(configFile) === configFileName,
-    )
+    );
 
     // Root project semantics: the workspace root is a real project when
     // `includeRoot` is set, or automatically when it is the only config
@@ -73,7 +73,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
     // nested projects appear later, the root is skipped again without
     // any stale flag left in nx.json. An explicit `false` always wins.
     const hasNestedProjects = filteredConfigFiles.some((configFile) => {
-      const projectRoot = dirname(configFile)
+      const projectRoot = dirname(configFile);
       // Paths that shouldSkipPath discards (node_modules, outside the
       // workspace) never become projects — they must not count as
       // "nested" either, or a stray node_modules tsconfig would suppress
@@ -81,19 +81,19 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
       return (
         resolve(workspaceRoot, projectRoot) !== resolve(workspaceRoot) &&
         !shouldSkipPath(projectRoot, workspaceRoot)
-      )
-    })
+      );
+    });
     const effectiveIncludeRoot =
-      options.includeRoot === true || (options.includeRoot === undefined && !hasNestedProjects)
+      options.includeRoot === true || (options.includeRoot === undefined && !hasNestedProjects);
 
-    logDebug(PLUGIN_SCOPE, `Detected ${filteredConfigFiles.length} ${configFileName} files`)
+    logDebug(PLUGIN_SCOPE, `Detected ${filteredConfigFiles.length} ${configFileName} files`);
 
     // Bound concurrency: each project issues several fs probes and up to
     // two recursive glob scans, so an unbounded Promise.all over every
     // detected tsconfig would flood the fs on a large monorepo.
     const results = await mapWithConcurrency(filteredConfigFiles, 8, async (configFile) => {
-      const projectRoot = dirname(configFile)
-      const isWorkspaceRoot = resolve(workspaceRoot, projectRoot) === resolve(workspaceRoot)
+      const projectRoot = dirname(configFile);
+      const isWorkspaceRoot = resolve(workspaceRoot, projectRoot) === resolve(workspaceRoot);
 
       // The workspace root is only a project when includeRoot applies
       // (explicit or single-package auto). Other skip reasons
@@ -102,19 +102,19 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         shouldSkipPath(projectRoot, workspaceRoot) &&
         !(effectiveIncludeRoot && isWorkspaceRoot)
       ) {
-        logDebug(PLUGIN_SCOPE, `Skipping ${projectRoot}`)
-        return null
+        logDebug(PLUGIN_SCOPE, `Skipping ${projectRoot}`);
+        return null;
       }
 
       const projectKey = (
         relative(workspaceRoot, resolve(workspaceRoot, projectRoot)) || '.'
-      ).replace(/\\/g, '/')
+      ).replace(/\\/g, '/');
 
-      logDebug(PLUGIN_SCOPE, `Registering targets for ${projectKey}`)
+      logDebug(PLUGIN_SCOPE, `Registering targets for ${projectKey}`);
 
-      const relProjectRoot = projectKey
+      const relProjectRoot = projectKey;
 
-      const nativeDep = await detectNativeTypescript(projectRoot, workspaceRoot)
+      const nativeDep = await detectNativeTypescript(projectRoot, workspaceRoot);
 
       const typecheckTarget = inferTypecheckTarget(
         relProjectRoot,
@@ -124,25 +124,25 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           clean,
         },
         nativeDep,
-      )
+      );
 
       const targets: Record<string, TargetConfiguration> = {
         typecheck: typecheckTarget,
-      }
+      };
 
-      const vitestConfigPath = await findVitestConfig(projectRoot, workspaceRoot)
+      const vitestConfigPath = await findVitestConfig(projectRoot, workspaceRoot);
       if (vitestConfigPath) {
-        Object.assign(targets, inferVitestTargets(relProjectRoot, vitestConfigPath))
+        Object.assign(targets, inferVitestTargets(relProjectRoot, vitestConfigPath));
       } else {
-        const absProjectRoot = resolve(workspaceRoot, projectRoot)
+        const absProjectRoot = resolve(workspaceRoot, projectRoot);
         const hasTestFiles =
           (await globMatchAsync(absProjectRoot, testGlob)) ||
-          (await globMatchAsync(absProjectRoot, specGlob))
+          (await globMatchAsync(absProjectRoot, specGlob));
         if (hasTestFiles) {
           Object.assign(
             targets,
             inferNativeTestTargets(relProjectRoot, { tap, coverage, testGlob, specGlob }),
-          )
+          );
         }
       }
 
@@ -151,14 +151,14 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
       // project (the tools themselves walk up for config discovery).
       // When the fallback is used, the root config becomes a cache
       // input so edits invalidate the lint/format caches.
-      const projectOxlintrc = await findConfigFile(projectRoot, workspaceRoot, OXLINTRC_NAMES)
+      const projectOxlintrc = await findConfigFile(projectRoot, workspaceRoot, OXLINTRC_NAMES);
       const oxlintrcPath =
-        projectOxlintrc ?? (await findConfigFile('.', workspaceRoot, OXLINTRC_NAMES))
-      const oxlintOwnsLint = oxlint && oxlintrcPath !== null
+        projectOxlintrc ?? (await findConfigFile('.', workspaceRoot, OXLINTRC_NAMES));
+      const oxlintOwnsLint = oxlint && oxlintrcPath !== null;
       if (oxlintOwnsLint) {
-        targets.lint = inferOxlintTarget(relProjectRoot)
+        targets.lint = inferOxlintTarget(relProjectRoot);
         if (!projectOxlintrc) {
-          targets.lint.inputs.push('{workspaceRoot}/.oxlintrc.*')
+          targets.lint.inputs.push('{workspaceRoot}/.oxlintrc.*');
         }
       }
 
@@ -167,13 +167,13 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           projectRoot,
           workspaceRoot,
           ESLINT_CONFIG_NAMES,
-        )
+        );
         const eslintConfigPath =
-          projectEslintConfig ?? (await findConfigFile('.', workspaceRoot, ESLINT_CONFIG_NAMES))
+          projectEslintConfig ?? (await findConfigFile('.', workspaceRoot, ESLINT_CONFIG_NAMES));
         if (eslintConfigPath) {
-          targets.lint = inferEslintTarget(relProjectRoot)
+          targets.lint = inferEslintTarget(relProjectRoot);
           if (!projectEslintConfig) {
-            targets.lint.inputs.push('{workspaceRoot}/eslint.config.*')
+            targets.lint.inputs.push('{workspaceRoot}/eslint.config.*');
           }
         }
       }
@@ -183,20 +183,20 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           projectRoot,
           workspaceRoot,
           BIOME_CONFIG_NAMES,
-        )
+        );
         const biomeConfigPath =
-          projectBiomeConfig ?? (await findConfigFile('.', workspaceRoot, BIOME_CONFIG_NAMES))
+          projectBiomeConfig ?? (await findConfigFile('.', workspaceRoot, BIOME_CONFIG_NAMES));
         if (biomeConfigPath) {
-          const biomeProvidesLint = !oxlintOwnsLint && !('lint' in targets && targets.lint)
-          const inferred = inferBiomeTargets(relProjectRoot, biomeProvidesLint)
+          const biomeProvidesLint = !oxlintOwnsLint && !('lint' in targets && targets.lint);
+          const inferred = inferBiomeTargets(relProjectRoot, biomeProvidesLint);
           if (!projectBiomeConfig) {
             // Copy before extending — inferBiomeTargets shares the
             // module-level BIOME_INPUTS array across targets/projects.
             for (const t of Object.values(inferred)) {
-              t.inputs = [...t.inputs, '{workspaceRoot}/biome.json', '{workspaceRoot}/biome.jsonc']
+              t.inputs = [...t.inputs, '{workspaceRoot}/biome.json', '{workspaceRoot}/biome.jsonc'];
             }
           }
-          Object.assign(targets, inferred)
+          Object.assign(targets, inferred);
         }
       }
 
@@ -205,13 +205,13 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           projectRoot,
           workspaceRoot,
           TSDOWN_CONFIG_NAMES,
-        )
+        );
         if (
           tsdownConfigPath ||
           (await hasConfigFreeTsdownEntry(resolve(workspaceRoot, projectRoot)))
         ) {
-          targets.build = inferTsdownBuildTarget(relProjectRoot)
-          targets['build:watch'] = inferTsdownWatchTarget(relProjectRoot)
+          targets.build = inferTsdownBuildTarget(relProjectRoot);
+          targets['build:watch'] = inferTsdownWatchTarget(relProjectRoot);
         }
       }
 
@@ -224,10 +224,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
             },
           },
         },
-      ]
-      return result
-    })
+      ];
+      return result;
+    });
 
-    return results.filter((r): r is [string, CreateNodesResult] => r !== null)
+    return results.filter((r): r is [string, CreateNodesResult] => r !== null);
   },
-]
+];
