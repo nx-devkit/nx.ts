@@ -73,7 +73,7 @@
     "memfs": "^4.50.0",
     "minimatch": "^11.0.5",
     "tsdown": "^0.23.7",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^5.1.0"
   },
   "executors": "./executors.json",
