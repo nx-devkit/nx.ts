@@ -134,22 +134,22 @@ Pass via the plugin tuple in `nx.json`:
 
 <!-- option reference consistent with src/types.ts NxDevkitTypescriptOptions -->
 
-| Option        | Type      | Default                       | Effect                                                                                                                                            |
-| ------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tsgo`        | `boolean` | `true`                        | `typecheck` prefers the native compiler: `tsgo` from `@typescript/native-preview`, else `tsc` (native under `typescript@7`/`@typescript/native`). |
-| `configFile`  | `string`  | `"tsconfig.json"`             | Config basename that marks a directory as a project.                                                                                              |
-| `clean`       | `boolean` | `false`                       | `typecheck` runs `… --build --clean <config>` first.                                                                                              |
-| `tap`         | `boolean` | `false`                       | Adds `test:tap` — native runner, TAP reporter, `test-results.tap` output.                                                                         |
-| `coverage`    | `boolean` | `false`                       | Adds `test:coverage` — native runner, `--experimental-test-coverage`.                                                                             |
-| `oxlint`      | `boolean` | `true`                        | `.oxlintrc.*` infers `lint`.                                                                                                                      |
-| `eslint`      | `boolean` | `true`                        | `eslint.config.*` infers `lint` (below oxlint in precedence).                                                                                     |
-| `biome`       | `boolean` | `true`                        | `biome.json{,c}` infers `format`/`format-check` (+ `lint` fallback).                                                                              |
-| `oxfmt`       | `boolean` | `true`                        | `.oxfmtrc.{json,jsonc}`/`oxfmt.config.{ts,mts}` infers `format`/`format-check` (wins over Biome).                                                 |
-| `tsdown`      | `boolean` | `true`                        | `tsdown.config.*` — or a publishable `package.json` + `src/index.ts` — infers `build`/`build:watch`.                                              |
-| `testGlob`    | `string`  | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files.                                                                                                                       |
-| `specGlob`    | `string`  | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files.                                                                                                                              |
+| Option        | Type                | Default                       | Effect                                                                                                                                            |
+| ------------- | ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tsgo`        | `boolean`           | `true`                        | `typecheck` prefers the native compiler: `tsgo` from `@typescript/native-preview`, else `tsc` (native under `typescript@7`/`@typescript/native`). |
+| `configFile`  | `string`            | `"tsconfig.json"`             | Config basename that marks a directory as a project.                                                                                              |
+| `clean`       | `boolean`           | `false`                       | `typecheck` runs `… --build --clean <config>` first.                                                                                              |
+| `tap`         | `boolean`           | `false`                       | Adds `test:tap` — native runner, TAP reporter, `test-results.tap` output.                                                                         |
+| `coverage`    | `boolean`           | `false`                       | Adds `test:coverage` — native runner, `--experimental-test-coverage`.                                                                             |
+| `oxlint`      | `boolean`           | `true`                        | `.oxlintrc.*` infers `lint`.                                                                                                                      |
+| `eslint`      | `boolean`           | `true`                        | `eslint.config.*` infers `lint` (below oxlint in precedence).                                                                                     |
+| `biome`       | `boolean`           | `true`                        | `biome.json{,c}` infers `format`/`format-check` (+ `lint` fallback).                                                                              |
+| `oxfmt`       | `boolean`           | `true`                        | `.oxfmtrc.{json,jsonc}`/`oxfmt.config.{ts,mts}` infers `format`/`format-check` (wins over Biome).                                                 |
+| `tsdown`      | `boolean`           | `true`                        | `tsdown.config.*` — or a publishable `package.json` + `src/index.ts` — infers `build`/`build:watch`.                                              |
+| `testGlob`    | `string`            | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files.                                                                                                                       |
+| `specGlob`    | `string`            | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files.                                                                                                                              |
 | `testCi`      | `boolean \| string` | `false`                       | `true` infers a `test-ci` group plus one `test-ci--<file>` target per test/spec file (DTE sharding). A string names the group.                    |
-| `includeRoot` | `boolean` | auto                          | `true`: root is always a project. `false`: never. Unset: only when it is the sole project — self-corrects when nested configs appear.             |
+| `includeRoot` | `boolean`           | auto                          | `true`: root is always a project. `false`: never. Unset: only when it is the sole project — self-corrects when nested configs appear.             |
 
 ## Skip rules
 
