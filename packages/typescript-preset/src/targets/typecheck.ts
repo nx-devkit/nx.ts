@@ -11,8 +11,17 @@ export function inferTypecheckTarget(
   inputs: (string | { externalDependencies: string[] })[];
 } {
   const inputs: (string | { externalDependencies: string[] })[] = [
-    `{projectRoot}/src/**/*.ts`,
+    // tsconfig `include` reaches beyond src/ (test/, config files at the
+    // project root, *.mts/*.cts/*.tsx) — hash every TS source so the
+    // typecheck cache is never stale.
+    `{projectRoot}/**/*.{ts,tsx,mts,cts}`,
+    `!{projectRoot}/dist`,
+    `!{projectRoot}/node_modules`,
+    `!{projectRoot}/coverage`,
     `{projectRoot}/${options.configFile}`,
+    // Solution-style configs (tsconfig.lib.json, project references)
+    // affect the compile even when they are not the detected configFile.
+    `{projectRoot}/tsconfig*.json`,
     `{projectRoot}/package.json`,
     `{workspaceRoot}/tsconfig.base.json`,
   ];

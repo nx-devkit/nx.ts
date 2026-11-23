@@ -1,6 +1,18 @@
-import { globSync, statSync } from 'node:fs'
-import { glob, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { globSync, statSync } from 'node:fs';
+import { glob, stat } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import { logDebug } from '@nx-devkit/internal';
+
+// `exclude` receives path strings (withFileTypes is unsupported on
+// some runtimes). node_modules is pruned at any depth (vendored
+// files are never sources); dist/coverage only at the project
+// root so legitimately-named source dirs and explicit
+// testGlob/specGlob paths still match.
+function isExcludedEntry(entry: string): boolean {
+  const segments = entry.split(/[\\/]/);
+  return segments.includes('node_modules') || segments[0] === 'dist' || segments[0] === 'coverage';
+}
 
 /**
  * Check if any file in `rootDir` matches the given glob pattern.
@@ -10,29 +22,19 @@ export function globMatch(rootDir: string, pattern: string): boolean {
   try {
     const matches = globSync(pattern, {
       cwd: rootDir,
-      // `exclude` receives path strings (withFileTypes is unsupported on
-      // some runtimes). node_modules is pruned at any depth (vendored
-      // files are never sources); dist/coverage only at the project
-      // root so legitimately-named source dirs and explicit
-      // testGlob/specGlob paths still match.
-      exclude: (entry) => {
-        const segments = entry.split(/[\\/]/)
-        return (
-          segments.includes('node_modules') || segments[0] === 'dist' || segments[0] === 'coverage'
-        )
-      },
-    })
+      exclude: isExcludedEntry,
+    });
     // globSync can return directories that match the pattern (e.g. a
     // `foo.test.ts/` directory). Only count real files as matches so we
     // don't infer a native test target for a matching directory name.
     return matches.some((m) => {
       try {
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by globSync under the project root
-        return statSync(join(rootDir, m)).isFile()
+        return statSync(join(rootDir, m)).isFile();
       } catch {
-        return false
+        return false;
       }
-    })
+    });
   } catch (error) {
     // Only swallow ENOENT (directory missing). Surface other errors
     // (permission denied, invalid pattern, missing fs.globSync) so
@@ -42,9 +44,9 @@ export function globMatch(rootDir: string, pattern: string): boolean {
       'code' in error &&
       (error as { code: string }).code === 'ENOENT'
     ) {
-      return false
+      return false;
     }
-    throw error
+    throw error;
   }
 }
 
@@ -56,30 +58,20 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
   try {
     const matches = glob(pattern, {
       cwd: rootDir,
-      // `exclude` receives path strings (withFileTypes is unsupported on
-      // some runtimes). node_modules is pruned at any depth (vendored
-      // files are never sources); dist/coverage only at the project
-      // root so legitimately-named source dirs and explicit
-      // testGlob/specGlob paths still match.
-      exclude: (entry) => {
-        const segments = entry.split(/[\\/]/)
-        return (
-          segments.includes('node_modules') || segments[0] === 'dist' || segments[0] === 'coverage'
-        )
-      },
-    })
+      exclude: isExcludedEntry,
+    });
     // glob can return directories that match the pattern (e.g. a
     // `foo.test.ts/` directory). Only count real files as matches so we
     // don't infer a native test target for a matching directory name.
     for await (const m of matches) {
       try {
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by glob under the project root
-        if ((await stat(join(rootDir, m))).isFile()) return true
+        if ((await stat(join(rootDir, m))).isFile()) return true;
       } catch {
-        continue
+        continue;
       }
     }
-    return false
+    return false;
   } catch (error) {
     // Only swallow ENOENT (directory missing). Surface other errors
     // (permission denied, invalid pattern, missing fs.promises.glob) so
@@ -89,9 +81,53 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
       'code' in error &&
       (error as { code: string }).code === 'ENOENT'
     ) {
-      return false
+      return false;
     }
-    throw error
+    throw error;
+  }
+}
+
+/**
+ * List the files under `rootDir` matching any of `patterns`, as
+ * rootDir-relative paths with the same pruning rules as
+ * {@link globMatchAsync} (node_modules at any depth, dist/coverage at the
+ * root). Deduped across patterns and byte-order sorted for deterministic
+ * inference output.
+ */
+export async function globFilesAsync(
+  rootDir: string,
+  patterns: string | readonly string[],
+): Promise<string[]> {
+  const list = Array.isArray(patterns) ? patterns : [patterns];
+  const found = new Set<string>();
+  try {
+    for (const pattern of list) {
+      const matches = glob(pattern, {
+        cwd: rootDir,
+        exclude: isExcludedEntry,
+      });
+      for await (const m of matches) {
+        try {
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by glob under the project root
+          if ((await stat(join(rootDir, m))).isFile()) found.add(m);
+        } catch (e) {
+          logDebug('glob', `stat failed for ${m}: ${(e as Error).message}`);
+          continue;
+        }
+      }
+    }
+    return [...found].sort();
+  } catch (error) {
+    // Same policy as globMatchAsync: only ENOENT means "no matches";
+    // everything else surfaces so real failures are not silent.
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error as { code: string }).code === 'ENOENT'
+    ) {
+      return [];
+    }
+    throw error;
   }
 }
 
@@ -100,68 +136,68 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
 // `expandBraces` from `@nx-devkit/typescript` continue to work. The
 // preset itself now uses `fs.promises.glob` internally.
 
-const MAX_BRACE_DEPTH = 3
-const MAX_BRACE_OPTIONS = 20
+const MAX_BRACE_DEPTH = 3;
+const MAX_BRACE_OPTIONS = 20;
 
 export function expandBraces(pattern: string, depth = 0): string[] {
-  if (depth >= MAX_BRACE_DEPTH) return [pattern]
+  if (depth >= MAX_BRACE_DEPTH) return [pattern];
   // Find the first {..} group without a regex — CodeQL js/polynomial-redos
-  const open = pattern.indexOf('{')
-  const close = open === -1 ? -1 : pattern.indexOf('}', open + 1)
-  if (open === -1 || close === -1 || close === open + 1) return [pattern]
-  const options = pattern.slice(open + 1, close).split(',')
-  if (options.length > MAX_BRACE_OPTIONS) return [pattern]
-  const prefix = pattern.slice(0, open)
-  const suffix = pattern.slice(close + 1)
-  const results: string[] = []
+  const open = pattern.indexOf('{');
+  const close = open === -1 ? -1 : pattern.indexOf('}', open + 1);
+  if (open === -1 || close === -1 || close === open + 1) return [pattern];
+  const options = pattern.slice(open + 1, close).split(',');
+  if (options.length > MAX_BRACE_OPTIONS) return [pattern];
+  const prefix = pattern.slice(0, open);
+  const suffix = pattern.slice(close + 1);
+  const results: string[] = [];
   for (const opt of options) {
-    results.push(...expandBraces(prefix + opt + suffix, depth + 1))
+    results.push(...expandBraces(prefix + opt + suffix, depth + 1));
   }
-  return results
+  return results;
 }
 
 function globSegmentToRegex(pattern: string): string {
-  let result = ''
-  let i = 0
+  let result = '';
+  let i = 0;
   while (i < pattern.length) {
-    const char = pattern.charAt(i)
+    const char = pattern.charAt(i);
     if (char === '*') {
       if (pattern.charAt(i + 1) === '*') {
-        result += '.*'
-        i += 2
-        if (pattern.charAt(i) === '/') i++
+        result += '.*';
+        i += 2;
+        if (pattern.charAt(i) === '/') i++;
       } else {
-        result += '[^/]*'
-        i++
+        result += '[^/]*';
+        i++;
       }
     } else if (char === '?') {
-      result += '[^/]'
-      i++
+      result += '[^/]';
+      i++;
     } else if (char === '.') {
-      result += '\\.'
-      i++
+      result += '\\.';
+      i++;
     } else if ('+()^$|[]\\{}'.includes(char)) {
-      result += `\\${char}`
-      i++
+      result += `\\${char}`;
+      i++;
     } else {
-      result += char
-      i++
+      result += char;
+      i++;
     }
   }
-  return result
+  return result;
 }
 
 function compileRegex(source: string): RegExp {
-  const ctor = RegExp
-  return new ctor(source)
+  const ctor = RegExp;
+  return new ctor(source);
 }
 
 export function globToRegExp(pattern: string): RegExp {
-  const expanded = expandBraces(pattern)
-  const sources = expanded.map((p) => `^${globSegmentToRegex(p)}$`)
-  const source = sources.join('|')
+  const expanded = expandBraces(pattern);
+  const sources = expanded.map((p) => `^${globSegmentToRegex(p)}$`);
+  const source = sources.join('|');
   if (source.length > 10_000) {
-    return /$^/
+    return /$^/;
   }
-  return compileRegex(source)
+  return compileRegex(source);
 }
