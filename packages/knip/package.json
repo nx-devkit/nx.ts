@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/knip",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": false,
   "description": "Nx plugin: knip config files infer a cached knip target — dead exports/files/dependencies detection without project.json.",
   "keywords": [

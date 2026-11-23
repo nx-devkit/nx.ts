@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/biome",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "private": false,
   "description": "Standalone Nx plugin: infers format, format-check, and lint targets from biome.json — no project.json required.",
   "keywords": [

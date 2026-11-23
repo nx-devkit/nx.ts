@@ -1,6 +1,6 @@
 {
   "name": "@nx-devkit/typescript",
-  "version": "0.2.23",
+  "version": "0.2.24",
   "private": false,
   "description": "Preset Nx plugin that infers typecheck, test, lint, format, and build targets from config files you already keep — no project.json required. One-command bootstrap: npx @nx-devkit/typescript init",
   "keywords": [
