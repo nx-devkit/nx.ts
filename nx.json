@@ -65,7 +65,8 @@
       "packages/playwright",
       "packages/eslint",
       "packages/commitlint",
-      "packages/cspell"
+      "packages/cspell",
+      "packages/turbo"
     ],
     "projectsRelationship": "independent",
     "version": {
