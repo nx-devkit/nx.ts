@@ -42,27 +42,36 @@ export const TSDOWN_CONFIG_NAMES = [
  * side-by-side alias) or the legacy `'@typescript/native-preview` (`tsgo`).
  * `false` when neither is declared.
  */
+function declaredNativeDep(pkg: Record<string, unknown>): string | false {
+  const allDeps = {
+    ...(pkg.dependencies as Record<string, string> | undefined),
+    ...(pkg.devDependencies as Record<string, string> | undefined),
+    ...(pkg.peerDependencies as Record<string, string> | undefined),
+  };
+  if ('@typescript/native' in allDeps) return '@typescript/native';
+  if ('@typescript/native-preview' in allDeps) return '@typescript/native-preview';
+  return false;
+}
+
 export async function detectNativeTypescript(
   projectRoot: string,
   workspaceRoot: string,
 ): Promise<string | false> {
-  const absProjectRoot = resolve(workspaceRoot, projectRoot);
-  const pkgPath = join(absProjectRoot, 'package.json');
-  try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is the project's own package.json under an Nx project root
-    const content = await readFile(pkgPath, 'utf8');
-    const pkg = JSON.parse(content) as Record<string, unknown>;
-    const allDeps = {
-      ...(pkg.dependencies as Record<string, string> | undefined),
-      ...(pkg.devDependencies as Record<string, string> | undefined),
-      ...(pkg.peerDependencies as Record<string, string> | undefined),
-    };
-    if ('@typescript/native' in allDeps) return '@typescript/native';
-    if ('@typescript/native-preview' in allDeps) return '@typescript/native-preview';
-    return false;
-  } catch {
-    return false;
+  // Project manifest wins; the workspace root manifest is the fallback —
+  // the init/package generators declare the compiler in root devDeps so
+  // every project shares it. Without the fallback the typecheck target's
+  // hashed externalDependencies would never see a root-declared compiler.
+  for (const dir of [resolve(workspaceRoot, projectRoot), resolve(workspaceRoot)]) {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a package.json under a known workspace root
+      const content = await readFile(join(dir, 'package.json'), 'utf8');
+      const dep = declaredNativeDep(JSON.parse(content) as Record<string, unknown>);
+      if (dep) return dep;
+    } catch {
+      // no manifest at this level — keep looking
+    }
   }
+  return false;
 }
 
 /**
