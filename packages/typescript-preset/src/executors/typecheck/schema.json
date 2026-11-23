@@ -4,7 +4,7 @@
   "properties": {
     "tsgo": {
       "type": "boolean",
-      "description": "Use @typescript/native-preview (tsgo) instead of tsc. Default: true.",
+      "description": "Prefer the native TypeScript compiler (tsgo from @typescript/native-preview, or native tsc from typescript@7 / @typescript/native)",
       "default": true
     },
     "configFile": {

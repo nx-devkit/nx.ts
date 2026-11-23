@@ -303,8 +303,8 @@ const DEP_VERSIONS: Record<string, string> = {
   eslint: '^9.0.0',
   '@biomejs/biome': '^2.0.0',
   vitest: '^4.1.9',
-  typescript: '^6.0.3',
-  '@typescript/native-preview': '^7.0.0-dev.20260707.2',
+  typescript: 'npm:@typescript/typescript6@^6.0.2',
+  '@typescript/native': 'npm:typescript@^7.0.2',
 };
 
 function getMissingDevDeps(
@@ -322,14 +322,17 @@ function getMissingDevDeps(
   const hasAny = (key: keyof DetectedConfigs) => configs.some((c) => c[key]);
   const needed: Record<string, string> = {};
 
-  // Default `tsgo: true` typecheck runs the tsgo binary from
-  // @typescript/native-preview — install it alongside typescript so a
+  // Default `tsgo: true` typecheck prefers the native compiler —
+  // @typescript/native (typescript@7, native `tsc`) installed side by
+  // side with the TypeScript 6 `typescript` alias supplies it, so a
   // freshly bootstrapped workspace's typecheck target works.
   const DEP_RULES: ReadonlyArray<{
     when: keyof DetectedConfigs;
     dep: keyof typeof DEP_VERSIONS;
     /** Preset option that disables this tool when explicitly false. */
     option?: string;
+    /** Other dep keys that already satisfy this tool. */
+    satisfiedBy?: string[];
   }> = [
     { when: 'tsdown', dep: 'tsdown', option: 'tsdown' },
     { when: 'oxlint', dep: 'oxlint', option: 'oxlint' },
@@ -337,15 +340,22 @@ function getMissingDevDeps(
     { when: 'biome', dep: '@biomejs/biome', option: 'biome' },
     { when: 'vitest', dep: 'vitest' },
     { when: 'tsconfig', dep: 'typescript' },
-    { when: 'tsconfig', dep: '@typescript/native-preview', option: 'tsgo' },
+    // legacy @typescript/native-preview (tsgo) also satisfies the native compiler
+    {
+      when: 'tsconfig',
+      dep: '@typescript/native',
+      option: 'tsgo',
+      satisfiedBy: ['@typescript/native-preview'],
+    },
   ];
-  for (const { when, dep, option } of DEP_RULES) {
+  for (const { when, dep, option, satisfiedBy = [] } of DEP_RULES) {
     // An existing preset registration may disable a tool — don't
     // install its dependency (matches what the preset will infer).
     // eslint-disable-next-line security/detect-object-injection -- option is a literal DEP_RULES field
     if (option !== undefined && presetOptions[option] === false) continue;
     // eslint-disable-next-line security/detect-object-injection -- dep keys come from the literal DEP_RULES table
-    if (hasAny(when) && !(dep in existing)) needed[dep] = DEP_VERSIONS[dep];
+    if (hasAny(when) && !(dep in existing) && !satisfiedBy.some((alt) => alt in existing))
+      needed[dep] = DEP_VERSIONS[dep];
   }
 
   return needed;

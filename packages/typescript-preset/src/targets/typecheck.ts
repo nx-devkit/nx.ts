@@ -1,25 +1,25 @@
-import type { NxDevkitTypescriptOptions } from '../types.js'
+import type { NxDevkitTypescriptOptions } from '../types.js';
 
 export function inferTypecheckTarget(
   projectRoot: string,
   options: Required<Pick<NxDevkitTypescriptOptions, 'tsgo' | 'configFile' | 'clean'>>,
-  hasNativePreview = true,
+  nativeDep: string | false = '@typescript/native',
 ): {
-  executor: string
-  options: { tsgo: boolean; configFile: string; clean: boolean }
-  cache: true
-  inputs: (string | { externalDependencies: string[] })[]
+  executor: string;
+  options: { tsgo: boolean; configFile: string; clean: boolean };
+  cache: true;
+  inputs: (string | { externalDependencies: string[] })[];
 } {
-  const externalDependency = options.tsgo ? '@typescript/native-preview' : 'typescript'
-
   const inputs: (string | { externalDependencies: string[] })[] = [
     `{projectRoot}/src/**/*.ts`,
     `{projectRoot}/${options.configFile}`,
     `{projectRoot}/package.json`,
     `{workspaceRoot}/tsconfig.base.json`,
-  ]
-  if (options.tsgo ? hasNativePreview : true) {
-    inputs.push({ externalDependencies: [externalDependency] })
+  ];
+  if (!options.tsgo) {
+    inputs.push({ externalDependencies: ['typescript'] });
+  } else if (nativeDep) {
+    inputs.push({ externalDependencies: [nativeDep] });
   }
 
   return {
@@ -31,5 +31,5 @@ export function inferTypecheckTarget(
     },
     cache: true,
     inputs,
-  }
+  };
 }
