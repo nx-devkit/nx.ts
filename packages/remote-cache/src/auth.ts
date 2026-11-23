@@ -46,7 +46,8 @@ const NAMESPACE_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const HASH_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 
 export function isValidNamespace(ns: string): boolean {
-  return NAMESPACE_RE.test(ns);
+  // typeof guard — RegExp.test coerces, so `null`/`{}` would pass.
+  return typeof ns === 'string' && NAMESPACE_RE.test(ns);
 }
 
 export function isValidHash(hash: string): boolean {

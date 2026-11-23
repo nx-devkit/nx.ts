@@ -83,6 +83,9 @@ function bearerToken(req: IncomingMessage): string | null {
  */
 export function createRemoteCacheServer(options: RemoteCacheServerOptions): Server {
   const max = options.maxArtifactBytes ?? DEFAULT_MAX_ARTIFACT_BYTES;
+  if (!Number.isInteger(max) || max <= 0) {
+    throw new Error(`maxArtifactBytes must be a positive integer, got ${max}`);
+  }
   const log: LogFn =
     options.logger ??
     ((event, ctx) => {
@@ -169,7 +172,13 @@ export function createRemoteCacheServer(options: RemoteCacheServerOptions): Serv
         text(res, 404, 'not found');
         return;
       }
-      const hash = decodeURIComponent(match[1]!);
+      let hash: string;
+      try {
+        hash = decodeURIComponent(match[1]!);
+      } catch {
+        text(res, 404, 'not found');
+        return;
+      }
       if (!isValidHash(hash)) {
         text(res, 404, 'not found');
         return;

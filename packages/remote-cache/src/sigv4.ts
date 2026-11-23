@@ -54,6 +54,9 @@ export function signRequest(opts: SignRequestOptions): Record<string, string> {
 
   const headers: Record<string, string> = {};
   for (const [k, v] of Object.entries(opts.headers)) headers[k.toLowerCase()] = v;
+  // A caller-supplied Authorization would collide with the signed one
+  // appended below (duplicate headers, differing only by case).
+  delete headers['authorization'];
   headers['host'] = opts.host;
   headers['x-amz-date'] = dateTime;
   // S3 requires the payload-hash header; other services (e.g. the IAM
