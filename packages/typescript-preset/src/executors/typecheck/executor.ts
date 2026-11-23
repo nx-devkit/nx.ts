@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { resolveBinLaunch } from '@nx-devkit/internal';
+import { nodeModulesDirs, resolveBinLaunch } from '@nx-devkit/internal';
 
 export interface TypecheckExecutorOptions {
   /** Prefer the native TypeScript compiler (tsgo from @typescript/native-preview, or the native `tsc` from typescript@7 / @typescript/native). Default: true. */
@@ -50,11 +50,15 @@ export function detectCompiler(
 }
 
 function hasPackage(workspaceRoot: string, projectRoot: string, name: string): boolean {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed package name joined under node_modules
-  return (
-    existsSync(join(workspaceRoot, 'node_modules', name)) ||
-    existsSync(join(projectRoot, 'node_modules', name))
-  );
+  // Search the same ancestor node_modules dirs resolveBinLaunch uses —
+  // hoisted installs live between the project and workspace roots, or
+  // above the workspace root in nested workspaces.
+  const dirs = new Set([...nodeModulesDirs(projectRoot), ...nodeModulesDirs(workspaceRoot)]);
+  for (const nmDir of dirs) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed package name joined under node_modules
+    if (existsSync(join(nmDir, name))) return true;
+  }
+  return false;
 }
 
 // tsc can emit more than execFile's 1 MiB default maxBuffer of
@@ -95,6 +99,13 @@ export async function typecheckExecutor(
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- config filename comes from executor schema options joined to the project root
   if (!existsSync(configPath)) {
     console.error(`[nx-devkit/typecheck] Config not found: ${configPath}`);
+    return { success: false };
+  }
+
+  if (projectConfig === undefined) {
+    console.error(
+      `[nx-devkit/typecheck] Project "${projectName}" not found in projectsConfigurations — refusing to typecheck the workspace root`,
+    );
     return { success: false };
   }
 
