@@ -1,61 +1,61 @@
-import { describe, expect, it, vi } from 'vitest'
-import type { Tree } from '@nx/devkit'
-import { initGenerator } from '../src/generators/init/generator.js'
+import { describe, expect, it, vi } from 'vitest';
+import type { Tree } from '@nx/devkit';
+import { initGenerator } from '../src/generators/init/generator.js';
 
 function createTree(files: Record<string, string> = {}): {
-  tree: Tree
-  files: Map<string, string>
+  tree: Tree;
+  files: Map<string, string>;
 } {
-  const fileMap = new Map<string, string>(Object.entries(files))
+  const fileMap = new Map<string, string>(Object.entries(files));
 
   const tree: Tree = {
     exists: (path: string) => fileMap.has(path),
     read: (path: string) => fileMap.get(path) ?? null,
     write: (path: string, content: string) => {
-      fileMap.set(path, content)
+      fileMap.set(path, content);
     },
     delete: (path: string) => {
-      fileMap.delete(path)
+      fileMap.delete(path);
     },
     listChanges: () => [],
     rename: () => {},
     root: '/workspace',
     children: (path: string): string[] => {
-      const prefix = path === '' || path === '.' ? '' : `${path}/`
-      const children = new Set<string>()
+      const prefix = path === '' || path === '.' ? '' : `${path}/`;
+      const children = new Set<string>();
       for (const filePath of fileMap.keys()) {
         if (filePath.startsWith(prefix)) {
-          const rest = filePath.slice(prefix.length)
-          const firstSlash = rest.indexOf('/')
+          const rest = filePath.slice(prefix.length);
+          const firstSlash = rest.indexOf('/');
           if (firstSlash === -1) {
-            children.add(rest)
+            children.add(rest);
           } else {
-            children.add(rest.slice(0, firstSlash))
+            children.add(rest.slice(0, firstSlash));
           }
         }
       }
-      return Array.from(children)
+      return Array.from(children);
     },
-  }
+  };
 
-  return { tree, files: fileMap }
+  return { tree, files: fileMap };
 }
 
 function readJson(files: Map<string, string>, path: string): Record<string, unknown> {
-  return JSON.parse(files.get(path) ?? '{}') as Record<string, unknown>
+  return JSON.parse(files.get(path) ?? '{}') as Record<string, unknown>;
 }
 
 describe('initGenerator', () => {
   describe('nx.json creation', () => {
     it('creates nx.json if it does not exist', async () => {
-      const { tree, files } = createTree({})
+      const { tree, files } = createTree({});
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      expect(files.has('nx.json')).toBe(true)
-      const nxJson = readJson(files, 'nx.json')
-      expect(nxJson.plugins).toBeDefined()
-    })
+      expect(files.has('nx.json')).toBe(true);
+      const nxJson = readJson(files, 'nx.json');
+      expect(nxJson.plugins).toBeDefined();
+    });
 
     it('preserves existing nx.json and only updates plugins', async () => {
       const { tree, files } = createTree({
@@ -65,39 +65,39 @@ describe('initGenerator', () => {
           targetDefaults: { build: { cache: true } },
           plugins: [],
         }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const nxJson = readJson(files, 'nx.json')
-      expect(nxJson.version).toBe(2)
-      expect(nxJson.targetDefaults).toEqual({ build: { cache: true } })
-      expect(nxJson.$schema).toBe('./node_modules/nx/schemas/nx-schema.json')
-    })
+      const nxJson = readJson(files, 'nx.json');
+      expect(nxJson.version).toBe(2);
+      expect(nxJson.targetDefaults).toEqual({ build: { cache: true } });
+      expect(nxJson.$schema).toBe('./node_modules/nx/schemas/nx-schema.json');
+    });
 
     it('throws on malformed nx.json instead of overwriting', async () => {
       const { tree } = createTree({
         'nx.json': '{ invalid json !!!',
-      })
+      });
 
-      await expect(initGenerator(tree, {})).rejects.toThrow(/Failed to parse nx\.json/)
-    })
-  })
+      await expect(initGenerator(tree, {})).rejects.toThrow(/Failed to parse nx\.json/);
+    });
+  });
 
   describe('plugin registration', () => {
     it('registers @nx-devkit/typescript as the sole plugin', async () => {
       const { tree, files } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const nxJson = readJson(files, 'nx.json')
-      const plugins = nxJson.plugins as unknown[]
-      expect(plugins).toHaveLength(1)
-      const entry = plugins[0] as { plugin: string }
-      expect(entry.plugin).toBe('@nx-devkit/typescript')
-    })
+      const nxJson = readJson(files, 'nx.json');
+      const plugins = nxJson.plugins as unknown[];
+      expect(plugins).toHaveLength(1);
+      const entry = plugins[0] as { plugin: string };
+      expect(entry.plugin).toBe('@nx-devkit/typescript');
+    });
 
     it('removes existing @nx-devkit/* standalone plugin entries (string form)', async () => {
       const { tree, files } = createTree({
@@ -109,16 +109,16 @@ describe('initGenerator', () => {
             '@nx-devkit/typescript',
           ],
         }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const nxJson = readJson(files, 'nx.json')
-      const plugins = nxJson.plugins as unknown[]
-      expect(plugins).toHaveLength(1)
-      const entry = plugins[0] as { plugin: string }
-      expect(entry.plugin).toBe('@nx-devkit/typescript')
-    })
+      const nxJson = readJson(files, 'nx.json');
+      const plugins = nxJson.plugins as unknown[];
+      expect(plugins).toHaveLength(1);
+      const entry = plugins[0] as { plugin: string };
+      expect(entry.plugin).toBe('@nx-devkit/typescript');
+    });
 
     it('removes existing @nx-devkit/* standalone plugin entries (object form)', async () => {
       const { tree, files } = createTree({
@@ -129,76 +129,76 @@ describe('initGenerator', () => {
             '@nx-devkit/biome',
           ],
         }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const nxJson = readJson(files, 'nx.json')
-      const plugins = nxJson.plugins as unknown[]
-      expect(plugins).toHaveLength(1)
-      const entry = plugins[0] as { plugin: string }
-      expect(entry.plugin).toBe('@nx-devkit/typescript')
-    })
+      const nxJson = readJson(files, 'nx.json');
+      const plugins = nxJson.plugins as unknown[];
+      expect(plugins).toHaveLength(1);
+      const entry = plugins[0] as { plugin: string };
+      expect(entry.plugin).toBe('@nx-devkit/typescript');
+    });
 
     it('preserves non-nx-devkit plugins', async () => {
       const { tree, files } = createTree({
         'nx.json': JSON.stringify({
           plugins: ['@nx/vite', '@nx-devkit/oxlint', '@my-org/custom-plugin'],
         }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const nxJson = readJson(files, 'nx.json')
-      const plugins = nxJson.plugins as unknown[]
+      const nxJson = readJson(files, 'nx.json');
+      const plugins = nxJson.plugins as unknown[];
       const pluginNames = plugins.map((p) =>
         typeof p === 'string' ? p : (p as { plugin: string }).plugin,
-      )
-      expect(pluginNames).toContain('@nx/vite')
-      expect(pluginNames).toContain('@my-org/custom-plugin')
-      expect(pluginNames).toContain('@nx-devkit/typescript')
-      expect(pluginNames).not.toContain('@nx-devkit/oxlint')
-    })
+      );
+      expect(pluginNames).toContain('@nx/vite');
+      expect(pluginNames).toContain('@my-org/custom-plugin');
+      expect(pluginNames).toContain('@nx-devkit/typescript');
+      expect(pluginNames).not.toContain('@nx-devkit/oxlint');
+    });
 
     it('is idempotent — running twice does not duplicate the entry', async () => {
       const { tree, files } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
       // Second run on the same tree
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const nxJson = readJson(files, 'nx.json')
-      const plugins = nxJson.plugins as unknown[]
-      expect(plugins).toHaveLength(1)
-    })
+      const nxJson = readJson(files, 'nx.json');
+      const plugins = nxJson.plugins as unknown[];
+      expect(plugins).toHaveLength(1);
+    });
 
     it('respects custom pluginPath', async () => {
       const { tree, files } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
-      })
+      });
 
-      await initGenerator(tree, { pluginPath: './packages/typescript-preset/src/plugin.ts' })
+      await initGenerator(tree, { pluginPath: './packages/typescript-preset/src/plugin.ts' });
 
-      const nxJson = readJson(files, 'nx.json')
-      const plugins = nxJson.plugins as unknown[]
-      const entry = plugins[0] as { plugin: string }
-      expect(entry.plugin).toBe('./packages/typescript-preset/src/plugin.ts')
-    })
-  })
+      const nxJson = readJson(files, 'nx.json');
+      const plugins = nxJson.plugins as unknown[];
+      const entry = plugins[0] as { plugin: string };
+      expect(entry.plugin).toBe('./packages/typescript-preset/src/plugin.ts');
+    });
+  });
 
   describe('config detection', () => {
     // Assert against the conditional "Detected projects" section — the
     // static "preset auto-detects" block always prints every target name
     // and cannot fail on detection logic.
     async function capturedSummary(tree: Parameters<typeof initGenerator>[0]): Promise<string> {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       try {
-        await initGenerator(tree, {})
-        return consoleSpy.mock.calls.map((c) => String(c[0])).join('\n')
+        await initGenerator(tree, {});
+        return consoleSpy.mock.calls.map((c) => String(c[0])).join('\n');
       } finally {
-        consoleSpy.mockRestore()
+        consoleSpy.mockRestore();
       }
     }
 
@@ -207,68 +207,92 @@ describe('initGenerator', () => {
         'nx.json': JSON.stringify({ plugins: [] }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
-      })
+      });
 
       // Standalone repo: root tsconfig + no nested projects → includeRoot
       // is enabled, so the summary renders the root as a real project.
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root) → typecheck')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root) → typecheck');
+    });
 
     it('detects vitest.config.ts and reports test targets', async () => {
       const { tree } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
         'vitest.config.ts': 'export default {}',
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root — no targets, config source) → vitest')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → vitest');
+    });
 
     it('detects .oxlintrc.json and reports lint target', async () => {
       const { tree } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
         '.oxlintrc.json': JSON.stringify({ plugins: ['oxc'] }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root — no targets, config source) → oxlint')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → oxlint');
+    });
 
     it('detects eslint.config.js and reports lint target', async () => {
       const { tree } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
         'eslint.config.js': 'export default []',
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root — no targets, config source) → eslint')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → eslint');
+    });
 
     it('detects biome.json and reports format targets', async () => {
       const { tree } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
         'biome.json': JSON.stringify({ linter: { enabled: true } }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root — no targets, config source) → biome')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → biome');
+    });
+
+    it('detects .oxfmtrc.json and reports format targets', async () => {
+      const { tree } = createTree({
+        'nx.json': JSON.stringify({ plugins: [] }),
+        '.oxfmtrc.json': JSON.stringify({ singleQuote: true }),
+        'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
+      });
+
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → oxfmt');
+    });
+
+    it('reports format targets for a nested project with .oxfmtrc.json', async () => {
+      const { tree } = createTree({
+        'nx.json': JSON.stringify({ plugins: [] }),
+        'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
+        'packages/my-pkg/package.json': JSON.stringify({ name: '@test/my-pkg', version: '0.0.0' }),
+        'packages/my-pkg/tsconfig.json': JSON.stringify({ compilerOptions: {} }),
+        'packages/my-pkg/.oxfmtrc.json': JSON.stringify({}),
+      });
+
+      const output = await capturedSummary(tree);
+      expect(output).toContain('packages/my-pkg → typecheck, format, format-check');
+    });
 
     it('detects tsdown.config.ts and reports build target', async () => {
       const { tree } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
         'tsdown.config.ts': 'export default {}',
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root — no targets, config source) → tsdown')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → tsdown');
+    });
 
     it('detects nested project config files', async () => {
       const { tree } = createTree({
@@ -278,11 +302,11 @@ describe('initGenerator', () => {
         'packages/my-pkg/tsconfig.json': JSON.stringify({ compilerOptions: {} }),
         'packages/my-pkg/tsdown.config.ts': 'export default {}',
         'packages/my-pkg/.oxlintrc.json': JSON.stringify({ plugins: ['oxc'] }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('packages/my-pkg → typecheck, lint, build, build:watch')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('packages/my-pkg → typecheck, lint, build, build:watch');
+    });
 
     it('reports native test files without a vitest config', async () => {
       const { tree } = createTree({
@@ -291,11 +315,11 @@ describe('initGenerator', () => {
         'packages/my-pkg/package.json': JSON.stringify({ name: '@test/my-pkg', version: '0.0.0' }),
         'packages/my-pkg/tsconfig.json': JSON.stringify({ compilerOptions: {} }),
         'packages/my-pkg/src/foo.test.ts': 'test',
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('packages/my-pkg → typecheck, test')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('packages/my-pkg → typecheck, test');
+    });
 
     it('detects deeply nested project roots', async () => {
       const { tree } = createTree({
@@ -306,11 +330,11 @@ describe('initGenerator', () => {
           version: '0.0.0',
         }),
         'packages/scopes/my-pkg/tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('packages/scopes/my-pkg → typecheck')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('packages/scopes/my-pkg → typecheck');
+    });
 
     it('preserves existing preset options when re-registering', async () => {
       const { tree, files } = createTree({
@@ -318,16 +342,16 @@ describe('initGenerator', () => {
           plugins: [{ plugin: '@nx-devkit/typescript', options: { tap: true } }],
         }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
       const nxJson = JSON.parse(files.get('nx.json') ?? '{}') as {
-        plugins: Array<{ plugin: string; options: Record<string, unknown> }>
-      }
-      const preset = nxJson.plugins.find((p) => p.plugin === '@nx-devkit/typescript')
-      expect(preset?.options).toEqual({ tap: true })
-    })
+        plugins: Array<{ plugin: string; options: Record<string, unknown> }>;
+      };
+      const preset = nxJson.plugins.find((p) => p.plugin === '@nx-devkit/typescript');
+      expect(preset?.options).toEqual({ tap: true });
+    });
 
     it('does not persist includeRoot — the plugin auto-detects standalone repos', async () => {
       // includeRoot left in nx.json would go stale when a single-package
@@ -336,27 +360,27 @@ describe('initGenerator', () => {
         'nx.json': JSON.stringify({ plugins: [] }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
       const nxJson = readJson(files, 'nx.json') as {
-        plugins: Array<{ plugin: string; options: Record<string, unknown> }>
-      }
-      const preset = nxJson.plugins.find((p) => p.plugin === '@nx-devkit/typescript')
-      expect(preset?.options.includeRoot).toBeUndefined()
-    })
+        plugins: Array<{ plugin: string; options: Record<string, unknown> }>;
+      };
+      const preset = nxJson.plugins.find((p) => p.plugin === '@nx-devkit/typescript');
+      expect(preset?.options.includeRoot).toBeUndefined();
+    });
 
     it('renders the workspace root as a project in the summary when standalone', async () => {
       const { tree } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root) → typecheck')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root) → typecheck');
+    });
 
     it('reports the plugin as installed when already in package.json', async () => {
       const { tree } = createTree({
@@ -367,23 +391,23 @@ describe('initGenerator', () => {
           devDependencies: { '@nx-devkit/typescript': '^0.1.0' },
         }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('1. The plugin is installed: @nx-devkit/typescript')
-      expect(output).not.toContain('Install the plugin')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('1. The plugin is installed: @nx-devkit/typescript');
+      expect(output).not.toContain('Install the plugin');
+    });
 
     it('instructs to install the plugin when absent from package.json', async () => {
       const { tree } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('Install the plugin')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('Install the plugin');
+    });
 
     it('keeps the no-targets summary when nested projects exist', async () => {
       const { tree } = createTree({
@@ -391,11 +415,11 @@ describe('initGenerator', () => {
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
         'packages/lib/tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root — no targets, config source) → tsconfig')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → tsconfig');
+    });
 
     it('treats a tsconfig outside container dirs as a nested project', async () => {
       // The plugin's tsconfig glob matches any directory — a tools/
@@ -406,12 +430,12 @@ describe('initGenerator', () => {
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
         'tools/tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root — no targets, config source) → tsconfig')
-      expect(output).not.toContain('(workspace root) → typecheck')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root — no targets, config source) → tsconfig');
+      expect(output).not.toContain('(workspace root) → typecheck');
+    });
 
     it('honours a configured configFile for root detection', async () => {
       // With configFile: 'tsconfig.lib.json', the plugin's typecheck
@@ -424,11 +448,11 @@ describe('initGenerator', () => {
         }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.lib.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('(workspace root) → typecheck')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('(workspace root) → typecheck');
+    });
 
     it('discovers nested projects that only carry the configured configFile', async () => {
       const { tree } = createTree({
@@ -440,11 +464,11 @@ describe('initGenerator', () => {
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.lib.json': JSON.stringify({ compilerOptions: {} }),
         'packages/lib/tsconfig.lib.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      const output = await capturedSummary(tree)
-      expect(output).toContain('packages/lib → typecheck')
-    })
+      const output = await capturedSummary(tree);
+      expect(output).toContain('packages/lib → typecheck');
+    });
 
     it('respects an explicit includeRoot option over detection', async () => {
       const { tree, files } = createTree({
@@ -453,17 +477,17 @@ describe('initGenerator', () => {
         }),
         'package.json': JSON.stringify({ name: 'test', version: '0.0.0' }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
       const nxJson = readJson(files, 'nx.json') as {
-        plugins: Array<{ plugin: string; options: Record<string, unknown> }>
-      }
-      const preset = nxJson.plugins.find((p) => p.plugin === '@nx-devkit/typescript')
-      expect(preset?.options.includeRoot).toBe(false)
-    })
-  })
+        plugins: Array<{ plugin: string; options: Record<string, unknown> }>;
+      };
+      const preset = nxJson.plugins.find((p) => p.plugin === '@nx-devkit/typescript');
+      expect(preset?.options.includeRoot).toBe(false);
+    });
+  });
 
   describe('dependency installation', () => {
     it('adds missing peer deps to package.json based on detected configs', async () => {
@@ -478,18 +502,20 @@ describe('initGenerator', () => {
         'tsdown.config.ts': 'export default {}',
         '.oxlintrc.json': JSON.stringify({}),
         'biome.json': JSON.stringify({}),
+        '.oxfmtrc.json': JSON.stringify({}),
         'vitest.config.ts': 'export default {}',
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const pkg = readJson(files, 'package.json')
-      const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-      expect(devDeps.tsdown).toBeDefined()
-      expect(devDeps.oxlint).toBeDefined()
-      expect(devDeps['@biomejs/biome']).toBeDefined()
-      expect(devDeps.vitest).toBeDefined()
-    })
+      const pkg = readJson(files, 'package.json');
+      const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+      expect(devDeps.tsdown).toBeDefined();
+      expect(devDeps.oxlint).toBeDefined();
+      expect(devDeps['@biomejs/biome']).toBeDefined();
+      expect(devDeps.oxfmt).toBeDefined();
+      expect(devDeps.vitest).toBeDefined();
+    });
 
     it('does not add deps for tools whose config files are absent', async () => {
       const { tree, files } = createTree({
@@ -500,17 +526,18 @@ describe('initGenerator', () => {
           devDependencies: {},
         }),
         'tsconfig.json': JSON.stringify({ compilerOptions: {} }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const pkg = readJson(files, 'package.json')
-      const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-      expect(devDeps.tsdown).toBeUndefined()
-      expect(devDeps.oxlint).toBeUndefined()
-      expect(devDeps['@biomejs/biome']).toBeUndefined()
-      expect(devDeps.vitest).toBeUndefined()
-    })
+      const pkg = readJson(files, 'package.json');
+      const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+      expect(devDeps.tsdown).toBeUndefined();
+      expect(devDeps.oxlint).toBeUndefined();
+      expect(devDeps['@biomejs/biome']).toBeUndefined();
+      expect(devDeps.oxfmt).toBeUndefined();
+      expect(devDeps.vitest).toBeUndefined();
+    });
 
     it('does not duplicate deps that are already installed', async () => {
       const { tree, files } = createTree({
@@ -522,29 +549,29 @@ describe('initGenerator', () => {
         }),
         'tsdown.config.ts': 'export default {}',
         'vitest.config.ts': 'export default {}',
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      const pkg = readJson(files, 'package.json')
-      const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-      expect(devDeps.tsdown).toBe('^0.22.3')
-      expect(devDeps.vitest).toBe('^4.1.9')
-    })
-  })
+      const pkg = readJson(files, 'package.json');
+      const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+      expect(devDeps.tsdown).toBe('^0.22.3');
+      expect(devDeps.vitest).toBe('^4.1.9');
+    });
+  });
 
   describe('package.json creation', () => {
     it('creates a minimal package.json if none exists', async () => {
       const { tree, files } = createTree({
         'nx.json': JSON.stringify({ plugins: [] }),
-      })
+      });
 
-      await initGenerator(tree, {})
+      await initGenerator(tree, {});
 
-      expect(files.has('package.json')).toBe(true)
-      const pkg = readJson(files, 'package.json')
-      expect(pkg.name).toBeDefined()
-      expect(pkg.version).toBeDefined()
-    })
-  })
-})
+      expect(files.has('package.json')).toBe(true);
+      const pkg = readJson(files, 'package.json');
+      expect(pkg.name).toBeDefined();
+      expect(pkg.version).toBeDefined();
+    });
+  });
+});

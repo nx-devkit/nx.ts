@@ -1,9 +1,20 @@
+// The whole project tree: formatters touch tests/configs too, not just
+// src — a narrow glob would let edits to those files hit a stale cache.
 const BIOME_INPUTS = [
-  '{projectRoot}/src/**/*',
+  '{projectRoot}/**/*',
   '{projectRoot}/biome.json',
   '{projectRoot}/biome.jsonc',
   '{projectRoot}/package.json',
-]
+];
+
+const OXFMT_INPUTS = [
+  '{projectRoot}/**/*',
+  '{projectRoot}/.oxfmtrc.json',
+  '{projectRoot}/.oxfmtrc.jsonc',
+  '{projectRoot}/oxfmt.config.ts',
+  '{projectRoot}/oxfmt.config.mts',
+  '{projectRoot}/package.json',
+];
 
 export function inferBiomeTargets(
   projectRoot: string,
@@ -11,19 +22,19 @@ export function inferBiomeTargets(
 ): Record<
   string,
   {
-    executor: 'nx:run-commands'
-    options: { command: string; cwd: string }
-    cache: boolean
-    inputs: string[]
+    executor: 'nx:run-commands';
+    options: { command: string; cwd: string };
+    cache: boolean;
+    inputs: string[];
   }
 > {
   const targets: Record<
     string,
     {
-      executor: 'nx:run-commands'
-      options: { command: string; cwd: string }
-      cache: boolean
-      inputs: string[]
+      executor: 'nx:run-commands';
+      options: { command: string; cwd: string };
+      cache: boolean;
+      inputs: string[];
     }
   > = {
     format: {
@@ -33,7 +44,7 @@ export function inferBiomeTargets(
         cwd: projectRoot,
       },
       cache: false,
-      inputs: BIOME_INPUTS,
+      inputs: [...BIOME_INPUTS],
     },
     'format-check': {
       executor: 'nx:run-commands',
@@ -42,9 +53,9 @@ export function inferBiomeTargets(
         cwd: projectRoot,
       },
       cache: true,
-      inputs: BIOME_INPUTS,
+      inputs: [...BIOME_INPUTS],
     },
-  }
+  };
 
   if (includeLint) {
     targets.lint = {
@@ -54,9 +65,40 @@ export function inferBiomeTargets(
         cwd: projectRoot,
       },
       cache: true,
-      inputs: BIOME_INPUTS,
-    }
+      inputs: [...BIOME_INPUTS],
+    };
   }
 
-  return targets
+  return targets;
+}
+
+export function inferOxfmtTargets(projectRoot: string): Record<
+  string,
+  {
+    executor: 'nx:run-commands';
+    options: { command: string; cwd: string };
+    cache: boolean;
+    inputs: string[];
+  }
+> {
+  return {
+    format: {
+      executor: 'nx:run-commands',
+      options: {
+        command: 'oxfmt --write .',
+        cwd: projectRoot,
+      },
+      cache: false,
+      inputs: [...OXFMT_INPUTS],
+    },
+    'format-check': {
+      executor: 'nx:run-commands',
+      options: {
+        command: 'oxfmt --check .',
+        cwd: projectRoot,
+      },
+      cache: true,
+      inputs: [...OXFMT_INPUTS],
+    },
+  };
 }

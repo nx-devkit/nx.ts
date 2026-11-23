@@ -1,23 +1,25 @@
 export interface NxDevkitTypescriptOptions {
-  tsgo?: boolean
-  configFile?: string
-  clean?: boolean
+  tsgo?: boolean;
+  configFile?: string;
+  clean?: boolean;
   /** Infer `test:tap` target using the TAP reporter. Default: false. */
-  tap?: boolean
+  tap?: boolean;
   /** Infer `test:coverage` target for the native Node test runner. Default: false. */
-  coverage?: boolean
+  coverage?: boolean;
   /** Infer `lint` target from `.oxlintrc.*`. Default: true. */
-  oxlint?: boolean
+  oxlint?: boolean;
   /** Infer `lint` target from `eslint.config.*`. Default: true. */
-  eslint?: boolean
+  eslint?: boolean;
   /** Infer `format`/`format-check`/`lint` from `biome.json`. Default: true. */
-  biome?: boolean
+  biome?: boolean;
+  /** Infer `format`/`format-check` from `.oxfmtrc.*`/`oxfmt.config.*`. Default: true. */
+  oxfmt?: boolean;
   /** Infer `build` target from `tsdown.config.*` or a publishable `package.json` + `src/index.ts`. Default: true. */
-  tsdown?: boolean
+  tsdown?: boolean;
   /** Glob for native test files. Default: double-star-slash-star.test.ts-js-mts-mjs. */
-  testGlob?: string
+  testGlob?: string;
   /** Glob for spec files. Default: double-star-slash-star.spec.ts-js-mts-mjs. */
-  specGlob?: string
+  specGlob?: string;
   /** Infer targets for the workspace root itself (single-package repos). Default: false. */
-  includeRoot?: boolean
+  includeRoot?: boolean;
 }
