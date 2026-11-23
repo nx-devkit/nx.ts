@@ -9,7 +9,7 @@ import {
 import { isVerbose, logDebug } from '@nx-devkit/internal';
 import { collectImports } from '../../imports.ts';
 import { evaluateConstraints, evaluateExternal } from '../../constraints.ts';
-import { findCircularDependencies } from '../../cycles.ts';
+import { findCircularDependencies, type CircularDependency } from '../../cycles.ts';
 import { renderReport, renderTextLines, type BoundaryViolation } from '../../report.ts';
 import { externalPackageName, loadTsPaths, resolveImport } from '../../resolve.ts';
 import { projectIndex, projectTags } from '../../tags.ts';
@@ -186,11 +186,13 @@ function scanProject(
   return violations;
 }
 
-function cycleViolation(cycle: string[]): BoundaryViolation {
+function cycleViolation(dep: CircularDependency): BoundaryViolation {
+  const cycle = dep.path;
   return {
     kind: 'circular',
     source: cycle[0]!,
     target: cycle[cycle.length - 2] ?? cycle[0]!,
+    path: cycle,
     message: `circular dependency: ${cycle.join(' -> ')}`,
     hint: 'break the cycle — extract the shared code into a new project or invert one edge (e.g. depend on an interface layer)',
   };
@@ -235,11 +237,12 @@ function collectViolations(
   }
 
   if (options.checkCircularDependencies ?? true) {
-    for (const cycle of findCircularDependencies(graph)) {
-      if (scopedProject !== undefined && !cycle.includes(scopedProject)) {
+    for (const dep of findCircularDependencies(graph)) {
+      // The witness path need not visit every member — scope by membership.
+      if (scopedProject !== undefined && !dep.members.includes(scopedProject)) {
         continue;
       }
-      violations.push(cycleViolation(cycle));
+      violations.push(cycleViolation(dep));
     }
   }
   return violations;

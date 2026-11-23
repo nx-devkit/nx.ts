@@ -61,12 +61,19 @@ function witnessCycle(start: string, component: Set<string>, adj: Map<string, st
   return [start, start];
 }
 
+export interface CircularDependency {
+  /** Every project in the strongly-connected component (sorted). */
+  members: string[];
+  /** One witness closed walk for reporting — starts/ends on the smallest member. */
+  path: string[];
+}
+
 /**
- * Circular dependencies in the project graph, reported as one closed path per
- * strongly-connected component (self-loops included). Path starts at the
- * lexicographically smallest member for deterministic output.
+ * Circular dependencies in the project graph, one per strongly-connected
+ * component (self-loops included). `members` covers the whole component —
+ * `path` is only a witness and need not visit every member.
  */
-export function findCircularDependencies(graph: ProjectGraph): string[][] {
+export function findCircularDependencies(graph: ProjectGraph): CircularDependency[] {
   const adj = dependencyAdjacency(graph);
 
   // Tarjan's SCC — iterative to stay safe on deep graphs.
@@ -120,18 +127,21 @@ export function findCircularDependencies(graph: ProjectGraph): string[][] {
     }
   }
 
-  const cycles: string[][] = [];
+  const cycles: CircularDependency[] = [];
   for (const component of components) {
     const [start] = component;
     if (component.length === 1) {
       // Only a self-loop counts as circular.
       if ((adj.get(start!) ?? []).includes(start!)) {
-        cycles.push([start!, start!]);
+        cycles.push({ members: [start!], path: [start!, start!] });
       }
       continue;
     }
-    cycles.push(witnessCycle(start!, new Set(component), adj));
+    cycles.push({
+      members: component,
+      path: witnessCycle(start!, new Set(component), adj),
+    });
   }
-  cycles.sort((a, b) => a[0]!.localeCompare(b[0]!));
+  cycles.sort((a, b) => a.path[0]!.localeCompare(b.path[0]!));
   return cycles;
 }

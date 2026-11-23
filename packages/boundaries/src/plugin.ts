@@ -29,6 +29,10 @@ function readPackageInfo(packageJsonPath: string, projectRoot: string): PackageI
 }
 
 const SOURCE_INPUTS = '{projectRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}';
+// Cycle detection reads every project's sources via graph.dependencies —
+// per-project inputs must widen to workspace sources or a cached pass can
+// miss a cycle created by another project's change.
+const WORKSPACE_SOURCE_INPUTS = '{workspaceRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}';
 
 type Result = [string, CreateNodesResult];
 
@@ -54,6 +58,7 @@ function projectNode(
   tags: string[],
   targetName: string,
   executorOptions: Record<string, unknown>,
+  cyclesEnabled: boolean,
 ): Result {
   return [
     configFile,
@@ -74,6 +79,7 @@ function projectNode(
               // constraint changes anywhere can flip this project's edges.
               inputs: [
                 SOURCE_INPUTS,
+                ...(cyclesEnabled ? [WORKSPACE_SOURCE_INPUTS] : []),
                 '{workspaceRoot}/**/package.json',
                 '{workspaceRoot}/tsconfig*.json',
                 '{workspaceRoot}/nx.json',
@@ -155,7 +161,17 @@ export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
         continue;
       }
 
-      results.push(projectNode(configFile, projectRoot, info, tags, targetName, executorOptions));
+      results.push(
+        projectNode(
+          configFile,
+          projectRoot,
+          info,
+          tags,
+          targetName,
+          executorOptions,
+          options.checkCircularDependencies ?? true,
+        ),
+      );
     }
 
     // The root aggregate stays as the single gate over the whole graph.

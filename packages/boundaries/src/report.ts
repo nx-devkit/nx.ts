@@ -15,6 +15,8 @@ export interface BoundaryViolation {
   targetTags?: string[];
   /** The import specifier that produced the edge. */
   specifier?: string;
+  /** Closed walk of a circular violation — every hop, start repeated at the end. */
+  path?: string[];
   message: string;
   /** Actionable fix hint printed under the violation. */
   hint: string;
@@ -53,13 +55,23 @@ export function renderMermaid(violations: BoundaryViolation[]): string {
   const lines = ['graph LR'];
   const seenEdges = new Set<string>();
   for (const v of violations) {
+    // A circular violation carries its full closed walk — draw every hop so
+    // no member or edge disappears from the diagram.
+    if (v.kind === 'circular' && v.path !== undefined && v.path.length > 1) {
+      for (let i = 0; i < v.path.length - 1; i++) {
+        const from = v.path[i]!;
+        const to = v.path[i + 1]!;
+        const key = `circular\u0000${from}\u0000${to}`;
+        if (seenEdges.has(key)) continue;
+        seenEdges.add(key);
+        lines.push(`  ${idFor(from)} -->|circular| ${idFor(to)}`);
+      }
+      continue;
+    }
     const key = `${v.kind}:${v.source}:${v.target}`;
     if (seenEdges.has(key)) continue;
     seenEdges.add(key);
-    const edge =
-      v.kind === 'circular'
-        ? `${idFor(v.source)} -->|circular| ${idFor(v.target)}`
-        : `${idFor(v.source)} -->|${v.kind}| ${idFor(v.target)}`;
+    const edge = `${idFor(v.source)} -->|${v.kind}| ${idFor(v.target)}`;
     lines.push(`  ${edge}`);
   }
   for (const [name, id] of ids) {

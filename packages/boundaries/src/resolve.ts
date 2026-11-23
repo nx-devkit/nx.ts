@@ -95,6 +95,15 @@ export function resolveImport(
   if (byName) {
     return byName;
   }
+  // Subpath of a workspace package (`@acme/util/helpers` → `@acme/util`) —
+  // check the package-name prefix before falling back to externals.
+  const pkgPrefix = externalPackageName(specifier);
+  if (pkgPrefix !== null && pkgPrefix !== specifier) {
+    const byPrefix = index.byName.get(pkgPrefix);
+    if (byPrefix) {
+      return byPrefix;
+    }
+  }
   // Longest-prefix-first: a broad alias must not shadow a narrower one.
   const ordered = [...tsPaths].sort((a, b) => prefixLength(b) - prefixLength(a));
   for (const mapping of ordered) {

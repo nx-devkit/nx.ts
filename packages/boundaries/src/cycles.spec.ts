@@ -42,8 +42,9 @@ describe('findCircularDependencies', () => {
     const cycles = findCircularDependencies(g);
     expect(cycles).toHaveLength(1);
     const cycle = cycles[0]!;
-    expect(cycle[0]).toBe(cycle[cycle.length - 1]); // closed path
-    expect(new Set(cycle)).toEqual(new Set(['a', 'b']));
+    expect(cycle.path[0]).toBe(cycle.path[cycle.path.length - 1]); // closed path
+    expect(new Set(cycle.path)).toEqual(new Set(['a', 'b']));
+    expect(cycle.members).toEqual(['a', 'b']);
   });
 
   it('detects a three-project cycle', () => {
@@ -54,7 +55,8 @@ describe('findCircularDependencies', () => {
     });
     const cycles = findCircularDependencies(g);
     expect(cycles).toHaveLength(1);
-    expect(new Set(cycles[0])).toEqual(new Set(['a', 'b', 'c']));
+    expect(new Set(cycles[0]!.path)).toEqual(new Set(['a', 'b', 'c']));
+    expect(cycles[0]!.members).toEqual(['a', 'b', 'c']);
   });
 
   it('reports each strongly-connected component once', () => {
@@ -72,7 +74,7 @@ describe('findCircularDependencies', () => {
     const g = graph(['a'], { a: [{ target: 'a' }] });
     const cycles = findCircularDependencies(g);
     expect(cycles).toHaveLength(1);
-    expect(cycles[0]).toEqual(['a', 'a']);
+    expect(cycles[0]).toEqual({ members: ['a'], path: ['a', 'a'] });
   });
 
   it('ignores implicit dependencies', () => {
