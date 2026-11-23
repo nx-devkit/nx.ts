@@ -74,6 +74,56 @@ export function detectPackageManager(
   return 'npm';
 }
 
+const BOOL_FLAGS: Record<string, (o: CreateOptions) => void> = {
+  '-h': (o) => void (o.help = true),
+  '--help': (o) => void (o.help = true),
+  '--native-test': (o) => void (o.nativeTest = true),
+  '--no-test': (o) => void (o.test = false),
+  '--no-lint': (o) => void (o.lint = false),
+  '--no-format': (o) => void (o.format = false),
+  '--no-build': (o) => void (o.build = false),
+  '--no-install': (o) => void (o.skipInstall = true),
+};
+
+// Flags that consume the next argv entry. Returns the new index, or null when
+// `arg` is not a value flag.
+function parseValueFlag(opts: CreateOptions, argv: string[], i: number): number | null {
+  const arg = argv[i];
+  if (arg === '--dir') {
+    opts.dir = argv[i + 1];
+    if (!opts.dir) throw new Error('--dir requires a path');
+    return i + 1;
+  }
+  if (arg === '--pm') {
+    const pm = argv[i + 1];
+    if (!['bun', 'npm', 'pnpm', 'yarn'].includes(pm ?? '')) {
+      throw new Error(`--pm must be one of: bun, npm, pnpm, yarn (got "${pm}")`);
+    }
+    opts.pm = pm as PackageManager;
+    return i + 1;
+  }
+  if (arg === '--package-dir') {
+    const dir = argv[i + 1];
+    if (!['packages', 'apps', 'libs'].includes(dir ?? '')) {
+      throw new Error(`--package-dir must be one of: packages, apps, libs (got "${dir}")`);
+    }
+    opts.packageDir = dir as PackageDir;
+    return i + 1;
+  }
+  return null;
+}
+
+function parsePositional(opts: CreateOptions, arg: string): void {
+  if (opts.name !== undefined || opts.dir !== undefined) {
+    throw new Error(`Unexpected extra argument: ${arg}`);
+  }
+  if (arg === '.' || arg === '..') {
+    opts.dir = arg;
+  } else {
+    opts.name = arg;
+  }
+}
+
 export function parseArgs(argv: string[]): CreateOptions {
   const opts: CreateOptions = {
     packageDir: 'packages',
@@ -88,60 +138,18 @@ export function parseArgs(argv: string[]): CreateOptions {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    switch (arg) {
-      case '-h':
-      case '--help':
-        opts.help = true;
-        break;
-      case '--dir':
-        opts.dir = argv[++i];
-        if (!opts.dir) throw new Error('--dir requires a path');
-        break;
-      case '--pm': {
-        const pm = argv[++i];
-        if (!['bun', 'npm', 'pnpm', 'yarn'].includes(pm ?? '')) {
-          throw new Error(`--pm must be one of: bun, npm, pnpm, yarn (got "${pm}")`);
-        }
-        opts.pm = pm as PackageManager;
-        break;
-      }
-      case '--package-dir': {
-        const dir = argv[++i];
-        if (!['packages', 'apps', 'libs'].includes(dir ?? '')) {
-          throw new Error(`--package-dir must be one of: packages, apps, libs (got "${dir}")`);
-        }
-        opts.packageDir = dir as PackageDir;
-        break;
-      }
-      case '--native-test':
-        opts.nativeTest = true;
-        break;
-      case '--no-test':
-        opts.test = false;
-        break;
-      case '--no-lint':
-        opts.lint = false;
-        break;
-      case '--no-format':
-        opts.format = false;
-        break;
-      case '--no-build':
-        opts.build = false;
-        break;
-      case '--no-install':
-        opts.skipInstall = true;
-        break;
-      default:
-        if (arg.startsWith('-')) throw new Error(`Unknown flag: ${arg}`);
-        if (opts.name !== undefined || opts.dir !== undefined) {
-          throw new Error(`Unexpected extra argument: ${arg}`);
-        }
-        if (arg === '.' || arg === '..') {
-          opts.dir = arg;
-        } else {
-          opts.name = arg;
-        }
+    const boolHandler = BOOL_FLAGS[arg];
+    if (boolHandler) {
+      boolHandler(opts);
+      continue;
     }
+    const consumed = parseValueFlag(opts, argv, i);
+    if (consumed !== null) {
+      i = consumed;
+      continue;
+    }
+    if (arg.startsWith('-')) throw new Error(`Unknown flag: ${arg}`);
+    parsePositional(opts, arg);
   }
 
   if (opts.name !== undefined && !PACKAGE_NAME_PATTERN.test(opts.name)) {
