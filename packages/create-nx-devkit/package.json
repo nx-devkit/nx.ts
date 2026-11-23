@@ -1,0 +1,54 @@
+{
+  "name": "@nx-devkit/create",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Bootstrap a zero-config Nx monorepo in one command — npm create @nx-devkit",
+  "keywords": [
+    "biome",
+    "bootstrap",
+    "create",
+    "monorepo",
+    "nx",
+    "oxlint",
+    "tsdown",
+    "typescript",
+    "vitest",
+    "zero-config"
+  ],
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/create-nx-devkit",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/create-nx-devkit"
+  },
+  "bin": {
+    "create-nx-devkit": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/cli.mjs",
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "prepublishOnly": "npm run build -- --clean",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

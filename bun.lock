@@ -92,6 +92,19 @@
         "@commitlint/cli": "^20.0.0",
       },
     },
+    "packages/create-nx-devkit": {
+      "name": "@nx-devkit/create",
+      "version": "0.0.0",
+      "bin": {
+        "create-nx-devkit": "./dist/cli.mjs",
+      },
+      "devDependencies": {
+        "@types/node": "^26.6.6",
+        "tsdown": "^0.23.7",
+        "typescript": "^6.0.3",
+        "vitest": "^5.1.0",
+      },
+    },
     "packages/cspell": {
       "name": "@nx-devkit/cspell",
       "version": "0.0.7",
@@ -1094,6 +1107,8 @@
     "@nx-devkit/boundaries": ["@nx-devkit/boundaries@workspace:packages/boundaries"],
 
     "@nx-devkit/commitlint": ["@nx-devkit/commitlint@workspace:packages/commitlint"],
+
+    "@nx-devkit/create": ["@nx-devkit/create@workspace:packages/create-nx-devkit"],
 
     "@nx-devkit/cspell": ["@nx-devkit/cspell@workspace:packages/cspell"],
 
