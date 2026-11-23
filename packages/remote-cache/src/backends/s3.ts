@@ -2,6 +2,14 @@ import { signRequest, sha256Hex } from '../sigv4.ts';
 import type { SigV4Credentials } from '../sigv4.ts';
 import type { CacheBackend, PutResult, StoredArtifact } from './types.ts';
 
+// SigV4 canonical URIs need strict RFC 3986 encoding — encodeURIComponent
+// leaves ! ' ( ) * unescaped and AWS rejects the signature for such keys.
+const uriEncode = (s: string): string =>
+  encodeURIComponent(s).replace(
+    /[!'()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+
 export interface S3BackendOptions {
   bucket: string;
   /** AWS region; use 'auto' for Cloudflare R2. */
@@ -41,13 +49,17 @@ export class S3Backend implements CacheBackend {
 
   private urlFor(key: string): { url: string; host: string; path: string } {
     const objectKey = this.opts.prefix ? `${this.opts.prefix}/${key}` : key;
-    const encoded = objectKey.split('/').map(encodeURIComponent).join('/');
+    const encoded = objectKey.split('/').map(uriEncode).join('/');
     if (this.opts.endpoint !== undefined) {
       let endpoint = this.opts.endpoint;
       while (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
-      const host = new URL(endpoint).host;
-      const path = `/${encodeURIComponent(this.opts.bucket)}/${encoded}`;
-      return { url: `${endpoint}${path}`, host, path };
+      const ep = new URL(endpoint);
+      const host = ep.host;
+      // An endpoint path prefix (MinIO behind /s3, a reverse proxy base)
+      // belongs in the signed canonical URI too — not just the wire URL.
+      const basePath = ep.pathname.replace(/\/+$/, '');
+      const objectPath = `/${uriEncode(this.opts.bucket)}/${encoded}`;
+      return { url: `${endpoint}${objectPath}`, host, path: `${basePath}${objectPath}` };
     }
     const region = this.opts.region ?? 'us-east-1';
     const host = `${this.opts.bucket}.s3.${region}.amazonaws.com`;
@@ -90,7 +102,9 @@ export class S3Backend implements CacheBackend {
     );
 
     const res = await this.fetchImpl(url, { method: 'PUT', headers, body });
-    if (res.status === 412) return 'conflict';
+    // 412 PreconditionFailed for If-None-Match; 409 ConditionalRequestConflict
+    // is the racing-writes flavour — both mean the key already exists.
+    if (res.status === 412 || res.status === 409) return 'conflict';
     if (res.status >= 200 && res.status < 300) return 'created';
     const detail = await res.text().catch(() => '');
     throw new Error(`S3 PUT ${key} failed: HTTP ${res.status} ${detail}`);

@@ -138,6 +138,9 @@ export function loadConfig(env: Env = process.env): RemoteCacheConfig {
   if (!Number.isInteger(config.port) || config.port <= 0) {
     throw new Error(`invalid NXRC_PORT: ${env['NXRC_PORT']}`);
   }
+  if (!Number.isInteger(config.maxArtifactBytes) || config.maxArtifactBytes <= 0) {
+    throw new Error(`invalid NXRC_MAX_ARTIFACT_BYTES: ${env['NXRC_MAX_ARTIFACT_BYTES']}`);
+  }
   return config;
 }
 
@@ -173,6 +176,12 @@ export function loadConfigFile(path: string): RemoteCacheConfig {
         : DEFAULT_MAX_ARTIFACT_BYTES,
   };
   if (typeof d['tokenSecret'] === 'string') config.tokenSecret = d['tokenSecret'];
+  if (!Number.isInteger(config.port) || config.port <= 0) {
+    throw new Error(`${path}: port must be a positive integer`);
+  }
+  if (!Number.isInteger(config.maxArtifactBytes) || config.maxArtifactBytes <= 0) {
+    throw new Error(`${path}: maxArtifactBytes must be a positive integer`);
+  }
   return config;
 }
 

@@ -11,6 +11,9 @@ ENV NXRC_BACKEND=fs \
     NXRC_FS_DIR=/cache \
     NXRC_HOST=0.0.0.0 \
     NXRC_PORT=3000
+# Docker initializes declared volumes root-owned — create /cache first and
+# hand it to `node` or the first upload fails EACCES.
+RUN mkdir -p /cache && chown node:node /cache
 VOLUME ["/cache"]
 EXPOSE 3000
 

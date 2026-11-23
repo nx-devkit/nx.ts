@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, open, readFile, link, rm, writeFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdir, open, readFile, link, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import type { CacheBackend, PutResult, StoredArtifact } from './types.ts';
 
@@ -39,21 +39,30 @@ export class FileSystemBackend implements CacheBackend {
       await writeFile(tmpBody, body);
       await writeFile(tmpSide, sha256);
 
-      // Link the sidecar first; a GET that finds the artifact must also
-      // find its integrity record.
-      try {
-        await link(tmpSide, `${dest}.sha256`);
-      } catch (err) {
-        if (isAlreadyExists(err)) return 'conflict';
-        throw err;
-      }
+      // Link the body first: a crash between the two links then leaves an
+      // unverifiable body (a missing sidecar is never served), never a body
+      // whose sidecar claims a different artifact's hash.
       try {
         await link(tmpBody, dest);
       } catch (err) {
-        await rm(`${dest}.sha256`, { force: true }).catch(() => undefined);
-        if (isAlreadyExists(err)) return 'conflict';
-        throw err;
+        if (!isAlreadyExists(err)) throw err;
+        // Body exists — heal an abandoned pair (body without sidecar) when
+        // the stored bytes are identical to ours; otherwise real conflict.
+        const existing = await readFile(dest).catch(() => null);
+        if (existing !== null && createHash('sha256').update(existing).digest('hex') === sha256) {
+          try {
+            await link(tmpSide, `${dest}.sha256`);
+          } catch (err2) {
+            if (!isAlreadyExists(err2)) throw err2;
+          }
+        }
+        return 'conflict';
       }
+
+      // Our body is in place. A sidecar can only legitimately exist beside
+      // its own body, so one found here is an abandoned orphan — replace it
+      // atomically rather than serve a mismatched pair.
+      await rename(tmpSide, `${dest}.sha256`);
       return 'created';
     } finally {
       await rm(tmpBody, { force: true }).catch(() => undefined);

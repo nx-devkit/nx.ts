@@ -34,16 +34,25 @@ function readBody(req: IncomingMessage, max: number): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
+    let settled = false;
+    const done = (value: Buffer | null): void => {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    };
     req.on('data', (chunk: Buffer) => {
+      if (settled) return;
       total += chunk.byteLength;
       if (total > max) {
-        req.destroy();
-        resolve(null);
+        // Stop buffering but keep the socket alive — handlePut still owes
+        // the client a 413. Destroying here turns it into a reset.
+        done(null);
         return;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('end', () => done(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
@@ -120,13 +129,17 @@ export function createRemoteCacheServer(options: RemoteCacheServerOptions): Serv
     for (const ns of grants.read) {
       const hit = await options.backend.get(`${ns}/${hash}`);
       if (hit === null) continue;
-      if (hit.sha256 !== null) {
-        const actual = sha256Hex(hit.body);
-        if (actual !== hit.sha256) {
-          log('cache.integrity-failure', { ns, hash, expected: hit.sha256, actual });
-          text(res, 500, 'artifact integrity check failed');
-          return;
-        }
+      if (hit.sha256 === null) {
+        // No persisted checksum — the artifact is unverifiable, not a hit.
+        // Treat as a miss so a later PUT can heal the pair.
+        log('cache.unverifiable', { ns, hash, bytes: hit.body.byteLength });
+        continue;
+      }
+      const actual = sha256Hex(hit.body);
+      if (actual !== hit.sha256) {
+        log('cache.integrity-failure', { ns, hash, expected: hit.sha256, actual });
+        text(res, 500, 'artifact integrity check failed');
+        return;
       }
       log('cache.hit', { ns, hash, bytes: hit.body.byteLength });
       res.writeHead(200, {

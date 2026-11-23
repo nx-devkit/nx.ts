@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
  * A statically-configured bearer token. Each token is bound to:
@@ -54,10 +54,11 @@ export function isValidHash(hash: string): boolean {
 }
 
 function safeEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
+  // Compare digests, not raw tokens — the length check timingSafeEqual
+  // needs would leak the expected token length through response timing.
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
 }
 
 function sign(payload: string, secret: string): string {
