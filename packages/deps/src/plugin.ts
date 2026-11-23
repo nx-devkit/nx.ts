@@ -90,6 +90,70 @@ function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
   return segments.includes('..') || segments.includes('node_modules');
 }
 
+type DirEntry = { syncpack: string[]; packageJson: string[] };
+
+// One inference per owning directory — syncpack files and package.json hosts
+// are grouped by directory key ('' for the workspace root).
+function groupByDir(configFiles: readonly string[]): Map<string, DirEntry> {
+  const byDir = new Map<string, DirEntry>();
+  for (const configFile of [...configFiles].sort()) {
+    const dir = dirname(configFile).replace(/\\/g, '/');
+    const key = dir === '.' ? '' : dir;
+    const entry = byDir.get(key) ?? { syncpack: [], packageJson: [] };
+    const base = configFile.split('/').pop() ?? '';
+    if (base === 'package.json') {
+      entry.packageJson.push(configFile);
+    } else {
+      entry.syncpack.push(configFile);
+    }
+    byDir.set(key, entry);
+  }
+  return byDir;
+}
+
+// Decide the backend for a directory — syncpack wins over the manypkg fallback.
+function pickTool(dir: string, entry: DirEntry, pkgs: Array<Record<string, unknown>>): Tool | null {
+  if (entry.syncpack.length > 0 || pkgs.some(hasSyncpackKey)) {
+    return 'syncpack';
+  }
+  if (dir === '' && pkgs.some((p) => hasWorkspaces(p) && hasManypkgDep(p))) {
+    return 'manypkg';
+  }
+  return null;
+}
+
+function buildTargets(
+  tool: Tool,
+  dir: string,
+  files: string[],
+  checkTargetName: string,
+  fixTargetName: string,
+  fixTarget: boolean,
+): Record<string, TargetConfiguration> {
+  const prefix = dir ? '{projectRoot}' : '{workspaceRoot}';
+  // Every deps-bearing file in the dir must bust the cache — paths are
+  // Relative to the project root ("" for the root project).
+  const configInputs = files.map((f) => `${prefix}/${dir ? f.slice(dir.length + 1) : f}`);
+  const inputs = [`${prefix}/**/package.json`, ...LOCKFILE_INPUTS, ...configInputs];
+  const command = tool === 'syncpack' ? 'npx syncpack lint' : 'npx manypkg check';
+  const targets: Record<string, TargetConfiguration> = {
+    [checkTargetName]: {
+      executor: 'nx:run-commands',
+      cache: true,
+      inputs,
+      options: { command, cwd: '{projectRoot}' },
+    },
+  };
+  if (tool === 'syncpack' && fixTarget) {
+    targets[fixTargetName] = {
+      executor: 'nx:run-commands',
+      cache: false,
+      options: { command: 'npx syncpack fix', cwd: '{projectRoot}' },
+    };
+  }
+  return targets;
+}
+
 export const createNodesV2: CreateNodesV2<NxDepsPluginOptions> = [
   DEPS_GLOB,
   (configFiles, options = {}, context) => {
@@ -98,68 +162,22 @@ export const createNodesV2: CreateNodesV2<NxDepsPluginOptions> = [
     const fixTargetName = options.fixTargetName ?? 'deps:fix';
     const fixTarget = options.fixTarget ?? true;
 
-    // One inference per owning directory — syncpack wins over the manypkg fallback.
-    const byDir = new Map<string, { syncpack: string[]; packageJson: string[] }>();
-    for (const configFile of [...configFiles].sort()) {
-      const dir = dirname(configFile).replace(/\\/g, '/');
-      const key = dir === '.' ? '' : dir;
-      const entry = byDir.get(key) ?? { syncpack: [], packageJson: [] };
-      const base = configFile.split('/').pop() ?? '';
-      if (base === 'package.json') {
-        entry.packageJson.push(configFile);
-      } else {
-        entry.syncpack.push(configFile);
-      }
-      byDir.set(key, entry);
-    }
-
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> =
       [];
-    for (const [dir, entry] of [...byDir.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const entries = [...groupByDir(configFiles).entries()].sort(([a], [b]) => a.localeCompare(b));
+    for (const [dir, entry] of entries) {
       if (shouldSkipDir(dir, workspaceRoot)) continue;
 
       const pkgs = entry.packageJson
         .map((f) => readPkg(resolve(workspaceRoot, f)))
         .filter((p): p is Record<string, unknown> => p !== null);
 
-      // Decide the backend for this directory.
-      let tool: Tool | null = null;
-      if (entry.syncpack.length > 0 || pkgs.some(hasSyncpackKey)) {
-        tool = 'syncpack';
-      } else if (dir === '' && pkgs.some((p) => hasWorkspaces(p) && hasManypkgDep(p))) {
-        tool = 'manypkg';
-      }
-      if (tool === null) continue;
-
+      const tool = pickTool(dir, entry, pkgs);
       const winner = [...entry.syncpack, ...entry.packageJson].at(0);
-      if (winner === undefined) continue;
+      if (tool === null || winner === undefined) continue;
 
-      const prefix = dir ? '{projectRoot}' : '{workspaceRoot}';
-      // Every deps-bearing file in the dir must bust the cache — paths are
-      // Relative to the project root ("" for the root project).
-      const configInputs = [...entry.syncpack, ...entry.packageJson].map(
-        (f) => `${prefix}/${dir ? f.slice(dir.length + 1) : f}`,
-      );
-
-      const inputs = [`${prefix}/**/package.json`, ...LOCKFILE_INPUTS, ...configInputs];
-
-      const command = tool === 'syncpack' ? 'npx syncpack lint' : 'npx manypkg check';
-      const targets: Record<string, TargetConfiguration> = {
-        [checkTargetName]: {
-          executor: 'nx:run-commands',
-          cache: true,
-          inputs,
-          options: { command, cwd: '{projectRoot}' },
-        },
-      };
-      if (tool === 'syncpack' && fixTarget) {
-        targets[fixTargetName] = {
-          executor: 'nx:run-commands',
-          cache: false,
-          options: { command: 'npx syncpack fix', cwd: '{projectRoot}' },
-        };
-      }
-
+      const files = [...entry.syncpack, ...entry.packageJson];
+      const targets = buildTargets(tool, dir, files, checkTargetName, fixTargetName, fixTarget);
       results.push([winner, { projects: { [dir]: { root: dir, targets } } }]);
     }
     return results;
