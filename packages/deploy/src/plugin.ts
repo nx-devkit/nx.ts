@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 
@@ -73,10 +73,15 @@ function projectHasBuild(projectRoot: string, workspaceRoot: string): boolean {
       scripts?: Record<string, string>;
     };
     // nx/core/package-json materialises script names as nx:run-script targets.
-    return typeof pkg.scripts?.[BUILD_DEP] === 'string';
+    if (typeof pkg.scripts?.[BUILD_DEP] === 'string') return true;
   } catch {
-    return false;
+    // no readable package.json — fall through to tsdown inference
   }
+  // @nx-devkit/tsdown infers a `build` target from a tsdown config — the
+  // manifest never mentions it, so detect the config file directly.
+  return ['tsdown.config.ts', 'tsdown.config.mts', 'tsdown.config.js', 'tsdown.config.mjs'].some(
+    (name) => existsSync(join(dir, name)),
+  );
 }
 
 function deployTarget(command: string, hasBuild: boolean): TargetConfiguration {
@@ -132,7 +137,7 @@ export const createNodesV2: CreateNodesV2<NxDeployPluginOptions> = [
 
     const results: Array<readonly [string, { projects: Record<string, ProjectConfiguration> }]> =
       [];
-    for (const [dir, files] of byDir) {
+    for (const [dir, files] of [...byDir.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       const projectRoot = dir === '.' ? '' : dir;
       if (shouldSkipDir(projectRoot, workspaceRoot)) continue;
 
@@ -149,7 +154,8 @@ export const createNodesV2: CreateNodesV2<NxDeployPluginOptions> = [
         projectHasBuild(projectRoot, workspaceRoot),
       );
       const devCommand = DEV_COMMANDS[provider];
-      if (devCommand !== undefined) {
+      // Equal configured names must not let a dev server shadow a deploy.
+      if (devCommand !== undefined && devTargetName !== deployTargetName) {
         targets[devTargetName] = devTarget(devCommand);
       }
 
