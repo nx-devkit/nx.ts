@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { createNodesV2 } from './plugin.ts';
 
 function makeContext(workspaceRoot: string): CreateNodesContextV2 {
@@ -14,8 +14,14 @@ function makeContext(workspaceRoot: string): CreateNodesContextV2 {
   } as unknown as CreateNodesContextV2;
 }
 
+const tempRoots: string[] = [];
+afterEach(() => {
+  for (const r of tempRoots.splice(0)) rmSync(r, { recursive: true, force: true });
+});
+
 function makeWorkspace(files: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'nx-drizzle-'));
+  tempRoots.push(root);
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel);
     mkdirSync(dirname(abs), { recursive: true });
@@ -117,7 +123,7 @@ describe('@nx-devkit/drizzle createNodesV2', () => {
       makeContext(root),
     );
     const migrate = results[0]![1].projects!['packages/db']!.targets!['db:migrate']!;
-    expect(migrate.dependsOn).toEqual(['db:check']);
+    expect(migrate.dependsOn).toEqual([{ target: 'db:check', projects: 'self' }]);
   });
 
   it('never interpolates credentials — no target option references env vars or connection strings', async () => {
@@ -163,6 +169,44 @@ describe('@nx-devkit/drizzle createNodesV2', () => {
       'db:studio',
     ]);
     expect(targets['db:generate']!.inputs).toContain('{projectRoot}/drizzle.config.js');
+  });
+
+  it('skips configs outside the workspace', async () => {
+    const root = makeWorkspace();
+    const results = await createNodesV2[1](['../outside/drizzle.config.ts'], {}, makeContext(root));
+    expect(results).toHaveLength(0);
+  });
+
+  it('never copies credentials into target options', async () => {
+    process.env['DATABASE_URL'] = 'postgresql://u:p@db:5432/x';
+    const root = makeWorkspace({
+      'packages/db/drizzle.config.ts': `export default { url: process.env.DATABASE_URL }`,
+    });
+    const results = await createNodesV2[1](
+      ['packages/db/drizzle.config.ts'],
+      {},
+      makeContext(root),
+    );
+    delete process.env['DATABASE_URL'];
+    const project = results[0]![1].projects!['packages/db']!;
+    for (const t of Object.values(project.targets ?? {})) {
+      const cmd = (t.options as Record<string, unknown> | undefined)?.['command'];
+      expect(String(cmd)).not.toContain('postgresql://');
+      expect(String(cmd)).not.toContain('DATABASE_URL');
+    }
+  });
+
+  it('derives outputs from a custom out: option', async () => {
+    const root = makeWorkspace({
+      'packages/db/drizzle.config.ts': `export default { out: './migrations' }`,
+    });
+    const results = await createNodesV2[1](
+      ['packages/db/drizzle.config.ts'],
+      {},
+      makeContext(root),
+    );
+    const project = results[0]![1].projects!['packages/db']!;
+    expect(project.targets?.['db:generate']?.outputs).toContain('{projectRoot}/migrations');
   });
 
   it('skips configs inside node_modules', async () => {

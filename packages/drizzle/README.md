@@ -47,8 +47,8 @@ Connection strings (`DATABASE_URL` and friends) are never interpolated into targ
 
 ```bash
 npx nx show project my-db                      # see inferred targets
-npx nx run my-db:db:generate                   # emit migrations (cached)
+npx nx db:generate my-db                       # emit migrations (cached)
 npx nx run-many -t db:generate                 # across every package
-npx nx run my-db:db:migrate                    # apply migrations (db:check runs first)
-npx nx run my-db:db:studio                     # browse the DB
+npx nx db:migrate my-db                        # apply migrations (db:check runs first)
+npx nx db:studio my-db                         # browse the DB
 ```
