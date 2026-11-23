@@ -1,3 +1,7 @@
+## 0.1.5 (2026-11-23)
+
+This was a version bump only for @nx-devkit/release to align it with other projects, there were no code changes.
+
 ## 0.1.4 (2026-11-10)
 
 This was a version bump only for @nx-devkit/release to align it with other projects, there were no code changes.
@@ -33,7 +37,7 @@ This was a version bump only for @nx-devkit/release to align it with other proje
 
 - ⚠️ **release:** the release version comes from conventional commits ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
 
-### ⚠️  Breaking Changes
+### ⚠️ Breaking Changes
 
 - **release:** the release version comes from conventional commits ([#135](https://github.com/nx-devkit/nx.ts/pull/135))
   footer in the commit body marks the commit as
