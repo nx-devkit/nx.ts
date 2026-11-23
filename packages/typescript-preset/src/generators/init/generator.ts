@@ -478,7 +478,9 @@ function printSummary(
   console.log('  *.test.ts/spec.ts → test (native node --test, no vitest config needed)');
   console.log('  .oxlintrc.*       → lint (oxlint, highest precedence)');
   console.log('  eslint.config.*   → lint (eslint, fallback)');
-  console.log('  .oxfmtrc.*        → format, format-check (oxfmt, preferred)');
+  console.log(
+    '  .oxfmtrc.json{c} / oxfmt.config.{ts,mts} → format, format-check (oxfmt, preferred)',
+  );
   console.log('  biome.json        → format, format-check, lint (fallback)');
   console.log('  tsdown.config.*   → build, build:watch');
   console.log('');
@@ -528,6 +530,10 @@ export async function initGenerator(
   }
   const projectConfigs: Array<{ root: string; configs: DetectedConfigs }> = [];
   for (const root of nestedRoots) {
+    // The preset's createNodes anchors on `**/tsconfig*.json` — a
+    // package.json-only directory is never inferred, so it must not be
+    // advertised in this summary either.
+    if (!tree.exists(`${root}/${configFileName}`)) continue;
     const configs = detectConfigsAtProjectRoot(tree, root, configFileName);
     if (Object.values(configs).some(Boolean)) {
       projectConfigs.push({ root, configs });

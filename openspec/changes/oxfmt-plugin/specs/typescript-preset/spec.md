@@ -43,7 +43,7 @@ inputs. Oxfmt takes precedence over biome for `format`/`format-check`.
 
 When `biome: true` (default) and a project has `biome.json` or
 `biome.jsonc`, the plugin MUST infer `format` and `format-check` targets
-using `npx biome` — unless an enabled oxfmt config already provides the
+using `biome` — unless an enabled oxfmt config already provides the
 format family (oxfmt wins). A `lint` target via biome is inferred only
 when neither enabled oxlint nor enabled eslint provides `lint`.
 

@@ -3,8 +3,9 @@
 ## Why
 
 Completes the oxc toolchain story (oxlint, tsdown already covered): a
-committed `.oxfmtrc.*`/`oxfmt.config.*` should infer cached `format` /
-`format-check` targets without a `project.json`. No native Nx oxfmt plugin
+committed `.oxfmtrc.*`/`oxfmt.config.*` should infer `format` /
+`format-check` targets (the check is cached, the writer is not) without
+a `project.json`. No native Nx oxfmt plugin
 exists; today the preset offers formatting only via biome.
 
 ## What changes

@@ -1,6 +1,6 @@
 # @nx-devkit/typescript
 
-The nx-devkit preset plugin: one entry in `nx.json` gives every project `typecheck`, `test`, `lint`, `format`, and `build` targets inferred from the config files it already has — `tsconfig.json`, `vitest.config.*`, `.oxlintrc.*`, `eslint.config.*`, `biome.json{,c}`, `.oxfmtrc.*`/`oxfmt.config.*`, `tsdown.config.*`. No `project.json` anywhere.
+The nx-devkit preset plugin: one entry in `nx.json` gives every project `typecheck`, `test`, `lint`, `format`, and `build` targets inferred from the config files it already has — `tsconfig.json`, `vitest.config.*`, `.oxlintrc.*`, `eslint.config.*`, `biome.json{,c}`, `.oxfmtrc.json{,c}`/`oxfmt.config.{ts,mts}`, `tsdown.config.*`. No `project.json` anywhere.
 
 ## Install
 
@@ -85,7 +85,7 @@ Each lint source requires its option enabled _and_ its config present: oxlint wi
 
 ### Format precedence
 
-The format family follows the same direction as lint — the oxc tool wins: when `oxfmt: true` and an oxfmt config (`.oxfmtrc.json{,c}` or `oxfmt.config.{ts,mts}`) exists, oxfmt owns `format`/`format-check`; Biome then only contributes its `lint` fallback (if any). With `oxfmt: false` or no oxfmt config, Biome owns format as before. oxfmt allows only one config per directory and does not read a `package.json` key.
+The format family follows the same direction as lint — the oxc tool wins: when `oxfmt: true` and an oxfmt config (`.oxfmtrc.json{,c}` or `oxfmt.config.{ts,mts}`) exists, oxfmt owns `format`/`format-check`; Biome then only contributes its `lint` fallback (if any). With `oxfmt: false` or no oxfmt config, Biome owns format — provided `biome: true` and a `biome.json`/`biome.jsonc` exist. oxfmt allows only one config per directory and does not read a `package.json` key.
 
 ### Root project
 

@@ -1,12 +1,14 @@
+// The whole project tree: formatters touch tests/configs too, not just
+// src — a narrow glob would let edits to those files hit a stale cache.
 const BIOME_INPUTS = [
-  '{projectRoot}/src/**/*',
+  '{projectRoot}/**/*',
   '{projectRoot}/biome.json',
   '{projectRoot}/biome.jsonc',
   '{projectRoot}/package.json',
 ];
 
 const OXFMT_INPUTS = [
-  '{projectRoot}/src/**/*',
+  '{projectRoot}/**/*',
   '{projectRoot}/.oxfmtrc.json',
   '{projectRoot}/.oxfmtrc.jsonc',
   '{projectRoot}/oxfmt.config.ts',
@@ -42,7 +44,7 @@ export function inferBiomeTargets(
         cwd: projectRoot,
       },
       cache: false,
-      inputs: BIOME_INPUTS,
+      inputs: [...BIOME_INPUTS],
     },
     'format-check': {
       executor: 'nx:run-commands',
@@ -51,7 +53,7 @@ export function inferBiomeTargets(
         cwd: projectRoot,
       },
       cache: true,
-      inputs: BIOME_INPUTS,
+      inputs: [...BIOME_INPUTS],
     },
   };
 
@@ -63,7 +65,7 @@ export function inferBiomeTargets(
         cwd: projectRoot,
       },
       cache: true,
-      inputs: BIOME_INPUTS,
+      inputs: [...BIOME_INPUTS],
     };
   }
 
@@ -87,7 +89,7 @@ export function inferOxfmtTargets(projectRoot: string): Record<
         cwd: projectRoot,
       },
       cache: false,
-      inputs: OXFMT_INPUTS,
+      inputs: [...OXFMT_INPUTS],
     },
     'format-check': {
       executor: 'nx:run-commands',
@@ -96,7 +98,7 @@ export function inferOxfmtTargets(projectRoot: string): Record<
         cwd: projectRoot,
       },
       cache: true,
-      inputs: OXFMT_INPUTS,
+      inputs: [...OXFMT_INPUTS],
     },
   };
 }

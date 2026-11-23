@@ -60,13 +60,13 @@ function inferOxfmtTargets(
       executor: 'nx:run-commands',
       options: { command: formatCommand, cwd: projectRoot },
       cache: false,
-      inputs: baseInputs,
+      inputs: [...baseInputs],
     },
     'format-check': {
       executor: 'nx:run-commands',
       options: { command: formatCheckCommand, cwd: projectRoot },
       cache: true,
-      inputs: baseInputs,
+      inputs: [...baseInputs],
     },
   };
 }
@@ -80,7 +80,9 @@ const createNodesFn: CreateNodesFunctionV2<OxfmtPluginOptions> = (
   const results: Array<readonly [string, OxfmtProjectConfiguration]> = [];
   const seenRoots = new Set<string>();
 
-  for (const configFile of configFiles) {
+  // Sort so identical config sets infer identically — first seen root
+  // wins, and caller order is filesystem-dependent.
+  for (const configFile of [...configFiles].sort()) {
     const normalized = configFile.replaceAll('\\', '/');
 
     if (isWorkspaceRoot(normalized)) {

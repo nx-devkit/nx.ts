@@ -187,20 +187,19 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
       const projectOxfmtConfig = oxfmt
         ? await findConfigFile(projectRoot, workspaceRoot, OXFMT_CONFIG_NAMES)
         : null;
+      // oxfmt itself walks ancestor dirs for its config — an intermediate
+      // `.oxfmtrc.json` in `libs/` covers every project beneath it.
       const oxfmtConfigPath =
         projectOxfmtConfig ??
-        (oxfmt ? await findConfigFile('.', workspaceRoot, OXFMT_CONFIG_NAMES) : null);
+        (oxfmt ? await findConfigUpwards(projectRoot, workspaceRoot, OXFMT_CONFIG_NAMES) : null);
       const oxfmtOwnsFormat = oxfmtConfigPath !== null;
       if (oxfmtOwnsFormat) {
         const inferred = inferOxfmtTargets(relProjectRoot);
-        if (!projectOxfmtConfig) {
+        if (!projectOxfmtConfig && oxfmtConfigPath !== null) {
+          // The config lives outside the project — track its exact path.
+          const configInput = `{workspaceRoot}/${relative(workspaceRoot, oxfmtConfigPath).replaceAll('\\', '/')}`;
           for (const t of Object.values(inferred)) {
-            t.inputs = [
-              ...t.inputs,
-              '{workspaceRoot}/.oxfmtrc.json',
-              '{workspaceRoot}/.oxfmtrc.jsonc',
-              '{workspaceRoot}/oxfmt.config.*',
-            ];
+            t.inputs = [...t.inputs, configInput];
           }
         }
         Object.assign(targets, inferred);
@@ -265,3 +264,24 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
     return results.filter((r): r is [string, CreateNodesResult] => r !== null);
   },
 ];
+
+/**
+ * Search `projectRoot` and each ancestor up to and including the
+ * workspace root — mirrors oxfmt's own parent-directory config lookup.
+ */
+async function findConfigUpwards(
+  projectRoot: string,
+  workspaceRoot: string,
+  names: readonly string[],
+): Promise<string | null> {
+  const stop = resolve(workspaceRoot);
+  let dir = projectRoot;
+  for (;;) {
+    const found = await findConfigFile(dir, workspaceRoot, names);
+    if (found !== null) return found;
+    if (resolve(dir) === stop) return null;
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}

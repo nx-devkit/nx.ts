@@ -878,7 +878,20 @@ describe('oxfmt format delegation', () => {
       const fmtCheck = proj.targets?.['format-check'] as Record<string, unknown> | undefined;
       expect(fmtCheck).toBeDefined();
       expect(fmtCheck?.inputs).toContain('{workspaceRoot}/.oxfmtrc.json');
-      expect(fmtCheck?.inputs).toContain('{workspaceRoot}/oxfmt.config.*');
+      // An ancestor config also owns the project: libs/.oxfmtrc.json
+      // is tracked via its exact workspace-relative path.
+      const sharedRoot = makeWorkspace();
+      try {
+        const ts2 = touch(sharedRoot, 'libs/foo/tsconfig.json');
+        touch(sharedRoot, 'libs/.oxfmtrc.json');
+        const res2 = await callCreateNodes([ts2], {}, sharedRoot);
+        const proj2 = firstProject(res2, 'libs/foo');
+        const fc2 = proj2.targets?.['format-check'] as Record<string, unknown> | undefined;
+        expect(fc2).toBeDefined();
+        expect(fc2?.inputs).toContain('{workspaceRoot}/libs/.oxfmtrc.json');
+      } finally {
+        rmSync(sharedRoot, { recursive: true, force: true });
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
