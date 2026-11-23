@@ -47,7 +47,7 @@ export interface NxCiLintPluginOptions {
 - Bare `actionlint` (no args) scans `.github/workflows/` from `cwd` = `{projectRoot}` = workspace root; zizmor gets the dir explicitly.
 - The target is `cache: true`; inputs cover the workflow glob plus `.github/actionlint.{yml,yaml}` and `zizmor.{yml,yaml}` configs.
 - No `lint-ci:fix` target — actionlint findings are rarely auto-fixable (deferred per issue #226).
-- All interpolated values go through `sq()` POSIX single-quote escaping.
+- All interpolated values go through `sq()` POSIX single-quote escaping; `*Args` strings are whitespace-split first, then quoted per token.
 
 ## TDD workflow
 

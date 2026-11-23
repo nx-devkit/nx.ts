@@ -76,7 +76,7 @@ describe('createNodesV2', () => {
     expect(command).toContain('command -v actionlint');
     expect(command).toContain('command -v zizmor');
     expect(command).toContain('actionlint');
-    expect(command).toContain("zizmor --format plain '.github/workflows'");
+    expect(command).toContain("zizmor --format 'plain' '.github/workflows'");
     // A real lint failure in the first leg must still fail the whole command.
     expect(command).toContain(' && ');
   });
@@ -113,7 +113,7 @@ describe('createNodesV2', () => {
       run(workspace, WORKFLOWS, { zizmorFormat: 'sarif', zizmorOutput: 'zizmor.sarif' }),
     );
 
-    expect(command).toContain('zizmor --format sarif');
+    expect(command).toContain("zizmor --format 'sarif'");
     expect(command).toContain("> 'zizmor.sarif'");
   });
 
@@ -125,8 +125,8 @@ describe('createNodesV2', () => {
       }),
     );
 
-    expect(command).toContain('actionlint -oneline');
-    expect(command).toContain('zizmor --format plain --min-severity medium');
+    expect(command).toContain("actionlint '-oneline'");
+    expect(command).toContain("zizmor --format 'plain' '--min-severity' 'medium'");
   });
 
   it('anchors a single entry on the first sorted workflow file', () => {

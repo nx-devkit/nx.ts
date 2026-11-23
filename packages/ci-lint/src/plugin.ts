@@ -41,20 +41,26 @@ function toolLeg(tool: string, run: string): string {
   return `if command -v ${tool} >/dev/null 2>&1; then ${run}; else echo ${sq(`ci-lint: ${tool} not found on PATH — skipping`)}; fi`;
 }
 
+/** Whitespace-split each arg token and quote it — raw interpolation is shell injection. */
+function quoteArgs(args: string | undefined): string {
+  return args ? ` ${args.trim().split(/\s+/).filter(Boolean).map(sq).join(' ')}` : '';
+}
+
 function buildCommand(options: NxCiLintPluginOptions): string | null {
   const legs: string[] = [];
   if (options.actionlint !== false) {
-    const args = options.actionlintArgs ? ` ${options.actionlintArgs}` : '';
     // Bare actionlint scans .github/workflows/ relative to cwd ({projectRoot}
     // is the workspace root for the root project).
-    legs.push(toolLeg('actionlint', `actionlint${args}`));
+    legs.push(toolLeg('actionlint', `actionlint${quoteArgs(options.actionlintArgs)}`));
   }
   if (options.zizmor !== false) {
-    const format = options.zizmorFormat ?? 'plain';
-    const args = options.zizmorArgs ? ` ${options.zizmorArgs}` : '';
+    const format = sq(options.zizmorFormat ?? 'plain');
     const redirect = options.zizmorOutput ? ` > ${sq(options.zizmorOutput)}` : '';
     legs.push(
-      toolLeg('zizmor', `zizmor --format ${format}${args} ${sq(WORKFLOWS_DIR)}${redirect}`),
+      toolLeg(
+        'zizmor',
+        `zizmor --format ${format}${quoteArgs(options.zizmorArgs)} ${sq(WORKFLOWS_DIR)}${redirect}`,
+      ),
     );
   }
   return legs.length === 0 ? null : legs.join(' && ');
@@ -92,6 +98,7 @@ export const createNodesV2: CreateNodesV2<NxCiLintPluginOptions> = [
         cache: true,
         inputs,
         options: { command, cwd: '{projectRoot}' },
+        ...(options.zizmorOutput ? { outputs: [`{workspaceRoot}/${options.zizmorOutput}`] } : {}),
       },
     };
 
