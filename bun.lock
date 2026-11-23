@@ -379,6 +379,21 @@
         "vitest": "^5.1.0",
       },
     },
+    "packages/turbo": {
+      "name": "@nx-devkit/turbo",
+      "version": "0.0.0",
+      "dependencies": {
+        "@nx/devkit": "^24.0.0",
+        "jsonc-parser": "^3.3.1",
+      },
+      "devDependencies": {
+        "@nx-devkit/internal": "0.0.0",
+        "@types/node": "^26.6.6",
+        "tsdown": "^0.23.7",
+        "typescript": "^6.0.3",
+        "vitest": "^5.1.0",
+      },
+    },
     "packages/typescript-preset": {
       "name": "@nx-devkit/typescript",
       "version": "0.2.24",
@@ -1011,6 +1026,8 @@
     "@nx-devkit/sverka": ["@nx-devkit/sverka@workspace:packages/sverka"],
 
     "@nx-devkit/tsdown": ["@nx-devkit/tsdown@workspace:packages/tsdown"],
+
+    "@nx-devkit/turbo": ["@nx-devkit/turbo@workspace:packages/turbo"],
 
     "@nx-devkit/typescript": ["@nx-devkit/typescript@workspace:packages/typescript-preset"],
 
@@ -2196,6 +2213,8 @@
 
     "@nx-devkit/tsdown/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
 
+    "@nx-devkit/turbo/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
+
     "@nx-devkit/typescript/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
 
     "@nx-devkit/vitest/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
@@ -2427,6 +2446,8 @@
     "@nx-devkit/sverka/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
 
     "@nx-devkit/tsdown/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
+
+    "@nx-devkit/turbo/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
 
     "@nx-devkit/typescript/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
 
