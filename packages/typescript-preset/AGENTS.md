@@ -48,6 +48,8 @@ export interface NxDevkitTypescriptOptions {
   testGlob?: string;
   /** Glob for spec files. Default: "**/*.spec.{ts,js,mts,mjs}". */
   specGlob?: string;
+  /** Atomized CI test group: true = `test-ci` + one `test-ci--<file>` target per test/spec file; a string names the group. Default: false. */
+  testCi?: boolean | string;
   /** Workspace root as a project: true = always, false = never, unset = only when it is the sole project (single-package repos). */
   includeRoot?: boolean;
 }
@@ -58,8 +60,9 @@ export interface NxDevkitTypescriptOptions {
 | Target                                  | Trigger                                                                             | Notes                                                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `typecheck`                             | `tsconfig.json`                                                                     | Always inferred. Uses `tsgo` or `tsc`.                                                                                   |
-| `test` / `test:watch` / `test:coverage` | `vitest.config.*`                                                                   | Vitest takes priority over native test runner.                                                                           |
+| `test` / `test:watch` / `test:coverage` | `vitest.config.*`                                                                   | Vitest takes priority over native test runner. `test:watch` is `continuous` (readyWhen: 'Waiting for file changes').     |
 | `test`                                  | test/spec files (no vitest config)                                                  | Native Node test runner: `node --test --test-reporter spec`.                                                             |
+| `test-ci` + `test-ci--<file>`           | `testCi` option + test/spec files (vitest or native)                                | `nx:noop` group depending on one cached target per file — Nx Atomizer / DTE sharding.                                    |
 | `test:tap`                              | test/spec files + `tap: true`                                                       | Native Node test runner with TAP reporter. Uses `>` not `\| tee`.                                                        |
 | `test:coverage`                         | test/spec files + `coverage: true`                                                  | Native Node test runner with `--experimental-test-coverage`.                                                             |
 | `lint`                                  | `.oxlintrc.*` + `oxlint: true`                                                      | `npx oxlint .`. Oxlint wins over eslint and biome for `lint`.                                                            |
@@ -68,7 +71,9 @@ export interface NxDevkitTypescriptOptions {
 | `format` / `format-check`               | `biome.json` + `biome: true`                                                        | `format` writes files (cache false), `format-check` is cached.                                                           |
 | `format` / `format-check`               | `.oxfmtrc.{json,jsonc}`/`oxfmt.config.{ts,mts}` + `oxfmt: true`                     | `oxfmt --write .` / `oxfmt --check .`. Wins over biome for format — same direction as lint precedence.                   |
 | `build`                                 | (`tsdown.config.*` or publishable `package.json` + `src/index.ts`) + `tsdown: true` | `npx tsdown`, outputs `{projectRoot}/dist`, `dependsOn: ['^build']`. Publishable = `exports`/`bin`, or `main` + `files`. |
-| `build:watch`                           | same as `build`                                                                     | `npx tsdown --watch`, cache disabled.                                                                                    |
+| `build:watch`                           | same as `build`                                                                     | `npx tsdown --watch`, cache disabled, `continuous: true` (readyWhen: 'Build complete').                                  |
+
+Inferred projects carry `metadata.technologies` (`typescript` always; `vitest`/`node`, `oxlint`/`eslint`/`biome`, `tsdown` as detected) and, when `testCi` is on, `metadata.targetGroups` grouping the CI group + per-file targets under `Test (CI)`.
 
 ### Lint precedence
 
@@ -81,7 +86,7 @@ When both `.oxlintrc.*` and `biome.json` exist:
 ## Scope rules
 
 - Touch ONLY `packages/typescript-preset/`.
-- Reusable helpers (`inferTypecheckTarget`, `inferVitestTargets`, `inferNativeTestTargets`, `inferOxlintTarget`, `inferBiomeTargets`, `inferTsdownBuildTarget`, `shouldSkipPath`, `logDebug`, `isVerbose`) are exported for sibling plugins. Do NOT duplicate them elsewhere.
+- Reusable helpers (`inferTypecheckTarget`, `inferVitestTargets`, `inferNativeTestTargets`, `inferOxlintTarget`, `inferBiomeTargets`, `inferTsdownBuildTarget`, `inferTestCiTargets`, `shouldSkipPath`, `logDebug`, `isVerbose`) are exported for sibling plugins. Do NOT duplicate them elsewhere.
 - Do NOT modify other plugin packages or the root `nx.json`.
 
 ## TDD workflow

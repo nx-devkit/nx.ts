@@ -27,7 +27,13 @@ function touch(root: string, rel: string): string {
 }
 
 type ProjectConfiguration = {
-  projects?: Record<string, { targets?: Record<string, unknown> }>;
+  projects?: Record<
+    string,
+    {
+      targets?: Record<string, unknown>;
+      metadata?: { technologies?: string[]; targetGroups?: Record<string, string[]> };
+    }
+  >;
 };
 type CreateNodesResultEntry = [string, ProjectConfiguration];
 type CreateNodesResult = CreateNodesResultEntry[];
@@ -162,11 +168,18 @@ describe('inferTypecheckTarget', () => {
     const t = inferTypecheckTarget('/w/p', opts);
     expect(t.inputs).toEqual(
       expect.arrayContaining([
-        '{projectRoot}/src/**/*.ts',
-        '{projectRoot}/tsconfig.json',
+        '{projectRoot}/**/*.{ts,tsx,mts,cts}',
+        '{projectRoot}/tsconfig*.json',
         '{projectRoot}/package.json',
         '{workspaceRoot}/tsconfig.base.json',
       ]),
+    );
+  });
+
+  it('excludes generated outputs from inputs', async () => {
+    const t = inferTypecheckTarget('/w/p', opts);
+    expect(t.inputs).toEqual(
+      expect.arrayContaining(['!{projectRoot}/dist', '!{projectRoot}/coverage']),
     );
   });
 });
@@ -211,7 +224,10 @@ describe('inferVitestTargets', () => {
 function firstProject(
   result: CreateNodesResult,
   projectKey: string,
-): { targets?: Record<string, unknown> } {
+): {
+  targets?: Record<string, unknown>;
+  metadata?: { technologies?: string[]; targetGroups?: Record<string, string[]> };
+} {
   expect(result).toHaveLength(1);
   const entry = result[0];
   if (!entry) throw new Error('expected a result entry');
@@ -1125,6 +1141,296 @@ describe('mega scenario — all targets from one plugin', () => {
       const test = proj.targets?.test as Record<string, unknown>;
       const testOpts = test.options as Record<string, unknown>;
       expect(testOpts.command).toContain('node --test');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nx 21+ deepening: continuous targets, atomization, metadata
+// ---------------------------------------------------------------------------
+
+describe('continuous targets', () => {
+  it('marks build:watch continuous with a readyWhen probe', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/tsdown.config.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const watch = proj.targets?.['build:watch'] as Record<string, unknown>;
+      expect(watch.continuous).toBe(true);
+      expect(watch.readyWhen).toBeDefined();
+      expect(watch.cache).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('marks vitest test:watch continuous', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const watch = proj.targets?.['test:watch'] as Record<string, unknown>;
+      expect(watch.continuous).toBe(true);
+      expect(watch.cache).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not mark non-watch targets continuous', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      touch(root, 'packages/foo/tsdown.config.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      for (const name of ['typecheck', 'test', 'build']) {
+        const t = proj.targets?.[name] as Record<string, unknown>;
+        expect(t.continuous).toBeUndefined();
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('test-ci atomization', () => {
+  it('does not infer test-ci targets by default', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      touch(root, 'packages/foo/src/a.test.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const names = Object.keys(proj.targets ?? {});
+      expect(names.some((n) => n.startsWith('test-ci'))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('emits a test-ci group plus one runnable target per test file (vitest)', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      touch(root, 'packages/foo/src/a.test.ts');
+      touch(root, 'packages/foo/src/deep/b.spec.ts');
+      const result = await callCreateNodes([ts], { testCi: true }, root);
+      const proj = firstProject(result, 'packages/foo');
+
+      const group = proj.targets?.['test-ci'] as Record<string, unknown>;
+      expect(group).toBeDefined();
+      expect(group.executor).toBe('nx:noop');
+      expect(group.cache).toBe(true);
+
+      const perFileA = proj.targets?.['test-ci--src/a.test.ts'] as Record<string, unknown>;
+      const perFileB = proj.targets?.['test-ci--src/deep/b.spec.ts'] as Record<string, unknown>;
+      expect(perFileA).toBeDefined();
+      expect(perFileB).toBeDefined();
+
+      // Each atomized target is individually runnable.
+      for (const [file, t] of [
+        ['src/a.test.ts', perFileA],
+        ['src/deep/b.spec.ts', perFileB],
+      ] as const) {
+        expect(t.executor).toBe('nx:run-commands');
+        const opts = t.options as Record<string, unknown>;
+        expect(opts.command).toContain('vitest run');
+        expect(opts.command).toContain(file);
+        expect(opts.cwd).toBe('packages/foo');
+        expect(t.cache).toBe(true);
+        const meta = t.metadata as Record<string, unknown>;
+        expect(meta.nonAtomizedTarget).toBe('test-ci');
+      }
+
+      // The group depends on every atomized target so `nx run test-ci`
+      // runs the whole suite, shardable per file under DTE.
+      const dependsOn = group.dependsOn as { target: string }[];
+      const depTargets = dependsOn.map((d) => d.target).sort();
+      expect(depTargets).toEqual(['test-ci--src/a.test.ts', 'test-ci--src/deep/b.spec.ts']);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('groups atomized targets under metadata.targetGroups', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      touch(root, 'packages/foo/src/a.test.ts');
+      const result = await callCreateNodes([ts], { testCi: true }, root);
+      const proj = firstProject(result, 'packages/foo');
+      const groups = proj.metadata?.targetGroups ?? {};
+      const names = Object.values(groups).flat();
+      expect(names).toContain('test-ci');
+      expect(names).toContain('test-ci--src/a.test.ts');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('honours a custom group name via testCi: "<name>"', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      touch(root, 'packages/foo/src/a.test.ts');
+      const result = await callCreateNodes([ts], { testCi: 'unit-ci' }, root);
+      const proj = firstProject(result, 'packages/foo');
+      expect(proj.targets?.['unit-ci']).toBeDefined();
+      expect(proj.targets?.['unit-ci--src/a.test.ts']).toBeDefined();
+      expect(proj.targets?.['test-ci']).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('atomizes the native Node test runner per file', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/src/a.test.ts');
+      touch(root, 'packages/foo/src/b.spec.ts');
+      const result = await callCreateNodes([ts], { testCi: true }, root);
+      const proj = firstProject(result, 'packages/foo');
+
+      const group = proj.targets?.['test-ci'] as Record<string, unknown>;
+      expect(group).toBeDefined();
+      expect(group.executor).toBe('nx:noop');
+
+      const perFile = proj.targets?.['test-ci--src/a.test.ts'] as Record<string, unknown>;
+      expect(perFile).toBeDefined();
+      const opts = perFile.options as Record<string, unknown>;
+      expect(opts.command).toContain('node --test');
+      expect(opts.command).toContain('src/a.test.ts');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('emits no test-ci group when there are no test files', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      const result = await callCreateNodes([ts], { testCi: true }, root);
+      const proj = firstProject(result, 'packages/foo');
+      expect(proj.targets?.['test-ci']).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('project metadata', () => {
+  it('emits metadata.technologies reflecting detected tools', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      touch(root, 'packages/foo/.oxlintrc.json');
+      touch(root, 'packages/foo/tsdown.config.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const tech = proj.metadata?.technologies ?? [];
+      expect(tech).toContain('typescript');
+      expect(tech).toContain('vitest');
+      expect(tech).toContain('oxlint');
+      expect(tech).toContain('tsdown');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('always includes typescript and omits undetected tools', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const tech = proj.metadata?.technologies ?? [];
+      expect(tech).toEqual(['typescript']);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('targetDefaults audit — inputs/outputs completeness', () => {
+  it('typecheck hashes tsconfig variants and excludes build outputs', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const typecheck = proj.targets?.typecheck as Record<string, unknown>;
+      const inputs = typecheck.inputs as string[];
+      expect(inputs).toContain('{projectRoot}/tsconfig*.json');
+      expect(inputs).toContain('!{projectRoot}/dist');
+      expect(inputs).toContain('!{projectRoot}/coverage');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('oxlint lint covers the whole project minus generated dirs', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/.oxlintrc.json');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const lint = proj.targets?.lint as Record<string, unknown>;
+      const inputs = lint.inputs as string[];
+      expect(inputs).toContain('{projectRoot}/**/*');
+      expect(inputs).toContain('!{projectRoot}/dist');
+      expect(inputs).toContain('!{projectRoot}/node_modules');
+      expect(inputs).toContain('!{projectRoot}/coverage');
+      expect(inputs).toContain('{projectRoot}/.oxlintrc.*');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('native test inputs include project sources via the default named input', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/src/foo.test.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const test = proj.targets?.test as Record<string, unknown>;
+      const inputs = test.inputs as string[];
+      expect(inputs).toContain('default');
+      expect(inputs).toContain('!{projectRoot}/test-results.tap');
+      expect(inputs).toContain('!{projectRoot}/coverage');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('tsdown build inputs cover tsconfig variants and the shared base', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/tsdown.config.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const build = proj.targets?.build as Record<string, unknown>;
+      const inputs = build.inputs as string[];
+      expect(inputs).toContain('{projectRoot}/tsconfig*.json');
+      expect(inputs).toContain('{workspaceRoot}/tsconfig.base.json');
+      expect(build.outputs).toEqual(['{projectRoot}/dist']);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

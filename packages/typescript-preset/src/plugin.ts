@@ -10,7 +10,7 @@ import {
   mapWithConcurrency,
   inferVitestTargets,
 } from '@nx-devkit/internal';
-import { globMatchAsync } from './glob.js';
+import { globFilesAsync, globMatchAsync } from './glob.js';
 import {
   BIOME_CONFIG_NAMES,
   ESLINT_CONFIG_NAMES,
@@ -30,6 +30,7 @@ import {
   inferTsdownBuildTarget,
   inferTsdownWatchTarget,
 } from './targets/build.js';
+import { inferTestCiTargets } from './targets/test-ci.js';
 
 // Re-export everything for backward compatibility
 export type { NxDevkitTypescriptOptions };
@@ -45,6 +46,7 @@ export {
   inferTsdownBuildTarget,
   inferTsdownWatchTarget,
 } from './targets/build.js';
+export { inferTestCiTargets } from './targets/test-ci.js';
 
 const PLUGIN_SCOPE = 'nx-typescript';
 
@@ -63,6 +65,8 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
     const tsdown = options.tsdown ?? true;
     const testGlob = options.testGlob ?? '**/*.test.{ts,js,mts,mjs}';
     const specGlob = options.specGlob ?? '**/*.spec.{ts,js,mts,mjs}';
+    const testCi = options.testCi ?? false;
+    const ciTargetName = typeof testCi === 'string' ? testCi : 'test-ci';
     const workspaceRoot = context.workspaceRoot;
 
     const filteredConfigFiles = configFiles.filter(
@@ -115,6 +119,9 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
       logDebug(PLUGIN_SCOPE, `Registering targets for ${projectKey}`);
 
       const relProjectRoot = projectKey;
+      const absProjectRoot = resolve(workspaceRoot, projectRoot);
+      const technologies: string[] = ['typescript'];
+      const targetGroups: Record<string, string[]> = {};
 
       const nativeDep = await detectNativeTypescript(projectRoot, workspaceRoot);
 
@@ -134,17 +141,59 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
 
       const vitestConfigPath = await findVitestConfig(projectRoot, workspaceRoot);
       if (vitestConfigPath) {
-        Object.assign(targets, inferVitestTargets(relProjectRoot, vitestConfigPath));
+        const vitestTargets = inferVitestTargets(relProjectRoot, vitestConfigPath);
+        Object.assign(targets, vitestTargets);
+        // Vitest watch mode is a long-running process — `continuous` lets
+        // dependents declare it in `dependsOn`; the "Waiting for file
+        // changes" line vitest prints after each pass is the ready signal.
+        targets['test:watch'] = {
+          ...vitestTargets['test:watch'],
+          continuous: true,
+          readyWhen: { logMatches: 'Waiting for file changes' },
+        };
+        technologies.push('vitest');
+        if (testCi) {
+          const testFiles = await globFilesAsync(absProjectRoot, [testGlob, specGlob]);
+          if (testFiles.length > 0) {
+            const ci = inferTestCiTargets(relProjectRoot, {
+              ciTargetName,
+              files: testFiles,
+              command: (file) => `vitest run "${file}"`,
+              inputs: vitestTargets.test.inputs,
+              outputs: vitestTargets.test.outputs,
+              technologies: ['vitest'],
+            });
+            Object.assign(targets, ci.targets);
+            targetGroups['Test (CI)'] = ci.group;
+          }
+        }
       } else {
-        const absProjectRoot = resolve(workspaceRoot, projectRoot);
         const hasTestFiles =
           (await globMatchAsync(absProjectRoot, testGlob)) ||
           (await globMatchAsync(absProjectRoot, specGlob));
         if (hasTestFiles) {
-          Object.assign(
-            targets,
-            inferNativeTestTargets(relProjectRoot, { tap, coverage, testGlob, specGlob }),
-          );
+          const nativeTargets = inferNativeTestTargets(relProjectRoot, {
+            tap,
+            coverage,
+            testGlob,
+            specGlob,
+          });
+          Object.assign(targets, nativeTargets);
+          technologies.push('node');
+          if (testCi) {
+            const testFiles = await globFilesAsync(absProjectRoot, [testGlob, specGlob]);
+            if (testFiles.length > 0) {
+              const ci = inferTestCiTargets(relProjectRoot, {
+                ciTargetName,
+                files: testFiles,
+                command: (file) => `node --test --test-reporter spec "${file}"`,
+                inputs: nativeTargets.test.inputs,
+                technologies: ['node'],
+              });
+              Object.assign(targets, ci.targets);
+              targetGroups['Test (CI)'] = ci.group;
+            }
+          }
         }
       }
 
@@ -159,6 +208,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
       const oxlintOwnsLint = oxlint && oxlintrcPath !== null;
       if (oxlintOwnsLint) {
         targets.lint = inferOxlintTarget(relProjectRoot);
+        technologies.push('oxlint');
         if (!projectOxlintrc) {
           targets.lint.inputs.push('{workspaceRoot}/.oxlintrc.*');
         }
@@ -174,6 +224,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           projectEslintConfig ?? (await findConfigFile('.', workspaceRoot, ESLINT_CONFIG_NAMES));
         if (eslintConfigPath) {
           targets.lint = inferEslintTarget(relProjectRoot);
+          technologies.push('eslint');
           if (!projectEslintConfig) {
             targets.lint.inputs.push('{workspaceRoot}/eslint.config.*');
           }
@@ -222,6 +273,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
             delete inferred.format;
             delete inferred['format-check'];
           }
+          technologies.push('biome');
           if (!projectBiomeConfig) {
             // Copy before extending — inferBiomeTargets shares the
             // module-level BIOME_INPUTS array across targets/projects.
@@ -245,6 +297,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         ) {
           targets.build = inferTsdownBuildTarget(relProjectRoot);
           targets['build:watch'] = inferTsdownWatchTarget(relProjectRoot);
+          technologies.push('tsdown');
         }
       }
 
@@ -254,6 +307,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           projects: {
             [projectKey]: {
               targets,
+              metadata: {
+                technologies,
+                ...(Object.keys(targetGroups).length > 0 ? { targetGroups } : {}),
+              },
             },
           },
         },
