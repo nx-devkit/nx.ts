@@ -46,16 +46,7 @@ export class FileSystemBackend implements CacheBackend {
         await link(tmpBody, dest);
       } catch (err) {
         if (!isAlreadyExists(err)) throw err;
-        // Body exists — heal an abandoned pair (body without sidecar) when
-        // the stored bytes are identical to ours; otherwise real conflict.
-        const existing = await readFile(dest).catch(() => null);
-        if (existing !== null && createHash('sha256').update(existing).digest('hex') === sha256) {
-          try {
-            await link(tmpSide, `${dest}.sha256`);
-          } catch (err2) {
-            if (!isAlreadyExists(err2)) throw err2;
-          }
-        }
+        await healAbandonedPair(dest, tmpSide, sha256);
         return 'conflict';
       }
 
@@ -86,6 +77,23 @@ export class FileSystemBackend implements CacheBackend {
     } finally {
       await fh.close();
     }
+  }
+}
+
+/**
+ * A pre-existing body blocks the write. When its bytes are identical to
+ * ours the pair may have been abandoned between the two links — complete
+ * it with the sidecar. Different bytes are a genuine conflict either way.
+ */
+async function healAbandonedPair(dest: string, tmpSide: string, sha256: string): Promise<void> {
+  const existing = await readFile(dest).catch(() => null);
+  if (existing === null || createHash('sha256').update(existing).digest('hex') !== sha256) {
+    return;
+  }
+  try {
+    await link(tmpSide, `${dest}.sha256`);
+  } catch (err) {
+    if (!isAlreadyExists(err)) throw err;
   }
 }
 
