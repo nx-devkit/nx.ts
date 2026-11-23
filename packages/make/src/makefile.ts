@@ -71,6 +71,52 @@ function parsePrerequisites(rest: string): string[] {
   return out;
 }
 
+/** Recipes (tab-indented), stray continuations, comments, directives. */
+function isSkippableLine(line: string): boolean {
+  return line === '' || line.startsWith('\t') || line.startsWith(' ') || line.startsWith('#');
+}
+
+/** `.PHONY: a b c` — record usable names for the rule-less-goal pass. */
+function collectPhony(line: string, phonyNames: Set<string>): boolean {
+  const match = PHONY.exec(line);
+  if (match === null) return false;
+  for (const name of parsePrerequisites(match[1] ?? '')) {
+    if (isUsableName(name)) phonyNames.add(name);
+  }
+  return true;
+}
+
+/** Merge a parsed rule's prerequisites into the target map. */
+function applyRule(
+  namesPart: string,
+  prerequisites: string[],
+  rules: Map<string, MakeTarget>,
+): void {
+  for (const name of namesPart.split(/[ \t]+/)) {
+    if (name === '' || !isUsableName(name)) continue;
+    const target = rules.get(name);
+    if (target === undefined) {
+      rules.set(name, { name, prerequisites: [...prerequisites], phony: false });
+    } else {
+      for (const prereq of prerequisites) {
+        if (!target.prerequisites.includes(prereq)) target.prerequisites.push(prereq);
+      }
+    }
+  }
+}
+
+/** `.PHONY` names without a rule are still runnable goals (FORCE idiom). */
+function applyPhonyGoals(phonyNames: Set<string>, rules: Map<string, MakeTarget>): void {
+  for (const name of phonyNames) {
+    const target = rules.get(name);
+    if (target === undefined) {
+      rules.set(name, { name, prerequisites: [], phony: true });
+    } else {
+      target.phony = true;
+    }
+  }
+}
+
 export function parseMakefile(text: string): ParsedMakefile {
   // Join backslash continuations so a split header parses as one line.
   const lines = text.replace(/\\\r?\n/g, ' ').split('\n');
@@ -79,22 +125,11 @@ export function parseMakefile(text: string): ParsedMakefile {
   const phonyNames = new Set<string>();
 
   for (const line of lines) {
-    // Recipes (tab-indented), stray continuations, comments, directives.
-    if (line === '' || line.startsWith('\t') || line.startsWith(' ') || line.startsWith('#')) {
-      continue;
-    }
-
-    const phonyMatch = PHONY.exec(line);
-    if (phonyMatch !== null) {
-      for (const name of parsePrerequisites(phonyMatch[1] ?? '')) {
-        if (isUsableName(name)) phonyNames.add(name);
-      }
-      continue;
-    }
+    if (isSkippableLine(line)) continue;
+    if (collectPhony(line, phonyNames)) continue;
 
     const match = RULE.exec(line);
     if (match === null) continue;
-    const namesPart = match[1] ?? '';
     const separator = match[2] ?? '';
     const rest = match[3] ?? '';
 
@@ -106,30 +141,10 @@ export function parseMakefile(text: string): ParsedMakefile {
     // `targets: pattern: prereqs` — a static pattern rule.
     if (rest.includes(':')) continue;
 
-    const prerequisites = parsePrerequisites(rest);
-    for (const name of namesPart.split(/[ \t]+/)) {
-      if (name === '' || !isUsableName(name)) continue;
-      const target = rules.get(name);
-      if (target === undefined) {
-        rules.set(name, { name, prerequisites: [...prerequisites], phony: false });
-      } else {
-        for (const prereq of prerequisites) {
-          if (!target.prerequisites.includes(prereq)) target.prerequisites.push(prereq);
-        }
-      }
-    }
+    applyRule(match[1] ?? '', parsePrerequisites(rest), rules);
   }
 
-  // `.PHONY` names without a rule are still runnable goals — `make <name>`
-  // on a rule-less phony target is a well-defined no-op (the FORCE idiom).
-  for (const name of phonyNames) {
-    const target = rules.get(name);
-    if (target === undefined) {
-      rules.set(name, { name, prerequisites: [], phony: true });
-    } else {
-      target.phony = true;
-    }
-  }
+  applyPhonyGoals(phonyNames, rules);
 
   return { targets: rules };
 }
