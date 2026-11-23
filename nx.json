@@ -71,7 +71,8 @@
       "packages/turbo",
       "packages/deploy",
       "packages/drizzle",
-      "packages/ci-lint"
+      "packages/ci-lint",
+      "packages/deps"
     ],
     "projectsRelationship": "independent",
     "version": {
