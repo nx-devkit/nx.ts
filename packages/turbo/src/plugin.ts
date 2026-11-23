@@ -192,7 +192,8 @@ function addTarget(
     project = { root: pkg.root };
     projects[pkg.root] = project;
   }
-  const targets = (project.targets ??= Object.create(null));
+  const targets: Record<string, TargetConfiguration> = project.targets ?? Object.create(null);
+  project.targets = targets;
   targets[taskName] = buildTaskTarget(taskName, task, ctx);
   if (isVerbose()) {
     logDebug(PLUGIN_SCOPE, `Registered ${logSafe(pkg.root || '.')}:${logSafe(taskName)}`);
