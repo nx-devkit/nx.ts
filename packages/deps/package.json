@@ -1,0 +1,77 @@
+{
+  "name": "@nx-devkit/deps",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Nx plugin: syncpack config (or manypkg on the workspaces root) infers a cached deps:check target plus opt-in deps:fix — dependency version consistency without project.json.",
+  "keywords": [
+    "dependency-consistency",
+    "manypkg",
+    "monorepo",
+    "nx",
+    "nx-plugin",
+    "syncpack",
+    "version-drift",
+    "zero-config"
+  ],
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/deps",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/deps"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "module": "./dist/plugin.mjs",
+  "types": "./dist/plugin.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.mts",
+      "default": "./dist/plugin.mjs"
+    },
+    "./package.json": "./package.json",
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@manypkg/cli": "^0.25.1",
+    "@nx-devkit/internal": "0.0.0",
+    "@types/node": "^26.6.6",
+    "syncpack": "^15.3.4",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "peerDependencies": {
+    "@manypkg/cli": "^0.25.0",
+    "syncpack": "^15.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@manypkg/cli": {
+      "optional": true
+    },
+    "syncpack": {
+      "optional": true
+    }
+  },
+  "generators": "./generators.json"
+}
