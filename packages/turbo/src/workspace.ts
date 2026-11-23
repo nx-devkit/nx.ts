@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { minimatch } from 'minimatch';
 import { logDebug, parseJsonObject } from '@nx-devkit/internal';
 
 const PLUGIN_SCOPE = 'nx-devkit/turbo';
@@ -68,11 +69,14 @@ export function discoverWorkspacePackages(workspaceRoot: string): WorkspacePacka
  * `node_modules` and hidden directories are never descended into.
  */
 export function expandWorkspaceGlobs(workspaceRoot: string, patterns: string[]): string[] {
-  const includes = patterns.filter((p) => !p.startsWith('!')).map(globToRegExp);
-  const excludes = patterns.filter((p) => p.startsWith('!')).map((p) => globToRegExp(p.slice(1)));
+  const includes = patterns.filter((p) => !p.startsWith('!'));
+  const excludes = patterns.filter((p) => p.startsWith('!')).map((p) => p.slice(1));
   const dirs: string[] = [];
   for (const dir of walkPackageDirs(resolve(workspaceRoot), '')) {
-    if (includes.some((re) => re.test(dir)) && !excludes.some((re) => re.test(dir))) {
+    if (
+      includes.some((g) => minimatch(dir, g, { dot: true })) &&
+      !excludes.some((g) => minimatch(dir, g, { dot: true }))
+    ) {
       dirs.push(dir);
     }
   }
@@ -114,33 +118,6 @@ function* walkPackageDirs(absDir: string, relDir: string): Generator<string> {
     }
     yield* walkPackageDirs(absChild, relChild);
   }
-}
-
-/**
- * Workspace-glob → RegExp. Segments match on `/` boundaries: `*` →
- * `[^/]*`, `?` → `[^/]`, `**` → zero or more whole segments.
- */
-function globToRegExp(pattern: string): RegExp {
-  const normalized = pattern.replace(/^\.\//, '').replace(/\/+$/, '');
-  if (normalized === '**') return /^.+$/;
-  const body = normalized
-    .split('/')
-    .map((seg) =>
-      seg === '**'
-        ? '**'
-        : seg
-            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-            .replace(/\*/g, '[^/]*')
-            .replace(/\?/g, '[^/]'),
-    )
-    .join('/')
-    // '/**/' matches zero or more middle segments: a/**/b also matches a/b
-    .replace(/\/\*\*\//g, '/(?:[^/]+/)*')
-    // trailing '/**' matches any descendants
-    .replace(/\/\*\*/g, '(?:/.+)?')
-    // leading '**/' matches zero or more leading segments
-    .replace(/^\*\*\//, '(?:[^/]+/)*');
-  return new RegExp(`^${body}$`);
 }
 
 /**
