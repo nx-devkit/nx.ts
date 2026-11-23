@@ -42,27 +42,39 @@ export const TSDOWN_CONFIG_NAMES = [
  * side-by-side alias) or the legacy `'@typescript/native-preview` (`tsgo`).
  * `false` when neither is declared.
  */
+function declaredNativeDep(pkg: Record<string, unknown>): string | false {
+  const allDeps = {
+    ...(pkg.dependencies as Record<string, string> | undefined),
+    ...(pkg.devDependencies as Record<string, string> | undefined),
+    ...(pkg.peerDependencies as Record<string, string> | undefined),
+  };
+  if ('@typescript/native' in allDeps) return '@typescript/native';
+  if ('@typescript/native-preview' in allDeps) return '@typescript/native-preview';
+  return false;
+}
+
 export async function detectNativeTypescript(
   projectRoot: string,
   workspaceRoot: string,
 ): Promise<string | false> {
-  const absProjectRoot = resolve(workspaceRoot, projectRoot);
-  const pkgPath = join(absProjectRoot, 'package.json');
-  try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is the project's own package.json under an Nx project root
-    const content = await readFile(pkgPath, 'utf8');
-    const pkg = JSON.parse(content) as Record<string, unknown>;
-    const allDeps = {
-      ...(pkg.dependencies as Record<string, string> | undefined),
-      ...(pkg.devDependencies as Record<string, string> | undefined),
-      ...(pkg.peerDependencies as Record<string, string> | undefined),
-    };
-    if ('@typescript/native' in allDeps) return '@typescript/native';
-    if ('@typescript/native-preview' in allDeps) return '@typescript/native-preview';
-    return false;
-  } catch {
-    return false;
+  // Collect declarations from both manifests — the init/package generators
+  // declare the compiler in root devDeps shared by every project — then apply
+  // the same native-first precedence as detectCompiler so the hashed
+  // externalDependency always matches the compiler the executor runs.
+  const declared = new Set<string>();
+  for (const dir of [resolve(workspaceRoot, projectRoot), resolve(workspaceRoot)]) {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a package.json under a known workspace root
+      const content = await readFile(join(dir, 'package.json'), 'utf8');
+      const dep = declaredNativeDep(JSON.parse(content) as Record<string, unknown>);
+      if (dep) declared.add(dep);
+    } catch {
+      // no manifest at this level — keep looking
+    }
   }
+  if (declared.has('@typescript/native')) return '@typescript/native';
+  if (declared.has('@typescript/native-preview')) return '@typescript/native-preview';
+  return false;
 }
 
 /**
