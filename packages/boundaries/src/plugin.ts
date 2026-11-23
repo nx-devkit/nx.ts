@@ -30,36 +30,116 @@ function readPackageInfo(packageJsonPath: string, projectRoot: string): PackageI
 
 const SOURCE_INPUTS = '{projectRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}';
 
+type Result = [string, { projects: Record<string, unknown> }];
+
+function buildExecutorOptions(options: NxBoundariesOptions): Record<string, unknown> {
+  const executorOptions: Record<string, unknown> = {
+    depConstraints: options.depConstraints ?? [],
+    // Pass the resolved intent so target output stays stable across defaults.
+    inferTags: options.inferTags ?? true,
+  };
+  if (options.checkCircularDependencies !== undefined) {
+    executorOptions.checkCircularDependencies = options.checkCircularDependencies;
+  }
+  if (options.format !== undefined) {
+    executorOptions.format = options.format;
+  }
+  return executorOptions;
+}
+
+function projectNode(
+  configFile: string,
+  projectRoot: string,
+  info: PackageInfo,
+  tags: string[],
+  targetName: string,
+  executorOptions: Record<string, unknown>,
+): Result {
+  return [
+    configFile,
+    {
+      projects: {
+        [projectRoot]: {
+          root: projectRoot,
+          // Surface inferred tags on the node so `nx show project` and the
+          // project graph reflect them (explicit tags are already merged
+          // by Nx itself — do not duplicate).
+          ...(info.tags.length === 0 ? { tags } : {}),
+          targets: {
+            [targetName]: {
+              executor: `${PLUGIN_NAME}:check-boundaries`,
+              cache: true,
+              // Scoped inputs keep the target affected-aware; every other
+              // project's package.json is still an input because tag or
+              // constraint changes anywhere can flip this project's edges.
+              inputs: [
+                SOURCE_INPUTS,
+                '{workspaceRoot}/**/package.json',
+                '{workspaceRoot}/tsconfig*.json',
+                '{workspaceRoot}/nx.json',
+              ],
+              options: {
+                ...executorOptions,
+                project: info.name,
+              },
+            },
+          },
+        },
+      },
+    },
+  ];
+}
+
+function rootNode(
+  rootPkg: string,
+  targetName: string,
+  executorOptions: Record<string, unknown>,
+): Result {
+  return [
+    rootPkg,
+    {
+      projects: {
+        '.': {
+          root: '.',
+          targets: {
+            [targetName]: {
+              executor: `${PLUGIN_NAME}:check-boundaries`,
+              cache: true,
+              // The check is graph-global: every project source file is an
+              // input, or edits would hit a stale cache entry.
+              inputs: [
+                '{workspaceRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+                '{workspaceRoot}/**/package.json',
+                '{workspaceRoot}/tsconfig*.json',
+                '{workspaceRoot}/nx.json',
+              ],
+              options: executorOptions,
+            },
+          },
+        },
+      },
+    },
+  ];
+}
+
 export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
   '**/package.json',
   (configFiles, options = {}, context) => {
-    const verbose = isVerbose();
     const targetName = options.targetName ?? 'check-boundaries';
     const inference = options.inferTags ?? true;
+    const executorOptions = buildExecutorOptions(options);
 
-    const executorOptions: Record<string, unknown> = {
-      depConstraints: options.depConstraints ?? [],
-      // Pass the resolved intent so target output stays stable across defaults.
-      inferTags: options.inferTags ?? true,
-    };
-    if (options.checkCircularDependencies !== undefined) {
-      executorOptions.checkCircularDependencies = options.checkCircularDependencies;
-    }
-    if (options.format !== undefined) {
-      executorOptions.format = options.format;
-    }
-
-    const results: [string, { projects: Record<string, unknown> }][] = [];
+    const results: Result[] = [];
     const seen = new Set<string>();
-    let taggedProjects = 0;
 
     for (const configFile of configFiles) {
       const normalized = configFile.replace(/\\/g, '/');
       const projectRoot = dirname(normalized);
-      if (projectRoot === '.' || shouldSkipPath(projectRoot, context.workspaceRoot)) {
-        continue;
-      }
-      if (seen.has(projectRoot)) {
+      if (
+        projectRoot === '.' ||
+        shouldSkipPath(projectRoot, context.workspaceRoot) ||
+        seen.has(projectRoot)
+      ) {
         continue;
       }
       seen.add(projectRoot);
@@ -72,46 +152,13 @@ export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
         // vacuous pass (false green).
         continue;
       }
-      taggedProjects += 1;
 
-      results.push([
-        configFile,
-        {
-          projects: {
-            [projectRoot]: {
-              root: projectRoot,
-              // Surface inferred tags on the node so `nx show project` and the
-              // project graph reflect them (explicit tags are already merged
-              // by Nx itself — do not duplicate).
-              ...(info.tags.length === 0 ? { tags } : {}),
-              targets: {
-                [targetName]: {
-                  executor: `${PLUGIN_NAME}:check-boundaries`,
-                  cache: true,
-                  // Scoped inputs keep the target affected-aware; every other
-                  // project's package.json is still an input because tag or
-                  // constraint changes anywhere can flip this project's edges.
-                  inputs: [
-                    SOURCE_INPUTS,
-                    '{workspaceRoot}/**/package.json',
-                    '{workspaceRoot}/tsconfig*.json',
-                    '{workspaceRoot}/nx.json',
-                  ],
-                  options: {
-                    ...executorOptions,
-                    project: info.name,
-                  },
-                },
-              },
-            },
-          },
-        },
-      ]);
+      results.push(projectNode(configFile, projectRoot, info, tags, targetName, executorOptions));
     }
 
     // The root aggregate stays as the single gate over the whole graph.
     // Without it, affected runs of unrelated projects would skip the check.
-    if (taggedProjects === 0) {
+    if (results.length === 0) {
       logDebug(PLUGIN_NAME, 'No project carries effective tags — no target inferred');
       return [];
     }
@@ -121,38 +168,13 @@ export const createNodesV2: CreateNodesV2<NxBoundariesOptions> = [
       return results;
     }
 
-    if (verbose) {
+    if (isVerbose()) {
       logger.info(
-        `[${PLUGIN_NAME}] Inferring ${targetName} on the workspace root and ${taggedProjects} project(s)`,
+        `[${PLUGIN_NAME}] Inferring ${targetName} on the workspace root and ${results.length} project(s)`,
       );
     }
 
-    results.push([
-      rootPkg,
-      {
-        projects: {
-          '.': {
-            root: '.',
-            targets: {
-              [targetName]: {
-                executor: `${PLUGIN_NAME}:check-boundaries`,
-                cache: true,
-                // The check is graph-global: every project source file is an
-                // input, or edits would hit a stale cache entry.
-                inputs: [
-                  '{workspaceRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
-                  '{workspaceRoot}/**/package.json',
-                  '{workspaceRoot}/tsconfig*.json',
-                  '{workspaceRoot}/nx.json',
-                ],
-                options: executorOptions,
-              },
-            },
-          },
-        },
-      },
-    ]);
-
+    results.push(rootNode(rootPkg, targetName, executorOptions));
     return results;
   },
 ];

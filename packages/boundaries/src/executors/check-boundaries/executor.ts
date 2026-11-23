@@ -212,24 +212,13 @@ function resolveProjectName(ref: string, graph: ProjectGraph): string {
   );
 }
 
-export default async function checkBoundaries(
+/** Edge-scan every in-scope project plus cycle detection. */
+function collectViolations(
+  graph: ProjectGraph,
+  ctx: ScanContext,
+  scopedProject: string | undefined,
   options: CheckBoundariesOptions,
-  context: ExecutorContext,
-): Promise<{ success: boolean }> {
-  const graph: ProjectGraph = context.projectGraph ?? (await createProjectGraphAsync());
-  const ctx: ScanContext = {
-    workspaceRoot: context.root,
-    index: projectIndex(graph),
-    tsPaths: loadTsPaths(context.root),
-    tags: projectTags(graph, options.inferTags),
-    constraints: options.depConstraints ?? [],
-  };
-
-  let scopedProject: string | undefined;
-  if (options.project !== undefined) {
-    scopedProject = resolveProjectName(options.project, graph);
-  }
-
+): BoundaryViolation[] {
   const violations: BoundaryViolation[] = [];
   for (const [projectName, node] of Object.entries(graph.nodes)) {
     if (scopedProject !== undefined && projectName !== scopedProject) {
@@ -253,15 +242,18 @@ export default async function checkBoundaries(
       violations.push(cycleViolation(cycle));
     }
   }
+  return violations;
+}
 
-  const format = options.format ?? 'text';
+/** Emit violations in the requested format; returns success. */
+function emitViolations(violations: BoundaryViolation[], format: string): boolean {
   if (violations.length === 0) {
     if (format === 'json' || format === 'mermaid') {
       process.stdout.write(`${renderReport([], format)}\n`);
     } else if (isVerbose()) {
       logger.info('check-boundaries: no violations');
     }
-    return { success: true };
+    return true;
   }
   logger.error(`check-boundaries: ${violations.length} violation(s)`);
   if (format === 'json' || format === 'mermaid') {
@@ -271,5 +263,24 @@ export default async function checkBoundaries(
       logger.error(line);
     }
   }
-  return { success: false };
+  return false;
+}
+
+export default async function checkBoundaries(
+  options: CheckBoundariesOptions,
+  context: ExecutorContext,
+): Promise<{ success: boolean }> {
+  const graph: ProjectGraph = context.projectGraph ?? (await createProjectGraphAsync());
+  const ctx: ScanContext = {
+    workspaceRoot: context.root,
+    index: projectIndex(graph),
+    tsPaths: loadTsPaths(context.root),
+    tags: projectTags(graph, options.inferTags),
+    constraints: options.depConstraints ?? [],
+  };
+
+  const scopedProject =
+    options.project === undefined ? undefined : resolveProjectName(options.project, graph);
+  const violations = collectViolations(graph, ctx, scopedProject, options);
+  return { success: emitViolations(violations, options.format ?? 'text') };
 }
