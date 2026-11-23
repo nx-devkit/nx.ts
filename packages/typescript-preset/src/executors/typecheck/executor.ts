@@ -22,6 +22,41 @@ interface NxExecutorContext {
   projectsConfigurations?: { projects?: Record<string, { root?: string }> };
 }
 
+export interface CompilerSelection {
+  bin: 'tsc' | 'tsgo';
+  packageName: 'typescript' | '@typescript/native' | '@typescript/native-preview';
+}
+
+// `tsgo` exists only in the legacy @typescript/native-preview package.
+// Under the MS-recommended typescript@7 side-by-side alias
+// (@typescript/native = npm:typescript@7) the native compiler is exposed
+// as `tsc` from that package — `typescript` itself stays on the classic
+// line for the programmatic API consumers (Nx project graph, editors,
+// typescript-eslint) still depend on.
+export function detectCompiler(
+  workspaceRoot: string,
+  projectRoot: string,
+  preferNative: boolean,
+): CompilerSelection {
+  if (preferNative) {
+    if (hasPackage(workspaceRoot, projectRoot, '@typescript/native')) {
+      return { bin: 'tsc', packageName: '@typescript/native' };
+    }
+    if (hasPackage(workspaceRoot, projectRoot, '@typescript/native-preview')) {
+      return { bin: 'tsgo', packageName: '@typescript/native-preview' };
+    }
+  }
+  return { bin: 'tsc', packageName: 'typescript' };
+}
+
+function hasPackage(workspaceRoot: string, projectRoot: string, name: string): boolean {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed package name joined under node_modules
+  return (
+    existsSync(join(workspaceRoot, 'node_modules', name)) ||
+    existsSync(join(projectRoot, 'node_modules', name))
+  );
+}
+
 // tsc can emit more than execFile's 1 MiB default maxBuffer of
 // diagnostics on a failed typecheck — truncating the output would hide
 // the real compiler errors.
@@ -63,21 +98,12 @@ export async function typecheckExecutor(
     return { success: false };
   }
 
-  // Check if tsgo is available when requested. Look in both the project
-  // root and the workspace root — a project-local install is valid.
-  // `tsgo` exists only in the legacy @typescript/native-preview package.
-  // Under the recommended typescript@7 side-by-side alias (@typescript/native)
-  // `tsc` itself is the native compiler, so the fallback is already native.
-  let useTsgo = tsgo;
-  if (useTsgo) {
-    const workspaceNativePkg = join(workspaceRoot, 'node_modules', '@typescript', 'native-preview');
-    const projectNativePkg = join(absProjectRoot, 'node_modules', '@typescript', 'native-preview');
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed package path under node_modules
-    useTsgo = existsSync(workspaceNativePkg) || existsSync(projectNativePkg);
-  }
-
-  const bin = useTsgo ? 'tsgo' : 'tsc';
-  const packageName = useTsgo ? '@typescript/native-preview' : 'typescript';
+  // Pick the compiler to run: native `tsc` from @typescript/native when
+  // present, then legacy `tsgo`, then `tsc` from `typescript` — which under
+  // the side-by-side scheme is TypeScript 6 (classic), not the native
+  // compiler. Look in both the project root and the workspace root — a
+  // project-local install is valid.
+  const { bin, packageName } = detectCompiler(workspaceRoot, absProjectRoot, tsgo);
 
   // Resolve the compiler through the owning package's `bin` field and
   // launch Node scripts via process.execPath — `.bin` shims are shell
