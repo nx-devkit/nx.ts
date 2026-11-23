@@ -67,6 +67,7 @@
       "packages/commitlint",
       "packages/cspell",
       "packages/turbo",
+      "packages/deploy",
       "packages/drizzle"
     ],
     "projectsRelationship": "independent",
