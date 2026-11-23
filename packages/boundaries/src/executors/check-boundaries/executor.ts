@@ -126,9 +126,16 @@ function scanProject(
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a workspace source file under an inferred project root
       source = readFileSync(fileAbs, 'utf8');
     } catch (error) {
-      logger.warn(
-        `check-boundaries: skipping unreadable file ${fileAbs}: ${(error as Error).message}`,
-      );
+      // An unreadable source file means unchecked imports — fail loudly
+      // rather than letting a partial scan pass the boundary gate.
+      violations.push({
+        kind: 'unreadable',
+        file: rel,
+        source: projectName,
+        target: '(unreadable file)',
+        message: `${projectName}: cannot read ${rel}: ${(error as Error).message}`,
+        hint: 'fix file permissions or remove the unreadable file, then re-run check-boundaries',
+      });
       continue;
     }
     const records = collectImports(fileAbs, source);

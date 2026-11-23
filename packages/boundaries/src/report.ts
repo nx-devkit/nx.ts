@@ -1,6 +1,6 @@
 import type { ReportFormat } from './types.ts';
 
-export type ViolationKind = 'constraint' | 'external' | 'circular';
+export type ViolationKind = 'constraint' | 'external' | 'circular' | 'unreadable';
 
 export interface BoundaryViolation {
   kind: ViolationKind;

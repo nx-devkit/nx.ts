@@ -182,7 +182,10 @@ export function externalPackageName(specifier: string): string | null {
 
 export function loadTsPaths(workspaceRoot: string): PathMapping[] {
   const out: PathMapping[] = [];
-  for (const file of ['tsconfig.base.json', 'tsconfig.json']) {
+  // TypeScript `extends` semantics: a derived tsconfig's `paths` replaces the
+  // base's `paths` wholesale (they are not merged). Check tsconfig.json first
+  // and fall back to tsconfig.base.json only when it defines no paths.
+  for (const file of ['tsconfig.json', 'tsconfig.base.json']) {
     const tsconfigPath = join(workspaceRoot, file);
     let raw: { compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> } };
     try {
@@ -191,10 +194,13 @@ export function loadTsPaths(workspaceRoot: string): PathMapping[] {
     } catch {
       continue; // No readable tsconfig — paths simply absent
     }
+    const paths = raw.compilerOptions?.paths ?? {};
+    if (Object.keys(paths).length === 0) continue;
     const baseDir = resolve(workspaceRoot, raw.compilerOptions?.baseUrl ?? '.');
-    for (const [pattern, targets] of Object.entries(raw.compilerOptions?.paths ?? {})) {
+    for (const [pattern, targets] of Object.entries(paths)) {
       out.push({ pattern, targets, baseDir });
     }
+    break;
   }
   return out;
 }
