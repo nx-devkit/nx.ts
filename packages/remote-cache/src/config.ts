@@ -135,13 +135,20 @@ export function loadConfig(env: Env = process.env): RemoteCacheConfig {
         : DEFAULT_MAX_ARTIFACT_BYTES,
   };
   if (env['NXRC_TOKEN_SECRET'] !== undefined) config.tokenSecret = env['NXRC_TOKEN_SECRET'];
+  validateNumbers(config, 'env');
+  return config;
+}
+
+/** Numeric fields must be positive integers — NaN/0/non-int disables limits. */
+function validateNumbers(config: RemoteCacheConfig, source: string): void {
   if (!Number.isInteger(config.port) || config.port <= 0) {
-    throw new Error(`invalid NXRC_PORT: ${env['NXRC_PORT']}`);
+    throw new Error(`${source}: port must be a positive integer, got ${config.port}`);
   }
   if (!Number.isInteger(config.maxArtifactBytes) || config.maxArtifactBytes <= 0) {
-    throw new Error(`invalid NXRC_MAX_ARTIFACT_BYTES: ${env['NXRC_MAX_ARTIFACT_BYTES']}`);
+    throw new Error(
+      `${source}: maxArtifactBytes must be a positive integer, got ${config.maxArtifactBytes}`,
+    );
   }
-  return config;
 }
 
 /**
@@ -176,12 +183,7 @@ export function loadConfigFile(path: string): RemoteCacheConfig {
         : DEFAULT_MAX_ARTIFACT_BYTES,
   };
   if (typeof d['tokenSecret'] === 'string') config.tokenSecret = d['tokenSecret'];
-  if (!Number.isInteger(config.port) || config.port <= 0) {
-    throw new Error(`${path}: port must be a positive integer`);
-  }
-  if (!Number.isInteger(config.maxArtifactBytes) || config.maxArtifactBytes <= 0) {
-    throw new Error(`${path}: maxArtifactBytes must be a positive integer`);
-  }
+  validateNumbers(config, path);
   return config;
 }
 
