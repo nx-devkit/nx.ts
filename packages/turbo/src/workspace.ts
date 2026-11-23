@@ -71,10 +71,14 @@ export function discoverWorkspacePackages(workspaceRoot: string): WorkspacePacka
 export function expandWorkspaceGlobs(workspaceRoot: string, patterns: string[]): string[] {
   const includes = patterns.filter((p) => !p.startsWith('!'));
   const excludes = patterns.filter((p) => p.startsWith('!')).map((p) => p.slice(1));
+  // All-negation pattern lists have no positive match rule — include every
+  // walked dir not excluded. An entirely empty list stays empty (an explicit
+  // `workspaces: []` means "no packages").
+  const includeAll = includes.length === 0 && excludes.length > 0;
   const dirs: string[] = [];
   for (const dir of walkPackageDirs(resolve(workspaceRoot), '')) {
     if (
-      includes.some((g) => minimatch(dir, g, { dot: true })) &&
+      (includeAll || includes.some((g) => minimatch(dir, g, { dot: true }))) &&
       !excludes.some((g) => minimatch(dir, g, { dot: true }))
     ) {
       dirs.push(dir);

@@ -52,7 +52,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitTurboOptions> = [
 
     const rootPkg = readRootPackage(workspaceRoot);
 
-    for (const configFile of sortPathsByDepth(configFiles)) {
+    for (const rawConfigFile of sortPathsByDepth(configFiles)) {
+      // Nx's glob expander can emit a leading "./" — normalize so the path
+      // stays canonical in inputs and result keys.
+      const configFile = rawConfigFile.startsWith('./') ? rawConfigFile.slice(2) : rawConfigFile;
       const dir = dirname(configFile).replace(/\\/g, '/');
       const isRoot = dir === '.';
       if (!isRoot && isSkippedDir(dir)) {

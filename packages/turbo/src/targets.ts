@@ -63,10 +63,11 @@ export function buildTaskTarget(
 function mapDependsOn(deps: string[], ctx: TaskTargetContext): TargetDependencyConfig[] {
   const out: TargetDependencyConfig[] = [];
   for (const dep of deps) {
-    if (typeof dep !== 'string' || dep === '') continue;
+    if (typeof dep !== 'string' || dep.trim() === '') continue;
     if (dep.startsWith('^')) {
       // ^task — the task on every dependency project.
-      out.push({ target: dep.slice(1), dependencies: true });
+      const target = dep.slice(1);
+      if (target !== '') out.push({ target, dependencies: true });
     } else if (dep.startsWith('//#')) {
       // //#task — the task on the root package. Unresolvable when the
       // root package.json has no name.
