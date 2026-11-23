@@ -313,6 +313,19 @@
         "vitest": "^5.0.0",
       },
     },
+    "packages/remote-cache": {
+      "name": "@nx-devkit/remote-cache",
+      "version": "0.0.1",
+      "bin": {
+        "nx-remote-cache": "./dist/cli.mjs",
+      },
+      "devDependencies": {
+        "@types/node": "^26.6.6",
+        "tsdown": "^0.23.7",
+        "typescript": "^6.0.3",
+        "vitest": "^5.1.0",
+      },
+    },
     "packages/skill": {
       "name": "@nx-devkit/skill",
       "version": "0.1.24",
@@ -1017,6 +1030,8 @@
     "@nx-devkit/prepare-for-release": ["@nx-devkit/prepare-for-release@workspace:packages/prepare-for-release"],
 
     "@nx-devkit/release": ["@nx-devkit/release@workspace:packages/release"],
+
+    "@nx-devkit/remote-cache": ["@nx-devkit/remote-cache@workspace:packages/remote-cache"],
 
     "@nx-devkit/skill": ["@nx-devkit/skill@workspace:packages/skill"],
 
