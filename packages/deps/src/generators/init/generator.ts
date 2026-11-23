@@ -5,7 +5,30 @@ export interface NxDepsInitOptions {
   pluginPath?: string;
 }
 
-const PEER_DEPS: Record<string, string> = { syncpack: '^15.0.0' };
+const SYNCPEER_DEPS: Record<string, string> = { syncpack: '^15.0.0' };
+const MANYPKG_DEPS: Record<string, string> = { '@manypkg/cli': '^0.24.0' };
+
+function wantsManypkg(tree: Tree): boolean {
+  if (tree.exists('.manypkg.json')) return true;
+  const pkgRaw = tree.read('package.json');
+  if (!pkgRaw) return false;
+  try {
+    const pkg = JSON.parse(pkgRaw.toString('utf8')) as Record<string, unknown>;
+    for (const field of ['dependencies', 'devDependencies']) {
+      const deps = pkg[field];
+      if (
+        typeof deps === 'object' &&
+        deps !== null &&
+        ('@manypkg/cli' in deps || 'manypkg' in deps)
+      ) {
+        return true;
+      }
+    }
+  } catch {
+    // malformed root package.json — fall back to syncpack-only install
+  }
+  return false;
+}
 
 const DEFAULT_PLUGIN_PATH = '@nx-devkit/deps';
 
@@ -13,11 +36,14 @@ export async function initGenerator(
   tree: Tree,
   options: NxDepsInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
   const projectName = resolveRootProjectName(tree) ?? '{root-project}';
 
   registerPlugin(tree, pluginPath);
-  const installDeps = installPeerDeps(tree, PEER_DEPS);
+  const installDeps = installPeerDeps(tree, {
+    ...SYNCPEER_DEPS,
+    ...(wantsManypkg(tree) ? MANYPKG_DEPS : {}),
+  });
 
   const checklist = [
     `1. The plugin is registered (${pluginPath}) — workspaces with a syncpack config (or manypkg on the root) now have deps:check targets.`,

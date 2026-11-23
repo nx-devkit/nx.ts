@@ -15,7 +15,7 @@ export interface NxDepsPluginOptions {
 // Which can host a "syncpack" key or — at the workspace root only — a
 // workspaces + manypkg fallback.
 const DEPS_GLOB =
-  '**/{syncpack.config.{js,cjs,mjs,ts},.syncpackrc,.syncpackrc.{json,yaml,yml,js,cjs,mjs,ts},package.json}';
+  '**/{syncpack.config.{js,cjs,mjs,ts},.syncpackrc,.syncpackrc.{json,yaml,yml,js,cjs,mjs,ts},.manypkg.json,package.json}';
 
 const SYNPACK_CONFIG_NAMES = new Set([
   '.syncpackrc',
@@ -66,7 +66,10 @@ function hasSyncpackKey(pkg: Record<string, unknown>): boolean {
 
 function hasWorkspaces(pkg: Record<string, unknown>): boolean {
   const ws = pkg.workspaces;
-  return (Array.isArray(ws) && ws.length > 0) || (typeof ws === 'object' && ws !== null);
+  return (
+    (Array.isArray(ws) && ws.length > 0) ||
+    (typeof ws === 'object' && ws !== null && Object.keys(ws).length > 0)
+  );
 }
 
 function hasManypkgDep(pkg: Record<string, unknown>): boolean {
@@ -90,7 +93,7 @@ function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
   return segments.includes('..') || segments.includes('node_modules');
 }
 
-type DirEntry = { syncpack: string[]; packageJson: string[] };
+type DirEntry = { syncpack: string[]; manypkg: string[]; packageJson: string[] };
 
 // One inference per owning directory — syncpack files and package.json hosts
 // are grouped by directory key ('' for the workspace root).
@@ -99,12 +102,15 @@ function groupByDir(configFiles: readonly string[]): Map<string, DirEntry> {
   for (const configFile of [...configFiles].sort()) {
     const dir = dirname(configFile).replace(/\\/g, '/');
     const key = dir === '.' ? '' : dir;
-    const entry = byDir.get(key) ?? { syncpack: [], packageJson: [] };
+    const entry = byDir.get(key) ?? { syncpack: [], manypkg: [], packageJson: [] };
     const base = configFile.split('/').pop() ?? '';
     if (base === 'package.json') {
       entry.packageJson.push(configFile);
-    } else {
+    } else if (isSyncpackConfig(base)) {
       entry.syncpack.push(configFile);
+    } else {
+      // Glob admits no other names — .manypkg.json lands here.
+      entry.manypkg.push(configFile);
     }
     byDir.set(key, entry);
   }
@@ -116,7 +122,10 @@ function pickTool(dir: string, entry: DirEntry, pkgs: Array<Record<string, unkno
   if (entry.syncpack.length > 0 || pkgs.some(hasSyncpackKey)) {
     return 'syncpack';
   }
-  if (dir === '' && pkgs.some((p) => hasWorkspaces(p) && hasManypkgDep(p))) {
+  if (
+    dir === '' &&
+    (entry.manypkg.length > 0 || pkgs.some((p) => hasWorkspaces(p) && hasManypkgDep(p)))
+  ) {
     return 'manypkg';
   }
   return null;
@@ -144,7 +153,7 @@ function buildTargets(
       options: { command, cwd: '{projectRoot}' },
     },
   };
-  if (tool === 'syncpack' && fixTarget) {
+  if (tool === 'syncpack' && fixTarget && fixTargetName !== checkTargetName) {
     targets[fixTargetName] = {
       executor: 'nx:run-commands',
       cache: false,
@@ -173,10 +182,10 @@ export const createNodesV2: CreateNodesV2<NxDepsPluginOptions> = [
         .filter((p): p is Record<string, unknown> => p !== null);
 
       const tool = pickTool(dir, entry, pkgs);
-      const winner = [...entry.syncpack, ...entry.packageJson].at(0);
+      const winner = [...entry.syncpack, ...entry.manypkg, ...entry.packageJson].at(0);
       if (tool === null || winner === undefined) continue;
 
-      const files = [...entry.syncpack, ...entry.packageJson];
+      const files = [...entry.syncpack, ...entry.manypkg, ...entry.packageJson];
       const targets = buildTargets(tool, dir, files, checkTargetName, fixTargetName, fixTarget);
       results.push([winner, { projects: { [dir]: { root: dir, targets } } }]);
     }
