@@ -117,6 +117,9 @@ describe('detectCompiler', () => {
 describe('typecheckExecutor', () => {
   it('fails when the project is missing from projectsConfigurations', async () => {
     const { workspaceRoot } = makeWorkspace();
+    // A workspace-root tsconfig must not save a ghost project — the guard
+    // fires before the config check would probe it.
+    writeFileSync(join(workspaceRoot, 'tsconfig.json'), '{}');
     const result = await typecheckExecutor(
       {},
       { root: workspaceRoot, projectName: 'ghost', projectsConfigurations: { projects: {} } },
@@ -149,7 +152,9 @@ describe('detectNativeTypescript', () => {
     );
   });
 
-  it('project declaration wins over the workspace root', async () => {
+  it('applies native-first precedence across both manifests', async () => {
+    // Same precedence as detectCompiler: a root-declared @typescript/native
+    // still wins over a project-local native-preview.
     const { workspaceRoot, projectRoot } = makeWorkspace();
     writeFileSync(
       join(projectRoot, 'package.json'),
@@ -160,7 +165,7 @@ describe('detectNativeTypescript', () => {
       JSON.stringify({ devDependencies: { '@typescript/native': 'npm:typescript@^7.0.2' } }),
     );
     await expect(detectNativeTypescript('packages/lib', workspaceRoot)).resolves.toBe(
-      '@typescript/native-preview',
+      '@typescript/native',
     );
   });
 

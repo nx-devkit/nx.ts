@@ -57,20 +57,23 @@ export async function detectNativeTypescript(
   projectRoot: string,
   workspaceRoot: string,
 ): Promise<string | false> {
-  // Project manifest wins; the workspace root manifest is the fallback —
-  // the init/package generators declare the compiler in root devDeps so
-  // every project shares it. Without the fallback the typecheck target's
-  // hashed externalDependencies would never see a root-declared compiler.
+  // Collect declarations from both manifests — the init/package generators
+  // declare the compiler in root devDeps shared by every project — then apply
+  // the same native-first precedence as detectCompiler so the hashed
+  // externalDependency always matches the compiler the executor runs.
+  const declared = new Set<string>();
   for (const dir of [resolve(workspaceRoot, projectRoot), resolve(workspaceRoot)]) {
     try {
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is a package.json under a known workspace root
       const content = await readFile(join(dir, 'package.json'), 'utf8');
       const dep = declaredNativeDep(JSON.parse(content) as Record<string, unknown>);
-      if (dep) return dep;
+      if (dep) declared.add(dep);
     } catch {
       // no manifest at this level — keep looking
     }
   }
+  if (declared.has('@typescript/native')) return '@typescript/native';
+  if (declared.has('@typescript/native-preview')) return '@typescript/native-preview';
   return false;
 }
 

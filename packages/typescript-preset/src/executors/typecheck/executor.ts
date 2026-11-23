@@ -92,20 +92,19 @@ export async function typecheckExecutor(
   const projects = context.projectsConfigurations?.projects ?? {};
   // eslint-disable-next-line security/detect-object-injection -- projectName comes from the Nx executor context
   const projectConfig = Object.hasOwn(projects, projectName) ? projects[projectName] : undefined;
-  const projectRoot = projectConfig?.root ?? '';
+  if (projectConfig === undefined) {
+    console.error(
+      `[nx-devkit/typecheck] Project "${projectName}" not found in projectsConfigurations — refusing to typecheck the workspace root`,
+    );
+    return { success: false };
+  }
+  const projectRoot = projectConfig.root;
   const absProjectRoot = resolve(workspaceRoot, projectRoot);
   const configPath = join(absProjectRoot, configFile);
 
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- config filename comes from executor schema options joined to the project root
   if (!existsSync(configPath)) {
     console.error(`[nx-devkit/typecheck] Config not found: ${configPath}`);
-    return { success: false };
-  }
-
-  if (projectConfig === undefined) {
-    console.error(
-      `[nx-devkit/typecheck] Project "${projectName}" not found in projectsConfigurations — refusing to typecheck the workspace root`,
-    );
     return { success: false };
   }
 
