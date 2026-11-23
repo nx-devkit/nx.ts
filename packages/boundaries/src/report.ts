@@ -53,7 +53,7 @@ export function renderMermaid(violations: BoundaryViolation[]): string {
   const lines = ['graph LR'];
   const seenEdges = new Set<string>();
   for (const v of violations) {
-    const key = `${v.kind}${v.source}${v.target}`;
+    const key = `${v.kind}:${v.source}:${v.target}`;
     if (seenEdges.has(key)) continue;
     seenEdges.add(key);
     const edge =

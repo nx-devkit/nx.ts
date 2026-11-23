@@ -80,7 +80,9 @@ function projectNode(
               ],
               options: {
                 ...executorOptions,
-                project: info.name,
+                // Root, not the resolved name — the executor's byRoot
+                // lookup survives npm-name ≠ graph-name divergence.
+                project: projectRoot,
               },
             },
           },

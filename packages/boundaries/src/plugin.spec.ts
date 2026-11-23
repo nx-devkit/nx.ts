@@ -84,12 +84,12 @@ describe('@nx-devkit/boundaries createNodesV2', () => {
     expect(webTarget.executor).toBe('@nx-devkit/boundaries:check-boundaries');
     expect(webTarget.cache).toBe(true);
     // Per-project targets are scoped — nx affected only reruns impacted checks.
-    expect(webTarget.options).toMatchObject({ project: '@acme/web' });
+    expect(webTarget.options).toMatchObject({ project: 'apps/web' });
     expect(webTarget.inputs).toContain('{projectRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}');
     expect(webTarget.inputs).toContain('{workspaceRoot}/**/package.json');
 
     expect(util![1].projects!['libs/util']!.targets!['check-boundaries']!.options).toMatchObject({
-      project: '@acme/util',
+      project: 'libs/util',
     });
   });
 
@@ -196,7 +196,7 @@ describe('@nx-devkit/boundaries createNodesV2', () => {
     );
     const appEntry = results.find(([f]) => f === 'packages/app/package.json')!;
     expect(appEntry[1].projects!['packages/app']!.targets!['check-boundaries']!.options).toEqual(
-      expect.objectContaining({ depConstraints, project: 'app' }),
+      expect.objectContaining({ depConstraints, project: 'packages/app' }),
     );
   });
 
@@ -239,9 +239,9 @@ describe('@nx-devkit/boundaries createNodesV2', () => {
     const unnamed = results.find(([f]) => f === 'libs/unnamed/package.json')!;
     expect(
       renamed[1].projects!['libs/renamed']!.targets!['check-boundaries']!.options,
-    ).toMatchObject({ project: 'nx-renamed' });
+    ).toMatchObject({ project: 'libs/renamed' });
     expect(
       unnamed[1].projects!['libs/unnamed']!.targets!['check-boundaries']!.options,
-    ).toMatchObject({ project: 'unnamed' });
+    ).toMatchObject({ project: 'libs/unnamed' });
   });
 });
