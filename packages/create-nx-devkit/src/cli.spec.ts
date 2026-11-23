@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -212,7 +212,7 @@ describe('run', () => {
   it('uses the dir basename as workspace name when no package.json name exists', () => {
     run({ ...parseArgs(['--pm', 'npm']), pm: 'npm' }, workDir, execMock as never, {});
     const nxCall = execMock.mock.calls.find((c) => (c[1] as string[]).includes('g'));
-    expect(nxCall![1]).toContain(workDir.split('/').pop());
+    expect(nxCall![1]).toContain(basename(workDir));
   });
 
   it('runs compat fixups after the generator', () => {

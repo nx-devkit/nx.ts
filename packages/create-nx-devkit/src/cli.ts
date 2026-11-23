@@ -10,7 +10,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Bound each install/generator run so a stalled package-manager process
@@ -285,14 +285,23 @@ export function applyWorkspaceFixups(targetDir: string, packageDir: string, name
 
   const baseConfigPath = join(targetDir, 'tsconfig.base.json');
   if (existsSync(baseConfigPath)) {
-    const cfg = JSON.parse(readFileSync(baseConfigPath, 'utf8')) as {
-      compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
-    };
+    let cfg: { compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> } };
+    try {
+      cfg = JSON.parse(readFileSync(baseConfigPath, 'utf8'));
+    } catch {
+      // JSONC (comments/trailing commas) — leave the file untouched rather
+      // than crash after scaffolding.
+      return;
+    }
     const co = cfg.compilerOptions;
     if (co && 'baseUrl' in co) {
+      const baseUrl = co.baseUrl ?? '.';
       delete co.baseUrl;
       for (const [alias, targets] of Object.entries(co.paths ?? {})) {
-        co.paths![alias] = targets.map((t) => (t.startsWith('.') ? t : `./${t}`));
+        co.paths![alias] = targets.map((t) => {
+          const rebased = baseUrl === '.' ? t : `${baseUrl.replace(/\/$/, '')}/${t}`;
+          return rebased.startsWith('.') ? rebased : `./${rebased}`;
+        });
       }
       writeFileSync(baseConfigPath, `${JSON.stringify(cfg, null, 2)}\n`);
     }
@@ -306,7 +315,13 @@ function workspaceNameFrom(targetDir: string, opts: CreateOptions): string {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string };
     if (pkg.name && PACKAGE_NAME_PATTERN.test(pkg.name)) return pkg.name;
   }
-  return basename(targetDir);
+  const dirName = basename(targetDir);
+  if (!PACKAGE_NAME_PATTERN.test(dirName)) {
+    throw new Error(
+      `Cannot derive a valid npm package name from directory "${dirName}" — pass a name explicitly.`,
+    );
+  }
+  return dirName;
 }
 
 export function run(
@@ -316,6 +331,11 @@ export function run(
   env: NodeJS.ProcessEnv = process.env,
 ): void {
   const targetDir = resolve(cwd, opts.dir ?? opts.name ?? '.');
+  if (relative(cwd, targetDir).split(/[\\/]/).includes('..')) {
+    throw new Error(
+      `Target directory must be inside the current directory: ${opts.dir ?? opts.name}`,
+    );
+  }
   mkdirSync(targetDir, { recursive: true });
 
   const pm: PackageManager = opts.pm ?? detectPackageManager(targetDir, env);
@@ -331,6 +351,14 @@ export function run(
     );
   }
 
+  if (
+    opts.skipInstall &&
+    !existsSync(join(targetDir, 'node_modules', '@nx-devkit', 'typescript'))
+  ) {
+    throw new Error(
+      '--no-install requires @nx-devkit/typescript already installed in the target directory',
+    );
+  }
   console.log(`Using package manager: ${pm}`);
   console.log(`Installing bootstrap deps: ${BOOTSTRAP_DEPS.join(', ')}`);
   if (!opts.skipInstall) {
