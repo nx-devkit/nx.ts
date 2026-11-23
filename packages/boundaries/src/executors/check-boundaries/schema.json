@@ -13,10 +13,65 @@
           "onlyDependOnLibsWithTags": {
             "type": "array",
             "items": { "type": "string" }
+          },
+          "notDependOnLibsWithTags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "allowedExternalDeps": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "bannedExternalDeps": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "allowedExternalImports": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "bannedExternalImports": {
+            "type": "array",
+            "items": { "type": "string" }
           }
         },
-        "required": ["sourceTag", "onlyDependOnLibsWithTags"]
+        "required": ["sourceTag"]
       }
+    },
+    "project": {
+      "type": "string",
+      "description": "Restrict the check to one project (name or root) — set by the inferred per-project targets."
+    },
+    "inferTags": {
+      "description": "Derive tags from the directory layout for projects without nx.tags. Explicit tags always win.",
+      "anyOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "properties": {
+            "dir": { "type": "boolean" },
+            "types": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "checkCircularDependencies": {
+      "type": "boolean",
+      "description": "Report circular dependencies detected in the project graph.",
+      "default": true
+    },
+    "format": {
+      "type": "string",
+      "enum": ["text", "json", "mermaid"],
+      "description": "Report output format.",
+      "default": "text"
     }
   },
   "additionalProperties": false

@@ -49,31 +49,69 @@ Nx merges `nx.*` metadata into the project whether it was inferred or declared, 
 
 ## What it does
 
-- Infers one `check-boundaries` target on the workspace root — **only when at least one project declares `nx.tags`** (a tagless workspace would be a false green).
+- Infers a cacheable `check-boundaries` target **on every tagged project** plus a workspace-root aggregate — `nx affected -t check-boundaries` reruns only impacted checks while the root target stays the single gate.
 - The executor loads the project graph, scans each tagged project's sources with the TypeScript parser (`import`, `export ... from`, `import()`, `require()` — comments and strings can't produce false positives), resolves specifiers to workspace projects (relative paths, package names, tsconfig `paths`), and evaluates `depConstraints`.
-- Violations print `file:line — source (tags) cannot depend on target (tags) via "specifier"` and fail the target.
+- Detects **circular dependencies** from the project graph (`dependencies` edges; implicit deps excluded) and reports them alongside edge violations.
+- Violations print `file:line — source (tags) cannot depend on target (tags) via "specifier"` plus an actionable `hint:` line, and fail the target.
 
-Semantics match the official rule: constraints apply when `sourceTag` matches the importing project's tags; the target must share a tag with `onlyDependOnLibsWithTags`; untagged sources are permissive; self-imports are always allowed. Tag patterns support wildcards — `*` matches any project carrying at least one tag, and partial globs like `scope:*` expand `*`; in `onlyDependOnLibsWithTags`, `*` means "the target must be tagged".
+Semantics match the official rule: constraints apply when `sourceTag` matches the importing project's tags; the target must share a tag with `onlyDependOnLibsWithTags` and must not share a tag with `notDependOnLibsWithTags`; untagged sources are permissive; self-imports are always allowed. Tag patterns support wildcards — `*` matches any project carrying at least one tag, and partial globs like `scope:*` expand `*`; in `onlyDependOnLibsWithTags`, `*` means "the target must be tagged".
+
+## Tag inference
+
+Enforcement works zero-config: projects **without** `nx.tags` get tags derived from their directory layout — always `dir:<first-segment>` plus a `type:*` tag for known layouts (`apps/`/`app/` → `type:app`, `e2e/` → `type:e2e`, `libs/`/`lib/`/`packages/` → `type:lib`). Explicit `nx.tags` always win — declaring any tag disables inference for that project. Inferred tags are also written onto the project node, so `nx show project` displays them.
+
+Tune or disable via the `inferTags` plugin option:
+
+```jsonc
+"options": {
+  // false — only explicit nx.tags count (v1 behavior)
+  "inferTags": false,
+  // or: { "dir": false, "types": { "packages": ["type:lib"], "apps": [] } }
+  //   dir — add dir:<segment> (default true)
+  //   types — first-segment → tags map, merged over the defaults;
+  //           an empty array removes a default mapping
+}
+```
+
+## External dependencies
+
+Bare imports that don't resolve to a workspace project are treated as external packages and checked per constraint — parity with the ESLint rule's `allowedExternalImports` / `bannedExternalImports` (both spellings accepted):
+
+```jsonc
+"depConstraints": [
+  {
+    "sourceTag": "type:app",
+    "allowedExternalDeps": ["react", "react-*"],
+    "bannedExternalDeps": ["fs-extra"]
+  }
+]
+```
+
+When `allowedExternalDeps` is present, unlisted packages are banned; an empty array bans all. Node builtins (`fs`, `node:path`, …) are never treated as externals.
 
 ## Run
 
 ```bash
 npx nx check-boundaries        # or: npx nx run <root>:check-boundaries
+npx nx run app:check-boundaries
 npx nx affected -t check-boundaries
 ```
 
 ## Options
 
-| Option           | Default            | Description                                                                   |
-| ---------------- | ------------------ | ----------------------------------------------------------------------------- |
-| `depConstraints` | `[]`               | `[{ sourceTag, onlyDependOnLibsWithTags }]` — same shape as the official rule |
-| `targetName`     | `check-boundaries` | Inferred target name on the root project                                      |
+| Option                      | Default            | Description                                                                                                           |
+| --------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `depConstraints`            | `[]`               | `[{ sourceTag, onlyDependOnLibsWithTags?, notDependOnLibsWithTags?, allowedExternalDeps?, bannedExternalDeps? }]`     |
+| `targetName`                | `check-boundaries` | Inferred target name                                                                                                  |
+| `inferTags`                 | `true`             | `boolean \| { dir?, types? }` — derive tags from directory layout; explicit `nx.tags` always win                      |
+| `checkCircularDependencies` | `true`             | Report circular dependencies found in the project graph                                                               |
+| `format`                    | `text`             | `text` \| `json` \| `mermaid` — `json` writes a machine-readable report to stdout; `mermaid` draws the violated edges |
+
+Executor-only option (also settable via CLI, e.g. `--format=json`): `project` — restrict the check to a single project (the inferred per-project targets set it automatically).
 
 ## Non-goals (v1)
 
-- No circular-dependency detection
-- No npm/external-package constraints (`bannedExternalImports`)
-- No auto-fix
+- No auto-fix (violation output carries actionable `hint:` lines instead)
 
 ## License
 
