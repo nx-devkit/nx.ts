@@ -50,7 +50,7 @@ export { inferTestCiTargets } from './targets/test-ci.js';
 
 /** Single-quote a value for safe embedding in an nx:run-commands shell command. */
 function sq(v: string): string {
-  return `'${v.replace(/'/g, `'\''`)}'`;
+  return "'" + v.replace(/'/g, "'\\''") + "'";
 }
 
 const PLUGIN_SCOPE = 'nx-typescript';
