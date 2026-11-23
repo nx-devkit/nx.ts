@@ -55,6 +55,202 @@ function sq(v: string): string {
 
 const PLUGIN_SCOPE = 'nx-typescript';
 
+interface PresetProjectCtx {
+  relProjectRoot: string;
+  absProjectRoot: string;
+  projectRoot: string;
+  workspaceRoot: string;
+  targets: Record<string, TargetConfiguration>;
+  targetGroups: Record<string, string[]>;
+  technologies: string[];
+  tap: boolean;
+  coverage: boolean;
+  oxlint: boolean;
+  eslint: boolean;
+  biome: boolean;
+  oxfmt: boolean;
+  tsdown: boolean;
+  testGlob: string;
+  specGlob: string;
+  testCi: boolean | string;
+  ciTargetName: string;
+}
+
+async function addTestCiGroup(
+  ctx: PresetProjectCtx,
+  files: string[],
+  command: (file: string) => string,
+  inputs: TargetConfiguration['inputs'],
+): Promise<void> {
+  if (!ctx.testCi || files.length === 0) return;
+  const ci = inferTestCiTargets(ctx.relProjectRoot, {
+    ciTargetName: ctx.ciTargetName,
+    files,
+    command,
+    inputs,
+    technologies: ctx.technologies.slice(-1),
+  });
+  Object.assign(ctx.targets, ci.targets);
+  ctx.targetGroups['Test (CI)'] = ci.group;
+}
+
+const TEST_CI_EXTRA_GLOBS = ['**/*.test.tsx', '**/*.spec.tsx'];
+
+async function addTestTargets(ctx: PresetProjectCtx): Promise<void> {
+  const vitestConfigPath = await findVitestConfig(ctx.projectRoot, ctx.workspaceRoot);
+  const ciGlobs = [ctx.testGlob, ctx.specGlob, ...TEST_CI_EXTRA_GLOBS];
+  if (vitestConfigPath) {
+    const vitestTargets = inferVitestTargets(ctx.relProjectRoot, vitestConfigPath);
+    Object.assign(ctx.targets, vitestTargets);
+    // Vitest watch mode is a long-running process — `continuous` lets
+    // dependents declare it in `dependsOn`; the "Waiting for file
+    // changes" line vitest prints after each pass is the ready signal.
+    ctx.targets['test:watch'] = {
+      ...vitestTargets['test:watch'],
+      continuous: true,
+      readyWhen: { logMatches: 'Waiting for file changes' },
+    };
+    ctx.technologies.push('vitest');
+    const testFiles = ctx.testCi ? await globFilesAsync(ctx.absProjectRoot, ciGlobs) : [];
+    await addTestCiGroup(
+      ctx,
+      testFiles,
+      (file) => `vitest run ${sq(file)}`,
+      vitestTargets.test.inputs,
+    );
+    return;
+  }
+  const discovered = await globFilesAsync(ctx.absProjectRoot, ciGlobs);
+  if (discovered.length === 0) return;
+  const nativeTargets = inferNativeTestTargets(ctx.relProjectRoot, {
+    tap: ctx.tap,
+    coverage: ctx.coverage,
+    testGlob: ctx.testGlob,
+    specGlob: ctx.specGlob,
+  });
+  Object.assign(ctx.targets, nativeTargets);
+  ctx.technologies.push('node');
+  await addTestCiGroup(
+    ctx,
+    discovered,
+    (file) => `node --test --test-reporter spec ${sq(file)}`,
+    nativeTargets.test.inputs,
+  );
+}
+
+async function addLintTargets(ctx: PresetProjectCtx): Promise<boolean> {
+  // Lint-family configs fall back to the workspace root: a root
+  // .oxlintrc/eslint.config/biome.json applies lint/format to every
+  // project (the tools themselves walk up for config discovery).
+  // When the fallback is used, the root config becomes a cache
+  // input so edits invalidate the lint/format caches.
+  const projectOxlintrc = await findConfigFile(ctx.projectRoot, ctx.workspaceRoot, OXLINTRC_NAMES);
+  const oxlintrcPath =
+    projectOxlintrc ?? (await findConfigFile('.', ctx.workspaceRoot, OXLINTRC_NAMES));
+  const oxlintOwnsLint = ctx.oxlint && oxlintrcPath !== null;
+  if (oxlintOwnsLint) {
+    ctx.targets.lint = inferOxlintTarget(ctx.relProjectRoot);
+    ctx.technologies.push('oxlint');
+    if (!projectOxlintrc) {
+      ctx.targets.lint.inputs.push('{workspaceRoot}/.oxlintrc.*');
+    }
+    return true;
+  }
+  if (!ctx.eslint) return false;
+  const projectEslintConfig = await findConfigFile(
+    ctx.projectRoot,
+    ctx.workspaceRoot,
+    ESLINT_CONFIG_NAMES,
+  );
+  const eslintConfigPath =
+    projectEslintConfig ?? (await findConfigFile('.', ctx.workspaceRoot, ESLINT_CONFIG_NAMES));
+  if (!eslintConfigPath) return false;
+  ctx.targets.lint = inferEslintTarget(ctx.relProjectRoot);
+  ctx.technologies.push('eslint');
+  if (!projectEslintConfig) {
+    ctx.targets.lint.inputs.push('{workspaceRoot}/eslint.config.*');
+  }
+  return false;
+}
+
+async function addOxfmtTargets(ctx: PresetProjectCtx): Promise<boolean> {
+  // Format-family configs fall back to the workspace root too — a
+  // root .oxfmtrc/biome.json formats every project. oxfmt owns
+  // `format`/`format-check` over biome, mirroring the lint
+  // precedence where the oxc tool wins (oxlint > eslint > biome).
+  const projectOxfmtConfig = ctx.oxfmt
+    ? await findConfigFile(ctx.projectRoot, ctx.workspaceRoot, OXFMT_CONFIG_NAMES)
+    : null;
+  // oxfmt itself walks ancestor dirs for its config — an intermediate
+  // `.oxfmtrc.json` in `libs/` covers every project beneath it.
+  const oxfmtConfigPath =
+    projectOxfmtConfig ??
+    (ctx.oxfmt
+      ? await findConfigUpwards(ctx.projectRoot, ctx.workspaceRoot, OXFMT_CONFIG_NAMES)
+      : null);
+  if (oxfmtConfigPath === null) return false;
+  const inferred = inferOxfmtTargets(ctx.relProjectRoot);
+  if (!projectOxfmtConfig) {
+    // The config lives outside the project — track its exact path.
+    const configInput = `{workspaceRoot}/${relative(ctx.workspaceRoot, oxfmtConfigPath).replaceAll('\\', '/')}`;
+    for (const t of Object.values(inferred)) {
+      t.inputs = [...t.inputs, configInput];
+    }
+  }
+  Object.assign(ctx.targets, inferred);
+  return true;
+}
+
+async function addBiomeTargets(
+  ctx: PresetProjectCtx,
+  oxlintOwnsLint: boolean,
+  oxfmtOwnsFormat: boolean,
+): Promise<void> {
+  if (!ctx.biome) return;
+  const projectBiomeConfig = await findConfigFile(
+    ctx.projectRoot,
+    ctx.workspaceRoot,
+    BIOME_CONFIG_NAMES,
+  );
+  const biomeConfigPath =
+    projectBiomeConfig ?? (await findConfigFile('.', ctx.workspaceRoot, BIOME_CONFIG_NAMES));
+  if (!biomeConfigPath) return;
+  const biomeProvidesLint = !oxlintOwnsLint && !('lint' in ctx.targets && ctx.targets.lint);
+  const inferred = inferBiomeTargets(ctx.relProjectRoot, biomeProvidesLint);
+  if (oxfmtOwnsFormat) {
+    // oxfmt already claimed the format family — biome can still
+    // contribute its lint fallback, nothing more.
+    delete inferred.format;
+    delete inferred['format-check'];
+  }
+  ctx.technologies.push('biome');
+  if (!projectBiomeConfig) {
+    // Copy before extending — inferBiomeTargets shares the
+    // module-level BIOME_INPUTS array across targets/projects.
+    for (const t of Object.values(inferred)) {
+      t.inputs = [...t.inputs, '{workspaceRoot}/biome.json', '{workspaceRoot}/biome.jsonc'];
+    }
+  }
+  Object.assign(ctx.targets, inferred);
+}
+
+async function addBuildTargets(ctx: PresetProjectCtx): Promise<void> {
+  if (!ctx.tsdown) return;
+  const tsdownConfigPath = await findConfigFile(
+    ctx.projectRoot,
+    ctx.workspaceRoot,
+    TSDOWN_CONFIG_NAMES,
+  );
+  if (
+    tsdownConfigPath ||
+    (await hasConfigFreeTsdownEntry(resolve(ctx.workspaceRoot, ctx.projectRoot)))
+  ) {
+    ctx.targets.build = inferTsdownBuildTarget(ctx.relProjectRoot);
+    ctx.targets['build:watch'] = inferTsdownWatchTarget(ctx.relProjectRoot);
+    ctx.technologies.push('tsdown');
+  }
+}
+
 export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
   '**/tsconfig*.json',
   async (configFiles, options = {}, context) => {
@@ -144,175 +340,31 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         typecheck: typecheckTarget,
       };
 
-      const vitestConfigPath = await findVitestConfig(projectRoot, workspaceRoot);
-      if (vitestConfigPath) {
-        const vitestTargets = inferVitestTargets(relProjectRoot, vitestConfigPath);
-        Object.assign(targets, vitestTargets);
-        // Vitest watch mode is a long-running process — `continuous` lets
-        // dependents declare it in `dependsOn`; the "Waiting for file
-        // changes" line vitest prints after each pass is the ready signal.
-        targets['test:watch'] = {
-          ...vitestTargets['test:watch'],
-          continuous: true,
-          readyWhen: { logMatches: 'Waiting for file changes' },
-        };
-        technologies.push('vitest');
-        if (testCi) {
-          const testFiles = await globFilesAsync(absProjectRoot, [
-            testGlob,
-            specGlob,
-            '**/*.test.tsx',
-            '**/*.spec.tsx',
-          ]);
-          if (testFiles.length > 0) {
-            const ci = inferTestCiTargets(relProjectRoot, {
-              ciTargetName,
-              files: testFiles,
-              command: (file) => `vitest run ${sq(file)}`,
-              inputs: vitestTargets.test.inputs,
-              outputs: vitestTargets.test.outputs,
-              technologies: ['vitest'],
-            });
-            Object.assign(targets, ci.targets);
-            targetGroups['Test (CI)'] = ci.group;
-          }
-        }
-      } else {
-        const discovered = await globFilesAsync(absProjectRoot, [
-          testGlob,
-          specGlob,
-          '**/*.test.tsx',
-          '**/*.spec.tsx',
-        ]);
-        if (discovered.length > 0) {
-          const nativeTargets = inferNativeTestTargets(relProjectRoot, {
-            tap,
-            coverage,
-            testGlob,
-            specGlob,
-          });
-          Object.assign(targets, nativeTargets);
-          technologies.push('node');
-          if (testCi) {
-            const testFiles = discovered;
-            if (testFiles.length > 0) {
-              const ci = inferTestCiTargets(relProjectRoot, {
-                ciTargetName,
-                files: testFiles,
-                command: (file) => `node --test --test-reporter spec ${sq(file)}`,
-                inputs: nativeTargets.test.inputs,
-                technologies: ['node'],
-              });
-              Object.assign(targets, ci.targets);
-              targetGroups['Test (CI)'] = ci.group;
-            }
-          }
-        }
-      }
-
-      // Lint-family configs fall back to the workspace root: a root
-      // .oxlintrc/eslint.config/biome.json applies lint/format to every
-      // project (the tools themselves walk up for config discovery).
-      // When the fallback is used, the root config becomes a cache
-      // input so edits invalidate the lint/format caches.
-      const projectOxlintrc = await findConfigFile(projectRoot, workspaceRoot, OXLINTRC_NAMES);
-      const oxlintrcPath =
-        projectOxlintrc ?? (await findConfigFile('.', workspaceRoot, OXLINTRC_NAMES));
-      const oxlintOwnsLint = oxlint && oxlintrcPath !== null;
-      if (oxlintOwnsLint) {
-        targets.lint = inferOxlintTarget(relProjectRoot);
-        technologies.push('oxlint');
-        if (!projectOxlintrc) {
-          targets.lint.inputs.push('{workspaceRoot}/.oxlintrc.*');
-        }
-      }
-
-      if (!oxlintOwnsLint && eslint) {
-        const projectEslintConfig = await findConfigFile(
-          projectRoot,
-          workspaceRoot,
-          ESLINT_CONFIG_NAMES,
-        );
-        const eslintConfigPath =
-          projectEslintConfig ?? (await findConfigFile('.', workspaceRoot, ESLINT_CONFIG_NAMES));
-        if (eslintConfigPath) {
-          targets.lint = inferEslintTarget(relProjectRoot);
-          technologies.push('eslint');
-          if (!projectEslintConfig) {
-            targets.lint.inputs.push('{workspaceRoot}/eslint.config.*');
-          }
-        }
-      }
-
-      // Format-family configs fall back to the workspace root too — a
-      // root .oxfmtrc/biome.json formats every project. oxfmt owns
-      // `format`/`format-check` over biome, mirroring the lint
-      // precedence where the oxc tool wins (oxlint > eslint > biome).
-      const projectOxfmtConfig = oxfmt
-        ? await findConfigFile(projectRoot, workspaceRoot, OXFMT_CONFIG_NAMES)
-        : null;
-      // oxfmt itself walks ancestor dirs for its config — an intermediate
-      // `.oxfmtrc.json` in `libs/` covers every project beneath it.
-      const oxfmtConfigPath =
-        projectOxfmtConfig ??
-        (oxfmt ? await findConfigUpwards(projectRoot, workspaceRoot, OXFMT_CONFIG_NAMES) : null);
-      const oxfmtOwnsFormat = oxfmtConfigPath !== null;
-      if (oxfmtOwnsFormat) {
-        const inferred = inferOxfmtTargets(relProjectRoot);
-        if (!projectOxfmtConfig && oxfmtConfigPath !== null) {
-          // The config lives outside the project — track its exact path.
-          const configInput = `{workspaceRoot}/${relative(workspaceRoot, oxfmtConfigPath).replaceAll('\\', '/')}`;
-          for (const t of Object.values(inferred)) {
-            t.inputs = [...t.inputs, configInput];
-          }
-        }
-        Object.assign(targets, inferred);
-      }
-
-      if (biome) {
-        const projectBiomeConfig = await findConfigFile(
-          projectRoot,
-          workspaceRoot,
-          BIOME_CONFIG_NAMES,
-        );
-        const biomeConfigPath =
-          projectBiomeConfig ?? (await findConfigFile('.', workspaceRoot, BIOME_CONFIG_NAMES));
-        if (biomeConfigPath) {
-          const biomeProvidesLint = !oxlintOwnsLint && !('lint' in targets && targets.lint);
-          const inferred = inferBiomeTargets(relProjectRoot, biomeProvidesLint);
-          if (oxfmtOwnsFormat) {
-            // oxfmt already claimed the format family — biome can still
-            // contribute its lint fallback, nothing more.
-            delete inferred.format;
-            delete inferred['format-check'];
-          }
-          technologies.push('biome');
-          if (!projectBiomeConfig) {
-            // Copy before extending — inferBiomeTargets shares the
-            // module-level BIOME_INPUTS array across targets/projects.
-            for (const t of Object.values(inferred)) {
-              t.inputs = [...t.inputs, '{workspaceRoot}/biome.json', '{workspaceRoot}/biome.jsonc'];
-            }
-          }
-          Object.assign(targets, inferred);
-        }
-      }
-
-      if (tsdown) {
-        const tsdownConfigPath = await findConfigFile(
-          projectRoot,
-          workspaceRoot,
-          TSDOWN_CONFIG_NAMES,
-        );
-        if (
-          tsdownConfigPath ||
-          (await hasConfigFreeTsdownEntry(resolve(workspaceRoot, projectRoot)))
-        ) {
-          targets.build = inferTsdownBuildTarget(relProjectRoot);
-          targets['build:watch'] = inferTsdownWatchTarget(relProjectRoot);
-          technologies.push('tsdown');
-        }
-      }
+      const ctx: PresetProjectCtx = {
+        relProjectRoot,
+        absProjectRoot,
+        projectRoot,
+        workspaceRoot,
+        targets,
+        targetGroups,
+        technologies,
+        tap,
+        coverage,
+        oxlint,
+        eslint,
+        biome,
+        oxfmt,
+        tsdown,
+        testGlob,
+        specGlob,
+        testCi,
+        ciTargetName,
+      };
+      await addTestTargets(ctx);
+      const oxlintOwnsLint = await addLintTargets(ctx);
+      const oxfmtOwnsFormat = await addOxfmtTargets(ctx);
+      await addBiomeTargets(ctx, oxlintOwnsLint, oxfmtOwnsFormat);
+      await addBuildTargets(ctx);
 
       const result: [string, CreateNodesResult] = [
         configFile,
