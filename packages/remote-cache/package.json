@@ -1,0 +1,62 @@
+{
+  "name": "@nx-devkit/remote-cache",
+  "version": "0.0.1",
+  "private": false,
+  "description": "CREEP-safe self-hosted Nx remote cache: a minimal server + client implementing the Nx remote-cache OpenAPI spec with immutable artifacts (409 on existing keys), token-scoped branch/workspace namespacing, and content-hash verification.",
+  "keywords": [
+    "cache",
+    "nx",
+    "nx-plugin",
+    "r2",
+    "remote-cache",
+    "s3",
+    "self-hosted"
+  ],
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/remote-cache",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/remote-cache"
+  },
+  "bin": {
+    "nx-remote-cache": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "openapi.json",
+    "README.md",
+    "Dockerfile"
+  ],
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build -- --clean"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}
