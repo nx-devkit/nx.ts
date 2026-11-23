@@ -34,7 +34,7 @@ export interface NxDocsPluginOptions {
 - `astro.config.*` wins over `.vitepress/config.*` in the same project root — the target names would collide.
 - `docs:dev` and `docs:preview` are `continuous: true` and never cached; `docs:preview` `dependsOn` `<prefix>:build`.
 - `docs:build` is the only cached target. Outputs: `{projectRoot}/.vitepress/dist` + `{projectRoot}/dist` (vitepress), `{projectRoot}/dist` (astro).
-- Build inputs cover `{root}/**/*`, `.vitepress/**/*` (dot-dir — `**/*` does not reach it), and every matched config file; `dist`, `.vitepress/dist`, `.vitepress/cache`, `.astro`, `node_modules` are negated so prior outputs never poison the hash.
+- Build inputs cover `{projectRoot}/**/*`, `.vitepress/**/*` (dot-dir — `**/*` does not reach it), and every matched config file; `dist`, `.vitepress/dist`, `.vitepress/cache`, `.astro`, `node_modules` are negated so prior outputs never poison the hash.
 - Starlight = astro config containing `@astrojs/starlight` / `starlight(` — same `astro` CLI, reported via `metadata.technologies: ['astro', 'starlight']`.
 - Commands run `npx vitepress|astro <cmd>` with `cwd: '{projectRoot}'` — both tools auto-discover their config; never pass `--config`.
 - `node_modules` and `..`-escaping roots are skipped; the workspace-root project IS supported (`{workspaceRoot}` tokens).
