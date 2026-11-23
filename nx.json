@@ -52,6 +52,7 @@
       "packages/vitest",
       "packages/boundaries",
       "packages/typescript-preset",
+      "packages/docs",
       "packages/prepare-for-release",
       "packages/skill",
       "packages/skillspector",
