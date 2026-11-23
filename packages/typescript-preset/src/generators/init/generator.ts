@@ -157,6 +157,7 @@ const CONFIG_FILES: Record<string, string[]> = {
     'eslint.config.cts',
   ],
   biome: ['biome.json', 'biome.jsonc'],
+  oxfmt: ['.oxfmtrc.json', '.oxfmtrc.jsonc', 'oxfmt.config.ts', 'oxfmt.config.mts'],
   tsdown: [
     'tsdown.config.ts',
     'tsdown.config.js',
@@ -173,6 +174,7 @@ interface DetectedConfigs {
   oxlint: boolean;
   eslint: boolean;
   biome: boolean;
+  oxfmt: boolean;
   tsdown: boolean;
   tests: boolean;
 }
@@ -194,6 +196,7 @@ function detectConfigs(
     oxlint: false,
     eslint: false,
     biome: false,
+    oxfmt: false,
     tsdown: false,
     tests: false,
   };
@@ -302,6 +305,7 @@ const DEP_VERSIONS: Record<string, string> = {
   oxlint: '^1.0.0',
   eslint: '^9.0.0',
   '@biomejs/biome': '^2.0.0',
+  oxfmt: '^0.80.0',
   vitest: '^4.1.9',
   typescript: 'npm:@typescript/typescript6@^6.0.2',
   '@typescript/native': 'npm:typescript@^7.0.2',
@@ -338,6 +342,7 @@ function getMissingDevDeps(
     { when: 'oxlint', dep: 'oxlint', option: 'oxlint' },
     { when: 'eslint', dep: 'eslint', option: 'eslint' },
     { when: 'biome', dep: '@biomejs/biome', option: 'biome' },
+    { when: 'oxfmt', dep: 'oxfmt', option: 'oxfmt' },
     { when: 'vitest', dep: 'vitest' },
     { when: 'tsconfig', dep: 'typescript' },
     // legacy @typescript/native-preview (tsgo) also satisfies the native compiler
@@ -394,16 +399,17 @@ function targetLabel(
   const hasOxlint = enabled('oxlint') && (configs.oxlint || (rootConfigs?.oxlint ?? false));
   const hasEslint = enabled('eslint') && (configs.eslint || (rootConfigs?.eslint ?? false));
   const hasBiome = enabled('biome') && (configs.biome || (rootConfigs?.biome ?? false));
+  const hasOxfmt = enabled('oxfmt') && (configs.oxfmt || (rootConfigs?.oxfmt ?? false));
 
   const targets: string[] = [];
   if (configs.tsconfig) targets.push('typecheck');
   if (configs.vitest) targets.push('test', 'test:watch', 'test:coverage');
   else if (configs.tests) targets.push('test');
   if (hasOxlint || hasEslint) targets.push('lint');
-  if (hasBiome) {
-    targets.push('format', 'format-check');
-    if (!hasOxlint && !hasEslint) targets.push('lint');
-  }
+  // oxfmt owns format over biome (same precedence direction as lint);
+  // the reported target names are identical either way.
+  if (hasOxfmt || hasBiome) targets.push('format', 'format-check');
+  if (hasBiome && !hasOxlint && !hasEslint) targets.push('lint');
   if (enabled('tsdown') && configs.tsdown) targets.push('build', 'build:watch');
   return targets;
 }
@@ -472,6 +478,7 @@ function printSummary(
   console.log('  *.test.ts/spec.ts → test (native node --test, no vitest config needed)');
   console.log('  .oxlintrc.*       → lint (oxlint, highest precedence)');
   console.log('  eslint.config.*   → lint (eslint, fallback)');
+  console.log('  .oxfmtrc.*        → format, format-check (oxfmt, preferred)');
   console.log('  biome.json        → format, format-check, lint (fallback)');
   console.log('  tsdown.config.*   → build, build:watch');
   console.log('');

@@ -1,6 +1,6 @@
 # @nx-devkit/typescript
 
-The nx-devkit preset plugin: one entry in `nx.json` gives every project `typecheck`, `test`, `lint`, `format`, and `build` targets inferred from the config files it already has — `tsconfig.json`, `vitest.config.*`, `.oxlintrc.*`, `eslint.config.*`, `biome.json{,c}`, `tsdown.config.*`. No `project.json` anywhere.
+The nx-devkit preset plugin: one entry in `nx.json` gives every project `typecheck`, `test`, `lint`, `format`, and `build` targets inferred from the config files it already has — `tsconfig.json`, `vitest.config.*`, `.oxlintrc.*`, `eslint.config.*`, `biome.json{,c}`, `.oxfmtrc.*`/`oxfmt.config.*`, `tsdown.config.*`. No `project.json` anywhere.
 
 ## Install
 
@@ -15,7 +15,7 @@ This:
 1. Installs `@nx-devkit/typescript` (plus `nx`/`@nx/devkit` when missing) into the workspace — the plugin is fetched from the npx cache to a real devDependency
 2. Registers `@nx-devkit/typescript` in `nx.json` — removing standalone `@nx-devkit/*` entries, preserving your existing preset options and non-nx-devkit plugins
 3. Detects config files at the workspace root and in `packages/`, `apps/`, `libs/`, `projects/` (nested project roots are found recursively)
-4. Adds devDependencies for the tools your configs imply (`typescript`, `@typescript/native`, `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `tsdown`)
+4. Adds devDependencies for the tools your configs imply (`typescript`, `@typescript/native`, `vitest`, `oxlint`, `eslint`, `@biomejs/biome`, `oxfmt`, `tsdown`)
 5. Prints the detected projects and the targets each will get
 
 If the workspace has no Nx yet, the bootstrap installs `nx` + `@nx/devkit` first.
@@ -55,7 +55,7 @@ Depends on `@nx/devkit` `^24` (installed automatically); `typescript` is the one
 > **Caveat — `typescript@7` at the workspace root:** the native line no longer ships the JS compiler API (`ts.createSourceFile`, `readConfigFile`, …), which `nx@24` needs for its project-graph plugin. Use the Microsoft-recommended side-by-side aliases instead — `"typescript": "npm:@typescript/typescript6@^6"` keeps a TS 6 API for tools while `"@typescript/native": "npm:typescript@^7"` supplies the native `tsc` for real typecheck/build. A direct `typescript@7` devDep breaks `nx` on `nx@24`.
 
 ```bash
-bun add -D vitest oxlint eslint @biomejs/biome tsdown
+bun add -D vitest oxlint eslint @biomejs/biome oxfmt tsdown
 # tsgo (optional, not a declared peer): bun add -D @typescript/native@npm:typescript@^7
 ```
 
@@ -71,6 +71,7 @@ bun add -D vitest oxlint eslint @biomejs/biome tsdown
 | `.oxlintrc.*` + `oxlint: true`                                     | `lint`                                                             | `oxlint .`                                                                                                                           |
 | `eslint.config.*` + `eslint: true`                                 | `lint` (if oxlint did not provide it)                              | `eslint .`                                                                                                                           |
 | `biome.json{,c}` + `biome: true`                                   | `format`, `format-check` (+ `lint` if no earlier tool provided it) | `biome format --write .` / `biome format .` / `biome lint .`                                                                         |
+| `.oxfmtrc.{json,jsonc}` / `oxfmt.config.{ts,mts}` + `oxfmt: true`  | `format`, `format-check` (wins over biome)                         | `oxfmt --write .` / `oxfmt --check .`                                                                                                |
 | `tsdown.config.*`                                                  | `build`, `build:watch`                                             | `@nx-devkit/typescript:build` executor — `tsdown` / `tsdown --watch`                                                                 |
 | publishable `package.json` + `src/index.ts` (no `tsdown.config.*`) | `build`, `build:watch`                                             | config-free tsdown — same executor; publishable = `exports` or `bin` field, or `main` + `files`                                      |
 
@@ -81,6 +82,10 @@ Native `test` targets run `node --test` directly on `.ts` test files and require
 ### Lint precedence
 
 Each lint source requires its option enabled _and_ its config present: oxlint wins when `oxlint: true` and `.oxlintrc.*` exists; eslint wins when `eslint: true` and `eslint.config.*` exists; biome owns `lint` only when `biome: true`, `biome.json{,c}` exists, and no earlier tool provided `lint`. So `oxlint: false` lets ESLint win even with an `.oxlintrc.*` present, and `eslint: true` without an `eslint.config.*` still leaves `lint` for Biome. Biome's `format`/`format-check` are inferred regardless of who owns `lint`. Root-level lint/format configs are used as fallbacks for projects that lack their own.
+
+### Format precedence
+
+The format family follows the same direction as lint — the oxc tool wins: when `oxfmt: true` and an oxfmt config (`.oxfmtrc.json{,c}` or `oxfmt.config.{ts,mts}`) exists, oxfmt owns `format`/`format-check`; Biome then only contributes its `lint` fallback (if any). With `oxfmt: false` or no oxfmt config, Biome owns format as before. oxfmt allows only one config per directory and does not read a `package.json` key.
 
 ### Root project
 
@@ -112,6 +117,7 @@ Pass via the plugin tuple in `nx.json`:
         "oxlint": true,
         "eslint": true,
         "biome": true,
+        "oxfmt": true,
         "tsdown": true,
         "testGlob": "**/*.test.{ts,js,mts,mjs}",
         "specGlob": "**/*.spec.{ts,js,mts,mjs}",
@@ -134,6 +140,7 @@ Pass via the plugin tuple in `nx.json`:
 | `oxlint`      | `boolean` | `true`                        | `.oxlintrc.*` infers `lint`.                                                                                                                      |
 | `eslint`      | `boolean` | `true`                        | `eslint.config.*` infers `lint` (below oxlint in precedence).                                                                                     |
 | `biome`       | `boolean` | `true`                        | `biome.json{,c}` infers `format`/`format-check` (+ `lint` fallback).                                                                              |
+| `oxfmt`       | `boolean` | `true`                        | `.oxfmtrc.{json,jsonc}`/`oxfmt.config.{ts,mts}` infers `format`/`format-check` (wins over Biome).                                                 |
 | `tsdown`      | `boolean` | `true`                        | `tsdown.config.*` — or a publishable `package.json` + `src/index.ts` — infers `build`/`build:watch`.                                              |
 | `testGlob`    | `string`  | `"**/*.test.{ts,js,mts,mjs}"` | Glob for native test files.                                                                                                                       |
 | `specGlob`    | `string`  | `"**/*.spec.{ts,js,mts,mjs}"` | Glob for spec files.                                                                                                                              |

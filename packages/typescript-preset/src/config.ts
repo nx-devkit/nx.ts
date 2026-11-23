@@ -27,6 +27,15 @@ export const ESLINT_CONFIG_NAMES = [
 
 export const BIOME_CONFIG_NAMES = ['biome.json', 'biome.jsonc'];
 
+// oxfmt's documented search set — `.js`/`.cjs`/`.cts` configs load only via
+// `oxfmt -c`, never by walking the tree.
+export const OXFMT_CONFIG_NAMES = [
+  '.oxfmtrc.json',
+  '.oxfmtrc.jsonc',
+  'oxfmt.config.ts',
+  'oxfmt.config.mts',
+];
+
 export const TSDOWN_CONFIG_NAMES = [
   'tsdown.config.ts',
   'tsdown.config.js',

@@ -14,6 +14,7 @@ import { globMatchAsync } from './glob.js';
 import {
   BIOME_CONFIG_NAMES,
   ESLINT_CONFIG_NAMES,
+  OXFMT_CONFIG_NAMES,
   OXLINTRC_NAMES,
   TSDOWN_CONFIG_NAMES,
   detectNativeTypescript,
@@ -23,7 +24,7 @@ import {
 import { inferTypecheckTarget } from './targets/typecheck.js';
 import { inferNativeTestTargets } from './targets/native-test.js';
 import { inferOxlintTarget, inferEslintTarget } from './targets/lint.js';
-import { inferBiomeTargets } from './targets/format.js';
+import { inferBiomeTargets, inferOxfmtTargets } from './targets/format.js';
 import {
   hasConfigFreeTsdownEntry,
   inferTsdownBuildTarget,
@@ -38,7 +39,7 @@ export { inferTypecheckTarget } from './targets/typecheck.js';
 export { inferVitestTargets } from '@nx-devkit/internal';
 export { inferNativeTestTargets } from './targets/native-test.js';
 export { inferOxlintTarget, inferEslintTarget } from './targets/lint.js';
-export { inferBiomeTargets } from './targets/format.js';
+export { inferBiomeTargets, inferOxfmtTargets } from './targets/format.js';
 export {
   hasConfigFreeTsdownEntry,
   inferTsdownBuildTarget,
@@ -58,6 +59,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
     const oxlint = options.oxlint ?? true;
     const eslint = options.eslint ?? true;
     const biome = options.biome ?? true;
+    const oxfmt = options.oxfmt ?? true;
     const tsdown = options.tsdown ?? true;
     const testGlob = options.testGlob ?? '**/*.test.{ts,js,mts,mjs}';
     const specGlob = options.specGlob ?? '**/*.spec.{ts,js,mts,mjs}';
@@ -178,6 +180,32 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         }
       }
 
+      // Format-family configs fall back to the workspace root too — a
+      // root .oxfmtrc/biome.json formats every project. oxfmt owns
+      // `format`/`format-check` over biome, mirroring the lint
+      // precedence where the oxc tool wins (oxlint > eslint > biome).
+      const projectOxfmtConfig = oxfmt
+        ? await findConfigFile(projectRoot, workspaceRoot, OXFMT_CONFIG_NAMES)
+        : null;
+      const oxfmtConfigPath =
+        projectOxfmtConfig ??
+        (oxfmt ? await findConfigFile('.', workspaceRoot, OXFMT_CONFIG_NAMES) : null);
+      const oxfmtOwnsFormat = oxfmtConfigPath !== null;
+      if (oxfmtOwnsFormat) {
+        const inferred = inferOxfmtTargets(relProjectRoot);
+        if (!projectOxfmtConfig) {
+          for (const t of Object.values(inferred)) {
+            t.inputs = [
+              ...t.inputs,
+              '{workspaceRoot}/.oxfmtrc.json',
+              '{workspaceRoot}/.oxfmtrc.jsonc',
+              '{workspaceRoot}/oxfmt.config.*',
+            ];
+          }
+        }
+        Object.assign(targets, inferred);
+      }
+
       if (biome) {
         const projectBiomeConfig = await findConfigFile(
           projectRoot,
@@ -189,6 +217,12 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         if (biomeConfigPath) {
           const biomeProvidesLint = !oxlintOwnsLint && !('lint' in targets && targets.lint);
           const inferred = inferBiomeTargets(relProjectRoot, biomeProvidesLint);
+          if (oxfmtOwnsFormat) {
+            // oxfmt already claimed the format family — biome can still
+            // contribute its lint fallback, nothing more.
+            delete inferred.format;
+            delete inferred['format-check'];
+          }
           if (!projectBiomeConfig) {
             // Copy before extending — inferBiomeTargets shares the
             // module-level BIOME_INPUTS array across targets/projects.

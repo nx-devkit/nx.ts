@@ -1,0 +1,67 @@
+{
+  "name": "@nx-devkit/oxfmt",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Standalone Nx plugin: infers format and format-check targets from .oxfmtrc/oxfmt.config files — no project.json required.",
+  "keywords": [
+    "format",
+    "formatter",
+    "monorepo",
+    "nx",
+    "nx-plugin",
+    "oxc",
+    "oxfmt",
+    "typescript",
+    "zero-config"
+  ],
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/oxfmt",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/oxfmt"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json"
+  ],
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "module": "./dist/plugin.mjs",
+  "types": "./dist/plugin.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.mts",
+      "default": "./dist/plugin.mjs"
+    },
+    "./package.json": "./package.json",
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
+    "@types/node": "^26.6.6",
+    "oxfmt": "^0.80.0",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "peerDependencies": {
+    "oxfmt": "^0.80.0"
+  },
+  "generators": "./generators.json"
+}

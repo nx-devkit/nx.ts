@@ -775,6 +775,117 @@ describe('biome format/lint delegation', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Mega-preset: Oxfmt format delegation
+// ---------------------------------------------------------------------------
+
+describe('oxfmt format delegation', () => {
+  it('infers format and format-check from .oxfmtrc.json', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/.oxfmtrc.json');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const fmt = proj.targets?.format as Record<string, unknown>;
+      const fmtOpts = fmt.options as Record<string, unknown>;
+      expect(fmtOpts.command).toContain('oxfmt --write');
+      expect(fmtOpts.cwd).toBe('packages/foo');
+      expect(fmt.cache).toBe(false);
+      const fmtCheck = proj.targets?.['format-check'] as Record<string, unknown>;
+      const fcOpts = fmtCheck.options as Record<string, unknown>;
+      expect(fcOpts.command).toContain('oxfmt --check');
+      expect(fmtCheck.cache).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('infers format targets from oxfmt.config.ts', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/oxfmt.config.ts');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      expect(proj.targets?.format).toBeDefined();
+      expect(proj.targets?.['format-check']).toBeDefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not infer format targets when oxfmt:false', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/.oxfmtrc.json');
+      const result = await callCreateNodes([ts], { oxfmt: false }, root);
+      const proj = firstProject(result, 'packages/foo');
+      expect(proj.targets?.format).toBeUndefined();
+      expect(proj.targets?.['format-check']).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('oxfmt wins over biome for format; biome still provides lint fallback', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/.oxfmtrc.json');
+      touch(root, 'packages/foo/biome.json');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const fmt = proj.targets?.format as Record<string, unknown>;
+      const fmtOpts = fmt.options as Record<string, unknown>;
+      expect(fmtOpts.command).toContain('oxfmt');
+      expect(fmtOpts.command).not.toContain('biome');
+      const fmtCheck = proj.targets?.['format-check'] as Record<string, unknown>;
+      const fcOpts = fmtCheck.options as Record<string, unknown>;
+      expect(fcOpts.command).toContain('oxfmt');
+      // no oxlint/eslint config — biome keeps its lint fallback
+      const lint = proj.targets?.lint as Record<string, unknown>;
+      const lintOpts = lint.options as Record<string, unknown>;
+      expect(lintOpts.command).toContain('biome lint');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('oxfmt:false lets biome own format when both configs exist', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/.oxfmtrc.json');
+      touch(root, 'packages/foo/biome.json');
+      const result = await callCreateNodes([ts], { oxfmt: false }, root);
+      const proj = firstProject(result, 'packages/foo');
+      const fmt = proj.targets?.format as Record<string, unknown>;
+      const fmtOpts = fmt.options as Record<string, unknown>;
+      expect(fmtOpts.command).toContain('biome format --write');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to a workspace-root .oxfmtrc.json and adds it to cache inputs', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, '.oxfmtrc.json');
+      const result = await callCreateNodes([ts], {}, root);
+      const proj = firstProject(result, 'packages/foo');
+      const fmtCheck = proj.targets?.['format-check'] as Record<string, unknown> | undefined;
+      expect(fmtCheck).toBeDefined();
+      expect(fmtCheck?.inputs).toContain('{workspaceRoot}/.oxfmtrc.json');
+      expect(fmtCheck?.inputs).toContain('{workspaceRoot}/oxfmt.config.*');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Mega-preset: Tsdown build delegation
 // ---------------------------------------------------------------------------
 
