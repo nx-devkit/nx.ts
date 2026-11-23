@@ -2,7 +2,7 @@
   "name": "@nx-devkit/prisma",
   "version": "0.0.0",
   "private": false,
-  "description": "Standalone Nx plugin: schema.prisma / prisma.config.* infer db:generate, db:migrate, db:migrate-deploy, db:studio, db:seed targets — no project.json required.",
+  "description": "Standalone Nx plugin: schema.prisma / prisma.config.* infer db:generate, db:migrate, db:push, db:migrate-deploy, db:studio, db:seed targets — no project.json required.",
   "keywords": [
     "database",
     "migrations",
