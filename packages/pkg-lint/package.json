@@ -1,0 +1,70 @@
+{
+  "name": "@nx-devkit/pkg-lint",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Standalone Nx plugin: every publishable package.json infers a cached lint-pkg target running publint + attw --pack — no project.json required.",
+  "keywords": [
+    "arethetypeswrong",
+    "attw",
+    "lint",
+    "monorepo",
+    "nx",
+    "nx-plugin",
+    "package-json",
+    "publint",
+    "typescript",
+    "zero-config"
+  ],
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/pkg-lint",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/pkg-lint"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "module": "./dist/plugin.mjs",
+  "types": "./dist/plugin.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.mts",
+      "default": "./dist/plugin.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nx/devkit": "^24.0.0"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.0",
+    "@types/node": "^26.6.6",
+    "publint": "^0.3.0",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "peerDependencies": {
+    "@arethetypeswrong/cli": "^0.18.0",
+    "publint": "^0.2.0 || ^0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "@arethetypeswrong/cli": {
+      "optional": true
+    },
+    "publint": {
+      "optional": true
+    }
+  }
+}
