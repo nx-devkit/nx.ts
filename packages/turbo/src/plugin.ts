@@ -86,7 +86,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTurboOptions> = [
           );
           continue;
         }
-        const projects = inferNestedConfig(config, ownPkg, rootPkg, getPackages, ctx);
+        const projects = inferNestedConfig(config, ownPkg, ctx);
         if (Object.keys(projects).length > 0) {
           results.push([configFile, { projects }]);
         }
@@ -145,30 +145,19 @@ function inferRootConfig(
 }
 
 /**
- * A nested config's tasks apply to its own package. `#`-selectors are
- * honored the same way as in the root config — a package-level
- * turbo.json is a valid place for a `pkg#task` override or a `//#task`
- * definition in turbo v2.
+ * A nested config's tasks apply to its own package only. Selector keys
+ * (`pkg#task`, `//#task`) are not allowed in package-level turbo.json —
+ * any selector is dropped and the task lands on the owning package.
  */
 function inferNestedConfig(
   config: TurboJson,
   ownPkg: PackageRef,
-  rootPkg: PackageRef,
-  getPackages: () => WorkspacePackage[],
   ctx: Parameters<typeof buildTaskTarget>[2],
 ): ProjectMap {
   const projects: ProjectMap = Object.create(null);
   for (const [key, task] of Object.entries(config.tasks)) {
     const sel = splitTaskKey(key);
-    const candidates: PackageRef[] =
-      sel.package === '//'
-        ? [rootPkg]
-        : sel.package !== null
-          ? getPackages().filter((p) => p.name === sel.package)
-          : [ownPkg];
-    for (const pkg of candidates) {
-      addTarget(projects, pkg, sel.task, task, ctx);
-    }
+    addTarget(projects, ownPkg, sel.task, task, ctx);
   }
   return projects;
 }

@@ -48,7 +48,7 @@ is unchanged and runs in the package directory.
 | `dependsOn: ["//#gen"]`              | `dependsOn: [{ target: "gen", projects: ["<root package name>"] }]`         |
 | `inputs`                             | `inputs` — `src/**` → `{projectRoot}/src/**`, `$TURBO_DEFAULT$` → `default` |
 | `outputs`                            | `outputs` — `dist/**` → `{projectRoot}/dist/**` (`!` kept)                  |
-| (no `outputs`)                       | `{projectRoot}/dist/**` + `{projectRoot}/build/**` (turbo's defaults)       |
+| (no `outputs`)                       | no file outputs — turbo caches nothing without a declaration                |
 | `cache: false`                       | `cache: false` (default `true`)                                             |
 | `env` / `passThroughEnv`             | `{ env: "VAR" }` hash inputs                                                |
 | `dotEnv`                             | `{projectRoot}/<file>` inputs                                               |

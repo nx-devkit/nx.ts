@@ -55,11 +55,8 @@ describe('buildTaskTarget', () => {
     expect(target.cache).toBe(false);
   });
 
-  it('defaults outputs to turbo defaults', () => {
-    expect(buildTaskTarget('build', {}, CTX).outputs).toEqual([
-      '{projectRoot}/dist/**',
-      '{projectRoot}/build/**',
-    ]);
+  it('emits no file outputs when `outputs` is absent', () => {
+    expect(buildTaskTarget('build', {}, CTX).outputs).toEqual([]);
   });
 
   it('prefixes declared outputs with {projectRoot} and keeps negations', () => {

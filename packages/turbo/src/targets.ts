@@ -45,7 +45,9 @@ export function buildTaskTarget(
     // A persistent (continuous) task is never cacheable — it keeps
     // running, so there is no terminal state to hash.
     cache: persistent ? false : task.cache !== false,
-    outputs: mapGlobs(task.outputs ?? ['dist/**', 'build/**'], '{projectRoot}'),
+    // turbo caches no file outputs when `outputs` is absent — keep that
+    // instead of inventing a dist/build default.
+    outputs: mapGlobs(task.outputs ?? [], '{projectRoot}'),
     inputs: buildInputs(task, ctx),
   };
   const dependsOn = mapDependsOn(task.dependsOn ?? [], ctx);

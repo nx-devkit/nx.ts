@@ -74,8 +74,8 @@ export interface NxDevkitTurboOptions {} // {} reserved for future options
 
 - `CreateNodesResult` cannot emit `targetDefaults`/`namedInputs` —
   `global*` fields fold into per-target `inputs` instead.
-- turbo's implicit default `outputs` is `["dist/**", "build/**"]` —
-  applied when `outputs` is absent to keep cache equivalence.
+- turbo caches no file outputs when `outputs` is absent — the plugin
+  emits `outputs: []` rather than inventing a dist/build default.
 - `$TURBO_DEFAULT$` in `inputs` maps to the `default` named input.
 - `pnpm-workspace.yaml` is parsed line-wise (no YAML dep) — only the
   top-level `packages:` list form (and inline `[a, b]` form) is read.
