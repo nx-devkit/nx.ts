@@ -1,3 +1,19 @@
+## 0.2.24 (2026-11-23)
+
+### 🚀 Features
+
+- **typescript:** adopt MS-recommended TS 6/7 side-by-side alias scheme ([#216](https://github.com/nx-devkit/nx.ts/pull/216))
+- **typescript:** widen preset peer to >=3.0.0 — support every TS line ([#215](https://github.com/nx-devkit/nx.ts/pull/215), [#157](https://github.com/nx-devkit/nx.ts/issues/157))
+
+### 🩹 Fixes
+
+- **typescript:** resolve native tsc from @typescript/native in typecheck executor ([#217](https://github.com/nx-devkit/nx.ts/pull/217))
+
+### ❤️ Thank You
+
+- Devin AI @devin-ai-integration[bot]
+- Petr Plenkov @ThePlenkov
+
 ## 0.2.23 (2026-11-10)
 
 This was a version bump only for @nx-devkit/typescript to align it with other projects, there were no code changes.
