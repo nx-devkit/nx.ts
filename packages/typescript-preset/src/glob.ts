@@ -2,6 +2,8 @@ import { globSync, statSync } from 'node:fs';
 import { glob, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { logDebug } from '@nx-devkit/internal';
+
 // `exclude` receives path strings (withFileTypes is unsupported on
 // some runtimes). node_modules is pruned at any depth (vendored
 // files are never sources); dist/coverage only at the project
@@ -108,7 +110,8 @@ export async function globFilesAsync(
         try {
           // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by glob under the project root
           if ((await stat(join(rootDir, m))).isFile()) found.add(m);
-        } catch {
+        } catch (e) {
+          logDebug('glob', `stat failed for ${m}: ${(e as Error).message}`);
           continue;
         }
       }

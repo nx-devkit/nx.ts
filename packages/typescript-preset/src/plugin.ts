@@ -10,7 +10,7 @@ import {
   mapWithConcurrency,
   inferVitestTargets,
 } from '@nx-devkit/internal';
-import { globFilesAsync, globMatchAsync } from './glob.js';
+import { globFilesAsync } from './glob.js';
 import {
   BIOME_CONFIG_NAMES,
   ESLINT_CONFIG_NAMES,
@@ -47,6 +47,11 @@ export {
   inferTsdownWatchTarget,
 } from './targets/build.js';
 export { inferTestCiTargets } from './targets/test-ci.js';
+
+/** Single-quote a value for safe embedding in an nx:run-commands shell command. */
+function sq(v: string): string {
+  return `'${v.replace(/'/g, `'\''`)}'`;
+}
 
 const PLUGIN_SCOPE = 'nx-typescript';
 
@@ -153,12 +158,17 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
         };
         technologies.push('vitest');
         if (testCi) {
-          const testFiles = await globFilesAsync(absProjectRoot, [testGlob, specGlob]);
+          const testFiles = await globFilesAsync(absProjectRoot, [
+            testGlob,
+            specGlob,
+            '**/*.test.tsx',
+            '**/*.spec.tsx',
+          ]);
           if (testFiles.length > 0) {
             const ci = inferTestCiTargets(relProjectRoot, {
               ciTargetName,
               files: testFiles,
-              command: (file) => `vitest run "${file}"`,
+              command: (file) => `vitest run ${sq(file)}`,
               inputs: vitestTargets.test.inputs,
               outputs: vitestTargets.test.outputs,
               technologies: ['vitest'],
@@ -168,10 +178,13 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           }
         }
       } else {
-        const hasTestFiles =
-          (await globMatchAsync(absProjectRoot, testGlob)) ||
-          (await globMatchAsync(absProjectRoot, specGlob));
-        if (hasTestFiles) {
+        const discovered = await globFilesAsync(absProjectRoot, [
+          testGlob,
+          specGlob,
+          '**/*.test.tsx',
+          '**/*.spec.tsx',
+        ]);
+        if (discovered.length > 0) {
           const nativeTargets = inferNativeTestTargets(relProjectRoot, {
             tap,
             coverage,
@@ -181,12 +194,12 @@ export const createNodesV2: CreateNodesV2<NxDevkitTypescriptOptions> = [
           Object.assign(targets, nativeTargets);
           technologies.push('node');
           if (testCi) {
-            const testFiles = await globFilesAsync(absProjectRoot, [testGlob, specGlob]);
+            const testFiles = discovered;
             if (testFiles.length > 0) {
               const ci = inferTestCiTargets(relProjectRoot, {
                 ciTargetName,
                 files: testFiles,
-                command: (file) => `node --test --test-reporter spec "${file}"`,
+                command: (file) => `node --test --test-reporter spec ${sq(file)}`,
                 inputs: nativeTargets.test.inputs,
                 technologies: ['node'],
               });

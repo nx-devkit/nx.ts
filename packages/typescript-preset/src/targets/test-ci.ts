@@ -47,8 +47,7 @@ export function inferTestCiTargets(projectRoot: string, options: TestCiOptions):
         cwd: projectRoot,
       },
       cache: true,
-      inputs: options.inputs,
-      ...(options.outputs ? { outputs: options.outputs } : {}),
+      inputs: options.inputs ? [...options.inputs] : undefined,
       metadata: {
         ...(options.technologies ? { technologies: options.technologies } : {}),
         description: `Run tests in ${file}`,
@@ -61,8 +60,8 @@ export function inferTestCiTargets(projectRoot: string, options: TestCiOptions):
   targets[ciTargetName] = {
     executor: 'nx:noop',
     cache: true,
-    inputs: options.inputs,
-    ...(options.outputs ? { outputs: options.outputs } : {}),
+    inputs: options.inputs ? [...options.inputs] : undefined,
+    ...(options.outputs ? { outputs: [...options.outputs] } : {}),
     dependsOn,
     metadata: {
       ...(options.technologies ? { technologies: options.technologies } : {}),
