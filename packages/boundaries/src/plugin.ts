@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { logger, type CreateNodesV2 } from '@nx/devkit';
+import { logger, type CreateNodesResult, type CreateNodesV2 } from '@nx/devkit';
 import { isVerbose, logDebug, shouldSkipPath } from '@nx-devkit/internal';
 import { inferTagsFromRoot } from './tags.ts';
 import type { NxBoundariesOptions } from './types.ts';
@@ -30,7 +30,7 @@ function readPackageInfo(packageJsonPath: string, projectRoot: string): PackageI
 
 const SOURCE_INPUTS = '{projectRoot}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}';
 
-type Result = [string, { projects: Record<string, unknown> }];
+type Result = [string, CreateNodesResult];
 
 function buildExecutorOptions(options: NxBoundariesOptions): Record<string, unknown> {
   const executorOptions: Record<string, unknown> = {
