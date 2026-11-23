@@ -41,7 +41,7 @@ function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
   const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot || '.'));
   if (rel === '') return false;
   const segments = rel.split(/[\\/]/);
-  return segments.includes('..') || segments.includes('node_modules');
+  return segments.includes('..') || segments.includes('node_modules') || segments.includes('.git');
 }
 
 export function lintPkgTarget(
@@ -54,8 +54,8 @@ export function lintPkgTarget(
     cache: true,
     // `attw --pack` packs the real tarball, so dist must exist first.
     dependsOn: ['build'],
-    inputs: [`${prefix}/package.json`, `${prefix}/dist/**/*`],
-    options: { commands: [...commands], parallel: false, cwd: '{projectRoot}' },
+    inputs: [`${prefix}/package.json`, `${prefix}/.npmignore`, `${prefix}/dist/**/*`],
+    options: { commands: [...commands], parallel: false, cwd: prefix },
   };
 }
 

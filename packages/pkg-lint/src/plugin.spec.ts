@@ -107,7 +107,7 @@ describe('@nx-devkit/pkg-lint createNodesV2', () => {
     const root = makeWorkspace({});
     const outside = mkdtempSync(join(tmpdir(), 'nx-pkg-lint-outside-'));
     writeFileSync(join(outside, 'package.json'), PUBLISHABLE);
-    const rel = `../${outside.split('/').pop()}/package.json`;
+    const rel = `../${outside.split(/[\\/]/).pop()}/package.json`;
     const results = await createNodesV2[1]([rel], {}, makeContext(root));
     expect(results).toHaveLength(0);
   });

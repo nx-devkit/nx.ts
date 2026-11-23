@@ -62,6 +62,7 @@
       "packages/sverka",
       "packages/openspec",
       "packages/knip",
+      "packages/pkg-lint",
       "packages/playwright",
       "packages/eslint",
       "packages/commitlint",
