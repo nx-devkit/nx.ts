@@ -316,12 +316,17 @@ function workspaceNameFrom(targetDir: string, opts: CreateOptions): string {
     if (pkg.name && PACKAGE_NAME_PATTERN.test(pkg.name)) return pkg.name;
   }
   const dirName = basename(targetDir);
-  if (!PACKAGE_NAME_PATTERN.test(dirName)) {
+  if (PACKAGE_NAME_PATTERN.test(dirName)) return dirName;
+  const sanitized = dirName
+    .toLowerCase()
+    .replace(/[^a-z0-9-~._]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  if (!PACKAGE_NAME_PATTERN.test(sanitized)) {
     throw new Error(
       `Cannot derive a valid npm package name from directory "${dirName}" — pass a name explicitly.`,
     );
   }
-  return dirName;
+  return sanitized;
 }
 
 export function run(
