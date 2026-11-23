@@ -320,7 +320,9 @@ function workspaceNameFrom(targetDir: string, opts: CreateOptions): string {
   const sanitized = dirName
     .toLowerCase()
     .replace(/[^a-z0-9-~._]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .split('-')
+    .filter(Boolean)
+    .join('-');
   if (!PACKAGE_NAME_PATTERN.test(sanitized)) {
     throw new Error(
       `Cannot derive a valid npm package name from directory "${dirName}" — pass a name explicitly.`,
