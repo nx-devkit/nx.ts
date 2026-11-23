@@ -75,14 +75,30 @@ export function detectPackageManager(
 }
 
 const BOOL_FLAGS: Record<string, (o: CreateOptions) => void> = {
-  '-h': (o) => void (o.help = true),
-  '--help': (o) => void (o.help = true),
-  '--native-test': (o) => void (o.nativeTest = true),
-  '--no-test': (o) => void (o.test = false),
-  '--no-lint': (o) => void (o.lint = false),
-  '--no-format': (o) => void (o.format = false),
-  '--no-build': (o) => void (o.build = false),
-  '--no-install': (o) => void (o.skipInstall = true),
+  '-h': (o) => {
+    o.help = true;
+  },
+  '--help': (o) => {
+    o.help = true;
+  },
+  '--native-test': (o) => {
+    o.nativeTest = true;
+  },
+  '--no-test': (o) => {
+    o.test = false;
+  },
+  '--no-lint': (o) => {
+    o.lint = false;
+  },
+  '--no-format': (o) => {
+    o.format = false;
+  },
+  '--no-build': (o) => {
+    o.build = false;
+  },
+  '--no-install': (o) => {
+    o.skipInstall = true;
+  },
 };
 
 // Flags that consume the next argv entry. Returns the new index, or null when
