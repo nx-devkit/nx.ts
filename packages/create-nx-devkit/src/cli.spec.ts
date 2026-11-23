@@ -212,7 +212,7 @@ describe('run', () => {
   it('uses the dir basename as workspace name when no package.json name exists', () => {
     run({ ...parseArgs(['--pm', 'npm']), pm: 'npm' }, workDir, execMock as never, {});
     const nxCall = execMock.mock.calls.find((c) => (c[1] as string[]).includes('g'));
-    expect(nxCall![1]).toContain(basename(workDir));
+    expect(nxCall![1]).toContain(basename(workDir).toLowerCase());
   });
 
   it('runs compat fixups after the generator', () => {
