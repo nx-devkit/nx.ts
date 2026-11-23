@@ -85,14 +85,13 @@ function parseTokens(raw: unknown, source: string): StaticToken[] {
  *   NXRC_TOKEN_SECRET                HMAC secret for nxrc1. signed tokens
  *   NXRC_MAX_ARTIFACT_BYTES          default 512 MiB
  */
-export function loadConfig(env: Env = process.env): RemoteCacheConfig {
+function backendFromEnv(env: Env): FsBackendConfig | S3BackendConfig {
   const backendType = env['NXRC_BACKEND'] ?? 'fs';
-
-  let backend: FsBackendConfig | S3BackendConfig;
   if (backendType === 'fs') {
-    backend = { type: 'fs', dir: env['NXRC_FS_DIR'] ?? './nx-remote-cache' };
-  } else if (backendType === 's3') {
-    backend = {
+    return { type: 'fs', dir: env['NXRC_FS_DIR'] ?? './nx-remote-cache' };
+  }
+  if (backendType === 's3') {
+    return {
       type: 's3',
       bucket: required('NXRC_S3_BUCKET', env['NXRC_S3_BUCKET']),
       ...(env['NXRC_S3_ENDPOINT'] !== undefined ? { endpoint: env['NXRC_S3_ENDPOINT'] } : {}),
@@ -104,19 +103,26 @@ export function loadConfig(env: Env = process.env): RemoteCacheConfig {
         : {}),
       ...(env['AWS_SESSION_TOKEN'] !== undefined ? { sessionToken: env['AWS_SESSION_TOKEN'] } : {}),
     };
-  } else {
-    throw new Error(`NXRC_BACKEND must be 'fs' or 's3', got ${JSON.stringify(backendType)}`);
   }
+  throw new Error(`NXRC_BACKEND must be 'fs' or 's3', got ${JSON.stringify(backendType)}`);
+}
 
-  let tokens: StaticToken[] = [];
+function tokensFromEnv(env: Env): StaticToken[] {
   if (env['NXRC_TOKENS_FILE'] !== undefined) {
-    tokens = parseTokens(
+    return parseTokens(
       JSON.parse(readFileSync(env['NXRC_TOKENS_FILE'], 'utf8')),
       'NXRC_TOKENS_FILE',
     );
-  } else if (env['NXRC_TOKENS'] !== undefined) {
-    tokens = parseTokens(JSON.parse(env['NXRC_TOKENS']), 'NXRC_TOKENS');
   }
+  if (env['NXRC_TOKENS'] !== undefined) {
+    return parseTokens(JSON.parse(env['NXRC_TOKENS']), 'NXRC_TOKENS');
+  }
+  return [];
+}
+
+export function loadConfig(env: Env = process.env): RemoteCacheConfig {
+  const backend = backendFromEnv(env);
+  const tokens = tokensFromEnv(env);
 
   const config: RemoteCacheConfig = {
     host: env['NXRC_HOST'] ?? '0.0.0.0',

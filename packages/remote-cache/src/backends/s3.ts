@@ -43,7 +43,8 @@ export class S3Backend implements CacheBackend {
     const objectKey = this.opts.prefix ? `${this.opts.prefix}/${key}` : key;
     const encoded = objectKey.split('/').map(encodeURIComponent).join('/');
     if (this.opts.endpoint !== undefined) {
-      const endpoint = this.opts.endpoint.replace(/\/+$/, '');
+      let endpoint = this.opts.endpoint;
+      while (endpoint.endsWith('/')) endpoint = endpoint.slice(0, -1);
       const host = new URL(endpoint).host;
       const path = `/${encodeURIComponent(this.opts.bucket)}/${encoded}`;
       return { url: `${endpoint}${path}`, host, path };

@@ -31,55 +31,55 @@ describe('resolveGrants — static tokens', () => {
 });
 
 describe('signed tokens (nxrc1.)', () => {
-  const secret = 'test-signing-secret';
+  const hmacKey = 'test-signing-key';
 
   it('round-trips claims', () => {
-    const token = mintToken({ w: 'pr-42', r: ['main', 'pr-42'] }, secret);
+    const token = mintToken({ w: 'pr-42', r: ['main', 'pr-42'] }, hmacKey);
     expect(token.startsWith('nxrc1.')).toBe(true);
-    const g = resolveGrants(token, { tokens: [], tokenSecret: secret });
+    const g = resolveGrants(token, { tokens: [], tokenSecret: hmacKey });
     expect(g).toMatchObject({ write: 'pr-42', read: ['main', 'pr-42'] });
   });
 
   it('mints read-only tokens when w is omitted', () => {
-    const token = mintToken({ r: ['main'] }, secret);
-    const g = resolveGrants(token, { tokens: [], tokenSecret: secret });
+    const token = mintToken({ r: ['main'] }, hmacKey);
+    const g = resolveGrants(token, { tokens: [], tokenSecret: hmacKey });
     expect(g?.write).toBeUndefined();
     expect(g?.read).toEqual(['main']);
   });
 
-  it('rejects a token signed with the wrong secret', () => {
-    const token = mintToken({ w: 'main', r: ['main'] }, 'other-secret');
-    expect(resolveGrants(token, { tokens: [], tokenSecret: secret })).toBeNull();
+  it('rejects a token signed with the wrong key', () => {
+    const token = mintToken({ w: 'main', r: ['main'] }, 'other-key');
+    expect(resolveGrants(token, { tokens: [], tokenSecret: hmacKey })).toBeNull();
   });
 
   it('rejects a tampered payload', () => {
-    const token = mintToken({ w: 'pr-1', r: ['pr-1'] }, secret);
+    const token = mintToken({ w: 'pr-1', r: ['pr-1'] }, hmacKey);
     const parts = token.split('.');
     const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString());
     payload.w = 'main';
     parts[1] = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    expect(resolveGrants(parts.join('.'), { tokens: [], tokenSecret: secret })).toBeNull();
+    expect(resolveGrants(parts.join('.'), { tokens: [], tokenSecret: hmacKey })).toBeNull();
   });
 
   it('rejects an expired token', () => {
-    const token = mintToken({ w: 'pr-1', r: ['pr-1'], exp: 1_000_000 }, secret);
-    expect(resolveGrants(token, { tokens: [], tokenSecret: secret })).toBeNull();
+    const token = mintToken({ w: 'pr-1', r: ['pr-1'], exp: 1_000_000 }, hmacKey);
+    expect(resolveGrants(token, { tokens: [], tokenSecret: hmacKey })).toBeNull();
   });
 
   it('accepts a token whose expiry is in the future', () => {
     const exp = Math.floor(Date.now() / 1000) + 3600;
-    const token = mintToken({ r: ['main'], exp }, secret);
-    expect(resolveGrants(token, { tokens: [], tokenSecret: secret })).not.toBeNull();
+    const token = mintToken({ r: ['main'], exp }, hmacKey);
+    expect(resolveGrants(token, { tokens: [], tokenSecret: hmacKey })).not.toBeNull();
   });
 
   it('rejects nxrc1. tokens when no tokenSecret is configured', () => {
-    const token = mintToken({ w: 'main', r: ['main'] }, secret);
+    const token = mintToken({ w: 'main', r: ['main'] }, hmacKey);
     expect(resolveGrants(token, { tokens: STATIC })).toBeNull();
   });
 
   it('rejects malformed tokens', () => {
     for (const t of ['nxrc1.', 'nxrc1.x', 'nxrc1.x.y.z', 'nxrc1.@@#.sig']) {
-      expect(resolveGrants(t, { tokens: [], tokenSecret: secret })).toBeNull();
+      expect(resolveGrants(t, { tokens: [], tokenSecret: hmacKey })).toBeNull();
     }
   });
 });

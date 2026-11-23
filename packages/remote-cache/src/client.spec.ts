@@ -54,19 +54,12 @@ describe('RemoteCacheClient', () => {
   });
 
   it('detects a corrupted payload via X-Cache-Sha256', async () => {
-    const tamperingFetch = (async (
-      input: Parameters<typeof fetch>[0],
-      init?: Parameters<typeof fetch>[1],
-    ) => {
-      const res = await fetch(input, init);
-      if (res.status === 200 && String(input).includes('/v1/cache/')) {
-        // Strip integrity header but corrupt nothing else? No — corrupt the body.
-        return new Response('tampered', { status: 200, headers: res.headers });
-      }
-      return res;
-    }) as typeof fetch;
-    const body = Buffer.from('real');
-    await client.store('h2', body);
+    const realSha = createHash('sha256').update(Buffer.from('real')).digest('hex');
+    const tamperingFetch = (async () =>
+      new Response('tampered', {
+        status: 200,
+        headers: { 'x-cache-sha256': realSha },
+      })) as typeof fetch;
     const c = new RemoteCacheClient(client.baseUrl, 'tok', tamperingFetch);
     await expect(c.retrieve('h2')).rejects.toThrow(/sha256|integrity/i);
   });

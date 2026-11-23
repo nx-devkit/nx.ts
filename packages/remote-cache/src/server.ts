@@ -51,8 +51,11 @@ function readBody(req: IncomingMessage, max: number): Promise<Buffer | null> {
 function bearerToken(req: IncomingMessage): string | null {
   const header = req.headers['authorization'];
   if (typeof header !== 'string') return null;
-  const m = /^Bearer\s+(.+)$/.exec(header);
-  return m?.[1]?.trim() || null;
+  // No regex on the raw header — a crafted Authorization value is hostile input.
+  const rest = header.startsWith('Bearer') ? header.slice(6) : null;
+  if (rest === null || rest === '' || (rest[0] !== ' ' && rest[0] !== '\t')) return null;
+  const token = rest.trim();
+  return token === '' ? null : token;
 }
 
 /**

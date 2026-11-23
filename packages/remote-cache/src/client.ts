@@ -13,7 +13,9 @@ export class RemoteCacheClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(baseUrl: string, token: string, fetchImpl: typeof fetch = fetch) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
+    let url = baseUrl;
+    while (url.endsWith('/')) url = url.slice(0, -1);
+    this.baseUrl = url;
     this.token = token;
     this.fetchImpl = fetchImpl;
   }

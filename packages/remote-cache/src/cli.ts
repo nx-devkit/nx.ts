@@ -40,63 +40,65 @@ function env(name: string): string {
   return v;
 }
 
+async function cmdServe(args: string[]): Promise<void> {
+  const configPath = flag(args, '--config');
+  const config = configPath !== undefined ? loadConfigFile(configPath) : loadConfig();
+  const server = createRemoteCacheServer({
+    backend: buildBackend(config),
+    tokens: config.tokens,
+    ...(config.tokenSecret !== undefined ? { tokenSecret: config.tokenSecret } : {}),
+    maxArtifactBytes: config.maxArtifactBytes,
+  });
+  server.listen(config.port, config.host, () => {
+    process.stdout.write(`nx-remote-cache listening on ${config.host}:${config.port}\n`);
+  });
+}
+
+async function cmdMint(args: string[]): Promise<void> {
+  const write = flag(args, '--write');
+  const read = flag(args, '--read');
+  const ttl = flag(args, '--ttl');
+  if (read === undefined) throw new Error('mint requires --read <ns[,ns...]>');
+  const secret = env('NXRC_TOKEN_SECRET');
+  const claims: Parameters<typeof mintToken>[0] = { r: read.split(',') };
+  if (write !== undefined) claims.w = write;
+  if (ttl !== undefined) claims.exp = Math.floor(Date.now() / 1000) + Number(ttl);
+  process.stdout.write(`${mintToken(claims, secret)}\n`);
+}
+
+async function cmdTransfer(cmd: 'put' | 'get', args: string[]): Promise<void> {
+  const [artifactRef, file] = positional(args);
+  if (artifactRef === undefined) throw new Error(`${cmd} requires a <hash>`);
+  const client = new RemoteCacheClient(
+    env('NX_SELF_HOSTED_REMOTE_CACHE_SERVER'),
+    env('NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN'),
+  );
+  if (cmd === 'put') {
+    if (file === undefined) throw new Error('put requires a <file>');
+    const result = await client.store(artifactRef, readFileSync(file));
+    process.stdout.write(`${result}\n`);
+    return;
+  }
+  const body = await client.retrieve(artifactRef);
+  if (body === null) {
+    process.stderr.write('not found\n');
+    process.exitCode = 1;
+    return;
+  }
+  if (file !== undefined) writeFileSync(file, body);
+  else process.stdout.write(body);
+}
+
 async function main(): Promise<void> {
   const [cmd, ...args] = process.argv.slice(2);
-
   switch (cmd) {
-    case 'serve': {
-      const configPath = flag(args, '--config');
-      const config = configPath !== undefined ? loadConfigFile(configPath) : loadConfig();
-      const server = createRemoteCacheServer({
-        backend: buildBackend(config),
-        tokens: config.tokens,
-        ...(config.tokenSecret !== undefined ? { tokenSecret: config.tokenSecret } : {}),
-        maxArtifactBytes: config.maxArtifactBytes,
-      });
-      server.listen(config.port, config.host, () => {
-        process.stdout.write(`nx-remote-cache listening on ${config.host}:${config.port}\n`);
-      });
-      return;
-    }
-
-    case 'mint': {
-      const write = flag(args, '--write');
-      const read = flag(args, '--read');
-      const ttl = flag(args, '--ttl');
-      if (read === undefined) throw new Error('mint requires --read <ns[,ns...]>');
-      const secret = env('NXRC_TOKEN_SECRET');
-      const claims: Parameters<typeof mintToken>[0] = { r: read.split(',') };
-      if (write !== undefined) claims.w = write;
-      if (ttl !== undefined) claims.exp = Math.floor(Date.now() / 1000) + Number(ttl);
-      process.stdout.write(`${mintToken(claims, secret)}\n`);
-      return;
-    }
-
+    case 'serve':
+      return cmdServe(args);
+    case 'mint':
+      return cmdMint(args);
     case 'put':
-    case 'get': {
-      const [hash, file] = positional(args);
-      if (hash === undefined) throw new Error(`${cmd} requires a <hash>`);
-      const client = new RemoteCacheClient(
-        env('NX_SELF_HOSTED_REMOTE_CACHE_SERVER'),
-        env('NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN'),
-      );
-      if (cmd === 'put') {
-        if (file === undefined) throw new Error('put requires a <file>');
-        const result = await client.store(hash, readFileSync(file));
-        process.stdout.write(`${result}\n`);
-      } else {
-        const body = await client.retrieve(hash);
-        if (body === null) {
-          process.stderr.write('not found\n');
-          process.exitCode = 1;
-          return;
-        }
-        if (file !== undefined) writeFileSync(file, body);
-        else process.stdout.write(body);
-      }
-      return;
-    }
-
+    case 'get':
+      return cmdTransfer(cmd, args);
     default:
       process.stderr.write(USAGE);
       process.exitCode = cmd === undefined || cmd === 'help' || cmd === '--help' ? 0 : 1;
