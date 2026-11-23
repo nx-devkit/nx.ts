@@ -7,7 +7,7 @@ Nx deprecated all self-hosted cache packages (`@nx/s3-cache`, `@nx/gcs-cache`, `
 ## Install & run
 
 ```bash
-bun add -D @nx-devkit/remote-cache   # or: docker run ghcr.io/nx-devkit/remote-cache
+bun add -D @nx-devkit/remote-cache   # or: docker build -t nx-remote-cache packages/remote-cache
 
 export NXRC_BACKEND=fs
 export NXRC_FS_DIR=/var/cache/nx
@@ -35,7 +35,7 @@ bunx nx run-many -t build
 | `GET /v1/cache/{hash}` | `200` `application/octet-stream` · `401` · `403` no read grant · `404` |
 | `GET /healthz`         | `200` unauthenticated probe endpoint                                   |
 
-Request/response bodies are `application/octet-stream` tar artifacts, exactly as the Nx native client produces/consumes.
+PUT bodies and successful GET responses are `application/octet-stream` tar artifacts, exactly as the Nx native client produces/consumes; errors and `/healthz` respond `text/plain`.
 
 ## Threat model — why this resists CREEP
 
@@ -63,7 +63,7 @@ Claims are `{ w, r, exp }` HMAC-SHA256-signed. An attacker holding a PR token ca
 
 ## Configuration
 
-All env vars, or a JSON file via `--config` (same shape):
+All env vars, or a JSON file via `--config` — camelCase keys with a nested `backend` object, e.g. `{"port": 3000, "backend": {"type": "s3", "bucket": "cache", "region": "eu-1", "accessKeyId": "...", "secretAccessKey": "..."}, "tokens": [...]}`. Env form:
 
 | Variable                                                            | Default             | Purpose                                 |
 | ------------------------------------------------------------------- | ------------------- | --------------------------------------- |

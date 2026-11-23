@@ -38,8 +38,14 @@ export class RemoteCacheClient {
       },
       body,
     });
-    if (res.status === 409) return 'conflict';
-    if (res.status === 200) return 'stored';
+    if (res.status === 409) {
+      await res.body?.cancel();
+      return 'conflict';
+    }
+    if (res.status === 200) {
+      await res.body?.cancel();
+      return 'stored';
+    }
     throw new Error(`cache store failed: HTTP ${res.status} ${await res.text().catch(() => '')}`);
   }
 
@@ -53,8 +59,11 @@ export class RemoteCacheClient {
       method: 'GET',
       headers: { authorization: `Bearer ${this.token}` },
     });
-    if (res.status === 404) return null;
-    if (!res.ok) {
+    if (res.status === 404) {
+      await res.body?.cancel();
+      return null;
+    }
+    if (res.status !== 200) {
       throw new Error(
         `cache retrieve failed: HTTP ${res.status} ${await res.text().catch(() => '')}`,
       );

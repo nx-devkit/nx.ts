@@ -23,7 +23,8 @@ export class FileSystemBackend implements CacheBackend {
 
   private pathFor(key: string): string {
     const p = resolve(this.dir, key);
-    if (p !== this.dir && !p.startsWith(this.dir + sep)) {
+    const prefix = this.dir.endsWith(sep) ? this.dir : this.dir + sep;
+    if (p !== this.dir && !p.startsWith(prefix)) {
       throw new Error(`cache key escapes storage dir: ${JSON.stringify(key)}`);
     }
     return p;
@@ -70,9 +71,14 @@ export class FileSystemBackend implements CacheBackend {
     if (fh === null) return null;
     try {
       const body = await fh.readFile();
+      // ENOENT → abandoned pair (unverifiable). Any other read error
+      // propagates — a silently skipped check serves corrupt artifacts.
       const sha256 = await readFile(`${dest}.sha256`, 'utf8')
         .then((s) => s.trim())
-        .catch(() => null);
+        .catch((err: NodeJS.ErrnoException) => {
+          if (err.code !== 'ENOENT') throw err;
+          return null;
+        });
       return { body, sha256 };
     } finally {
       await fh.close();

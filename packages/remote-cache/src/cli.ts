@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
-import { mintToken } from './auth.ts';
+import { isValidNamespace, mintToken } from './auth.ts';
 import { RemoteCacheClient } from './client.ts';
 import { buildBackend, loadConfig, loadConfigFile } from './config.ts';
 import { createRemoteCacheServer } from './server.ts';
@@ -22,7 +22,12 @@ put/get: server from NX_SELF_HOSTED_REMOTE_CACHE_SERVER and token from
 
 function flag(args: string[], name: string): string | undefined {
   const i = args.indexOf(name);
-  return i >= 0 ? args[i + 1] : undefined;
+  if (i < 0) return undefined;
+  const value = args[i + 1];
+  if (value === undefined || value.startsWith('--')) {
+    throw new Error(`${name} requires a value`);
+  }
+  return value;
 }
 
 function positional(args: string[]): string[] {
@@ -59,8 +64,18 @@ async function cmdMint(args: string[]): Promise<void> {
   const read = flag(args, '--read');
   const ttl = flag(args, '--ttl');
   if (read === undefined) throw new Error('mint requires --read <ns[,ns...]>');
+  const namespaces = read.split(',');
+  if (
+    namespaces.some((ns) => !isValidNamespace(ns)) ||
+    (write !== undefined && !isValidNamespace(write))
+  ) {
+    throw new Error('invalid namespace: use letters, digits, ., _, - (max 128 chars)');
+  }
+  if (ttl !== undefined && (!/^[0-9]+$/.test(ttl) || Number(ttl) <= 0)) {
+    throw new Error('invalid --ttl: expected a positive duration in seconds');
+  }
   const secret = env('NXRC_TOKEN_SECRET');
-  const claims: Parameters<typeof mintToken>[0] = { r: read.split(',') };
+  const claims: Parameters<typeof mintToken>[0] = { r: namespaces };
   if (write !== undefined) claims.w = write;
   if (ttl !== undefined) claims.exp = Math.floor(Date.now() / 1000) + Number(ttl);
   process.stdout.write(`${mintToken(claims, secret)}\n`);

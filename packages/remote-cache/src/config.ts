@@ -141,8 +141,8 @@ export function loadConfig(env: Env = process.env): RemoteCacheConfig {
 
 /** Numeric fields must be positive integers — NaN/0/non-int disables limits. */
 function validateNumbers(config: RemoteCacheConfig, source: string): void {
-  if (!Number.isInteger(config.port) || config.port <= 0) {
-    throw new Error(`${source}: port must be a positive integer, got ${config.port}`);
+  if (!Number.isInteger(config.port) || config.port <= 0 || config.port > 65535) {
+    throw new Error(`${source}: port must be an integer in 1..65535, got ${config.port}`);
   }
   if (!Number.isInteger(config.maxArtifactBytes) || config.maxArtifactBytes <= 0) {
     throw new Error(
@@ -164,6 +164,12 @@ export function loadConfigFile(path: string): RemoteCacheConfig {
   const d = doc as Record<string, unknown>;
   if (typeof d['backend'] !== 'object' || d['backend'] === null) {
     throw new Error(`${path}: missing backend`);
+  }
+  const backendType = (d['backend'] as { type?: unknown }).type;
+  if (backendType !== 'fs' && backendType !== 's3') {
+    throw new Error(
+      `${path}: backend.type must be "fs" or "s3", got ${JSON.stringify(backendType)}`,
+    );
   }
   const backend = d['backend'] as FsBackendConfig | S3BackendConfig;
   if (backend.type === 'fs' && typeof backend.dir !== 'string') {
