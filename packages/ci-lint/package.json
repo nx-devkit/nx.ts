@@ -1,0 +1,73 @@
+{
+  "name": "@nx-devkit/ci-lint",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Nx plugin: .github/workflows/*.yml files infer a cached lint-ci target on the root project — actionlint + zizmor, no project.json required.",
+  "keywords": [
+    "actionlint",
+    "ci",
+    "github-actions",
+    "lint",
+    "monorepo",
+    "nx",
+    "nx-plugin",
+    "workflow",
+    "zero-config",
+    "zizmor"
+  ],
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/ci-lint",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/ci-lint"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "module": "./dist/plugin.mjs",
+  "types": "./dist/plugin.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.mts",
+      "default": "./dist/plugin.mjs"
+    },
+    "./package.json": "./package.json",
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
+    "@types/node": "^26.6.6",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "peerDependencies": {
+    "actionlint": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "actionlint": {
+      "optional": true
+    }
+  },
+  "generators": "./generators.json"
+}

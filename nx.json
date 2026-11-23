@@ -68,7 +68,8 @@
       "packages/cspell",
       "packages/turbo",
       "packages/deploy",
-      "packages/drizzle"
+      "packages/drizzle",
+      "packages/ci-lint"
     ],
     "projectsRelationship": "independent",
     "version": {
