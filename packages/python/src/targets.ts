@@ -10,6 +10,12 @@ export interface PythonTargetContext {
   runner: PyRunner;
   /** Lock-file inputs for the resolved runner — empty when there is none. */
   lockInputs: string[];
+  /**
+   * Directories of nested Python projects relative to this projectRoot.
+   * pytest collects recursively, so their tests must be excluded here —
+   * each nested project runs them through its own `test` target.
+   */
+  nestedProjectDirs: string[];
   /** Plugin options — each flag defaults to true. */
   options: NxDevkitPythonOptions;
 }
@@ -21,14 +27,26 @@ export interface PythonTargetContext {
  */
 export function buildTargets(ctx: PythonTargetContext): Record<string, TargetConfiguration> {
   const run = runnerPrefix(ctx.runner);
-  const inputs = [
+  // Everything a tool command can read: the manifest, sources, and the
+  // standalone config files pytest/ruff/ty/pyright discover on their
+  // own. Omitting one lets a config-only edit replay a stale result.
+  const toolInputs = [
     '{projectRoot}/pyproject.toml',
     '{projectRoot}/**/*.py',
     '{projectRoot}/pytest.ini',
+    '{projectRoot}/tox.ini',
+    '{projectRoot}/setup.cfg',
     '{projectRoot}/**/conftest.py',
+    '{projectRoot}/**/ruff.toml',
+    '{projectRoot}/**/.ruff.toml',
+    '{projectRoot}/**/pyrightconfig.json',
+    '{projectRoot}/**/ty.toml',
     ...ctx.lockInputs,
   ];
-  const target = (command: string): TargetConfiguration => ({
+  // `uv lock --check` / `poetry check` read only the manifest and the
+  // lock file — editing a `.py` source must not rerun them.
+  const lockTargetInputs = ['{projectRoot}/pyproject.toml', ...ctx.lockInputs];
+  const target = (command: string, inputs: string[] = toolInputs): TargetConfiguration => ({
     executor: 'nx:run-commands',
     cache: true,
     inputs,
@@ -37,7 +55,8 @@ export function buildTargets(ctx: PythonTargetContext): Record<string, TargetCon
 
   const targets: Record<string, TargetConfiguration> = {};
   if (ctx.options.test !== false && ctx.tools.pytest) {
-    targets['test'] = target(`${run}pytest`);
+    const ignores = ctx.nestedProjectDirs.map((dir) => `--ignore=${shellQuote(dir)}`);
+    targets['test'] = target(`${run}pytest${ignores.length ? ` ${ignores.join(' ')}` : ''}`);
   }
   if (ctx.options.lint !== false && ctx.tools.ruff) {
     targets['lint'] = target(`${run}ruff check`);
@@ -54,9 +73,14 @@ export function buildTargets(ctx: PythonTargetContext): Record<string, TargetCon
   // / `poetry run` prefix.
   if (ctx.options.lock === false) return targets;
   if (ctx.runner === 'uv') {
-    targets['lock'] = target('uv lock --check');
+    targets['lock'] = target('uv lock --check', lockTargetInputs);
   } else if (ctx.runner === 'poetry') {
-    targets['lock'] = target('poetry check');
+    targets['lock'] = target('poetry check', lockTargetInputs);
   }
   return targets;
+}
+
+/** Single-quote a path interpolated into a shell command. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }

@@ -23,7 +23,7 @@ The init generator registers the plugin in `nx.json`. Python tools (pytest, ruff
 | `[tool.uv]` or `uv.lock`                            | `lock`      | `uv lock --check`     |
 | `[tool.poetry]`                                     | `lock`      | `poetry check`        |
 
-Dependencies are read from `[project.dependencies]`, `[project.optional-dependencies.*]`, `[dependency-groups.*]`, `[tool.uv.dev-dependencies]`, and all `[tool.poetry.*dependencies]` tables. Names are normalized per PEP 503, so `PyTest[cov]` counts.
+Dependencies are read from `[project.dependencies]`, `[project.optional-dependencies.*]`, `[dependency-groups.*]`, `[tool.uv.dev-dependencies]`, `[tool.poetry.dependencies]`, `[tool.poetry.dev-dependencies]`, and `[tool.poetry.group.*.dependencies]`. Names are normalized per PEP 503, so `PyTest[cov]` counts.
 
 ## Runner detection
 
@@ -43,9 +43,14 @@ Every inferred target is `cache: true` — pytest, ruff, ty, and pyright are det
 
 - `{projectRoot}/pyproject.toml`
 - `{projectRoot}/**/*.py`
-- `{projectRoot}/pytest.ini`
+- `{projectRoot}/pytest.ini`, `tox.ini`, `setup.cfg`
 - `{projectRoot}/**/conftest.py`
-- the lock file (`uv.lock` / `poetry.lock`)
+- standalone tool configs: `{projectRoot}/**/ruff.toml`, `.ruff.toml`, `pyrightconfig.json`, `ty.toml`
+- the lock file (`uv.lock` / `poetry.lock`); in a uv workspace also the root `{workspaceRoot}/uv.lock`
+
+The `lock` target hashes only the manifest and the lock file(s) — editing a `.py` source does not rerun `uv lock --check`.
+
+pytest collects recursively, so a project's `test` target passes `--ignore` for every nested Python project — `nx run-many -t test` never runs the same test twice.
 
 ## Options
 
@@ -58,13 +63,14 @@ Every inferred target is `cache: true` — pytest, ruff, ty, and pyright are det
         "test": true, // infer `test` when pytest is declared
         "lint": true, // infer `lint` + `fmt` when ruff is declared
         "typecheck": true, // infer `typecheck` when ty/pyright is declared
+        "lock": true, // infer `lock` when uv or poetry is the manager
       },
     },
   ],
 }
 ```
 
-All three default to `true`. The `lock` target has no gate — it follows the detected package manager.
+All four default to `true`. Set `lock: false` to manage locking outside Nx (e.g. in CI only).
 
 ## Behavior notes
 

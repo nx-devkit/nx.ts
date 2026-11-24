@@ -1,5 +1,5 @@
 import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit';
-import { registerPlugin, resolveRootProjectName } from '@nx-devkit/internal';
+import { registerPlugin } from '@nx-devkit/internal';
 
 export interface NxPythonInitOptions {
   pluginPath?: string;
@@ -16,16 +16,15 @@ export async function initGenerator(
   tree: Tree,
   options: NxPythonInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
-  const projectName = resolveRootProjectName(tree) ?? '{root-project}';
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
 
   registerPlugin(tree, pluginPath);
 
   const checklist = [
-    `1. The plugin is registered (${pluginPath}) — every pyproject.toml is now an Nx project.`,
+    `1. The plugin is registered (${pluginPath}) — valid project manifests become Nx projects (malformed files are skipped).`,
     '2. Inspect inferred targets:',
     '   bunx nx show projects',
-    `3. Run a target:  bunx nx run ${projectName}:test`,
+    '3. Run a target declared by a Python project (e.g. bunx nx run <project>:test when pytest is declared).',
     '4. Install the Python tools with your package manager (uv add --dev pytest ruff, poetry add --group dev pytest, …).',
   ];
   for (const line of checklist) {

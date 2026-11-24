@@ -63,6 +63,7 @@ export interface NxDevkitPythonOptions {
   test?: boolean; // gate `test`, default true
   lint?: boolean; // gate `lint` + `fmt`, default true
   typecheck?: boolean; // gate `typecheck`, default true
+  lock?: boolean; // gate `lock`, default true
 }
 ```
 
@@ -73,19 +74,26 @@ export interface NxDevkitPythonOptions {
   pyproject still registers the project but gets zero targets.
 - **`cache: true` on every target** including `lock` — all commands are
   deterministic over the declared inputs.
-- **Inputs** per target: `{projectRoot}/pyproject.toml`,
+- **Inputs** per tool target: `{projectRoot}/pyproject.toml`,
   `{projectRoot}/**/*.py`, `{projectRoot}/pytest.ini`,
-  `{projectRoot}/**/conftest.py`, plus the lock file (`{projectRoot}/uv.lock`
-  or `{projectRoot}/poetry.lock`; `{workspaceRoot}/uv.lock` is added when
-  the root lock is what marked the project uv-managed).
+  `{projectRoot}/tox.ini`, `{projectRoot}/setup.cfg`,
+  `{projectRoot}/**/conftest.py`, plus the standalone tool configs
+  (`{projectRoot}/**/ruff.toml`, `.ruff.toml`, `pyrightconfig.json`,
+  `ty.toml`) and the lock file (`{projectRoot}/uv.lock` or
+  `{projectRoot}/poetry.lock`; `{workspaceRoot}/uv.lock` is also added
+  for nested projects whenever a root `uv.lock` exists). The `lock`
+  target hashes only the manifest and the lock file(s).
+- **pytest ignores nested project roots** — `--ignore='<rel>'` for every
+  Python project under `{projectRoot}` so `nx run-many -t test` does not
+  collect the same tests twice.
 - **A broken pyproject.toml must not break the project graph** — warn + skip.
 - **No npm peer deps for Python tools** — the init generator registers
   the plugin only; pytest/ruff/ty/pyright are pip-managed.
 - **`node_modules` and `..`-escaping directories are skipped**; the
   workspace root is not (single-package repos have a root pyproject).
 - **Deterministic output** — config files are processed sorted.
-- **Spec-check**: keep `'test'`/`'lint'`/`'typecheck'`/`'format'` string
-  literals away from `createNodesV2`/`infer*Targets`/`testTarget`/
+- **Spec-check**: keep `'test'`/`'lint'`/`'typecheck'`/`'format'`/`'fmt'`
+  string literals away from `createNodesV2`/`infer*Targets`/`testTarget`/
   `lintTarget`/`typecheckTarget` lines — `scripts/spec-check.ts` flags
   target keys duplicated across files.
 

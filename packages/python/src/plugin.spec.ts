@@ -1,8 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { logger } from '@nx/devkit';
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createNodesV2, PYPROJECT_GLOB } from './plugin.ts';
 import type { NxDevkitPythonOptions } from './types.ts';
 
@@ -17,6 +18,7 @@ function makeContext(workspaceRoot: string): CreateNodesContextV2 {
 
 const tempRoots: string[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const r of tempRoots.splice(0)) rmSync(r, { recursive: true, force: true });
 });
 
@@ -225,10 +227,52 @@ describe('@nx-devkit/python createNodesV2', () => {
         '{projectRoot}/pyproject.toml',
         '{projectRoot}/**/*.py',
         '{projectRoot}/pytest.ini',
+        '{projectRoot}/tox.ini',
+        '{projectRoot}/setup.cfg',
         '{projectRoot}/**/conftest.py',
+        '{projectRoot}/**/ruff.toml',
+        '{projectRoot}/**/.ruff.toml',
+        '{projectRoot}/**/pyrightconfig.json',
+        '{projectRoot}/**/ty.toml',
         '{projectRoot}/uv.lock',
       ]),
     );
+  });
+
+  it('keeps the lock target inputs to the manifest and the lock file', async () => {
+    const root = makeWorkspace({ 'pkg/pyproject.toml': UV });
+    const results = await infer(root, ['pkg/pyproject.toml']);
+    const lock = results[0]![1].projects['pkg']!.targets!['lock']! as { inputs: string[] };
+
+    expect(lock.inputs).toEqual(['{projectRoot}/pyproject.toml', '{projectRoot}/uv.lock']);
+  });
+
+  it('scopes pytest away from nested project roots so run-many does not double-collect', async () => {
+    const root = makeWorkspace({
+      'app/pyproject.toml': PYTEST,
+      'app/lib/pyproject.toml': PYTEST,
+      'app/lib/deep/pyproject.toml': PYTEST,
+    });
+    const results = await infer(root, [
+      'app/pyproject.toml',
+      'app/lib/pyproject.toml',
+      'app/lib/deep/pyproject.toml',
+    ]);
+
+    const byFile = new Map(results.map(([f, r]) => [f, r]));
+    const app = byFile.get('app/pyproject.toml')!.projects['app']!.targets!['test']! as {
+      options: { command: string };
+    };
+    const lib = byFile.get('app/lib/pyproject.toml')!.projects['app/lib']!.targets!['test']! as {
+      options: { command: string };
+    };
+    const deep = byFile.get('app/lib/deep/pyproject.toml')!.projects['app/lib/deep']!.targets![
+      'test'
+    ]! as { options: { command: string } };
+
+    expect(app.options.command).toBe(`pytest --ignore='lib' --ignore='lib/deep'`);
+    expect(lib.options.command).toBe(`pytest --ignore='deep'`);
+    expect(deep.options.command).toBe('pytest');
   });
 
   it('infers targets on the root project for a workspace-root pyproject.toml', async () => {
@@ -276,6 +320,15 @@ describe('@nx-devkit/python createNodesV2', () => {
     expect(targets['typecheck']).toBeUndefined();
   });
 
+  it('option lock:false drops the lock target', async () => {
+    const root = makeWorkspace({ 'pkg/pyproject.toml': UV + PYTEST });
+    const results = await infer(root, ['pkg/pyproject.toml'], { lock: false });
+    const targets = results[0]![1].projects['pkg']!.targets!;
+
+    expect(targets['lock']).toBeUndefined();
+    expect(targets['test']).toBeDefined();
+  });
+
   it('skips pyproject.toml inside node_modules and outside the workspace', async () => {
     const root = makeWorkspace({
       'node_modules/x/pyproject.toml': PYTEST,
@@ -288,6 +341,7 @@ describe('@nx-devkit/python createNodesV2', () => {
   });
 
   it('warns and skips an unparseable pyproject.toml without breaking the graph', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const root = makeWorkspace({
       'bad/pyproject.toml': '[tool.ruff\ninvalid',
       'good/pyproject.toml': PYTEST,
@@ -296,6 +350,7 @@ describe('@nx-devkit/python createNodesV2', () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]![1].projects['good']).toBeDefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bad/pyproject.toml'));
   });
 
   it('produces deterministic output regardless of input order', async () => {

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
   logger,
   type CreateNodesResultArray,
@@ -7,7 +7,7 @@ import {
   type ProjectConfiguration,
   type TargetConfiguration,
 } from '@nx/devkit';
-import { logDebug } from '@nx-devkit/internal';
+import { logDebug, shouldSkipPath } from '@nx-devkit/internal';
 import { detectRunner, detectTools, parsePyProject } from './pyproject.ts';
 import { buildTargets } from './targets.ts';
 import type { NxDevkitPythonOptions } from './types.ts';
@@ -38,8 +38,11 @@ export const createNodesV2: CreateNodesV2<NxDevkitPythonOptions> = [
   PYPROJECT_GLOB,
   (configFiles, options = {}, context): CreateNodesResultArray => {
     const workspaceRoot = context.workspaceRoot;
-    const results: CreateNodesResultArray = [];
 
+    // First pass: normalize, skip, and parse every candidate so the set of
+    // project roots is known before any target is built — pytest's
+    // recursive collection needs the nested-project list.
+    const parsed: { configFile: string; projectRoot: string; doc: Record<string, unknown> }[] = [];
     for (const rawConfigFile of [...configFiles].sort()) {
       // Nx's glob expander can emit a leading "./" — normalize so the path
       // stays canonical in result keys.
@@ -53,7 +56,13 @@ export const createNodesV2: CreateNodesV2<NxDevkitPythonOptions> = [
 
       const doc = readPyProject(resolve(workspaceRoot, configFile), configFile);
       if (doc === null) continue;
+      parsed.push({ configFile, projectRoot, doc });
+    }
 
+    const projectRoots = parsed.map((p) => p.projectRoot);
+    const results: CreateNodesResultArray = [];
+
+    for (const { configFile, projectRoot, doc } of parsed) {
       const tools = detectTools(doc);
       // uv.lock marks the project as uv-managed even without [tool.uv];
       // in a uv workspace the lock file lives at the workspace root.
@@ -62,7 +71,14 @@ export const createNodesV2: CreateNodesV2<NxDevkitPythonOptions> = [
       const runner = detectRunner(tools, hasProjectLock || hasWorkspaceLock);
 
       const lockInputs = buildLockInputs(runner, hasWorkspaceLock);
-      const targets = buildTargets({ tools, runner, lockInputs, options });
+      const nestedProjectDirs = projectRoots
+        .filter(
+          (root) =>
+            root !== projectRoot && (projectRoot === '' || root.startsWith(`${projectRoot}/`)),
+        )
+        .map((root) => (projectRoot === '' ? root : root.slice(projectRoot.length + 1)))
+        .sort();
+      const targets = buildTargets({ tools, runner, lockInputs, nestedProjectDirs, options });
 
       const projects: ProjectMap = { [projectRoot]: { root: projectRoot, targets } };
       logDebug(
@@ -108,13 +124,14 @@ function readPyProject(absPath: string, configFile: string): Record<string, unkn
   }
 }
 
-/** node_modules and paths escaping the workspace are never projects. */
+/**
+ * node_modules and paths escaping the workspace are never projects —
+ * except the workspace root itself (single-package repos have a root
+ * pyproject.toml), which `shouldSkipPath` rejects by design.
+ */
 function isSkippedDir(projectRoot: string, workspaceRoot: string): boolean {
   if (projectRoot === '') return false;
-  const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot));
-  if (rel === '') return false;
-  const segments = rel.split(/[\\/]/);
-  return segments.includes('..') || segments.includes('node_modules');
+  return shouldSkipPath(projectRoot, workspaceRoot);
 }
 
 /**
@@ -128,6 +145,8 @@ function logSafe(value: string): string {
     out +=
       code < 32 ||
       (code >= 127 && code <= 159) ||
+      code === 0x2028 ||
+      code === 0x2029 ||
       (code >= 0x202a && code <= 0x202e) ||
       (code >= 0x2066 && code <= 0x2069)
         ? ' '
