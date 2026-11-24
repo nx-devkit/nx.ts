@@ -1,5 +1,5 @@
 import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit';
-import { registerPlugin, resolveRootProjectName } from '@nx-devkit/internal';
+import { registerPlugin } from '@nx-devkit/internal';
 
 export interface NxTerraformInitOptions {
   pluginPath?: string;
@@ -16,7 +16,6 @@ export async function initGenerator(
   options: NxTerraformInitOptions = {},
 ): Promise<GeneratorCallback> {
   const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
-  const projectName = resolveRootProjectName(tree) ?? '{root-project}';
 
   registerPlugin(tree, pluginPath);
 
