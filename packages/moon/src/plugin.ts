@@ -7,7 +7,7 @@ import {
   type ProjectConfiguration,
   type TargetConfiguration,
 } from '@nx/devkit';
-import { isVerbose, logDebug } from '@nx-devkit/internal';
+import { isVerbose, logDebug, parseJsonObject } from '@nx-devkit/internal';
 import { parseMoonYml, type MoonProjectYml } from './moon-config.ts';
 import { detectMoonWorkspace, type MoonWorkspace } from './workspace.ts';
 import { buildTaskTarget, type TaskTargetContext } from './targets.ts';
@@ -164,9 +164,11 @@ function deriveNxName(root: string, workspaceRoot: string): string | undefined {
   if (root === '') return undefined;
   for (const file of ['project.json', 'package.json']) {
     try {
-      const json = JSON.parse(readFileSync(join(workspaceRoot, root, file), 'utf8')) as {
-        name?: unknown;
-      };
+      // project.json is JSONC — comments and trailing commas are legal.
+      const json = parseJsonObject(
+        readFileSync(join(workspaceRoot, root, file), 'utf8'),
+        join(root, file),
+      );
       if (typeof json.name === 'string' && json.name !== '') return json.name;
     } catch {
       // Missing or unreadable — fall through to the next source.
