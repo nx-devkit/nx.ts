@@ -1,9 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createNodesV2, __testing } from './plugin.ts';
+import { __testing, createNodesV2 } from './plugin.ts';
 
 function makeContext(workspaceRoot = '/workspace'): CreateNodesContextV2 {
   return {
@@ -24,7 +24,9 @@ function makeTmpWorkspace(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'nx-docs-'));
   tmpDirs.push(dir);
   for (const [rel, content] of Object.entries(files)) {
-    writeFileSync(join(dir, rel), content);
+    const abs = join(dir, rel);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, content);
   }
   return dir;
 }
@@ -133,6 +135,50 @@ describe('@nx-devkit/docs createNodesV2', () => {
     // File listed by the glob but absent from disk — no crash, no starlight.
     const results = await infer(['site/astro.config.ts']);
     expect(results[0]![1].projects!.site!.metadata?.technologies).toEqual(['astro']);
+  });
+
+  it('captures a custom literal outDir from astro.config.*', async () => {
+    const workspaceRoot = makeTmpWorkspace({
+      'site/astro.config.mjs': `import { defineConfig } from 'astro/config';\nexport default defineConfig({ outDir: 'public' });\n`,
+    });
+    const results = await infer(['site/astro.config.mjs'], {}, workspaceRoot);
+    const build = results[0]![1].projects!.site!.targets!['docs:build']!;
+    expect(build.outputs).toEqual(['{projectRoot}/dist', '{projectRoot}/public']);
+    // And the output dir is negated from inputs so it cannot poison the hash.
+    expect(build.inputs).toContain('!{projectRoot}/public');
+  });
+
+  it('captures a custom literal outDir from .vitepress/config.*', async () => {
+    const workspaceRoot = makeTmpWorkspace({
+      'docs/.vitepress/config.ts': `import { defineConfig } from 'vitepress';\nexport default defineConfig({ outDir: './build' });\n`,
+    });
+    const results = await infer(['docs/.vitepress/config.ts'], {}, workspaceRoot);
+    const build = results[0]![1].projects!.docs!.targets!['docs:build']!;
+    expect(build.outputs).toEqual([
+      '{projectRoot}/.vitepress/dist',
+      '{projectRoot}/dist',
+      '{projectRoot}/build',
+    ]);
+    expect(build.inputs).toContain('!{projectRoot}/build');
+  });
+
+  it('does not duplicate outputs when outDir matches a declared default', async () => {
+    const workspaceRoot = makeTmpWorkspace({
+      'site/astro.config.ts': `export default { outDir: 'dist' };`,
+    });
+    const results = await infer(['site/astro.config.ts'], {}, workspaceRoot);
+    const build = results[0]![1].projects!.site!.targets!['docs:build']!;
+    expect(build.outputs).toEqual(['{projectRoot}/dist']);
+  });
+
+  it('ignores an outDir that escapes the project root', async () => {
+    const workspaceRoot = makeTmpWorkspace({
+      'site/astro.config.ts': `export default { outDir: '../outside' };`,
+    });
+    const results = await infer(['site/astro.config.ts'], {}, workspaceRoot);
+    const build = results[0]![1].projects!.site!.targets!['docs:build']!;
+    expect(build.outputs).toEqual(['{projectRoot}/dist']);
+    expect(build.inputs).not.toContain('!{projectRoot}/../outside');
   });
 
   it('prefers astro.config.* over .vitepress/config.* in the same project root', async () => {
