@@ -33,7 +33,7 @@ packages/just/
 ├── generators.json         # @nx-devkit/just:init
 ├── src/
 │   ├── index.ts            # re-exports
-│   ├── plugin.ts           # createNodesV2 — '**/{justfile,JUSTFILE,.justfile,just.just}'
+│   ├── plugin.ts           # createNodesV2 — '**/{justfile,JUSTFILE,Justfile,.justfile,.Justfile,.JUSTFILE,just.just}'
 │   ├── plugin.spec.ts
 │   ├── justfile.ts         # line-wise justfile parser
 │   ├── justfile.spec.ts

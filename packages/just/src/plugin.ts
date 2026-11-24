@@ -15,7 +15,8 @@ const DEFAULT_TARGET_PREFIX = 'just:';
 const MAX_MOD_DEPTH = 4;
 
 /** Config files the plugin reacts to. */
-export const JUSTFILE_GLOB = '**/{justfile,JUSTFILE,.justfile,just.just}';
+export const JUSTFILE_GLOB =
+  '**/{justfile,JUSTFILE,Justfile,.justfile,.Justfile,.JUSTFILE,just.just}';
 
 interface ResolvedModule {
   /** Qualified module path, e.g. `tools` or `a::b`. */
@@ -113,6 +114,13 @@ function collectModules(
     visited.add(canonical);
 
     const rel = relTo(projectDir, abs);
+    if (rel === null) {
+      logDebug(
+        PLUGIN_SCOPE,
+        `mod ${logSafe(qualified)} resolves outside the project root — skipped`,
+      );
+      continue;
+    }
     const modParsed = readJustfile(abs, rel);
     if (modParsed === null) continue;
     out.push({ qualifiedName: qualified, relPath: rel, recipes: modParsed.recipes });
@@ -120,9 +128,12 @@ function collectModules(
   }
 }
 
-/** Path of `abs` relative to `root`, using forward slashes. */
-function relTo(root: string, abs: string): string {
-  const rel = resolve(abs).slice(resolve(root).length).replace(/\\/g, '/');
+/** Path of `abs` relative to `root`, using forward slashes. `null` when `abs` escapes `root`. */
+function relTo(root: string, abs: string): string | null {
+  const resolvedRoot = resolve(root);
+  const resolvedAbs = resolve(abs);
+  if (resolvedAbs !== resolvedRoot && !resolvedAbs.startsWith(`${resolvedRoot}/`)) return null;
+  const rel = resolvedAbs.slice(resolvedRoot.length).replace(/\\/g, '/');
   return rel.startsWith('/') ? rel.slice(1) : rel;
 }
 
@@ -131,8 +142,9 @@ function buildTarget(
   recipe: JustRecipe,
   dependsOn: { target: string }[],
   inputs: string[],
+  commandName: string,
 ): TargetConfiguration {
-  let description = recipe.doc !== '' ? recipe.doc : `\`just ${command.slice(5)}\``;
+  let description = recipe.doc !== '' ? recipe.doc : `\`just ${commandName}\``;
   if (recipe.params.length > 0) {
     description += ` — params: ${recipe.params.join(' ')} (pass values after \`--\`, e.g. \`nx run <proj>:<target> -- ${recipe.params
       .map((p) => `<${p.split('=')[0]!.replace(/^[+$*]+/, '')}>`)
@@ -243,7 +255,7 @@ function emitRecipes(recipes: JustRecipe[], qualifier: string, ctx: EmitCtx): vo
       .map((d) => ctx.targetNames.get(d))
       .filter((t): t is string => t !== undefined)
       .map((t) => ({ target: t }));
-    ctx.targets[targetName] = buildTarget(`just ${qualified}`, r, dependsOn, ctx.inputs);
+    ctx.targets[targetName] = buildTarget(`just ${qualified}`, r, dependsOn, ctx.inputs, qualified);
     if (isVerbose()) {
       logDebug(PLUGIN_SCOPE, `Registered ${logSafe(ctx.dir || '.')}:${logSafe(targetName)}`);
     }
@@ -265,6 +277,7 @@ function emitAliases(parsed: JustfileData, ctx: EmitCtx): void {
       },
       [],
       ctx.inputs,
+      a.name,
     );
   }
 }

@@ -60,7 +60,9 @@ async function createNodes(
 
 describe('@nx-devkit/just createNodesV2', () => {
   it('watches justfile names', () => {
-    expect(createNodesV2[0]).toBe('**/{justfile,JUSTFILE,.justfile,just.just}');
+    expect(createNodesV2[0]).toBe(
+      '**/{justfile,JUSTFILE,Justfile,.justfile,.Justfile,.JUSTFILE,just.just}',
+    );
   });
 
   it('infers just:<recipe> targets running just <recipe>', async () => {
