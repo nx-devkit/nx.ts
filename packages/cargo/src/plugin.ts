@@ -96,40 +96,13 @@ export const createNodesV2: CreateNodesV2<NxDevkitCargoOptions> = [
     };
 
     const results: CreateNodesResultArray = [];
+    const ctx: InferCtx = { clippy, fmt, manifestAt, membersOf };
     for (const dir of [...manifests.keys()].sort()) {
       const manifest = manifests.get(dir);
       const configFile = manifestFiles.get(dir);
       if (manifest === undefined || configFile === undefined) continue;
 
-      const projects: Record<string, ProjectConfiguration> = {};
-      if (manifest.packageName !== undefined) {
-        const lockfileRoot = resolveLockfileRoot(dir, manifest, manifestAt, membersOf);
-        const implicitDependencies = collectPathDeps(manifest, dir, lockfileRoot, manifestAt);
-        const project: ProjectConfiguration = {
-          root: dir,
-          name: manifest.packageName,
-          targets: buildCrateTargets(
-            manifest.packageName,
-            { clippy, fmt },
-            crateInputs(dir, lockfileRoot),
-          ),
-        };
-        if (implicitDependencies.length > 0) project.implicitDependencies = implicitDependencies;
-        projects[dir] = project;
-        if (isVerbose()) {
-          logDebug(PLUGIN_SCOPE, `Registered crate ${logSafe(dir || '.')}:${manifest.packageName}`);
-        }
-      } else if (manifest.workspace !== null) {
-        // Virtual workspace root — workspace-level build/test, no -p.
-        const members = membersOf(dir, manifest);
-        projects[dir] = {
-          root: dir,
-          targets: buildWorkspaceTargets(workspaceInputs(dir, members)),
-        };
-        if (isVerbose()) {
-          logDebug(PLUGIN_SCOPE, `Registered virtual workspace ${logSafe(dir || '.')}`);
-        }
-      }
+      const projects = inferDirProjects(dir, manifest, ctx);
       if (Object.keys(projects).length > 0) {
         results.push([configFile, { projects }]);
       }
@@ -138,6 +111,51 @@ export const createNodesV2: CreateNodesV2<NxDevkitCargoOptions> = [
     return results;
   },
 ];
+
+interface InferCtx {
+  clippy: boolean;
+  fmt: boolean;
+  manifestAt: (dir: string) => CargoManifest | null;
+  membersOf: (wsDir: string, manifest: CargoManifest) => string[];
+}
+
+/** Build the project map for one manifest dir — crate or virtual workspace. */
+function inferDirProjects(
+  dir: string,
+  manifest: CargoManifest,
+  ctx: InferCtx,
+): Record<string, ProjectConfiguration> {
+  const projects: Record<string, ProjectConfiguration> = {};
+  if (manifest.packageName !== undefined) {
+    const lockfileRoot = resolveLockfileRoot(dir, manifest, ctx.manifestAt, ctx.membersOf);
+    const implicitDependencies = collectPathDeps(manifest, dir, lockfileRoot, ctx.manifestAt);
+    const project: ProjectConfiguration = {
+      root: dir,
+      name: manifest.packageName,
+      targets: buildCrateTargets(
+        manifest.packageName,
+        { clippy: ctx.clippy, fmt: ctx.fmt },
+        crateInputs(dir, lockfileRoot),
+      ),
+    };
+    if (implicitDependencies.length > 0) project.implicitDependencies = implicitDependencies;
+    projects[dir] = project;
+    if (isVerbose()) {
+      logDebug(PLUGIN_SCOPE, `Registered crate ${logSafe(dir || '.')}:${manifest.packageName}`);
+    }
+  } else if (manifest.workspace !== null) {
+    // Virtual workspace root — workspace-level build/test, no -p.
+    const members = ctx.membersOf(dir, manifest);
+    projects[dir] = {
+      root: dir,
+      targets: buildWorkspaceTargets(workspaceInputs(dir, members)),
+    };
+    if (isVerbose()) {
+      logDebug(PLUGIN_SCOPE, `Registered virtual workspace ${logSafe(dir || '.')}`);
+    }
+  }
+  return projects;
+}
 
 const plugin: { name: string; createNodesV2: typeof createNodesV2 } = {
   name: PLUGIN_NAME,
@@ -153,7 +171,7 @@ function normalize(path: string): string {
 /** node_modules and paths escaping the workspace are never crates. */
 function isSkippedDir(dir: string): boolean {
   const segments = dir.split('/');
-  return segments[0] === '..' || segments.includes('node_modules');
+  return segments.includes('..') || segments.includes('node_modules');
 }
 
 function readManifestFile(absPath: string, configFile: string): CargoManifest | null {
@@ -180,7 +198,7 @@ function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    out += code < 32 || (code >= 127 && code <= 159) ? ' ' : char;
   }
   return out.trim();
 }
