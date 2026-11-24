@@ -13,6 +13,17 @@ export interface NxPkgLintPluginOptions {
 
 const PACKAGE_JSON_GLOB = '**/package.json';
 
+// `npx publint` / `npx attw` resolve from the workspace root, so the locked
+// tool versions live in the root lockfile — a version bump must bust the
+// cached lint verdict.
+const LOCKFILE_INPUTS = [
+  '{workspaceRoot}/bun.lock',
+  '{workspaceRoot}/bun.lockb',
+  '{workspaceRoot}/package-lock.json',
+  '{workspaceRoot}/yarn.lock',
+  '{workspaceRoot}/pnpm-lock.yaml',
+];
+
 interface PackageManifest {
   private?: boolean;
   exports?: unknown;
@@ -67,7 +78,7 @@ export function lintPkgTarget(
     // dotfiles glob — npm honors .npmignore / .gitignore at any level when
     // selecting packed files, and `**/*` does not reliably match dotfiles.
     dependsOn: ['build'],
-    inputs: [`${prefix}/package.json`, `${prefix}/**/*`, `${prefix}/**/.*`],
+    inputs: [`${prefix}/package.json`, `${prefix}/**/*`, `${prefix}/**/.*`, ...LOCKFILE_INPUTS],
     options: { commands: [...commands], parallel: false, cwd: prefix },
   };
 }
