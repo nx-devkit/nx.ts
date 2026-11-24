@@ -42,10 +42,15 @@ export interface NxDevkitBazelOptions {
 - `bazel:test` exists only when a BUILD file matches `\b\w*_test\s*\(` —
   a regex scan, not BUILD parsing. No `bazel query`, no deps edges, no
   per-rule targets: this is a mixed-repo bridge.
-- Both targets are `cache: true` with `outputs: []` — Bazel is hermetic
-  and owns `bazel-*` symlinks into output_user_root; nx captures nothing.
-- Inputs: `{projectRoot}/**` minus `{projectRoot}/bazel-*`, the dir's
-  BUILD files, and every ancestor workspace marker (`{workspaceRoot}/…`).
+- Both targets are `cache: false` — Bazel owns `bazel-*` symlinks into
+  output_user_root; Nx can capture/restore nothing, so a cache hit would
+  skip the build and leave no output tree. Bazel's own cache does the
+  deduping; inputs still drive `nx affected`.
+- Inputs: `{projectRoot}/**` minus the exact Bazel output symlinks
+  (`bazel-bin`/`bazel-out`/`bazel-testlogs`/`bazel-<basename>`, dir + `/**`
+  — a legit `bazel-*` source dir stays hashed), the dir's BUILD files,
+  every ancestor workspace marker, and `{workspaceRoot}/**/*.bzl` (shared
+  macros re-hash every target).
 - `cwd` is always `{projectRoot}` — Bazel finds its workspace root upward.
 - `node_modules` and `..`-escaping dirs are skipped; output is sorted/deterministic.
 - `jsonc-parser` must stay a dependency — `@nx-devkit/internal` is bundled

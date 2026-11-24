@@ -56,7 +56,8 @@ describe('@nx-devkit/bazel createNodesV2', () => {
       command: 'bazel build //services/api:all',
       cwd: '{projectRoot}',
     });
-    expect(target.cache).toBe(true);
+    expect(target.cache).toBe(false);
+    expect(target.outputs ?? []).toEqual([]);
   });
 
   it('adds bazel:test only when the BUILD file declares a *_test rule', async () => {
@@ -73,7 +74,8 @@ describe('@nx-devkit/bazel createNodesV2', () => {
       command: 'bazel test //a:all',
       cwd: '{projectRoot}',
     });
-    expect(aTargets['bazel:test']!.cache).toBe(true);
+    expect(aTargets['bazel:test']!.cache).toBe(false);
+    expect(aTargets['bazel:test']!.outputs ?? []).toEqual([]);
     expect(projects.b!.targets!['bazel:test']).toBeUndefined();
   });
 
@@ -178,7 +180,9 @@ describe('@nx-devkit/bazel createNodesV2', () => {
     );
     const inputs = results[0]![1].projects!['services/api']!.targets!['bazel:build']!.inputs!;
     expect(inputs).toContain('{projectRoot}/**');
-    expect(inputs).toContain('!{projectRoot}/bazel-*');
+    expect(inputs).toContain('!{projectRoot}/bazel-bin/**');
+    expect(inputs).toContain('!{projectRoot}/bazel-api/**');
+    expect(inputs).toContain('{workspaceRoot}/**/*.bzl');
     expect(inputs).toContain('{projectRoot}/BUILD.bazel');
     expect(inputs).toContain('{workspaceRoot}/WORKSPACE');
   });

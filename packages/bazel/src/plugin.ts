@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 import type { NxDevkitBazelOptions } from './types.ts';
+
+export type { NxDevkitBazelOptions } from './types.ts';
 
 const PLUGIN_NAME = '@nx-devkit/bazel';
 
@@ -146,33 +148,40 @@ export const createNodesV2: CreateNodesV2<NxDevkitBazelOptions> = [
       const pkg = bazelPackagePath(dir, findBazelWorkspaceRoot(dir, workspaceRoot));
       const label = `//${pkg}:all`;
 
-      // dir's BUILD files + source globs minus bazel-* output symlinks;
+      // dir's BUILD files + source globs minus bazel output symlinks;
       // ancestor workspace markers re-hash targets on workspace changes.
+      // Exclude only Bazel's own output symlinks by exact name — a legit
+      // source dir named bazel-* (e.g. bazel-tools/) must stay hashed.
+      const linkName = `bazel-${basename(dir === '' ? workspaceRoot : dir)}`;
       const inputs = [
         '{projectRoot}/**',
-        '!{projectRoot}/bazel-*',
-        '!{projectRoot}/bazel-*/**',
+        ...['bazel-bin', 'bazel-out', 'bazel-testlogs', linkName].flatMap((n) => [
+          `!{projectRoot}/${n}`,
+          `!{projectRoot}/${n}/**`,
+        ]),
         ...buildFiles.map((f) => `{projectRoot}/${f.slice(dir === '' ? 0 : dir.length + 1)}`),
         ...collectMarkers(dir, workspaceRoot).map((m) => `{workspaceRoot}/${m}`),
+        // shared .bzl macros loaded by any BUILD file re-hash every target
+        '{workspaceRoot}/**/*.bzl',
       ];
 
       const targets: Record<string, TargetConfiguration> = {
         [`${prefix}:build`]: {
           executor: 'nx:run-commands',
-          cache: true,
-          inputs,
           // Bazel is itself hermetic and owns its output tree (bazel-*
-          // symlinks into output_user_root) — nothing for nx to capture.
-          outputs: [],
+          // symlinks into output_user_root) — Nx can capture nothing, so a
+          // cache hit would skip the build yet leave no output tree. Off.
+          cache: false,
+          inputs,
           options: { command: `bazel build ${label}`, cwd: '{projectRoot}' },
         },
       };
       if (declaresTestRule(buildFiles, workspaceRoot)) {
         targets[`${prefix}:test`] = {
           executor: 'nx:run-commands',
-          cache: true,
+          // Same reasoning as bazel:build — no restorable outputs, no cache.
+          cache: false,
           inputs,
-          outputs: [],
           options: { command: `bazel test ${label}`, cwd: '{projectRoot}' },
         };
       }
