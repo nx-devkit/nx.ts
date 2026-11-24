@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 import type { NxDevkitDotfilesOptions } from './types.ts';
 
@@ -10,6 +10,7 @@ const CONFIG_GLOB = '**/{.chezmoiversion,install.conf.yaml,.install.conf.yaml}';
 const DOTBOT_CONFIG_NAMES = new Set(['install.conf.yaml', '.install.conf.yaml']);
 
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
+  if (isAbsolute(projectRoot)) return true;
   const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot || '.'));
   if (rel === '') return false;
   const segments = rel.split(/[\\/]/);
@@ -59,7 +60,7 @@ function dotbotTargets(
     .filter((b) => DOTBOT_CONFIG_NAMES.has(b))
     .sort()
     .at(0);
-  const command = hasInstallScript ? './install' : `dotbot -c ${configName}`;
+  const command = hasInstallScript ? './install' : `dotbot -c ${configName ?? 'install.conf.yaml'}`;
   return {
     'dotfiles:install': {
       executor: 'nx:run-commands',
