@@ -87,6 +87,26 @@ describe('@nx-devkit/dotenv createNodesV2', () => {
     expect(inputs).toContainEqual({ env: 'BAR' });
   });
 
+  it('passes envFile through to options and hashes it as an input', async () => {
+    const root = makeWorkspace({
+      'pkg/.env.example': 'FOO=1\n',
+      'config/local.env': 'FOO=1\n',
+    });
+    const results = await createNodesV2[1](
+      ['pkg/.env.example'],
+      { envFile: 'config/local.env' },
+      makeContext(root),
+    );
+
+    const target = results[0]![1].projects!.pkg!.targets!['env:check']!;
+    expect(target.options).toEqual({
+      examples: ['pkg/.env.example'],
+      envFile: 'config/local.env',
+    });
+    expect(target.inputs).toContain('config/local.env');
+    expect(target.inputs).not.toContain('{projectRoot}/.env');
+  });
+
   it('honors a custom targetName option', async () => {
     const root = makeWorkspace({ 'pkg/.env.example': 'FOO=1\n' });
     const results = await createNodesV2[1](

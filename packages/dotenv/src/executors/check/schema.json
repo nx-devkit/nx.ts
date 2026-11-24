@@ -7,11 +7,18 @@
   "properties": {
     "examples": {
       "type": "array",
-      "items": { "type": "string" },
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).*$"
+      },
       "description": "Workspace-relative .env.example/.env.sample files whose declared keys must be available."
     },
     "envFile": {
       "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).*$",
       "description": "Workspace-relative env file checked in addition to process.env. Default: the .env sibling of each example file."
     }
   },

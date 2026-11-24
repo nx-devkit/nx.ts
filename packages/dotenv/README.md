@@ -39,7 +39,7 @@ One `env:check` per directory that owns an example file — a project with both 
 
 ### Cache semantics
 
-The target's inputs are the example files themselves, the sibling `.env`, and one `{ env: KEY }` runtime input per declared var — so adding a required var to the template, filling it into `.env`, or (un)setting it in the environment all bust the cache. Nx hashes env inputs; values never appear in argv or in the target definition.
+The target's inputs are the example files themselves, the env file the check reads (the sibling `.env`, or the configured `envFile`), and one `{ env: KEY }` runtime input per declared var — so adding a required var to the template, filling it into the env file, or (un)setting it in the environment all bust the cache. Nx hashes env inputs; values never appear in argv or in the target definition.
 
 ## Gate other targets on the check
 
@@ -71,9 +71,10 @@ Or point a script at it: `"precheck": "nx run-many -t env:check"`.
 }
 ```
 
-| Option       | Default     | Description                       |
-| ------------ | ----------- | --------------------------------- |
-| `targetName` | `env:check` | Name of the inferred check target |
+| Option       | Default     | Description                                                                  |
+| ------------ | ----------- | ---------------------------------------------------------------------------- |
+| `targetName` | `env:check` | Name of the inferred check target                                            |
+| `envFile`    | —           | Workspace-relative env file checked instead of each example's `.env` sibling |
 
 ## Secrets stay out of argv and logs
 
@@ -86,3 +87,5 @@ npx nx show project my-app        # see inferred targets
 npx nx env:check my-app           # verify required vars (cached)
 npx nx run-many -t env:check      # across every package with an example file
 ```
+
+These commands assume the default `targetName` — substitute your configured name if you set one.

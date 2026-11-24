@@ -1,5 +1,5 @@
 import { formatFiles, type GeneratorCallback, type Tree } from '@nx/devkit';
-import { registerPlugin, resolveRootProjectName } from '@nx-devkit/internal';
+import { registerPlugin } from '@nx-devkit/internal';
 
 export interface NxDotenvInitOptions {
   pluginPath?: string;
@@ -15,8 +15,7 @@ export async function initGenerator(
   tree: Tree,
   options: NxDotenvInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
-  const projectName = resolveRootProjectName(tree) ?? '{root-project}';
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
 
   registerPlugin(tree, pluginPath);
 
@@ -24,7 +23,8 @@ export async function initGenerator(
     `1. The plugin is registered (${pluginPath}) — directories containing .env.example/.env.sample now have an env:check target.`,
     '2. Inspect inferred targets:',
     '   bunx nx show projects',
-    `3. Verify required vars:  bunx nx run ${projectName}:env:check`,
+    // env:check is inferred per directory, not on the root project — run it across them all.
+    '3. Verify required vars:  bunx nx run-many -t env:check',
     '4. Gate other targets on it via dependsOn — see the package README.',
   ];
   for (const line of checklist) {

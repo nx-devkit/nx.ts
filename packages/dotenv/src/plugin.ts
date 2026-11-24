@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 import { parseDotenvKeys } from './dotenv.ts';
 import type { NxDevkitDotenvOptions } from './types.ts';
@@ -34,7 +34,8 @@ function readDeclaredKeys(absPath: string): string[] {
  *
  * Every matched file contributes its declared keys as `{ env: KEY }`
  * runtime inputs — a required var appearing or disappearing in the
- * environment busts the cache of the check. The sibling `.env` is a file
+ * environment busts the cache of the check. The env file the executor
+ * reads — the sibling `.env`, or the configured `envFile` — is a file
  * input for the same reason. The check itself runs in the bundled
  * `@nx-devkit/dotenv:check` executor; var values never reach argv, the
  * task hash stores only Nx's env-input digests, and failure output lists
@@ -45,6 +46,16 @@ export const createNodesV2: CreateNodesV2<NxDevkitDotenvOptions> = [
   (configFiles, options = {}, context) => {
     const workspaceRoot = context.workspaceRoot;
     const targetName = options.targetName || 'env:check';
+    // Trimmed, normalized envFile override — forwarded to the executor
+    // and hashed as a file input. Absolute or `..`-escaping values still
+    // reach the executor, where schema + runtime guards fail loud.
+    const envFile = options.envFile?.trim() || undefined;
+    const envFileInput = (() => {
+      if (envFile === undefined) return undefined;
+      if (isAbsolute(envFile)) return undefined;
+      const normalized = normalize(envFile);
+      return normalized.split('/').includes('..') ? undefined : normalized;
+    })();
 
     // Group matched files by owning directory — deterministic order.
     const byDir = new Map<string, string[]>();
@@ -76,9 +87,11 @@ export const createNodesV2: CreateNodesV2<NxDevkitDotenvOptions> = [
           envKeys.add(key);
         }
       }
+      // The env file the executor reads must be an input — otherwise a
+      // removed key could restore a stale cached success.
       const inputs: Array<string | { env: string }> = [
         ...fileInputs,
-        `${prefix}/.env`,
+        envFileInput ?? `${prefix}/.env`,
         ...[...envKeys].sort().map((env) => ({ env })),
       ];
 
@@ -87,7 +100,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitDotenvOptions> = [
           executor: '@nx-devkit/dotenv:check',
           cache: true,
           inputs,
-          options: { examples: sorted },
+          options: envFile !== undefined ? { examples: sorted, envFile } : { examples: sorted },
         },
       };
 

@@ -7,10 +7,25 @@
  * alphabet (`[A-Za-z_][A-Za-z0-9_.-]*`). Quoted values that open a
  * `"`, `'` or `` ` `` and do not close it on the same line are treated
  * as multiline, so continuation lines cannot masquerade as keys.
+ * Escaped quotes (e.g. `\"`) never open or close a multiline value.
  */
 
 const ASSIGNMENT_RE = /^(?:export\s+)?([A-Za-z_][\w.-]*)\s*=(.*)$/;
 const QUOTE_CHARS = new Set(['"', "'", '`']);
+
+/**
+ * True when `ch` occurs in `s` without being escaped — i.e. preceded
+ * by an even number of consecutive backslashes.
+ */
+function hasUnescapedChar(s: string, ch: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] !== ch) continue;
+    let backslashes = 0;
+    for (let j = i - 1; j >= 0 && s[j] === '\\'; j--) backslashes++;
+    if (backslashes % 2 === 0) return true;
+  }
+  return false;
+}
 
 export function parseDotenvKeys(text: string): string[] {
   const keys: string[] = [];
@@ -22,9 +37,10 @@ export function parseDotenvKeys(text: string): string[] {
     const line = rawLine.trim();
 
     if (openQuote !== null) {
-      // Inside a multiline quoted value — the first line carrying the
-      // quote char again closes it; everything else is value text.
-      if (line.includes(openQuote)) openQuote = null;
+      // Inside a multiline quoted value — the first line carrying an
+      // unescaped copy of the quote char closes it; everything else
+      // (escaped quotes included) is value text.
+      if (hasUnescapedChar(line, openQuote)) openQuote = null;
       continue;
     }
     if (line === '' || line.startsWith('#')) continue;
@@ -40,7 +56,7 @@ export function parseDotenvKeys(text: string): string[] {
 
     const value = match[2]!.trimStart();
     const first = value[0];
-    if (first !== undefined && QUOTE_CHARS.has(first) && !value.slice(1).includes(first)) {
+    if (first !== undefined && QUOTE_CHARS.has(first) && !hasUnescapedChar(value.slice(1), first)) {
       openQuote = first;
     }
   }

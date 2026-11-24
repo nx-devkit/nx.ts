@@ -44,6 +44,15 @@ describe('parseDotenvKeys', () => {
     expect(parseDotenvKeys('OPEN="never closed\nSTILL=inside\n')).toEqual(['OPEN']);
   });
 
+  it('does not close a multiline value on an escaped quote', () => {
+    const text = 'CERT="-----BEGIN\nescaped \\" quote\nDOTENV_FAKE=x\n-----END"\nREAL=1\n';
+    expect(parseDotenvKeys(text)).toEqual(['CERT', 'REAL']);
+  });
+
+  it('opens a multiline value when the only same-line quote is escaped', () => {
+    expect(parseDotenvKeys('A="x\\"\nB=1\n')).toEqual(['A']);
+  });
+
   it('returns an empty list for empty input', () => {
     expect(parseDotenvKeys('')).toEqual([]);
   });

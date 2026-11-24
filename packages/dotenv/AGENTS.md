@@ -30,6 +30,7 @@ packages/dotenv/
 ```ts
 export interface NxDevkitDotenvOptions {
   targetName?: string; // default "env:check"
+  envFile?: string; // workspace-relative env file checked instead of each example's `.env` sibling
 }
 ```
 
@@ -37,7 +38,7 @@ export interface NxDevkitDotenvOptions {
 
 - Trigger glob is `**/{.env.example,.env.sample}` only — real `.env` files never trigger projects.
 - Matched files group by owning directory; one `env:check` per directory, all example files of the dir verified in a single run.
-- `env:check` is `cache: true`; inputs are the example files, the sibling `.env`, and `{ env: KEY }` for every declared key — env changes bust the cache.
+- `env:check` is `cache: true`; inputs are the example files, the env file the check reads (the sibling `.env`, or the configured `envFile`), and `{ env: KEY }` for every declared key — env changes bust the cache.
 - The check runs in the bundled `@nx-devkit/dotenv:check` executor — no external tool, no peer dependency to install.
 - **Values never leave the files** — the parser extracts key names only; failure output lists missing names; nothing secret reaches argv, target options, or the report.
 - A missing example file fails loud (never a silent pass); a missing `.env` is fine — `process.env` may carry everything (CI).

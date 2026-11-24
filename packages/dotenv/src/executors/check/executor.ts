@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { logger, type ExecutorContext } from '@nx/devkit';
 import { parseDotenvKeys } from '../../dotenv.ts';
 
@@ -17,6 +17,19 @@ export interface CheckExecutorResult {
   success: boolean;
   /** Missing var NAMES — never values. Present only on failure. */
   missing?: string[];
+}
+
+/**
+ * Resolve a workspace-relative option path, or null when it is absolute
+ * or escapes the workspace root. The schema rejects such paths up front;
+ * this guard covers programmatic callers — invalid input fails loud.
+ */
+function resolveInside(workspaceRoot: string, path: string): string | null {
+  if (isAbsolute(path)) return null;
+  const abs = resolve(workspaceRoot, path);
+  const rel = relative(workspaceRoot, abs);
+  if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
+  return abs;
 }
 
 /**
@@ -38,7 +51,12 @@ export async function checkExecutor(
   let failed = false;
 
   for (const example of examples) {
-    const exampleAbs = resolve(workspaceRoot, example);
+    const exampleAbs = resolveInside(workspaceRoot, example);
+    if (exampleAbs === null) {
+      logger.error(`[dotenv] Example path must be workspace-relative: ${example}`);
+      failed = true;
+      continue;
+    }
     if (!existsSync(exampleAbs)) {
       logger.error(`[dotenv] Required example file not found: ${example}`);
       failed = true;
@@ -47,14 +65,21 @@ export async function checkExecutor(
 
     const envFileAbs =
       options.envFile !== undefined
-        ? resolve(workspaceRoot, options.envFile)
+        ? resolveInside(workspaceRoot, options.envFile)
         : join(dirname(exampleAbs), '.env');
+    if (envFileAbs === null) {
+      logger.error(`[dotenv] envFile must be a workspace-relative path: ${options.envFile}`);
+      failed = true;
+      continue;
+    }
     const fileKeys = existsSync(envFileAbs)
       ? new Set(parseDotenvKeys(readFileSync(envFileAbs, 'utf8')))
       : new Set<string>();
 
     for (const key of parseDotenvKeys(readFileSync(exampleAbs, 'utf8'))) {
-      if (process.env[key] === undefined && !fileKeys.has(key)) {
+      // Own-property check: inherited names like `toString` or
+      // `constructor` must not satisfy a required var.
+      if (!Object.hasOwn(process.env, key) && !fileKeys.has(key)) {
         missing.add(key);
       }
     }

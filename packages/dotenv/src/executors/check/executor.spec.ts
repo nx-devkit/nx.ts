@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ExecutorContext } from '@nx/devkit';
-import { afterEach, describe, expect, it } from 'vitest';
+import { logger } from '@nx/devkit';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { checkExecutor } from './executor.ts';
 
 function makeContext(root: string): ExecutorContext {
@@ -73,14 +74,19 @@ describe('checkExecutor', () => {
     expect(result.missing).toEqual(['DOTENV_MISSING_A', 'DOTENV_MISSING_B']);
   });
 
-  it('never echoes secret values in the report', async () => {
+  it('never echoes secret values in the report or logs', async () => {
     setEnv('DOTENV_MISSING_SECRET', undefined);
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     const root = makeWorkspace({
       'app/.env.example': 'DOTENV_MISSING_SECRET=hunter2\n',
       'app/.env': 'OTHER=hunter2\n',
     });
     const result = await checkExecutor({ examples: ['app/.env.example'] }, makeContext(root));
+    const logged = errSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+    errSpy.mockRestore();
     expect(result.success).toBe(false);
+    expect(logged).toContain('DOTENV_MISSING_SECRET');
+    expect(logged).not.toContain('hunter2');
     expect(JSON.stringify(result)).not.toContain('hunter2');
   });
 
@@ -103,6 +109,8 @@ describe('checkExecutor', () => {
   });
 
   it('honors an explicit envFile option', async () => {
+    // An ambient FOO would let this pass even if envFile were ignored.
+    setEnv('FOO', undefined);
     const root = makeWorkspace({
       'app/.env.example': 'FOO=\n',
       'config/local.env': 'FOO=1\n',
@@ -132,10 +140,28 @@ describe('checkExecutor', () => {
 
   it('does not let multiline quoted values leak fake keys', async () => {
     setEnv('CERT', 'pem');
+    // An ambient DOTENV_FAKE would mask a leaked fake key.
+    setEnv('DOTENV_FAKE', undefined);
     const root = makeWorkspace({
       '.env.example': 'CERT="-----BEGIN\nDOTENV_FAKE=x\n-----END"\n',
     });
     const result = await checkExecutor({ examples: ['.env.example'] }, makeContext(root));
     expect(result.success).toBe(true);
+  });
+
+  it('fails loud on an absolute example path', async () => {
+    const root = makeWorkspace({});
+    const result = await checkExecutor({ examples: ['/etc/.env.example'] }, makeContext(root));
+    expect(result.success).toBe(false);
+  });
+
+  it('fails loud when envFile escapes the workspace', async () => {
+    setEnv('FOO', undefined);
+    const root = makeWorkspace({ 'app/.env.example': 'FOO=\n' });
+    const result = await checkExecutor(
+      { examples: ['app/.env.example'], envFile: '../outside.env' },
+      makeContext(root),
+    );
+    expect(result.success).toBe(false);
   });
 });

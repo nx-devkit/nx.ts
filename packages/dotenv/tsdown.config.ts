@@ -9,6 +9,8 @@ export default defineConfig({
   },
   format: ['esm'],
   dts: { generator: 'oxc' },
-  clean: true,
+  // No clean: executors.json resolves ./dist/executors/*.mjs at task start;
+  // wiping dist mid-run-many breaks parallel tasks with ImplementationResolutionError.
+  clean: false,
   deps: { alwaysBundle: ['@nx-devkit/internal'] },
 });

@@ -72,5 +72,6 @@ describe('initGenerator', () => {
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
     expect(pkg.devDependencies ?? {}).toEqual({});
+    expect(pkg.dependencies ?? {}).toEqual({});
   });
 });
