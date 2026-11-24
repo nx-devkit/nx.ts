@@ -45,6 +45,17 @@ describe('initGenerator', () => {
     expect(readPlugins(tree)).toEqual(['@nx-devkit/go']);
   });
 
+  it('falls back to the default plugin when pluginPath is empty or whitespace', async () => {
+    for (const pluginPath of ['', '   ']) {
+      const tree = createTree();
+
+      await initGenerator(tree, { pluginPath });
+
+      const plugins = readPlugins(tree) as Array<{ plugin: string }>;
+      expect(plugins.some((p) => p.plugin === '@nx-devkit/go')).toBe(true);
+    }
+  });
+
   it('honors a custom pluginPath', async () => {
     const tree = createTree();
 

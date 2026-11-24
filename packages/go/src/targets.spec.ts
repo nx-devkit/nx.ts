@@ -33,9 +33,23 @@ describe('buildModuleTargets', () => {
     const targets = buildModuleTargets('svc', ctx(root));
 
     expect(Object.keys(targets).sort()).toEqual(['build', 'test', 'vet']);
-    expect(targets.build?.options).toEqual({ command: 'go build ./...', cwd: '{projectRoot}' });
-    expect(targets.test?.options).toEqual({ command: 'go test ./...', cwd: '{projectRoot}' });
-    expect(targets.vet?.options).toEqual({ command: 'go vet ./...', cwd: '{projectRoot}' });
+    expect(targets.build?.options).toMatchObject({
+      command: 'go build ./...',
+      cwd: '{projectRoot}',
+    });
+    expect(targets.test?.options).toMatchObject({ command: 'go test ./...', cwd: '{projectRoot}' });
+    expect(targets.vet?.options).toMatchObject({ command: 'go vet ./...', cwd: '{projectRoot}' });
+  });
+
+  it('pins GOWORK to the claiming go.work; off for standalone modules', () => {
+    const root = makeWorkspace();
+    const member = buildModuleTargets('svc', ctx(root, { goWorkFile: 'tools/go.work' }));
+    const standalone = buildModuleTargets('svc', ctx(root));
+
+    expect(member.build?.options).toMatchObject({
+      env: { GOWORK: join(root, 'tools/go.work') },
+    });
+    expect(standalone.build?.options).toMatchObject({ env: { GOWORK: 'off' } });
   });
 
   it('caches build, test and vet', () => {
@@ -50,14 +64,29 @@ describe('buildModuleTargets', () => {
     }
   });
 
-  it('hashes go.mod, go.sum and Go sources', () => {
+  it('hashes go.mod, go.sum and the whole module fileset minus tool dirs', () => {
     const root = makeWorkspace();
     const targets = buildModuleTargets('svc', ctx(root));
     const inputs = targets.build?.inputs ?? [];
 
     expect(inputs).toContain('{projectRoot}/go.mod');
     expect(inputs).toContain('{projectRoot}/go.sum');
-    expect(inputs).toContain('{projectRoot}/**/*.go');
+    // `//go:embed` assets and CGo files need the whole tree, not just *.go.
+    expect(inputs).toContain('{projectRoot}/**/*');
+    expect(inputs).toContain('!{projectRoot}/**/vendor/**/*');
+    expect(inputs).toContain('!{projectRoot}/**/node_modules/**/*');
+    expect(inputs).toContain('!{projectRoot}/**/.git/**/*');
+  });
+
+  it('uses workspaceRoot-prefixed inputs for a module at the workspace root', () => {
+    const root = makeWorkspace();
+    const targets = buildModuleTargets('', ctx(root));
+    const inputs = targets.build?.inputs ?? [];
+
+    expect(inputs).toContain('{workspaceRoot}/go.mod');
+    expect(inputs).toContain('{workspaceRoot}/go.sum');
+    expect(inputs).toContain('{workspaceRoot}/**/*');
+    expect(inputs).not.toContain('{projectRoot}/go.mod');
   });
 
   it('adds go.work and go.work.sum inputs for workspace members', () => {
@@ -67,6 +96,22 @@ describe('buildModuleTargets', () => {
 
     expect(inputs).toContain('{workspaceRoot}/go.work');
     expect(inputs).toContain('{workspaceRoot}/go.work.sum');
+  });
+
+  it('hashes sibling member sources for workspace members', () => {
+    const root = makeWorkspace();
+    const targets = buildModuleTargets(
+      'svc',
+      ctx(root, { goWorkFile: 'go.work', memberDirs: ['svc', 'lib'] }),
+    );
+    const inputs = targets.build?.inputs ?? [];
+
+    expect(inputs).toContain('{workspaceRoot}/lib/go.mod');
+    expect(inputs).toContain('{workspaceRoot}/lib/go.sum');
+    expect(inputs).toContain('{workspaceRoot}/lib/**/*');
+    expect(inputs).toContain('!{workspaceRoot}/lib/**/vendor/**/*');
+    // The module itself stays on its {projectRoot} inputs.
+    expect(inputs.filter((i) => typeof i === 'string' && i.includes('/svc/')).length).toBe(0);
   });
 
   it('places go.work.sum next to a nested go.work', () => {
@@ -82,7 +127,7 @@ describe('buildModuleTargets', () => {
     const root = makeWorkspace({ 'svc/.golangci.yml': 'run: {}' });
     const targets = buildModuleTargets('svc', ctx(root));
 
-    expect(targets.lint?.options).toEqual({
+    expect(targets.lint?.options).toMatchObject({
       command: 'golangci-lint run ./...',
       cwd: '{projectRoot}',
     });
@@ -102,22 +147,31 @@ describe('buildModuleTargets', () => {
     const root = makeWorkspace({ '.golangci.yml': 'run: {}' });
     const targets = buildModuleTargets('svc', ctx(root));
 
-    expect(targets.lint?.options).toEqual({
+    expect(targets.lint?.options).toMatchObject({
       command: 'golangci-lint run ./...',
       cwd: '{projectRoot}',
     });
     expect(targets.lint?.inputs).toContain('{workspaceRoot}/.golangci.yml');
   });
 
-  it('prefers the module-local golangci config over the root one', () => {
+  it('finds a golangci config in an intermediate ancestor dir', () => {
+    const root = makeWorkspace({ 'pkgs/.golangci.yml': 'run: {}' });
+    const targets = buildModuleTargets('pkgs/api', ctx(root));
+
+    expect(targets.lint?.inputs).toContain('{workspaceRoot}/pkgs/.golangci.yml');
+  });
+
+  it('prefers the module-local golangci config over ancestor ones', () => {
     const root = makeWorkspace({
       '.golangci.yml': '',
-      'svc/.golangci.json': '{}',
+      'pkgs/.golangci.yaml': '',
+      'pkgs/api/.golangci.json': '{}',
     });
-    const targets = buildModuleTargets('svc', ctx(root));
+    const targets = buildModuleTargets('pkgs/api', ctx(root));
 
-    expect(targets.lint?.inputs).toContain('{workspaceRoot}/svc/.golangci.json');
+    expect(targets.lint?.inputs).toContain('{workspaceRoot}/pkgs/api/.golangci.json');
     expect(targets.lint?.inputs).not.toContain('{workspaceRoot}/.golangci.yml');
+    expect(targets.lint?.inputs).not.toContain('{workspaceRoot}/pkgs/.golangci.yaml');
   });
 
   it('infers no lint target without a golangci config', () => {
@@ -134,7 +188,10 @@ describe('buildModuleTargets', () => {
     const root = makeWorkspace({ '.golangci.yml': '' });
     const targets = buildModuleTargets('', ctx(root));
 
-    expect(targets.build?.options).toEqual({ command: 'go build ./...', cwd: '{projectRoot}' });
+    expect(targets.build?.options).toMatchObject({
+      command: 'go build ./...',
+      cwd: '{projectRoot}',
+    });
     expect(targets.lint?.inputs).toContain('{workspaceRoot}/.golangci.yml');
   });
 });

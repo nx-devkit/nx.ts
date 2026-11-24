@@ -4,15 +4,20 @@
 
 ### Requirement: go.work / go.mod discovery
 
-The plugin SHALL watch `**/{go.work,go.mod}` via `createNodesV2`. A
-`go.work` whose `use` entries cannot be read or parsed MUST NOT break the
-project graph — the plugin SHALL warn and treat it as claiming nothing.
+The plugin SHALL watch `**/{go.work,go.mod,.golangci.yml,.golangci.yaml,.golangci.json}`
+via `createNodesV2` — the `.golangci.*` names are included so adding or
+removing a lint config re-infers targets; they are never module markers.
+A `go.work` whose `use` entries cannot be read or parsed MUST NOT break
+the project graph — the plugin SHALL warn and treat it as claiming
+nothing.
 Directories under `node_modules`, `vendor`, or escaping the workspace via
 `..` SHALL be skipped.
 
 #### Scenario: go.work with members
 
-- **GIVEN** `go.work` declares `use ( ./svc ./lib )`
+- **GIVEN** `go.work` declares a `use` block listing `./svc` and `./lib`
+  (the grammar requires `use (` and `)` on their own lines — an inline
+  `use ( ./svc ./lib )` is rejected by `go` itself)
 - **WHEN** `svc/go.mod` and `lib/go.mod` exist
 - **THEN** projects `svc` and `lib` are inferred from the `go.work` file
 
@@ -75,10 +80,16 @@ edits re-infer them.
 Each module project SHALL get `build`, `test`, and `vet` targets running
 `go build ./...`, `go test ./...`, and `go vet ./...` via
 `nx:run-commands` with `cwd: '{projectRoot}'` and `cache: true`. Inputs
-SHALL be `{projectRoot}/go.mod`, `{projectRoot}/go.sum`, and
-`{projectRoot}/**/*.go`; workspace members SHALL additionally hash
-`{workspaceRoot}/<go.work>` and the sibling `go.work.sum`. No module path,
-credential, or flag SHALL be interpolated into argv.
+SHALL be the module's `go.mod`, `go.sum`, and every file under the
+module dir except `vendor/`, `node_modules/`, and `.git/` trees — the
+`go` tool reads more than `*.go` (`//go:embed` assets, CGo sources).
+Workspace members SHALL additionally hash `{workspaceRoot}/<go.work>`,
+the sibling `go.work.sum`, and the same fileset of every other `use`
+dir claimed by that go.work (workspace builds resolve imports across
+members). All commands SHALL run with `GOWORK` pinning the attributed
+go.work (`off` for standalone modules) so the tool reads the file Nx
+hashed. No module path, credential, or flag SHALL be interpolated into
+argv.
 
 #### Scenario: standalone module targets
 
@@ -96,8 +107,10 @@ credential, or flag SHALL be interpolated into argv.
 
 A `lint` target running `golangci-lint run ./...` (`cwd: '{projectRoot}'`,
 `cache: true`) SHALL be inferred when `.golangci.yml`, `.golangci.yaml`,
-or `.golangci.json` exists in the module dir, falling back to the
-workspace root; the found config SHALL be a lint input. The `lint`
+or `.golangci.json` exists in the module dir or any ancestor directory
+up to the workspace root — golangci-lint searches parent dirs, so the
+nearest config found on that walk applies; the found config SHALL be a
+lint input. The `lint`
 plugin option (default `true`) SHALL disable lint inference entirely when
 `false`.
 

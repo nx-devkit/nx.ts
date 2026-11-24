@@ -40,7 +40,7 @@ Every directory listed in a `go.work` `use` directive that contains a `go.mod` b
 
 Commands run with `cwd` set to the module directory — `go` and `golangci-lint` resolve their module and config context from the working directory, so no flags or paths are interpolated into argv.
 
-Inputs per module: `go.mod`, `go.sum`, `**/*.go`. Workspace members additionally hash `{workspaceRoot}/go.work` and `go.work.sum`; the `lint` target also hashes the `.golangci.*` config that was found (module-local config wins over the workspace-root one).
+Inputs per module: `go.mod`, `go.sum`, and the whole module fileset except `vendor/`, `node_modules/`, and `.git/` (so `//go:embed` assets and CGo sources are hashed too). Workspace members additionally hash `{workspaceRoot}/<go.work path>` and its sibling `go.work.sum` (e.g. `tools/go.work` + `tools/go.work.sum` for a nested workspace), plus every other member dir the same `go.work` claims — workspace builds resolve imports across members. Commands run with `GOWORK` pinned to the attributed go.work (`off` for standalone modules) so `go` reads exactly the file Nx hashed. The `lint` target also hashes the `.golangci.*` config that was found — the nearest one from the module dir upward through the workspace root.
 
 ## Options
 

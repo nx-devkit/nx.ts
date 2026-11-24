@@ -46,6 +46,25 @@ describe('parseGoWork', () => {
     expect(parseGoWork(text)).toEqual(['./app dir', './lib dir']);
   });
 
+  it('keeps // inside a quoted use path', () => {
+    expect(parseGoWork('use "./a//b"\n')).toEqual(['./a//b']);
+    expect(parseGoWork('use "./svc" // trailing comment\n')).toEqual(['./svc']);
+  });
+
+  it('unescapes Go escapes in interpreted use paths', () => {
+    expect(parseGoWork('use "./foo\\x20bar"\n')).toEqual(['./foo bar']);
+    expect(parseGoWork('use "./uni\\u0063ode"\n')).toEqual(['./unicode']);
+  });
+
+  it('does not unescape backtick (raw) use paths', () => {
+    expect(parseGoWork('use `./foo\\x20bar`\n')).toEqual(['./foo\\x20bar']);
+  });
+
+  it('keeps malformed escapes literal', () => {
+    expect(parseGoWork('use "./bad\\xZZ"\n')).toEqual(['./bad\\xZZ']);
+    expect(parseGoWork('use "./bad\\qpath"\n')).toEqual(['./bad\\qpath']);
+  });
+
   it('handles a dot use entry (the go.work dir itself)', () => {
     const text = `use (\n\t.\n\t./app\n)\n`;
     expect(parseGoWork(text)).toEqual(['.', './app']);

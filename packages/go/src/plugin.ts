@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { logger, type CreateNodesResultArray, type CreateNodesV2 } from '@nx/devkit';
 import { logDebug } from '@nx-devkit/internal';
 import { parseGoWork } from './gowork.ts';
@@ -8,8 +8,12 @@ import type { NxDevkitGoOptions } from './types.ts';
 
 const PLUGIN_SCOPE = 'nx-devkit/go';
 
-/** Config files the plugin reacts to — go.work workspaces and go.mod modules. */
-export const GO_GLOB = '**/{go.work,go.mod}';
+/**
+ * Config files the plugin reacts to — go.work workspaces, go.mod modules
+ * and `.golangci.{yml,yaml,json}` (a config add/remove must re-infer the
+ * `lint` target even when no Go file changed).
+ */
+export const GO_GLOB = '**/{go.work,go.mod,.golangci.yml,.golangci.yaml,.golangci.json}';
 
 /**
  * Infer Nx targets from go.work and go.mod.
@@ -24,9 +28,11 @@ export const GO_GLOB = '**/{go.work,go.mod}';
  *
  * Each module gets `build`/`test`/`vet` (`go <sub> ./...`, cached) plus
  * `lint` (`golangci-lint run ./...`) when a `.golangci.{yml,yaml,json}`
- * exists in the module dir or the workspace root — gated by the
- * `lint` option (default true). Commands run with `cwd: '{projectRoot}'`;
- * `go` resolves go.work/go.mod itself, so nothing is ever passed on argv.
+ * exists in the module dir or any ancestor up to the workspace root —
+ * gated by the `lint` option (default true). Commands run with
+ * `cwd: '{projectRoot}'` and a `GOWORK` env that pins the attributed
+ * work file (`off` for standalone modules) so the tool reads exactly
+ * the file Nx hashes; nothing is ever passed on argv.
  */
 export const createNodesV2: CreateNodesV2<NxDevkitGoOptions> = [
   GO_GLOB,
@@ -47,9 +53,11 @@ export const createNodesV2: CreateNodesV2<NxDevkitGoOptions> = [
       }
       if (file === 'go.work' || file.endsWith('/go.work')) {
         goWorkFiles.push(file);
-      } else {
+      } else if (file === 'go.mod' || file.endsWith('/go.mod')) {
         goModByDir.set(dir, file);
       }
+      // Anything else in the glob (a .golangci.* config) only re-triggers
+      // inference — it is not a module marker.
     }
 
     // Every go.work claims its use dirs. Sorted order makes the claim
@@ -108,12 +116,19 @@ function emitResults(args: EmitArgs): CreateNodesResultArray {
     for (const dir of membersByWork.get(workFile)!) {
       projects[dir] = {
         root: dir,
-        targets: buildModuleTargets(dir, { workspaceRoot, goWorkFile: workFile, lint }),
+        targets: buildModuleTargets(dir, {
+          workspaceRoot,
+          goWorkFile: workFile,
+          memberDirs: membersByWork.get(workFile)!,
+          lint,
+        }),
       };
     }
     results.push([workFile, { projects }]);
   }
-  for (const [dir, goModFile] of [...goModByDir.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [dir, goModFile] of [...goModByDir.entries()].sort(([a], [b]) =>
+    compareCodeUnits(a, b),
+  )) {
     if (claimByDir.has(dir)) continue;
     results.push([
       goModFile,
@@ -149,8 +164,13 @@ function sortPathsByDepth(paths: readonly string[]): string[] {
   return [...paths].sort((a, b) => {
     const da = a.split('/').length;
     const db = b.split('/').length;
-    return da !== db ? da - db : a.localeCompare(b);
+    return da !== db ? da - db : compareCodeUnits(a, b);
   });
+}
+
+/** Locale-independent comparison — deterministic claims on every machine. */
+function compareCodeUnits(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** The `use` entries of a go.work, or none when it cannot be read. */
@@ -159,6 +179,7 @@ function readGoWork(absPath: string, workFile: string): string[] {
   try {
     text = readFileSync(absPath, 'utf8');
   } catch {
+    logger.warn(`[${PLUGIN_SCOPE}] Could not read ${logSafe(workFile)} — ignoring it`);
     return [];
   }
   // A malformed go.work must not break the project graph — the parser
@@ -180,14 +201,17 @@ function resolveUseDir(workspaceRoot: string, workDir: string, usePath: string):
   const abs = resolve(join(workspaceRoot, workDir), usePath);
   const rel = relative(workspaceRoot, abs).replace(/\\/g, '/');
   // isSkippedDir covers `..` escapes; '' (the root, `use .`) is valid.
-  return isSkippedDir(rel) ? null : rel;
+  // isAbsolute catches cross-drive relatives on Windows.
+  return isAbsolute(rel) || isSkippedDir(rel) ? null : rel;
 }
 
 /** node_modules, vendored trees and `..` escapes are never Go modules here. */
 function isSkippedDir(dir: string): boolean {
   if (dir === '') return false;
   const segments = dir.split('/');
-  return segments[0] === '..' || segments.includes('node_modules') || segments.includes('vendor');
+  return (
+    segments.includes('..') || segments.includes('node_modules') || segments.includes('vendor')
+  );
 }
 
 /**
@@ -198,7 +222,15 @@ function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    // C0, DEL/C1 controls and bidi overrides/isolates can forge or
+    // reorder log output — flatten them to spaces.
+    out +=
+      code < 32 ||
+      (code >= 127 && code <= 159) ||
+      (code >= 0x202a && code <= 0x202e) ||
+      (code >= 0x2066 && code <= 0x2069)
+        ? ' '
+        : char;
   }
   return out.trim();
 }

@@ -63,8 +63,18 @@ function workspaceWithWork(): string {
 }
 
 describe('@nx-devkit/go createNodesV2', () => {
-  it('watches go.work and go.mod files', () => {
-    expect(createNodesV2[0]).toBe('**/{go.work,go.mod}');
+  it('watches go.work, go.mod and .golangci.* files', () => {
+    expect(createNodesV2[0]).toBe(
+      '**/{go.work,go.mod,.golangci.yml,.golangci.yaml,.golangci.json}',
+    );
+  });
+
+  it('treats a matched .golangci config as a trigger, not a module marker', async () => {
+    const root = makeWorkspace({ 'svc/go.mod': GO_MOD, 'svc/.golangci.yml': '' });
+    const projects = await createNodes(root, ['svc/go.mod', 'svc/.golangci.yml']);
+
+    expect(Object.keys(projects)).toEqual(['svc']);
+    expect(projects['svc']?.targets?.lint).toBeDefined();
   });
 
   it('turns every go.work use dir with a go.mod into a module project', async () => {
@@ -73,18 +83,19 @@ describe('@nx-devkit/go createNodesV2', () => {
 
     for (const dir of ['svc', 'lib']) {
       const targets = projects[dir]?.targets ?? {};
-      expect(targets.build?.options).toEqual({
+      expect(targets.build?.options).toMatchObject({
         command: 'go build ./...',
         cwd: '{projectRoot}',
       });
-      expect(targets.test?.options).toEqual({
+      expect(targets.test?.options).toMatchObject({
         command: 'go test ./...',
         cwd: '{projectRoot}',
       });
-      expect(targets.vet?.options).toEqual({
+      expect(targets.vet?.options).toMatchObject({
         command: 'go vet ./...',
         cwd: '{projectRoot}',
       });
+      expect(targets.build?.options).toMatchObject({ env: { GOWORK: join(root, 'go.work') } });
     }
   });
 
@@ -103,9 +114,10 @@ describe('@nx-devkit/go createNodesV2', () => {
     });
     const projects = await createNodes(root, ['go.work', 'go.mod', 'svc/go.mod']);
 
-    expect(projects['']?.targets?.build?.options).toEqual({
+    expect(projects['']?.targets?.build?.options).toMatchObject({
       command: 'go build ./...',
       cwd: '{projectRoot}',
+      env: { GOWORK: join(root, 'go.work') },
     });
   });
 
@@ -114,16 +126,17 @@ describe('@nx-devkit/go createNodesV2', () => {
     const projects = await createNodes(root, ['svc/go.mod']);
 
     const targets = projects['svc']?.targets ?? {};
-    expect(targets.build?.options).toEqual({
+    expect(targets.build?.options).toMatchObject({
       command: 'go build ./...',
       cwd: '{projectRoot}',
+      env: { GOWORK: 'off' },
     });
     expect(targets.build?.cache).toBe(true);
     expect(targets.build?.inputs).toEqual(
       expect.arrayContaining([
         '{projectRoot}/go.mod',
         '{projectRoot}/go.sum',
-        '{projectRoot}/**/*.go',
+        '{projectRoot}/**/*',
       ]),
     );
     // standalone — no go.work inputs
@@ -188,7 +201,7 @@ describe('@nx-devkit/go createNodesV2', () => {
     });
     const projects = await createNodes(root, ['go.work', 'svc/go.mod', 'lib/go.mod']);
 
-    expect(projects['svc']?.targets?.lint?.options).toEqual({
+    expect(projects['svc']?.targets?.lint?.options).toMatchObject({
       command: 'golangci-lint run ./...',
       cwd: '{projectRoot}',
     });
@@ -228,7 +241,7 @@ describe('@nx-devkit/go createNodesV2', () => {
       for (const project of Object.values(result.projects ?? {})) {
         for (const target of Object.values(project.targets ?? {})) {
           const options = target.options as Record<string, unknown> | undefined;
-          expect(Object.keys(options ?? {}).sort()).toEqual(['command', 'cwd']);
+          expect(Object.keys(options ?? {}).sort()).toEqual(['command', 'cwd', 'env']);
         }
       }
     }

@@ -10,7 +10,8 @@ Nx targets without hand-written `project.json`: register one plugin and
 ## What changes
 
 - New package `@nx-devkit/go` under `packages/go/`.
-- `createNodesV2` watches `**/{go.work,go.mod}`.
+- `createNodesV2` watches `**/{go.work,go.mod,.golangci.{yml,yaml,json}}`
+  — lint configs re-trigger inference without becoming module markers.
 - Every `use` dir of a `go.work` that contains a `go.mod` becomes a module
   project keyed to the `go.work` file — work-file edits re-infer all
   members, and members hash `go.work`/`go.work.sum` as inputs. The first
@@ -21,9 +22,12 @@ Nx targets without hand-written `project.json`: register one plugin and
   project keyed to its own `go.mod`.
 - Per module: `build` (`go build ./...`), `test` (`go test ./...`), `vet`
   (`go vet ./...`) — all `cache: true` with inputs `go.mod`, `go.sum`,
-  `**/*.go` — plus `lint` (`golangci-lint run ./...`, also cached) when a
-  `.golangci.{yml,yaml,json}` exists in the module dir or the workspace
-  root. Commands run with `cwd: '{projectRoot}'`.
+  and the module fileset minus `vendor`/`node_modules`/`.git` (covers
+  `//go:embed` assets and CGo files) — plus `lint` (`golangci-lint run
+  ./...`, also cached) when a `.golangci.{yml,yaml,json}` exists in the
+  module dir or an ancestor up to the workspace root. Commands run with
+  `cwd: '{projectRoot}'` and `GOWORK` pinned to the attributed go.work
+  (`off` standalone) so the tool reads the file Nx hashed.
 - Plugin option `{ lint?: boolean }` (default `true`) disables lint
   inference entirely when `false`.
 - `node_modules`, `vendor`, and `..`-escaping dirs are never modules; a
@@ -34,7 +38,11 @@ Nx targets without hand-written `project.json`: register one plugin and
 ## Non-goals
 
 - No `createDependencies` — Go module graph edges are resolved by `go`
-  itself at build time, not needed for target inference.
+  itself at build time, not needed for target inference. Consequence for
+  `affected`: a library change does not re-run dependents' `test`/`build`
+  via Nx edges; workspace members partially compensate by hashing every
+  sibling member's sources, but cross-workspace dependents are not
+  re-triggered.
 - No `go generate`, `go fmt`/`gofmt`, or `go run` targets — the bead
   spec fixes the target set at build/test/vet/lint.
 - `.golangci.toml` detection — the spec fixes the watched set at

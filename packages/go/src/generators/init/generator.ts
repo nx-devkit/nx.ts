@@ -16,7 +16,7 @@ export async function initGenerator(
   tree: Tree,
   options: NxGoInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
 
   registerPlugin(tree, pluginPath);
 
