@@ -1,6 +1,6 @@
 import { globSync, statSync } from 'node:fs';
 import { glob, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 
 import { logDebug } from '@nx-devkit/internal';
 
@@ -89,10 +89,10 @@ export async function globMatchAsync(rootDir: string, pattern: string): Promise<
 
 /**
  * List the files under `rootDir` matching any of `patterns`, as
- * rootDir-relative paths with the same pruning rules as
- * {@link globMatchAsync} (node_modules at any depth, dist/coverage at the
- * root). Deduped across patterns and byte-order sorted for deterministic
- * inference output.
+ * rootDir-relative posix paths (forward slashes, also on Windows) with
+ * the same pruning rules as {@link globMatchAsync} (node_modules at any
+ * depth, dist/coverage at the root). Deduped across patterns and
+ * byte-order sorted for deterministic inference output.
  */
 export async function globFilesAsync(
   rootDir: string,
@@ -100,35 +100,40 @@ export async function globFilesAsync(
 ): Promise<string[]> {
   const list = Array.isArray(patterns) ? patterns : [patterns];
   const found = new Set<string>();
-  try {
-    for (const pattern of list) {
-      const matches = glob(pattern, {
-        cwd: rootDir,
-        exclude: isExcludedEntry,
-      });
+  for (const pattern of list) {
+    const matches = glob(pattern, {
+      cwd: rootDir,
+      exclude: isExcludedEntry,
+    });
+    try {
       for await (const m of matches) {
         try {
           // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by glob under the project root
-          if ((await stat(join(rootDir, m))).isFile()) found.add(m);
+          if ((await stat(join(rootDir, m))).isFile()) {
+            // fs.glob returns OS-native separators — normalize to posix
+            // so target names and commands are stable on Windows.
+            found.add(m.split(sep).join('/'));
+          }
         } catch (e) {
-          logDebug('glob', `stat failed for ${m}: ${(e as Error).message}`);
+          logDebug('nx-typescript', `stat failed for ${m}: ${(e as Error).message}`);
           continue;
         }
       }
+    } catch (error) {
+      // Same policy as globMatchAsync: only ENOENT means "no matches" — a
+      // missing dir for one pattern must not discard the others; every
+      // other failure surfaces so real errors are not silent.
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code: string }).code === 'ENOENT'
+      ) {
+        continue;
+      }
+      throw error;
     }
-    return [...found].sort();
-  } catch (error) {
-    // Same policy as globMatchAsync: only ENOENT means "no matches";
-    // everything else surfaces so real failures are not silent.
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error as { code: string }).code === 'ENOENT'
-    ) {
-      return [];
-    }
-    throw error;
   }
+  return [...found].sort();
 }
 
 // --- Backward-compat re-exports for the old hand-rolled glob engine ---

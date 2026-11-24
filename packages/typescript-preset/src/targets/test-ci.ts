@@ -48,10 +48,10 @@ export function inferTestCiTargets(projectRoot: string, options: TestCiOptions):
       },
       cache: true,
       inputs: options.inputs ? [...options.inputs] : undefined,
+      ...(options.outputs ? { outputs: [...options.outputs] } : {}),
       metadata: {
         ...(options.technologies ? { technologies: options.technologies } : {}),
         description: `Run tests in ${file}`,
-        nonAtomizedTarget: ciTargetName,
       },
     };
   }
@@ -66,6 +66,9 @@ export function inferTestCiTargets(projectRoot: string, options: TestCiOptions):
     metadata: {
       ...(options.technologies ? { technologies: options.technologies } : {}),
       description: `Run all tests (atomized)`,
+      // Nx Atomizer convention: the noop CI group points at the ordinary
+      // (non-atomized) target it shards.
+      nonAtomizedTarget: 'test',
     },
   };
 
