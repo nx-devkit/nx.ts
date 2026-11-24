@@ -27,13 +27,23 @@ interface PackageManifest {
  * a private manifest is never published, so packaging lint is meaningless.
  */
 export function isPublishableManifest(absPath: string): boolean {
+  let contents: string;
   try {
-    const pkg = JSON.parse(readFileSync(absPath, 'utf8')) as PackageManifest | null;
+    contents = readFileSync(absPath, 'utf8');
+  } catch (error) {
+    // A vanished manifest is not publishable; any other fs failure is real and
+    // must surface instead of silently suppressing the target.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+  try {
+    const pkg = JSON.parse(contents) as PackageManifest | null;
     if (typeof pkg !== 'object' || pkg === null) return false;
     if (pkg.private === true) return false;
     return Boolean(pkg.exports || pkg.bin || (pkg.main && pkg.files));
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof SyntaxError) return false;
+    throw error;
   }
 }
 
@@ -52,9 +62,17 @@ export function lintPkgTarget(
   return {
     executor: 'nx:run-commands',
     cache: true,
-    // `attw --pack` packs the real tarball, so dist must exist first.
+    // `attw --pack` packs the real tarball, so dist must exist first and every
+    // file npm could pack must bust the cache: the project file tree plus the
+    // two dotfiles `**/*` does not match (.npmignore / .gitignore, which npm
+    // both honor when selecting packed files).
     dependsOn: ['build'],
-    inputs: [`${prefix}/package.json`, `${prefix}/.npmignore`, `${prefix}/dist/**/*`],
+    inputs: [
+      `${prefix}/package.json`,
+      `${prefix}/.npmignore`,
+      `${prefix}/.gitignore`,
+      `${prefix}/**/*`,
+    ],
     options: { commands: [...commands], parallel: false, cwd: prefix },
   };
 }

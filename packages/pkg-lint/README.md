@@ -23,11 +23,11 @@ Depends on `@nx/devkit` `^24`. `publint` and `@arethetypeswrong/cli` are optiona
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger                                        | Target     | Command                                        | Cacheable | Inputs                                      | Depends on |
-| ---------------------------------------------- | ---------- | ---------------------------------------------- | --------- | ------------------------------------------- | ---------- |
-| publishable `package.json` (any project depth) | `lint-pkg` | `npx publint` + `npx attw --pack` (sequential) | yes       | `package.json` + `dist/**/*` of the project | `build`    |
+| Trigger                                        | Target     | Command                                        | Cacheable | Inputs                                                           | Depends on |
+| ---------------------------------------------- | ---------- | ---------------------------------------------- | --------- | ---------------------------------------------------------------- | ---------- |
+| publishable `package.json` (any project depth) | `lint-pkg` | `npx publint` + `npx attw --pack` (sequential) | yes       | project file tree + `.npmignore` / `.gitignore` + `package.json` | `build`    |
 
-Publishable means the manifest has `exports`, `bin`, or `main` + `files` — the same signal the typescript preset uses to infer `build`. `private: true` manifests infer nothing. `attw --pack` packs the real tarball, so the target runs after `build` and its cache key includes `dist` outputs.
+Publishable means the manifest has `exports`, `bin`, or `main` + `files`; `private: true` manifests infer nothing. (The typescript preset uses the same signal minus the `private` veto, and only to infer `build` when `tsdown.config.*` or `src/index.ts` also exists.) `attw --pack` packs the real tarball, so `lint-pkg` declares `dependsOn: ['build']` — each publishable package needs a `build` target, from the typescript preset or your own inference. Its cache key covers the whole project file tree plus `.npmignore` and `.gitignore`, since any packed file can change the lint result.
 
 ## Options
 
