@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "executors": {
+    "check": {
+      "implementation": "./dist/executors/check/executor.mjs",
+      "schema": "./src/executors/check/schema.json",
+      "description": "Fails when vars required by .env.example/.env.sample are missing from process.env or the resolved .env file."
+    }
+  }
+}

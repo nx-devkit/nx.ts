@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "dotenv check executor",
+  "description": "Fails when vars required by .env.example/.env.sample are missing from process.env or the resolved .env file.",
+  "type": "object",
+  "properties": {
+    "examples": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Workspace-relative .env.example/.env.sample files whose declared keys must be available."
+    },
+    "envFile": {
+      "type": "string",
+      "description": "Workspace-relative env file checked in addition to process.env. Default: the .env sibling of each example file."
+    }
+  },
+  "required": ["examples"],
+  "additionalProperties": false
+}
