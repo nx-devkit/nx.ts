@@ -63,16 +63,11 @@ export function lintPkgTarget(
     executor: 'nx:run-commands',
     cache: true,
     // `attw --pack` packs the real tarball, so dist must exist first and every
-    // file npm could pack must bust the cache: the project file tree plus the
-    // two dotfiles `**/*` does not match (.npmignore / .gitignore, which npm
-    // both honor when selecting packed files).
+    // file npm could pack must bust the cache: the whole project tree plus the
+    // dotfiles glob — npm honors .npmignore / .gitignore at any level when
+    // selecting packed files, and `**/*` does not reliably match dotfiles.
     dependsOn: ['build'],
-    inputs: [
-      `${prefix}/package.json`,
-      `${prefix}/.npmignore`,
-      `${prefix}/.gitignore`,
-      `${prefix}/**/*`,
-    ],
+    inputs: [`${prefix}/package.json`, `${prefix}/**/*`, `${prefix}/**/.*`],
     options: { commands: [...commands], parallel: false, cwd: prefix },
   };
 }

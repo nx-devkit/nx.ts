@@ -65,9 +65,8 @@ describe('@nx-devkit/pkg-lint createNodesV2', () => {
     expect(target.inputs).toEqual(
       expect.arrayContaining([
         '{projectRoot}/package.json',
-        '{projectRoot}/.npmignore',
-        '{projectRoot}/.gitignore',
         '{projectRoot}/**/*',
+        '{projectRoot}/**/.*',
       ]),
     );
   });
