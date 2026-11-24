@@ -84,7 +84,7 @@ describe('joinRel', () => {
 
   it('marks escapes above the workspace root', () => {
     expect(joinRel('crates/a', '../../x')).toBe('x');
-    expect(joinRel('', '../x')).toBe('..');
-    expect(joinRel('a', '../../../x')).toBe('..');
+    expect(joinRel('', '../x')).toBe('../x');
+    expect(joinRel('a', '../../../x')).toBe('../../x');
   });
 });

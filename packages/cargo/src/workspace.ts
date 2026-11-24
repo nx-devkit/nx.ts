@@ -115,9 +115,9 @@ export function resolveLockfileRoot(
   if (manifest.workspace !== null) return crateDir;
 
   for (let dir = crateDir; dir !== ''; dir = parentDir(dir)) {
-    const ancestor = manifestAt(parentDir(dir));
-    if (ancestor?.workspace == null) continue;
     const parent = parentDir(dir);
+    const ancestor = manifestAt(parent);
+    if (ancestor?.workspace == null) continue;
     const members = membersOf(parent, ancestor);
     if (members.includes(crateDir)) return parent;
     if (isExcluded(crateDir, parent, ancestor)) return crateDir;
@@ -174,8 +174,11 @@ export function joinRel(base: string, rel: string): string {
   for (const part of rel.replaceAll('\\', '/').split('/')) {
     if (part === '' || part === '.') continue;
     if (part === '..') {
-      if (segs.length === 0) return '..';
-      segs.pop();
+      if (segs.length === 0) {
+        segs.push('..');
+      } else {
+        segs.pop();
+      }
     } else {
       segs.push(part);
     }

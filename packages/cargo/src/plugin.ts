@@ -141,7 +141,10 @@ function inferDirProjects(
     if (implicitDependencies.length > 0) project.implicitDependencies = implicitDependencies;
     projects[dir] = project;
     if (isVerbose()) {
-      logDebug(PLUGIN_SCOPE, `Registered crate ${logSafe(dir || '.')}:${manifest.packageName}`);
+      logDebug(
+        PLUGIN_SCOPE,
+        `Registered crate ${logSafe(dir || '.')}:${logSafe(manifest.packageName)}`,
+      );
     }
   } else if (manifest.workspace !== null) {
     // Virtual workspace root — workspace-level build/test, no -p.
