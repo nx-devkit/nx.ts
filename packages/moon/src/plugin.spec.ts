@@ -291,6 +291,29 @@ describe('@nx-devkit/moon createNodesV2', () => {
     ]);
   });
 
+  it('maps workspace projects ids for roots without a moon.yml', async () => {
+    const root = makeWorkspace({
+      '.moon/workspace.yml': 'projects:\n  shared: packages/lib\n',
+      'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",
+      // Packages/lib has no moon.yml — moon still owns its id via the
+      // workspace projects map; the Nx name comes from package.json.
+      'packages/lib/package.json': '{"name": "@acme/lib"}',
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml']);
+
+    expect(projects['packages/app']?.implicitDependencies).toEqual(['@acme/lib']);
+  });
+
+  it('falls back to the dir name for unmapped projects with no name source', async () => {
+    const root = makeWorkspace({
+      '.moon/workspace.yml': 'projects:\n  shared: packages/lib\n',
+      'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml']);
+
+    expect(projects['packages/app']?.implicitDependencies).toEqual(['lib']);
+  });
+
   it('keeps dependsOn ids that resolve to named moon projects', async () => {
     const root = makeWorkspace({
       'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",
