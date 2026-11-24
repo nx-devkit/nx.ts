@@ -54,8 +54,8 @@ export interface NxDevkitGitHooksOptions {
   `skip_lfs`, `source_dir`, `source_dir_local`, `colors`, `no_tty`,
   `rc`, `output`, `execution`, `assert_lefthook_installed`,
   `glob_matcher`, `install_non_git_hooks`, `no_auto_install`,
-  `templates`, `ai`, `lefthook` — mirrors the non-hook properties of
-  https://lefthook.dev/schema.json). Scalar-valued or otherwise invalid
+  `templates`, `ai`, `lefthook` — mirrors the non-hook properties of the
+  [lefthook schema](https://lefthook.dev/schema.json)). Scalar-valued or otherwise invalid
   section names land in `skipped` — never silently dropped.
 - **Hook names are shell words.** `npx lefthook run <name>` interpolates
   the config key — only `[a-zA-Z0-9][a-zA-Z0-9._-]*` names become targets.
