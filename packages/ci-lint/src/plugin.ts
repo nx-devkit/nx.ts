@@ -83,7 +83,17 @@ function buildCommand(options: NxCiLintPluginOptions): string | null {
   }
   if (options.zizmor !== false) {
     const format = q(options.zizmorFormat ?? 'plain');
-    const redirect = options.zizmorOutput ? ` > ${q(options.zizmorOutput)}` : '';
+    let redirect = '';
+    if (options.zizmorOutput) {
+      const out = options.zizmorOutput;
+      if (out.startsWith('/') || /^[a-zA-Z]:/.test(out) || out.split('/').includes('..')) {
+        console.warn(
+          `@nx-devkit/ci-lint: zizmorOutput must be workspace-relative (got "${out}") — output redirect ignored.`,
+        );
+      } else {
+        redirect = ` > ${q(out)}`;
+      }
+    }
     legs.push(
       toolLeg(
         'zizmor',
