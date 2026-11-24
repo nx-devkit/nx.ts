@@ -29,11 +29,11 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger    | Target        | Command                | Cacheable               |
-| ---------- | ------------- | ---------------------- | ----------------------- |
-| `Makefile` | `make:<rule>` | `make -C <dir> <rule>` | no (opt-in via `cache`) |
+| Trigger    | Target        | Command                   | Cacheable               |
+| ---------- | ------------- | ------------------------- | ----------------------- |
+| `Makefile` | `make:<rule>` | `make -C <dir> -- <rule>` | no (opt-in via `cache`) |
 
-Each Makefile rule header (`name: prerequisites`) and each `.PHONY`-declared goal becomes a `make:<name>` target — one target set per directory owning a Makefile, workspace root included. Prerequisites that are themselves Makefile rules become `dependsOn` entries (`projects: "self"`), so `nx run app:make:all` runs `make:build`, `make:test`, … in order — the same graph `make` would walk.
+Each name-shaped Makefile rule header (`name: prerequisites`) and each `.PHONY`-declared goal becomes a `make:<name>` target — one target set per directory owning a Makefile, workspace root included. No `dependsOn` edges are emitted: `make <goal>` already walks its own prerequisite DAG, so `nx run app:make:all` runs `build`, `test`, … in order exactly once.
 
 Recipe text never lands in the inferred command — targets invoke `make`, which reads the Makefile itself.
 
@@ -45,7 +45,7 @@ Goals that need the full make engine are not inferred:
 - double-colon rules (`name::`) and grouped targets (`a b &:`)
 - internal helpers (`_private:`)
 - GNU make special targets (`.SILENT`, `.DEFAULT_GOAL`, …)
-- variable assignments (`FOO := bar` — not a rule)
+- variable assignments (`FOO := bar` — not a rule), including target-specific ones (`name: VAR = v`)
 
 `.PHONY` names without a rule still become targets — `make <name>` on a rule-less phony goal is a well-defined no-op (the `FORCE` idiom).
 

@@ -25,7 +25,7 @@ function makeWorkspace(files: Record<string, string> = {}): string {
 }
 
 const MAKEFILE = `
-.PHONY: all clean
+.PHONY: all clean force
 all: build test
 build: $(CFLAGS) src/main.c
 	cc -o app src/main.c
@@ -76,9 +76,14 @@ describe('@nx-devkit/make createNodesV2', () => {
       'make:all',
       'make:build',
       'make:clean',
+      'make:force',
       'make:lint-fix',
       'make:test',
     ]);
+    // `force` is a rule-less .PHONY goal — still a runnable target.
+    expect(targets['make:force']?.options).toMatchObject({
+      command: 'make -C . -- force',
+    });
   });
 
   it('runs make via nx:run-commands with -C and the goal only', async () => {
@@ -88,7 +93,7 @@ describe('@nx-devkit/make createNodesV2', () => {
     const target = projects['tools/app']?.targets?.['make:build'];
     expect(target).toMatchObject({
       executor: 'nx:run-commands',
-      options: { command: 'make -C tools/app build' },
+      options: { command: 'make -C tools/app -- build' },
     });
     // Recipe text never lands in the command.
     expect(JSON.stringify(target)).not.toContain('cc -o app');
@@ -99,24 +104,27 @@ describe('@nx-devkit/make createNodesV2', () => {
     const projects = await createNodes(root, ['Makefile']);
 
     expect(projects['']?.targets?.['make:build']?.options).toMatchObject({
-      command: 'make -C . build',
+      command: 'make -C . -- build',
     });
   });
 
-  it('maps prerequisites that are themselves targets to dependsOn', async () => {
+  it('passes the goal after -- so option-shaped names survive', async () => {
+    const root = makeWorkspace({ Makefile: '-setup:\n\techo x\n' });
+    const projects = await createNodes(root, ['Makefile']);
+
+    expect(projects['']?.targets?.['make:-setup']?.options).toMatchObject({
+      command: 'make -C . -- -setup',
+    });
+  });
+
+  it('emits no dependsOn — make already runs its own prerequisite DAG', async () => {
     const root = makeWorkspace({ Makefile: MAKEFILE });
     const projects = await createNodes(root, ['Makefile']);
 
-    expect(projects['']?.targets?.['make:all']?.dependsOn).toEqual([
-      { target: 'make:build', projects: 'self' },
-      { target: 'make:test', projects: 'self' },
-    ]);
-    expect(projects['']?.targets?.['make:test']?.dependsOn).toEqual([
-      { target: 'make:build', projects: 'self' },
-    ]);
-    // $(CFLAGS), src/main.c, and skipped rules never become dependsOn.
-    expect(projects['']?.targets?.['make:build']?.dependsOn).toBeUndefined();
-    expect(projects['']?.targets?.['make:clean']?.dependsOn).toBeUndefined();
+    // Nx-level edges would only re-run phony/side-effecting prereqs.
+    for (const target of Object.values(projects['']?.targets ?? {})) {
+      expect(target.dependsOn).toBeUndefined();
+    }
   });
 
   it('is not cacheable by default and honours the cache option', async () => {
@@ -134,10 +142,9 @@ describe('@nx-devkit/make createNodesV2', () => {
     const projects = await createNodes(root, ['Makefile'], { targetPrefix: 'mk' });
 
     expect(projects['']?.targets?.['mk:build']).toBeDefined();
-    expect(projects['']?.targets?.['mk:all']?.dependsOn).toEqual([
-      { target: 'mk:build', projects: 'self' },
-      { target: 'mk:test', projects: 'self' },
-    ]);
+    expect(projects['']?.targets?.['mk:all']?.options).toMatchObject({
+      command: 'make -C . -- all',
+    });
   });
 
   it('hashes the Makefile and the dir contents minus noise dirs', async () => {
@@ -167,7 +174,7 @@ describe('@nx-devkit/make createNodesV2', () => {
 
     expect(projects['']?.targets?.['make:root-goal']).toBeDefined();
     expect(projects['packages/a']?.targets?.['make:a-goal']).toMatchObject({
-      options: { command: 'make -C packages/a a-goal' },
+      options: { command: 'make -C packages/a -- a-goal' },
     });
     expect(projects['packages/b']?.targets?.['make:b-goal']).toBeDefined();
   });
@@ -199,5 +206,25 @@ describe('@nx-devkit/make createNodesV2', () => {
     const projectRoots = results.flatMap(([, r]) => Object.keys(r.projects ?? {}));
 
     expect(projectRoots).toEqual(['']);
+  });
+
+  it('produces identical output regardless of config-file order', async () => {
+    const root = makeWorkspace({
+      Makefile: 'root-goal:\n\techo r\n',
+      'a/Makefile': 'a-goal:\n\techo a\n',
+      'b/Makefile': 'b-goal:\n\techo b\n',
+    });
+    const forward = await createNodesV2[1](
+      ['Makefile', 'a/Makefile', 'b/Makefile'],
+      {},
+      makeContext(root),
+    );
+    const reverse = await createNodesV2[1](
+      ['b/Makefile', 'a/Makefile', 'Makefile'],
+      {},
+      makeContext(root),
+    );
+
+    expect(reverse).toEqual(forward);
   });
 });

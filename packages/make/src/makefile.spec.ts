@@ -18,7 +18,7 @@ test: build
 
   it('collects .PHONY declarations even without a rule', () => {
     const parsed = parseMakefile(`
-.PHONY: all clean
+.PHONY: all clean force
 all: build
 build:
 	tsc
@@ -26,10 +26,12 @@ clean:
 	rm -rf dist
 `);
 
-    expect([...parsed.targets.keys()]).toEqual(['all', 'build', 'clean']);
+    expect([...parsed.targets.keys()]).toEqual(['all', 'build', 'clean', 'force']);
     expect(parsed.targets.get('all')?.phony).toBe(true);
     expect(parsed.targets.get('clean')?.phony).toBe(true);
     expect(parsed.targets.get('build')?.phony).toBe(false);
+    // Rule-less .PHONY goals still emit a target (FORCE idiom).
+    expect(parsed.targets.get('force')).toMatchObject({ phony: true, prerequisites: [] });
   });
 
   it('splits a multi-target rule into one entry per name', () => {
@@ -61,8 +63,8 @@ clean:
     const parsed = parseMakefile('_helper:\n\techo x\nbuild: _helper\n');
 
     expect([...parsed.targets.keys()]).toEqual(['build']);
-    // _helper stays a literal prerequisite; the plugin drops it when
-    // building dependsOn because it is not an emitted target.
+    // _helper stays a literal prerequisite; the plugin emits no
+    // dependsOn, so it never becomes an Nx-level edge.
     expect(parsed.targets.get('build')?.prerequisites).toEqual(['_helper']);
   });
 
@@ -130,5 +132,37 @@ build:
     const parsed = parseMakefile('build: deps # see \n\tcc\n');
     expect(parsed.targets.has('build')).toBe(true);
     expect(parsed.targets.get('build')?.prerequisites).toEqual(['deps']);
+  });
+
+  it('stops prerequisite parsing at an inline recipe separator', () => {
+    const parsed = parseMakefile('build: dep ; echo a:b\n');
+
+    // `echo` is name-shaped but lives in the recipe, not the prereq list;
+    // the recipe's `:` must not trigger the static-pattern skip either.
+    expect(parsed.targets.get('build')?.prerequisites).toEqual(['dep']);
+  });
+
+  it('normalizes CRLF line endings', () => {
+    const parsed = parseMakefile('.PHONY: all force\r\nall: build\r\nbuild:\r\n\techo ok\r\n');
+
+    expect([...parsed.targets.keys()]).toEqual(['all', 'build', 'force']);
+    expect(parsed.targets.get('all')?.prerequisites).toEqual(['build']);
+    expect(parsed.targets.get('force')?.phony).toBe(true);
+  });
+
+  it('skips target-specific variable assignments', () => {
+    const parsed = parseMakefile(
+      'dbg: CFLAGS = -O0\nrel: override CFLAGS += -O2\nbuild:\n\techo ok\n',
+    );
+
+    expect([...parsed.targets.keys()]).toEqual(['build']);
+  });
+
+  it('keeps a rule whose prerequisites contain a colon', () => {
+    const parsed = parseMakefile('install: C:\\Tools\\x build\n');
+
+    expect(parsed.targets.has('install')).toBe(true);
+    // The `:`-bearing token is not name-shaped and is dropped.
+    expect(parsed.targets.get('install')?.prerequisites).toEqual(['build']);
   });
 });

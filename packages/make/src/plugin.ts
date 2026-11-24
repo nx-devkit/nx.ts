@@ -43,28 +43,25 @@ function buildTargets(
 
   for (const target of parsed.targets.values()) {
     const name = `${prefix}:${target.name}`;
-    const dependsOn = target.prerequisites
-      .filter((prereq) => parsed.targets.has(prereq))
-      .map((prereq) => ({ target: `${prefix}:${prereq}`, projects: 'self' }));
-
-    const config: TargetConfiguration = {
+    // No dependsOn: `make <goal>` already runs its own prerequisite DAG,
+    // so Nx-level edges would only re-run phony/side-effecting prereqs.
+    targets[name] = {
       executor: 'nx:run-commands',
       // Make gives no reliable file-output signal — caching is opt-in.
       cache,
       inputs,
-      options: { command: `make -C ${dirArg} ${target.name}` },
+      // `--` keeps option-shaped goal names (`-x`) out of getopt.
+      options: { command: `make -C ${dirArg} -- ${target.name}` },
     };
-    if (dependsOn.length > 0) config.dependsOn = dependsOn;
-    targets[name] = config;
   }
   return targets;
 }
 
 /**
- * Infer Nx targets from Makefiles. Every rule (`name: prerequisites`)
- * and every `.PHONY`-declared goal becomes a `make:<name>` target that
- * shells out to `make -C <dir> <name>` — recipes never appear in the
- * inferred command.
+ * Infer Nx targets from Makefiles. Every name-shaped rule
+ * (`name: prerequisites`) and every `.PHONY`-declared goal becomes a
+ * `make:<name>` target that shells out to `make -C <dir> -- <name>` —
+ * recipes never appear in the inferred command.
  */
 export const createNodesV2: CreateNodesV2<NxDevkitMakeOptions> = [
   MAKEFILE_GLOB,
