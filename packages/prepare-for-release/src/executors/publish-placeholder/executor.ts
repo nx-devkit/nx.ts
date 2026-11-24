@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
@@ -81,6 +81,12 @@ function resolveNpmCommand(): string {
 function resolveTrustRepo(option: string | undefined): string {
   const raw =
     option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY ?? 'nx-devkit/nx.ts';
+  if (option === undefined && !process.env.NPM_TRUST_REPO && !process.env.GITHUB_REPOSITORY) {
+    console.warn(
+      'trustRepo: NPM_TRUST_REPO and GITHUB_REPOSITORY are unset — falling back to "nx-devkit/nx.ts". ' +
+        'Set options.trustRepo or NPM_TRUST_REPO if this is not the nx-devkit repo.',
+    );
+  }
   if (!TRUST_REPO_RE.test(raw)) {
     throw new Error(
       `Invalid trustRepo "${raw}": expected "owner/repo" slug (e.g. nx-devkit/nx.ts). ` +
@@ -595,10 +601,6 @@ export async function publishPlaceholderExecutor(
   const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] };
   for (const pkgJsonPath of pkgDirs) {
     await processPackage(pkgJsonPath, resolved, acc, context.root);
-  }
-
-  if (existsSync(join(context.root, 'scripts/trust-github.sh'))) {
-    // Trust commands are also captured in scripts/trust-github.sh when present.
   }
 
   if (acc.published.length > 0) {
