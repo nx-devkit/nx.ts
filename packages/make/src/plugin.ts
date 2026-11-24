@@ -27,7 +27,8 @@ function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
   // the lexical check cannot see — compare real paths too. Both sides
   // are canonicalized because the workspace root itself may be a link.
   try {
-    const real = existsSync(abs) ? realpathSync(abs) : abs;
+    if (!existsSync(abs)) return false;
+    const real = realpathSync(abs);
     return hasSkippedSegment(relative(realpathSync(workspaceRoot), real));
   } catch {
     return false;
