@@ -11,17 +11,19 @@ workspace package whose `package.json` declares the matching `scripts`
 entry — so a consumer can drop the plugin into an existing turbo repo and
 keep `turbo.json` as the source of truth.
 
-| turbo concept                    | Nx concept                                        |
-| -------------------------------- | ------------------------------------------------- |
-| root `turbo.json` task           | target on every package with the matching script  |
-| `//#task` key                    | target on the root project (`root: ''`)           |
-| `pkg#task` key                   | target on that package's project only             |
-| nested `<dir>/turbo.json`        | targets on `<dir>`'s own package (overrides root) |
-| `^task` dependsOn                | `{ target, dependencies: true }`                  |
-| `task` dependsOn                 | `{ target }` (self)                               |
-| `pkg#task` / `//#task` dep       | `{ target, projects: [name] }`                    |
-| `persistent: true`               | `continuous: true` + `cache: false`               |
-| `env`/`passThroughEnv`/`global*` | `{ env: VAR }` / `{workspaceRoot}` inputs         |
+| turbo concept                                | Nx concept                                        |
+| -------------------------------------------- | ------------------------------------------------- |
+| root `turbo.json` task                       | target on every package with the matching script  |
+| `//#task` key                                | target on the root project (`root: ''`)           |
+| `pkg#task` key                               | target on that package's project only             |
+| nested `<dir>/turbo.json`                    | targets on `<dir>`'s own package (overrides root) |
+| `^task` dependsOn                            | `{ target, dependencies: true }`                  |
+| `task` dependsOn                             | `{ target }` (self)                               |
+| `pkg#task` / `//#task` dep                   | `{ target, projects: [name] }`                    |
+| `persistent: true`                           | `continuous: true` + `cache: false`               |
+| `env`/`globalEnv`                            | `{ env: VAR }` hash inputs                        |
+| `passThroughEnv`/`globalPassThroughEnv`      | env only — never hashed                           |
+| `globalDependencies`/`globalDotEnv`/`dotEnv` | `{workspaceRoot}`/`{projectRoot}` file inputs     |
 
 ## File layout
 
@@ -63,7 +65,11 @@ export interface NxDevkitTurboOptions {} // {} reserved for future options
   them — use `{ target }` (self) and `{ target, dependencies: true }`.
 - **Nested config wins.** Results are emitted root-first so a
   package-level turbo.json merges after the root config and overrides the
-  same-named target.
+  same-named target. Within one config, plain tasks are applied before
+  selector keys so `pkg#task` overrides `task` regardless of key order.
+- **`extends` including `//` inherits root globals.** A nested config
+  extending `//` folds the root config's `global*` inputs and the root
+  `turbo.json` file into its targets' inputs.
 - **A broken turbo.json must not break the project graph** — warn + skip.
 - **No turbo peer dep.** The plugin reads `turbo.json`; inferred targets
   run the script via `nx:run-script` — `turbo` is never invoked.
@@ -76,9 +82,18 @@ export interface NxDevkitTurboOptions {} // {} reserved for future options
   `global*` fields fold into per-target `inputs` instead.
 - turbo caches no file outputs when `outputs` is absent — the plugin
   emits `outputs: []` rather than inventing a dist/build default.
-- `$TURBO_DEFAULT$` in `inputs` maps to the `default` named input.
+- `$TURBO_DEFAULT$` in `inputs` maps to the literal fileset
+  `{projectRoot}/**/*` — not the `default` named input, which a
+  consumer's nx.json could redefine. `$TURBO_ROOT$/x` maps to
+  `{workspaceRoot}/x`. A missing or empty `inputs` is the same default.
+- `pkg#task` dependsOn resolves the package.json name through
+  `project.json` `name` first — the Nx project name can differ.
 - `pnpm-workspace.yaml` is parsed line-wise (no YAML dep) — only the
   top-level `packages:` list form (and inline `[a, b]` form) is read.
+  An explicit empty list means no packages, and comments never
+  truncate it.
+- Workspace discovery only walks each glob's literal prefix subtree —
+  `packages/*` never scans the rest of the tree.
 
 ## Extending
 

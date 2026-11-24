@@ -55,6 +55,57 @@ describe('readWorkspacePatterns', () => {
     expect(readWorkspacePatterns(root)).toEqual(['apps/*', 'packages/**', '!packages/legacy']);
   });
 
+  it('treats an explicit empty pnpm packages list as declared — no fallback', () => {
+    const root = makeWorkspace({
+      'package.json': JSON.stringify({ name: 'root' }),
+      'pnpm-workspace.yaml': 'packages: []\n',
+      'lerna.json': JSON.stringify({ packages: ['modules/*'] }),
+      'modules/x/package.json': pkg('x'),
+    });
+    expect(readWorkspacePatterns(root)).toEqual([]);
+    expect(discoverWorkspacePackages(root)).toEqual([]);
+  });
+
+  it('keeps reading pnpm packages past a top-level comment line', () => {
+    const root = makeWorkspace({
+      'package.json': JSON.stringify({ name: 'root' }),
+      'pnpm-workspace.yaml': [
+        'packages:',
+        "  - 'apps/*'",
+        '# a note about the next entries',
+        "  - 'packages/*'",
+        '',
+      ].join('\n'),
+    });
+    expect(readWorkspacePatterns(root)).toEqual(['apps/*', 'packages/*']);
+  });
+
+  it('reads an indentless pnpm packages list', () => {
+    const root = makeWorkspace({
+      'package.json': JSON.stringify({ name: 'root' }),
+      'pnpm-workspace.yaml': ['packages:', "- 'modules/*'", ''].join('\n'),
+    });
+    expect(readWorkspacePatterns(root)).toEqual(['modules/*']);
+  });
+
+  it('reads an inline pnpm packages list without splitting brace globs', () => {
+    const root = makeWorkspace({
+      'package.json': JSON.stringify({ name: 'root' }),
+      'pnpm-workspace.yaml': "packages: ['packages/{app,lib}', 'tools/*']\n",
+    });
+    expect(readWorkspacePatterns(root)).toEqual(['packages/{app,lib}', 'tools/*']);
+  });
+
+  it('treats an explicit empty lerna packages list as declared — no fallback', () => {
+    const root = makeWorkspace({
+      'package.json': JSON.stringify({ name: 'root' }),
+      'lerna.json': JSON.stringify({ packages: [] }),
+      'packages/x/package.json': pkg('x'),
+    });
+    expect(readWorkspacePatterns(root)).toEqual([]);
+    expect(discoverWorkspacePackages(root)).toEqual([]);
+  });
+
   it('reads packages from lerna.json', () => {
     const root = makeWorkspace({
       'package.json': JSON.stringify({ name: 'root' }),
@@ -98,6 +149,19 @@ describe('discoverWorkspacePackages', () => {
     const pkgs = discoverWorkspacePackages(root);
     expect(pkgs.map((p) => p.name)).toEqual(['app', 'empty', 'lib']);
     expect(pkgs.map((p) => p.root)).toEqual(['packages/app', 'packages/empty', 'packages/lib']);
+  });
+
+  it('only scans the literal prefix subtree of each workspace glob', () => {
+    const root = makeWorkspace({
+      'package.json': JSON.stringify({
+        name: 'root',
+        workspaces: ['packages/*'],
+      }),
+      'packages/app/package.json': pkg('app'),
+      // outside every seed subtree — would be found by a full-tree walk
+      'vendor/gen/huge/package.json': pkg('huge'),
+    });
+    expect(discoverWorkspacePackages(root).map((p) => p.name)).toEqual(['app']);
   });
 
   it('expands ** globs to nested packages', () => {

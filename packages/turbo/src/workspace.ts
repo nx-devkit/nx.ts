@@ -33,11 +33,14 @@ export function readWorkspacePatterns(workspaceRoot: string): string[] {
   if (fromPkg !== null) return stringOnly(fromPkg);
 
   const pnpmPatterns = readPnpmWorkspace(join(workspaceRoot, 'pnpm-workspace.yaml'));
-  if (pnpmPatterns.length > 0) return pnpmPatterns;
+  // An explicit `packages:` declaration wins even when empty — `packages: []`
+  // means no workspace packages, not "fall through to the next source".
+  if (pnpmPatterns !== null) return pnpmPatterns;
 
   const lerna = readPackageJson(join(workspaceRoot, 'lerna.json'));
-  const lernaPatterns = stringOnly(Array.isArray(lerna?.packages) ? lerna.packages : []);
-  if (lernaPatterns.length > 0) return lernaPatterns;
+  if (lerna !== null && Array.isArray(lerna.packages)) {
+    return stringOnly(lerna.packages);
+  }
 
   logDebug(PLUGIN_SCOPE, 'No workspace declaration found — falling back to packages/* and apps/*');
   return ['packages/*', 'apps/*'];
@@ -75,16 +78,43 @@ export function expandWorkspaceGlobs(workspaceRoot: string, patterns: string[]):
   // walked dir not excluded. An entirely empty list stays empty (an explicit
   // `workspaces: []` means "no packages").
   const includeAll = includes.length === 0 && excludes.length > 0;
-  const dirs: string[] = [];
-  for (const dir of walkPackageDirs(resolve(workspaceRoot), '')) {
-    if (
-      (includeAll || includes.some((g) => minimatch(dir, g, { dot: true }))) &&
-      !excludes.some((g) => minimatch(dir, g, { dot: true }))
-    ) {
-      dirs.push(dir);
+  const absRoot = resolve(workspaceRoot);
+  const candidates = new Set<string>();
+  // Each include pattern is walked from its literal leading path — a dir
+  // outside that subtree can never match, so `packages/*` never scans the
+  // rest of the workspace.
+  const seeds = includeAll ? [''] : [...new Set(includes.map(literalSeed))];
+  for (const seed of seeds) {
+    const absSeed = seed === '' ? absRoot : join(absRoot, seed);
+    if (!existsSync(absSeed)) continue;
+    // The seed dir itself can match a literal pattern like `packages/app`.
+    if (seed !== '') candidates.add(seed);
+    for (const dir of walkPackageDirs(absSeed, seed)) {
+      candidates.add(dir);
     }
   }
-  return dirs.sort();
+  return [...candidates]
+    .filter(
+      (dir) =>
+        (includeAll || includes.some((g) => minimatch(dir, g, { dot: true }))) &&
+        !excludes.some((g) => minimatch(dir, g, { dot: true })),
+    )
+    .sort();
+}
+
+/**
+ * The literal leading path of a glob — `packages/*` seeds at `packages`;
+ * a glob with no literal prefix seeds at the workspace root. A match can
+ * only live inside the seed subtree, so the walk starts there instead of
+ * scanning everything.
+ */
+function literalSeed(pattern: string): string {
+  const segments: string[] = [];
+  for (const segment of pattern.split('/')) {
+    if (segment === '' || /[*?[\]{}()+!@]/.test(segment)) break;
+    segments.push(segment);
+  }
+  return segments.join('/');
 }
 
 /**
@@ -127,37 +157,78 @@ function* walkPackageDirs(absDir: string, relDir: string): Generator<string> {
 /**
  * The `packages:` list of a pnpm-workspace.yaml, parsed without a YAML
  * dependency — the key is always a top-level list of quoted or bare
- * strings in practice.
+ * strings in practice. Returns `null` when no `packages:` declaration
+ * exists; an explicit empty list returns `[]` (no workspace packages).
  */
-function readPnpmWorkspace(path: string): string[] {
+function readPnpmWorkspace(path: string): string[] | null {
   let text: string;
   try {
     text = readFileSync(path, 'utf8');
   } catch {
-    return [];
+    return null;
   }
   const out: string[] = [];
   let inPackages = false;
+  let declared = false;
   for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.replace(/\s+#.*$/, '');
-    // A top-level key (no leading whitespace) ends the packages block.
+    // `#` opens a comment at line start or after whitespace.
+    const line = rawLine.replace(/(^|\s)#.*$/, '');
+    if (line.trim() === '') continue;
+    // A `- item` line inside the packages block (indent is optional in
+    // YAML block lists).
+    const item = /^\s*-\s*(.+?)\s*$/.exec(line);
+    if (item !== null && inPackages && item[1] !== undefined) {
+      out.push(unquote(item[1]));
+      continue;
+    }
+    // Any other top-level key ends the packages block.
     if (/^\S/.test(line)) {
       inPackages = /^packages\s*:/.test(line);
+      if (inPackages) declared = true;
       // Inline form: packages: ['a/*', 'b/*']
       const inline = /^packages\s*:\s*\[(.*)\]\s*$/.exec(line);
       if (inline?.[1] !== undefined) {
-        for (const item of inline[1].split(',')) {
-          const value = unquote(item.trim());
+        for (const entry of splitInlineList(inline[1])) {
+          const value = unquote(entry.trim());
           if (value !== '') out.push(value);
         }
       }
+    }
+  }
+  return declared ? out : null;
+}
+
+/**
+ * Split an inline `[a, b]` list on commas — a comma inside `{}`/`[]`
+ * (brace globs) or inside quotes does not separate items.
+ */
+function splitInlineList(text: string): string[] {
+  const items: string[] = [];
+  let current = '';
+  let depth = 0;
+  let quote: string | null = null;
+  for (const char of text) {
+    if (quote !== null) {
+      current += char;
+      if (char === quote) quote = null;
       continue;
     }
-    if (!inPackages) continue;
-    const item = /^\s+-\s*(.+?)\s*$/.exec(line);
-    if (item?.[1] !== undefined) out.push(unquote(item[1]));
+    if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === '{' || char === '[') {
+      depth++;
+    } else if (char === '}' || char === ']') {
+      depth--;
+    }
+    if (char === ',' && depth === 0 && quote === null) {
+      items.push(current);
+      current = '';
+      continue;
+    }
+    current += char;
   }
-  return out;
+  items.push(current);
+  return items;
 }
 
 function unquote(value: string): string {

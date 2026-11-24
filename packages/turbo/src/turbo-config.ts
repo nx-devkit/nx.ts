@@ -20,6 +20,11 @@ export interface TurboTask {
 export interface TurboJson {
   /** `tasks` (turbo v2), falling back to `pipeline` (turbo v1). */
   tasks: Record<string, TurboTask>;
+  /**
+   * The `extends` list of a package-level turbo.json. `"//"` makes it a
+   * turbo Package Configuration inheriting the root config's globals.
+   */
+  extends: string[];
   globalDependencies: string[];
   globalEnv: string[];
   globalPassThroughEnv: string[];
@@ -47,6 +52,7 @@ export function parseTurboJson(text: string, path: string): TurboJson {
 
   return {
     tasks,
+    extends: stringList(raw.extends),
     globalDependencies: stringList(raw.globalDependencies),
     globalEnv: stringList(raw.globalEnv),
     globalPassThroughEnv: stringList(raw.globalPassThroughEnv),
@@ -59,7 +65,9 @@ function normalizeTask(raw: Record<string, unknown>): TurboTask {
   const dependsOn = stringList(raw.dependsOn);
   if (dependsOn.length > 0) task.dependsOn = dependsOn;
   const inputs = stringList(raw.inputs);
-  if (raw.inputs !== undefined) task.inputs = inputs;
+  // An empty `inputs` list is turbo's default fileset — same as omitting
+  // the key — so only a non-empty list is preserved.
+  if (inputs.length > 0) task.inputs = inputs;
   const outputs = stringList(raw.outputs);
   if (raw.outputs !== undefined) task.outputs = outputs;
   if (typeof raw.cache === 'boolean') task.cache = raw.cache;

@@ -14,7 +14,8 @@ Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 bun add -D @nx-devkit/turbo
 ```
 
-Depends on `@nx/devkit` `^24` (installed automatically).
+Depends on `@nx/devkit` `^24` (installed automatically). Nx `^24` must
+already be installed in the workspace for the `nx` commands below.
 
 ## Register
 
@@ -39,32 +40,41 @@ is unchanged and runs in the package directory.
 
 <!-- target mapping consistent with src/targets.ts -->
 
-| turbo.json field                     | Nx target field                                                             |
-| ------------------------------------ | --------------------------------------------------------------------------- |
-| `tasks` / `pipeline`                 | one target per entry                                                        |
-| `dependsOn: ["^build"]`              | `dependsOn: [{ target: "build", dependencies: true }]`                      |
-| `dependsOn: ["build"]`               | `dependsOn: [{ target: "build" }]` (same project)                           |
-| `dependsOn: ["docs#lint"]`           | `dependsOn: [{ target: "lint", projects: ["docs"] }]`                       |
-| `dependsOn: ["//#gen"]`              | `dependsOn: [{ target: "gen", projects: ["<root package name>"] }]`         |
-| `inputs`                             | `inputs` — `src/**` → `{projectRoot}/src/**`, `$TURBO_DEFAULT$` → `default` |
-| `outputs`                            | `outputs` — `dist/**` → `{projectRoot}/dist/**` (`!` kept)                  |
-| (no `outputs`)                       | no file outputs — turbo caches nothing without a declaration                |
-| `cache: false`                       | `cache: false` (default `true`)                                             |
-| `env` / `passThroughEnv`             | `{ env: "VAR" }` hash inputs                                                |
-| `dotEnv`                             | `{projectRoot}/<file>` inputs                                               |
-| `persistent: true`                   | `continuous: true` + `cache: false`                                         |
-| `globalDependencies`                 | `{workspaceRoot}/<glob>` inputs on every target                             |
-| `globalDotEnv`                       | `{workspaceRoot}/<file>` inputs on every target                             |
-| `globalEnv` / `globalPassThroughEnv` | `{ env: "VAR" }` inputs on every target                                     |
-| task key `//#task`                   | target on the **root** project (needs `scripts.<task>` + `name`)            |
-| task key `pkg#task`                  | target on that package only                                                 |
+| turbo.json field           | Nx target field                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `tasks` / `pipeline`       | one target per entry                                                                                                           |
+| `dependsOn: ["^build"]`    | `dependsOn: [{ target: "build", dependencies: true }]`                                                                         |
+| `dependsOn: ["build"]`     | `dependsOn: [{ target: "build" }]` (same project)                                                                              |
+| `dependsOn: ["docs#lint"]` | `dependsOn: [{ target: "lint", projects: ["docs"] }]`                                                                          |
+| `dependsOn: ["//#gen"]`    | `dependsOn: [{ target: "gen", projects: ["<root package name>"] }]`                                                            |
+| `inputs`                   | `inputs` — `src/**` → `{projectRoot}/src/**`, `$TURBO_DEFAULT$` → `{projectRoot}/**/*`, `$TURBO_ROOT$/x` → `{workspaceRoot}/x` |
+| `inputs` absent or `[]`    | `{projectRoot}/**/*` — turbo's default fileset (all package files)                                                             |
+| `outputs`                  | `outputs` — `dist/**` → `{projectRoot}/dist/**` (`!` kept, `$TURBO_ROOT$` too)                                                 |
+| (no `outputs`)             | no file outputs — turbo caches nothing without a declaration                                                                   |
+| `cache: false`             | `cache: false` (default `true`)                                                                                                |
+| `env`                      | `{ env: "VAR" }` hash inputs                                                                                                   |
+| `passThroughEnv`           | not hashed — the process env is already available to `nx:run-script`                                                           |
+| `dotEnv`                   | `{projectRoot}/<file>` inputs                                                                                                  |
+| `persistent: true`         | `continuous: true` + `cache: false`                                                                                            |
+| `globalDependencies`       | `{workspaceRoot}/<glob>` inputs on every target                                                                                |
+| `globalDotEnv`             | `{workspaceRoot}/<file>` inputs on every target                                                                                |
+| `globalEnv`                | `{ env: "VAR" }` inputs on every target                                                                                        |
+| `globalPassThroughEnv`     | not hashed — same passthrough semantics as `passThroughEnv`                                                                    |
+| task key `//#task`         | target on the **root** project (needs `scripts.<task>` + `name`)                                                               |
+| task key `pkg#task`        | target on that package only                                                                                                    |
 
 The originating `turbo.json` is always added as a `{workspaceRoot}/…`
 input, so editing the config re-hashes every task it defines.
 
-Package-level `turbo.json` files (`extends: ["//"]`) apply their tasks to
-the owning package only and override the root-inferred task of the same
-name.
+Package-level `turbo.json` files apply their tasks to the owning package
+only and override the root-inferred task of the same name — selector
+keys (`pkg#task`, `//#task`) are stripped to their task name and still
+land on the owning package. When a nested config's `extends` includes
+`//`, the root config's `global*` inputs (and the root `turbo.json`
+itself) fold into that package's targets, so root config edits re-hash
+the overriding tasks. A `pkg#task` key in the root config always wins
+over the same-named plain task for that package, regardless of key
+order.
 
 > `CreateNodesResult` cannot emit `targetDefaults`/`namedInputs` in Nx
 > 24 — the `global*` fields are folded into each target's `inputs`
@@ -72,13 +82,13 @@ name.
 
 ## turbo → Nx command map
 
-| turbo                               | Nx                                                                 |
-| ----------------------------------- | ------------------------------------------------------------------ |
-| `turbo run build`                   | `nx run-many -t build`                                             |
-| `turbo run build --filter=docs`     | `nx run-many -t build --projects=docs`                             |
-| `turbo run build --filter=docs...`  | `nx run-many -t build --projects=docs` (deps come via `dependsOn`) |
-| `turbo run test --filter=...[HEAD]` | `nx affected -t test`                                              |
-| `turbo run build --dry=json`        | `nx run-many -t build --dryRun`                                    |
+| turbo                               | Nx                                                                                                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `turbo run build`                   | `nx run-many -t build`                                                                                                                                                |
+| `turbo run build --filter=docs`     | `nx run-many -t build --projects=docs`                                                                                                                                |
+| `turbo run build --filter=docs...`  | `nx run-many -t build --projects=docs` — Nx runs dependency targets only through the task's `dependsOn`; list extra projects explicitly if turbo's `...` covered more |
+| `turbo run test --filter=...[HEAD]` | `nx affected -t test`                                                                                                                                                 |
+| `turbo run build --dry=json`        | `nx run-many -t build --dryRun`                                                                                                                                       |
 
 ## Out of scope
 

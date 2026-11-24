@@ -5,6 +5,7 @@ const CTX = {
   rootProjectName: 'root-app',
   configFile: 'turbo.json',
   globalInputs: [] as (string | { env: string })[],
+  projectNameFor: (packageName: string) => packageName,
 };
 
 describe('splitTaskKey', () => {
@@ -64,9 +65,14 @@ describe('buildTaskTarget', () => {
     expect(target.outputs).toEqual(['{projectRoot}/.next/**', '!{projectRoot}/.next/cache/**']);
   });
 
-  it('defaults inputs to default plus the turbo.json input', () => {
+  it('defaults inputs to the package fileset plus the turbo.json input', () => {
     const target = buildTaskTarget('build', {}, CTX);
-    expect(target.inputs).toEqual(['default', '{workspaceRoot}/turbo.json']);
+    expect(target.inputs).toEqual(['{projectRoot}/**/*', '{workspaceRoot}/turbo.json']);
+  });
+
+  it('treats an empty inputs list as the default fileset', () => {
+    const target = buildTaskTarget('build', { inputs: [] }, CTX);
+    expect(target.inputs).toContain('{projectRoot}/**/*');
   });
 
   it('maps explicit inputs, $TURBO_DEFAULT$ and negations', () => {
@@ -77,10 +83,29 @@ describe('buildTaskTarget', () => {
     );
     expect(target.inputs).toEqual([
       '{projectRoot}/src/**',
-      'default',
+      '{projectRoot}/**/*',
       '!{projectRoot}/src/gen/**',
       '{workspaceRoot}/turbo.json',
     ]);
+  });
+
+  it('anchors $TURBO_ROOT$ globs at the workspace root', () => {
+    const target = buildTaskTarget(
+      'check',
+      {
+        inputs: ['$TURBO_ROOT$/tsconfig.json', '!$TURBO_ROOT$/tmp/**'],
+        outputs: ['$TURBO_ROOT$/dist/**'],
+      },
+      CTX,
+    );
+    expect(target.inputs).toContain('{workspaceRoot}/tsconfig.json');
+    expect(target.inputs).toContain('!{workspaceRoot}/tmp/**');
+    expect(target.outputs).toEqual(['{workspaceRoot}/dist/**']);
+  });
+
+  it('prefixes brace-expansion globs like any other package glob', () => {
+    const target = buildTaskTarget('build', { inputs: ['{src,tests}/**'] }, CTX);
+    expect(target.inputs).toContain('{projectRoot}/{src,tests}/**');
   });
 
   it('uses a nested turbo.json path as the config input', () => {
@@ -88,14 +113,14 @@ describe('buildTaskTarget', () => {
     expect(target.inputs).toContain('{workspaceRoot}/packages/app/turbo.json');
   });
 
-  it('maps env and passThroughEnv to env hash inputs', () => {
+  it('hashes env but never passThroughEnv — passthrough is not a cache input', () => {
     const target = buildTaskTarget(
       'deploy',
       { env: ['DEPLOY_TOKEN'], passThroughEnv: ['CI'] },
       CTX,
     );
     expect(target.inputs).toContainEqual({ env: 'DEPLOY_TOKEN' });
-    expect(target.inputs).toContainEqual({ env: 'CI' });
+    expect(target.inputs).not.toContainEqual({ env: 'CI' });
   });
 
   it('maps dotEnv files to project inputs', () => {
@@ -131,6 +156,20 @@ describe('buildTaskTarget', () => {
   it('maps pkg#task to the named project', () => {
     const target = buildTaskTarget('deploy', { dependsOn: ['ui#build'] }, CTX);
     expect(target.dependsOn).toEqual([{ target: 'build', projects: ['ui'] }]);
+  });
+
+  it('resolves pkg#task through projectNameFor — project.json can rename it', () => {
+    const target = buildTaskTarget(
+      'deploy',
+      { dependsOn: ['ui#build'] },
+      { ...CTX, projectNameFor: () => 'ui-renamed' },
+    );
+    expect(target.dependsOn).toEqual([{ target: 'build', projects: ['ui-renamed'] }]);
+  });
+
+  it('drops a //# dep with an empty task name', () => {
+    const target = buildTaskTarget('deploy', { dependsOn: ['//#'] }, CTX);
+    expect(target.dependsOn).toBeUndefined();
   });
 
   it('maps //#task to the root project name', () => {

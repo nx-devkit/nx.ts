@@ -30,7 +30,9 @@ const ROOT_PKG = JSON.stringify({
   name: 'root-app',
   private: true,
   workspaces: ['packages/*'],
-  scripts: { format: 'oxfmt .' },
+  // `build` on the root keeps the plain-tasks-never-hit-root test
+  // honest — without it the script gate would mask a regression.
+  scripts: { format: 'oxfmt .', build: 'tsc -b' },
 });
 
 const TURBO_V2 = JSON.stringify({
@@ -47,6 +49,7 @@ const TURBO_V2 = JSON.stringify({
   },
   globalDependencies: ['tsconfig.base.json'],
   globalEnv: ['GLOBAL_FLAG'],
+  globalPassThroughEnv: ['CI'],
 });
 
 function fixtureWorkspace(): string {
@@ -57,6 +60,8 @@ function fixtureWorkspace(): string {
       build: 'tsc -b',
       test: 'vitest run',
       dev: 'vite',
+      // keeps the `docs#lint` exclusivity assertion non-vacuous
+      lint: 'eslint .',
     }),
     'packages/lib/package.json': pkg('lib', { build: 'tsc -b' }),
     'packages/docs/package.json': pkg('docs', { lint: 'eslint .' }),
@@ -146,7 +151,27 @@ describe('@nx-devkit/turbo createNodesV2', () => {
       options: { script: 'lint' },
       outputs: ['{projectRoot}/.out/**'],
     });
+    // app declares a lint script too — the selector is what scopes it
     expect(projects['packages/app']?.targets?.lint).toBeUndefined();
+  });
+
+  it('lets a pkg#task key override the plain task regardless of key order', async () => {
+    for (const tasks of [
+      { 'app#build': { cache: false }, build: {} },
+      { build: {}, 'app#build': { cache: false } },
+    ]) {
+      const root = makeWorkspace({
+        'package.json': ROOT_PKG,
+        'turbo.json': JSON.stringify({ tasks }),
+        'packages/app/package.json': pkg('app', { build: 'tsc' }),
+        'packages/lib/package.json': pkg('lib', { build: 'tsc' }),
+      });
+      const projects = await createNodes(root, ['turbo.json']);
+
+      expect(projects['packages/app']?.targets?.build?.cache).toBe(false);
+      // lib only sees the plain task — the default cache is on
+      expect(projects['packages/lib']?.targets?.build?.cache).toBe(true);
+    }
   });
 
   it('maps dependsOn forms', async () => {
@@ -167,6 +192,8 @@ describe('@nx-devkit/turbo createNodesV2', () => {
     expect(inputs).toContain('{projectRoot}/src/**');
     expect(inputs).toContain('{workspaceRoot}/tsconfig.base.json');
     expect(inputs).toContainEqual({ env: 'GLOBAL_FLAG' });
+    // globalPassThroughEnv is env-only, never a hash input
+    expect(inputs).not.toContainEqual({ env: 'CI' });
     expect(inputs).toContain('{workspaceRoot}/turbo.json');
   });
 
@@ -261,9 +288,93 @@ describe('@nx-devkit/turbo createNodesV2', () => {
         tasks: { build: { cache: false } },
       }),
     });
-    const projects = await createNodes(root, ['turbo.json', 'packages/app/turbo.json']);
+    // The nested config wins no matter which order Nx hands the files in.
+    const forward = await createNodes(root, ['turbo.json', 'packages/app/turbo.json']);
+    const reverse = await createNodes(root, ['packages/app/turbo.json', 'turbo.json']);
 
-    expect(projects['packages/app']?.targets?.build?.cache).toBe(false);
+    expect(forward['packages/app']?.targets?.build?.cache).toBe(false);
+    expect(reverse['packages/app']?.targets?.build?.cache).toBe(false);
+  });
+
+  it('merges root global inputs into a nested config extending //', async () => {
+    const root = makeWorkspace({
+      'package.json': ROOT_PKG,
+      'turbo.json': JSON.stringify({
+        tasks: { build: {} },
+        globalDependencies: ['tsconfig.base.json'],
+        globalEnv: ['ROOT_FLAG'],
+      }),
+      'packages/app/package.json': pkg('app', { build: 'tsc', e2e: 'playwright' }),
+      'packages/app/turbo.json': JSON.stringify({
+        extends: ['//'],
+        tasks: { e2e: { dependsOn: ['build'] } },
+      }),
+    });
+
+    // Assert both file orders — the merge must not depend on the root
+    // config arriving first in the batch.
+    for (const files of [
+      ['turbo.json', 'packages/app/turbo.json'],
+      ['packages/app/turbo.json', 'turbo.json'],
+    ]) {
+      const projects = await createNodes(root, files);
+      const inputs = projects['packages/app']?.targets?.e2e?.inputs ?? [];
+
+      expect(inputs).toContain('{workspaceRoot}/tsconfig.base.json');
+      expect(inputs).toContainEqual({ env: 'ROOT_FLAG' });
+      expect(inputs).toContain('{workspaceRoot}/turbo.json');
+      expect(inputs).toContain('{workspaceRoot}/packages/app/turbo.json');
+    }
+  });
+
+  it('does not merge root globals into a nested config without extends //', async () => {
+    const root = makeWorkspace({
+      'package.json': ROOT_PKG,
+      'turbo.json': JSON.stringify({
+        tasks: { build: {} },
+        globalDependencies: ['tsconfig.base.json'],
+      }),
+      'packages/app/package.json': pkg('app', { build: 'tsc', e2e: 'playwright' }),
+      'packages/app/turbo.json': JSON.stringify({ tasks: { e2e: {} } }),
+    });
+    const projects = await createNodes(root, ['turbo.json', 'packages/app/turbo.json']);
+    const inputs = projects['packages/app']?.targets?.e2e?.inputs ?? [];
+
+    expect(inputs).not.toContain('{workspaceRoot}/tsconfig.base.json');
+    expect(inputs).toContain('{workspaceRoot}/packages/app/turbo.json');
+  });
+
+  it('resolves the root project name from project.json before package.json', async () => {
+    const root = makeWorkspace({
+      'package.json': ROOT_PKG,
+      'project.json': JSON.stringify({ name: 'custom-root', root: '' }),
+      'turbo.json': JSON.stringify({
+        tasks: { deploy: { dependsOn: ['//#gen'] } },
+      }),
+      'packages/app/package.json': pkg('app', { deploy: 'ship' }),
+    });
+    const projects = await createNodes(root, ['turbo.json']);
+
+    expect(projects['packages/app']?.targets?.deploy?.dependsOn).toEqual([
+      { target: 'gen', projects: ['custom-root'] },
+    ]);
+  });
+
+  it('resolves pkg#task deps to the project.json project name', async () => {
+    const root = makeWorkspace({
+      'package.json': ROOT_PKG,
+      'turbo.json': JSON.stringify({
+        tasks: { deploy: { dependsOn: ['app#build'] } },
+      }),
+      'packages/app/package.json': pkg('app', { build: 'tsc' }),
+      'packages/app/project.json': JSON.stringify({ name: 'app-renamed' }),
+      'packages/web/package.json': pkg('web', { deploy: 'ship' }),
+    });
+    const projects = await createNodes(root, ['turbo.json']);
+
+    expect(projects['packages/web']?.targets?.deploy?.dependsOn).toEqual([
+      { target: 'build', projects: ['app-renamed'] },
+    ]);
   });
 
   it('skips a turbo.json that cannot be parsed', async () => {

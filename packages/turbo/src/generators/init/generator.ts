@@ -20,12 +20,14 @@ export async function initGenerator(
   registerPlugin(tree, pluginPath);
 
   const checklist = [
-    `1. The plugin is registered (${pluginPath}) — turbo.json tasks are now Nx targets.`,
-    '2. Inspect inferred targets:',
+    isLocalPluginPath(pluginPath)
+      ? `1. The plugin is registered (${pluginPath}) — a local path registration; keep it in sync manually.`
+      : `1. The plugin is registered (${pluginPath}) — install it if missing: bun add -D ${pluginPath}`,
+    '2. turbo.json tasks are now Nx targets. Inspect them:',
     '   bunx nx show projects',
     '3. Run the task graph just like `turbo run`:',
-    '   bunx nx run-many -t build',
-    '4. turbo --filter equivalents: bunx nx run-many -t build --projects=<name>',
+    '   bunx nx run-many -t <task>   # any task name from turbo.json',
+    '4. turbo --filter equivalents: bunx nx run-many -t <task> --projects=<name>',
   ];
   for (const line of checklist) {
     console.log(line);
@@ -33,6 +35,13 @@ export async function initGenerator(
   await formatFiles(tree);
 
   return () => {};
+}
+
+/** Relative or absolute paths register a local plugin — nothing to install. */
+function isLocalPluginPath(pluginPath: string): boolean {
+  return (
+    pluginPath.startsWith('.') || pluginPath.startsWith('/') || /^[A-Za-z]:[\\/]/.test(pluginPath)
+  );
 }
 
 export default initGenerator;
