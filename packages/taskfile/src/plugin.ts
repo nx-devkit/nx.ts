@@ -94,7 +94,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitTaskfileOptions> = [
       // set so a dep on an internal or missing task is never emitted.
       const resolvable = new Set<string>();
       for (const [qualified, entry] of collected) {
-        if (!entry.task.internal) resolvable.add(qualified);
+        if (!entry.task.internal && isSafeTaskName(qualified)) resolvable.add(qualified);
       }
 
       const inputs = [...inputFiles].sort().map((f) => `{workspaceRoot}/${f}`);
@@ -295,7 +295,7 @@ function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    out += code < 32 || (code >= 127 && code <= 159) ? ' ' : char;
   }
   return out.trim();
 }
