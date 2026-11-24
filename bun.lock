@@ -198,6 +198,18 @@
         "typescript": "^6.0.3",
         "vitest": "^5.1.0",
       },
+      "peerDependencies": {
+        "flyctl": ">=1.0.0",
+        "netlify-cli": ">=17.0.0",
+        "vercel": ">=28.0.0",
+        "wrangler": ">=3.0.0",
+      },
+      "optionalPeers": [
+        "flyctl",
+        "netlify-cli",
+        "vercel",
+        "wrangler",
+      ],
     },
     "packages/deps": {
       "name": "@nx-devkit/deps",

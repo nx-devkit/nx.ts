@@ -53,4 +53,13 @@ describe('initGenerator', () => {
     const plugins = readPlugins(tree) as Array<{ plugin: string }>;
     expect(plugins.some((p) => p.plugin === './local/plugin.ts')).toBe(true);
   });
+
+  it('falls back to @nx-devkit/deploy on an empty pluginPath', async () => {
+    const tree = createTree();
+
+    await initGenerator(tree, { pluginPath: '' });
+
+    const plugins = readPlugins(tree) as Array<{ plugin: string }>;
+    expect(plugins.some((p) => p.plugin === '@nx-devkit/deploy')).toBe(true);
+  });
 });
