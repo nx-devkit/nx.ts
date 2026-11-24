@@ -137,61 +137,70 @@ export const createNodesV2: CreateNodesV2<NxDocsPluginOptions> = [
       [];
     for (const [root, groups] of [...byRoot.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       if (shouldSkipDir(root, workspaceRoot)) continue;
-
-      // A root with both astro.config.* and .vitepress/config.* is a single
-      // project — astro wins (starlight sites sometimes vendor vitepress
-      // assets; the two target sets would collide on the same names anyway).
-      const tool: DocsTool = groups.astro.length > 0 ? 'astro' : 'vitepress';
-      const files = (tool === 'astro' ? groups.astro : groups.vitepress).toSorted((a, b) =>
-        a.localeCompare(b),
-      );
-      const winner = files.at(0);
-      if (winner === undefined) continue;
-
-      const token = root ? '{projectRoot}' : '{workspaceRoot}';
-      const rel = (f: string): string => (root ? f.slice(root.length + 1) : f);
-      // **/* does not match dot-directories like .vitepress — list them
-      // explicitly, alongside every matched config, so theme/config edits
-      // bust the build cache. Outputs and tool caches are negated so a
-      // previous build cannot poison the next hash.
-      const inputs =
-        tool === 'vitepress'
-          ? [
-              `${token}/**/*`,
-              `${token}/.vitepress/**/*`,
-              `!${token}/.vitepress/dist`,
-              `!${token}/.vitepress/cache`,
-              `!${token}/dist`,
-              `!${token}/node_modules`,
-              ...files.map((f) => `${token}/${rel(f)}`),
-            ]
-          : [
-              `${token}/**/*`,
-              `!${token}/dist`,
-              `!${token}/.astro`,
-              `!${token}/node_modules`,
-              ...files.map((f) => `${token}/${rel(f)}`),
-            ];
-
-      const absWinner = join(workspaceRoot, winner);
-      const customOutDir = sniffOutDir(absWinner) ?? undefined;
-      // A custom outDir is a build output too — negate it so it cannot
-      // poison the input hash on the next run.
-      if (customOutDir !== undefined) {
-        const negated = `!${token}/${customOutDir}`;
-        if (!inputs.includes(negated)) inputs.push(negated);
-      }
-      const starlight = tool === 'astro' && isStarlightConfig(absWinner);
-      const project: ProjectConfiguration = {
-        root,
-        targets: inferDocsTargets(prefix, tool, inputs, customOutDir),
-        metadata: { technologies: starlight ? ['astro', 'starlight'] : [tool] },
-      };
-      results.push([winner, { projects: { [root]: project } }]);
+      const project = buildProject(root, groups, prefix, workspaceRoot);
+      if (project !== undefined) results.push(project);
     }
     return results;
   },
 ];
+
+function buildProject(
+  root: string,
+  groups: Record<DocsTool, string[]>,
+  prefix: string,
+  workspaceRoot: string,
+): readonly [string, { projects: Record<string, ProjectConfiguration> }] | undefined {
+  // A root with both astro.config.* and .vitepress/config.* is a single
+  // project — astro wins (starlight sites sometimes vendor vitepress
+  // assets; the two target sets would collide on the same names anyway).
+  const tool: DocsTool = groups.astro.length > 0 ? 'astro' : 'vitepress';
+  const files = (tool === 'astro' ? groups.astro : groups.vitepress).toSorted((a, b) =>
+    a.localeCompare(b),
+  );
+  const winner = files.at(0);
+  if (winner === undefined) return undefined;
+
+  const token = root ? '{projectRoot}' : '{workspaceRoot}';
+  const rel = (f: string): string => (root ? f.slice(root.length + 1) : f);
+  // **/* does not match dot-directories like .vitepress — list them
+  // explicitly, alongside every matched config, so theme/config edits
+  // bust the build cache. Outputs and tool caches are negated so a
+  // previous build cannot poison the next hash.
+  const inputs =
+    tool === 'vitepress'
+      ? [
+          `${token}/**/*`,
+          `${token}/.vitepress/**/*`,
+          `!${token}/.vitepress/dist`,
+          `!${token}/.vitepress/cache`,
+          `!${token}/dist`,
+          `!${token}/node_modules`,
+          ...files.map((f) => `${token}/${rel(f)}`),
+        ]
+      : [
+          `${token}/**/*`,
+          `!${token}/dist`,
+          `!${token}/.astro`,
+          `!${token}/node_modules`,
+          ...files.map((f) => `${token}/${rel(f)}`),
+        ];
+
+  const absWinner = join(workspaceRoot, winner);
+  const customOutDir = sniffOutDir(absWinner) ?? undefined;
+  // A custom outDir is a build output too — negate it so it cannot
+  // poison the input hash on the next run.
+  if (customOutDir !== undefined) {
+    const negated = `!${token}/${customOutDir}`;
+    if (!inputs.includes(negated)) inputs.push(negated);
+  }
+  const starlight = tool === 'astro' && isStarlightConfig(absWinner);
+  const project: ProjectConfiguration = {
+    root,
+    targets: inferDocsTargets(prefix, tool, inputs, customOutDir),
+    metadata: { technologies: starlight ? ['astro', 'starlight'] : [tool] },
+  };
+  return [winner, { projects: { [root]: project } }];
+}
 
 const plugin: { name: string; createNodesV2: typeof createNodesV2 } = {
   name: PLUGIN_NAME,
