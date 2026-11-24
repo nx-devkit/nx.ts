@@ -1,11 +1,14 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { expandMembers, joinRel } from './workspace.ts';
+
+const tempRoots: string[] = [];
 
 function makeWorkspace(files: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'nx-cargo-ws-'));
+  tempRoots.push(root);
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel);
     mkdirSync(dirname(abs), { recursive: true });
@@ -13,6 +16,10 @@ function makeWorkspace(files: Record<string, string> = {}): string {
   }
   return root;
 }
+
+afterAll(() => {
+  for (const root of tempRoots) rmSync(root, { recursive: true, force: true });
+});
 
 const MANIFEST = '[package]\nname = "x"\n';
 

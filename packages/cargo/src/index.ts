@@ -4,6 +4,7 @@ export type { CargoDep, CargoManifest, WorkspaceDepSpec } from './cargo-toml.ts'
 export { parseCargoToml } from './cargo-toml.ts';
 export {
   collectCargoDirs,
+  collectDepDirs,
   collectPathDeps,
   expandMembers,
   joinRel,

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { minimatch } from 'minimatch';
 import { logDebug } from '@nx-devkit/internal';
-import { parseCargoToml, type CargoManifest } from './cargo-toml.ts';
+import { parseCargoToml, type CargoDep, type CargoManifest } from './cargo-toml.ts';
 
 const PLUGIN_SCOPE = 'nx-devkit/cargo';
 
@@ -144,24 +144,58 @@ export function collectPathDeps(
 ): string[] {
   const deps = new Set<string>();
   for (const dep of manifest.deps) {
-    let depDir: string | undefined;
-    if (dep.path !== undefined) {
-      depDir = joinRel(crateDir, dep.path);
-    } else if (dep.workspace === true) {
-      const wsDeps = manifestAt(lockfileRoot)?.workspace?.dependencies ?? {};
-      const inherited = wsDeps[dep.name];
-      if (inherited?.path !== undefined) depDir = joinRel(lockfileRoot, inherited.path);
-    }
-    if (depDir === undefined) continue;
-    if (depDir === '..' || depDir.startsWith('../')) {
-      logDebug(PLUGIN_SCOPE, `Path dep ${logSafe(dep.name)} escapes the workspace — skipped`);
-      continue;
-    }
-    const target = manifestAt(depDir);
+    const dir = depDir(dep, crateDir, lockfileRoot, manifestAt);
+    if (dir === undefined) continue;
+    const target = manifestAt(dir);
     const name = target?.packageName ?? dep.name;
     if (name !== manifest.packageName) deps.add(name);
   }
   return [...deps].sort();
+}
+
+/**
+ * Workspace-relative dirs of a crate's path dependencies — for target
+ * inputs, so a dep's manifest and sources bust the cache. Same
+ * resolution rules as `collectPathDeps`: `path` deps join onto the
+ * crate dir, `workspace = true` deps inherit `path` through the owning
+ * root's `[workspace.dependencies]`; dirs escaping the workspace root
+ * are skipped.
+ */
+export function collectDepDirs(
+  manifest: CargoManifest,
+  crateDir: string,
+  lockfileRoot: string,
+  manifestAt: (dir: string) => CargoManifest | null,
+): string[] {
+  const dirs = new Set<string>();
+  for (const dep of manifest.deps) {
+    const dir = depDir(dep, crateDir, lockfileRoot, manifestAt);
+    if (dir !== undefined) dirs.add(dir);
+  }
+  return [...dirs].sort();
+}
+
+/** A dep's workspace-relative dir; undefined for pathless deps and escapes. */
+function depDir(
+  dep: CargoDep,
+  crateDir: string,
+  lockfileRoot: string,
+  manifestAt: (dir: string) => CargoManifest | null,
+): string | undefined {
+  let dir: string | undefined;
+  if (dep.path !== undefined) {
+    dir = joinRel(crateDir, dep.path);
+  } else if (dep.workspace === true) {
+    const wsDeps = manifestAt(lockfileRoot)?.workspace?.dependencies ?? {};
+    const inherited = wsDeps[dep.name];
+    if (inherited?.path !== undefined) dir = joinRel(lockfileRoot, inherited.path);
+  }
+  if (dir === undefined) return undefined;
+  if (dir === '..' || dir.startsWith('../')) {
+    logDebug(PLUGIN_SCOPE, `Path dep ${logSafe(dep.name)} escapes the workspace — skipped`);
+    return undefined;
+  }
+  return dir;
 }
 
 /**
@@ -210,12 +244,19 @@ function normalizeRel(value: string): string {
 /**
  * A value from the manifest, safe to put into a log message — the
  * manifest is untrusted input, and a log line must stay one line.
+ * C0/C1 controls and bidi override/isolate characters become spaces.
  */
-function logSafe(value: string): string {
+export function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    out +=
+      code < 32 ||
+      (code >= 127 && code <= 159) ||
+      (code >= 0x202a && code <= 0x202e) ||
+      (code >= 0x2066 && code <= 0x2069)
+        ? ' '
+        : char;
   }
   return out.trim();
 }

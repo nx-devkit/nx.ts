@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CreateNodesContextV2, TargetConfiguration } from '@nx/devkit';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { createNodesV2 } from './plugin.ts';
 
 function makeContext(workspaceRoot: string): CreateNodesContextV2 {
@@ -13,8 +13,11 @@ function makeContext(workspaceRoot: string): CreateNodesContextV2 {
   } as unknown as CreateNodesContextV2;
 }
 
+const tempRoots: string[] = [];
+
 function makeWorkspace(files: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'nx-cargo-'));
+  tempRoots.push(root);
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel);
     mkdirSync(dirname(abs), { recursive: true });
@@ -22,6 +25,10 @@ function makeWorkspace(files: Record<string, string> = {}): string {
   }
   return root;
 }
+
+afterAll(() => {
+  for (const root of tempRoots) rmSync(root, { recursive: true, force: true });
+});
 
 const CRATE = (name: string, deps = '') => `[package]
 name = "${name}"
@@ -92,11 +99,12 @@ describe('@nx-devkit/cargo createNodesV2', () => {
     expect(app?.name).toBe('app');
     expect(app?.targets?.build).toMatchObject({
       executor: 'nx:run-commands',
-      cache: true,
+      cache: false,
       options: { command: 'cargo build -p app', cwd: '{projectRoot}' },
     });
-    expect(app?.targets?.test?.options).toMatchObject({
-      command: 'cargo test -p app',
+    expect(app?.targets?.test).toMatchObject({
+      cache: true,
+      options: { command: 'cargo test -p app' },
     });
     expect(app?.targets?.clippy?.options).toMatchObject({
       command: 'cargo clippy -p app -- -D warnings',
@@ -106,15 +114,28 @@ describe('@nx-devkit/cargo createNodesV2', () => {
     });
   });
 
-  it('hashes Cargo.toml, src, build.rs and the workspace Cargo.lock', async () => {
+  it('hashes Cargo.toml, src, build.rs and the workspace manifest + Cargo.lock', async () => {
     const root = workspaceFixture();
     const projects = await createNodes(root, WS_FILES);
     const inputs = projects['crates/app']?.targets?.build?.inputs ?? [];
 
     expect(inputs).toContain('{projectRoot}/Cargo.toml');
     expect(inputs).toContain('{projectRoot}/src/**/*');
+    expect(inputs).toContain('{projectRoot}/tests/**/*');
+    expect(inputs).toContain('{projectRoot}/examples/**/*');
     expect(inputs).toContain('{projectRoot}/build.rs');
+    expect(inputs).toContain('{workspaceRoot}/Cargo.toml');
     expect(inputs).toContain('{workspaceRoot}/Cargo.lock');
+  });
+
+  it('hashes the manifests and sources of path dependencies', async () => {
+    const root = workspaceFixture();
+    const projects = await createNodes(root, WS_FILES);
+    const inputs = projects['crates/app']?.targets?.build?.inputs ?? [];
+
+    expect(inputs).toContain('{workspaceRoot}/crates/lib/Cargo.toml');
+    expect(inputs).toContain('{workspaceRoot}/crates/lib/src/**/*');
+    expect(inputs).toContain('{workspaceRoot}/crates/lib/build.rs');
   });
 
   it('turns path dependencies into implicitDependencies edges', async () => {
@@ -132,6 +153,7 @@ describe('@nx-devkit/cargo createNodesV2', () => {
     const ws = projects[''];
     expect(ws?.targets?.build).toMatchObject({
       executor: 'nx:run-commands',
+      cache: false,
       options: { command: 'cargo build', cwd: '{projectRoot}' },
     });
     expect(ws?.targets?.test?.options).toMatchObject({ command: 'cargo test' });
@@ -278,6 +300,28 @@ exclude = ["crates/out"]
       'node_modules/dep/Cargo.toml': CRATE('dep'),
     });
     const results = await createNodesV2[1](['node_modules/dep/Cargo.toml'], {}, makeContext(root));
+
+    expect(results).toHaveLength(0);
+  });
+
+  it('ignores Cargo.toml under target dirs', async () => {
+    const root = makeWorkspace({
+      'target/debug/build/Cargo.toml': CRATE('generated'),
+    });
+    const results = await createNodesV2[1](
+      ['target/debug/build/Cargo.toml'],
+      {},
+      makeContext(root),
+    );
+
+    expect(results).toHaveLength(0);
+  });
+
+  it('rejects a package name that is not a valid cargo name', async () => {
+    const root = makeWorkspace({
+      'evil/Cargo.toml': CRATE('x; rm -rf ~'),
+    });
+    const results = await createNodesV2[1](['evil/Cargo.toml'], {}, makeContext(root));
 
     expect(results).toHaveLength(0);
   });

@@ -8,7 +8,14 @@ import {
 } from '@nx/devkit';
 import { isVerbose, logDebug } from '@nx-devkit/internal';
 import { parseCargoToml, type CargoManifest } from './cargo-toml.ts';
-import { collectPathDeps, expandMembers, readManifest, resolveLockfileRoot } from './workspace.ts';
+import {
+  collectDepDirs,
+  collectPathDeps,
+  expandMembers,
+  logSafe,
+  readManifest,
+  resolveLockfileRoot,
+} from './workspace.ts';
 import {
   buildCrateTargets,
   buildWorkspaceTargets,
@@ -19,6 +26,13 @@ import type { NxDevkitCargoOptions } from './types.ts';
 
 const PLUGIN_SCOPE = 'nx-devkit/cargo';
 const PLUGIN_NAME = '@nx-devkit/cargo';
+
+/**
+ * Cargo package names are ASCII alnum plus `-`/`_`. The name is
+ * interpolated into shell commands (`cargo build -p <name>`), so an
+ * off-pattern name from an untrusted manifest is rejected outright.
+ */
+const CRATE_NAME = /^[A-Za-z0-9_-]+$/;
 
 /** Config files the plugin reacts to — every Cargo.toml in the workspace. */
 export const CARGO_GLOB = '**/Cargo.toml';
@@ -127,15 +141,20 @@ function inferDirProjects(
 ): Record<string, ProjectConfiguration> {
   const projects: Record<string, ProjectConfiguration> = {};
   if (manifest.packageName !== undefined) {
+    if (!CRATE_NAME.test(manifest.packageName)) {
+      logger.warn(`[${PLUGIN_SCOPE}] Skipping ${logSafe(dir || '.')} — invalid package name`);
+      return projects;
+    }
     const lockfileRoot = resolveLockfileRoot(dir, manifest, ctx.manifestAt, ctx.membersOf);
     const implicitDependencies = collectPathDeps(manifest, dir, lockfileRoot, ctx.manifestAt);
+    const depDirs = collectDepDirs(manifest, dir, lockfileRoot, ctx.manifestAt);
     const project: ProjectConfiguration = {
       root: dir,
       name: manifest.packageName,
       targets: buildCrateTargets(
         manifest.packageName,
         { clippy: ctx.clippy, fmt: ctx.fmt },
-        crateInputs(dir, lockfileRoot),
+        crateInputs(dir, lockfileRoot, depDirs),
       ),
     };
     if (implicitDependencies.length > 0) project.implicitDependencies = implicitDependencies;
@@ -171,10 +190,15 @@ function normalize(path: string): string {
   return out === '.' ? '' : out;
 }
 
-/** node_modules and paths escaping the workspace are never crates. */
+/**
+ * node_modules, cargo target dirs and paths escaping the workspace are
+ * never crates — a `target/` tree can hold generated manifests.
+ */
 function isSkippedDir(dir: string): boolean {
   const segments = dir.split('/');
-  return segments.includes('..') || segments.includes('node_modules');
+  return (
+    segments.includes('..') || segments.includes('node_modules') || segments.includes('target')
+  );
 }
 
 function readManifestFile(absPath: string, configFile: string): CargoManifest | null {
@@ -191,19 +215,6 @@ function readManifestFile(absPath: string, configFile: string): CargoManifest | 
     logger.warn(`[${PLUGIN_SCOPE}] Could not parse ${logSafe(configFile)} — skipping it`);
     return null;
   }
-}
-
-/**
- * A value from the manifest, safe to put into a log message — the
- * manifest is untrusted input, and a log line must stay one line.
- */
-function logSafe(value: string): string {
-  let out = '';
-  for (const char of value) {
-    const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || (code >= 127 && code <= 159) ? ' ' : char;
-  }
-  return out.trim();
 }
 
 export const __testing: { CARGO_GLOB: typeof CARGO_GLOB } = { CARGO_GLOB };

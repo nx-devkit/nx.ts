@@ -60,15 +60,23 @@ export interface NxDevkitCargoOptions {
   resolution and virtual-root inputs, not for project emission.
 - **`cwd` is `{projectRoot}`** — cargo walks up to the owning workspace
   root itself, so `-p` works for members and standalone crates alike.
-- **All targets `cache: true`, `outputs: []`** — cargo builds are
-  deterministic per inputs; real artifacts live in the shared `target/`
-  dir which is never a project output.
+- **`build` is never cached; `test`/`clippy`/`fmt` are `cache: true`,
+  `outputs: []`** — a cache hit restores only declared outputs and the
+  real artifacts live in the shared `target/` dir, which is never a
+  project output, so a cached `build` would report success while
+  producing nothing. Test/lint results are safe to replay.
 - **Inputs per crate:** `{projectRoot}/Cargo.toml`, `src/**/*`,
-  `build.rs`, and the owning workspace's `Cargo.lock` (`{projectRoot}`
-  for standalone crates, `{workspaceRoot}/<ws>/Cargo.lock` for members).
+  `tests/**/*`, `examples/**/*`, `build.rs`, the owning workspace's
+  manifest + `Cargo.lock` (`{projectRoot}` for standalone crates,
+  `{workspaceRoot}/<ws>/…` for members), and the manifest + sources of
+  every path dependency.
 - **A broken Cargo.toml must not break the project graph** — warn + skip.
-- **`node_modules` and `..`-escaping dirs are skipped**; a `path` dep
-  resolving above the workspace root is skipped with a debug log.
+- **`node_modules`, `target` and `..`-escaping dirs are skipped**; a
+  `path` dep resolving above the workspace root is skipped with a debug
+  log.
+- **Package names are validated** (`[A-Za-z0-9_-]+`) before they reach
+  a shell command — the manifest is untrusted input. Off-pattern names
+  warn and skip.
 - **smol-toml parses; we narrow.** `parseCargoToml` throws on invalid
   TOML — the caller catches, warns, skips.
 - **No cargo peer dep.** Cargo is a system toolchain; the init generator
@@ -120,3 +128,7 @@ bun run test
 bun run build
 npx tsc --noEmit -p tsconfig.json
 ```
+
+These are the package-local steps. The root AGENTS.md pre-push
+checklist still applies in full: `bun run lint`, `bun run format:check`,
+`bun run check:spec`, and `bash scripts/e2e.sh`.
