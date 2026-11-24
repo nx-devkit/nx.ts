@@ -203,6 +203,73 @@ function inferPrismaTargets(
   return targets;
 }
 
+interface PrismaRootEntry {
+  winner: string;
+  schemaArg: string;
+  inputs: string[];
+  generate: { cache: boolean; outputs: string[] };
+  seed: boolean;
+}
+
+function prismaRootEntry(
+  root: string,
+  files: string[],
+  workspaceRoot: string,
+): PrismaRootEntry | null {
+  // prisma.config.* declares the schema itself → it wins; otherwise
+  // the lexically first schema.prisma carries the --schema flag. An
+  // unsupported prisma.config.* match (e.g. a .bak backup) is never a
+  // schema — a group with neither yields no targets.
+  const configFile = files.find((f) => isPrismaConfig(basename(f)));
+  const winner = configFile ?? files.find((f) => basename(f) === 'schema.prisma');
+  if (winner === undefined) return null;
+
+  const token = root ? '{projectRoot}' : '{workspaceRoot}';
+  const fileInputs = files.map((f) => `${token}/${root ? f.slice(root.length + 1) : f}`);
+  const inputs = [
+    `${token}/**/*.prisma`,
+    `${token}/package.json`,
+    // Generated output depends on the installed prisma version —
+    // lockfiles are inputs of the cached db:generate. Check both the
+    // workspace root and the project (standalone lockfile).
+    ...LOCKFILES.map((f) => `{workspaceRoot}/${f}`),
+    ...(root ? LOCKFILES.map((f) => `{projectRoot}/${f}`) : []),
+    ...fileInputs,
+  ];
+
+  let schemaArg = '';
+  if (configFile === undefined) {
+    const quoted = shellQuote(root ? winner.slice(root.length + 1) : winner);
+    if (quoted === null) {
+      logger.warn(
+        `[prisma] schema path ${JSON.stringify(
+          winner,
+        )} cannot be quoted safely on this platform — db targets for ${
+          root || 'the workspace root'
+        } are skipped`,
+      );
+      return null;
+    }
+    schemaArg = ` --schema ${quoted}`;
+  }
+
+  // Custom generator client output dirs must be restored from cache.
+  // A prisma.config.* can import arbitrary files — its dependency
+  // closure is not represented in inputs — so only schema.prisma
+  // projects with statically resolvable outputs are cached.
+  const generated = generatorOutputs(workspaceRoot, files);
+  const generate = {
+    cache: configFile === undefined && generated.deterministic,
+    outputs: generated.outputs,
+  };
+
+  const seed =
+    hasPackageJsonSeed(root, workspaceRoot) ||
+    files.some((f) => isPrismaConfig(basename(f)) && hasConfigFileSeed(join(workspaceRoot, f)));
+
+  return { winner, schemaArg, inputs, generate, seed };
+}
+
 export const createNodesV2: CreateNodesV2<NxPrismaPluginOptions> = [
   CONFIG_GLOB,
   (configFiles, options = {}, context) => {
@@ -224,64 +291,23 @@ export const createNodesV2: CreateNodesV2<NxPrismaPluginOptions> = [
     for (const [root, files] of [...byRoot.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       if (shouldSkipDir(root, workspaceRoot)) continue;
 
-      // prisma.config.* declares the schema itself → it wins; otherwise
-      // the lexically first schema.prisma carries the --schema flag. An
-      // unsupported prisma.config.* match (e.g. a .bak backup) is never a
-      // schema — a group with neither yields no targets.
-      const configFile = files.find((f) => isPrismaConfig(basename(f)));
-      const winner = configFile ?? files.find((f) => basename(f) === 'schema.prisma');
-      if (winner === undefined) continue;
-
-      const token = root ? '{projectRoot}' : '{workspaceRoot}';
-      const fileInputs = files.map((f) => `${token}/${root ? f.slice(root.length + 1) : f}`);
-      const inputs = [
-        `${token}/**/*.prisma`,
-        `${token}/package.json`,
-        // Generated output depends on the installed prisma version —
-        // lockfiles are inputs of the cached db:generate. Check both the
-        // workspace root and the project (standalone lockfile).
-        ...LOCKFILES.map((f) => `{workspaceRoot}/${f}`),
-        ...(root ? LOCKFILES.map((f) => `{projectRoot}/${f}`) : []),
-        ...fileInputs,
-      ];
-
-      let schemaArg = '';
-      if (configFile === undefined) {
-        const quoted = shellQuote(root ? winner.slice(root.length + 1) : winner);
-        if (quoted === null) {
-          logger.warn(
-            `[prisma] schema path ${JSON.stringify(
-              winner,
-            )} cannot be quoted safely on this platform — db targets for ${
-              root || 'the workspace root'
-            } are skipped`,
-          );
-          continue;
-        }
-        schemaArg = ` --schema ${quoted}`;
-      }
-
-      // Custom generator client output dirs must be restored from cache.
-      // A prisma.config.* can import arbitrary files — its dependency
-      // closure is not represented in inputs — so only schema.prisma
-      // projects with statically resolvable outputs are cached.
-      const generated = generatorOutputs(workspaceRoot, files);
-      const generate = {
-        cache: configFile === undefined && generated.deterministic,
-        outputs: generated.outputs,
-      };
-
-      const seed =
-        hasPackageJsonSeed(root, workspaceRoot) ||
-        files.some((f) => isPrismaConfig(basename(f)) && hasConfigFileSeed(join(workspaceRoot, f)));
+      const entry = prismaRootEntry(root, files, workspaceRoot);
+      if (entry === null) continue;
 
       results.push([
-        winner,
+        entry.winner,
         {
           projects: {
             [root]: {
               root,
-              targets: inferPrismaTargets(prefix, schemaArg, inputs, generate, seed, studio),
+              targets: inferPrismaTargets(
+                prefix,
+                entry.schemaArg,
+                entry.inputs,
+                entry.generate,
+                entry.seed,
+                studio,
+              ),
             },
           },
         },
