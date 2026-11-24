@@ -138,8 +138,12 @@ export function parseMakefile(text: string): ParsedMakefile {
     if (separator !== ':') continue;
     // `VAR := value` is an assignment, not a rule.
     if (rest.startsWith('=')) continue;
+    // Strip trailing comment before the static-pattern check so a `:` in
+    // a comment does not look like `targets: pattern: prereqs`.
+    const hashIdx = rest.indexOf('#');
+    const restNoComment = hashIdx === -1 ? rest : rest.slice(0, hashIdx);
     // `targets: pattern: prereqs` — a static pattern rule.
-    if (rest.includes(':')) continue;
+    if (restNoComment.includes(':')) continue;
 
     applyRule(match[1] ?? '', parsePrerequisites(rest), rules);
   }

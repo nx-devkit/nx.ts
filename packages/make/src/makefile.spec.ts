@@ -125,4 +125,10 @@ build:
     expect(parseMakefile('').targets.size).toBe(0);
     expect(parseMakefile('# nothing\n').targets.size).toBe(0);
   });
+
+  it('does not treat a colon inside a trailing comment as a static pattern rule', () => {
+    const parsed = parseMakefile('build: deps # see \n\tcc\n');
+    expect(parsed.targets.has('build')).toBe(true);
+    expect(parsed.targets.get('build')?.prerequisites).toEqual(['deps']);
+  });
 });

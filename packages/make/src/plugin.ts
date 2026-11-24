@@ -97,10 +97,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitMakeOptions> = [
       const inputs = [
         makefileInput,
         `${token}/**/*`,
-        '!{projectRoot}/node_modules/**/*',
-        '!{projectRoot}/.git/**/*',
-        '!{projectRoot}/dist/**/*',
-        '!{projectRoot}/coverage/**/*',
+        `!${token}/node_modules/**/*`,
+        `!${token}/.git/**/*`,
+        `!${token}/dist/**/*`,
+        `!${token}/coverage/**/*`,
       ];
 
       results.push([
