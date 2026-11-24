@@ -1,4 +1,4 @@
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 
 const PLUGIN_NAME = '@nx-devkit/terraform';
@@ -30,6 +30,7 @@ function normalize(path: string): string {
  * is a valid module dir.
  */
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
+  if (isAbsolute(projectRoot)) return true;
   const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot || '.'));
   if (rel === '') return false;
   const segments = rel.split(/[\\/]/);
