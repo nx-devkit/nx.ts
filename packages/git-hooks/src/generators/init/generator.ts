@@ -10,8 +10,13 @@ const DEFAULT_PLUGIN_PATH = '@nx-devkit/git-hooks';
 /** lefthook ships on npm; pre-commit is a Python tool and is never installed here. */
 const LEFTHOOK_PEER: Record<string, string> = { lefthook: '^1.0.0 || ^2.0.0' };
 
-const LEFTHOOK_FILE = /(^|\/)\.?lefthook\.ya?ml$/;
-const PRE_COMMIT_FILE = /(^|\/)\.pre-commit-config\.yaml$/;
+const LEFTHOOK_CANDIDATES = [
+  'lefthook.yml',
+  'lefthook.yaml',
+  '.lefthook.yml',
+  '.lefthook.yaml',
+] as const;
+const PRE_COMMIT_FILE = '.pre-commit-config.yaml';
 
 export async function initGenerator(
   tree: Tree,
@@ -20,9 +25,10 @@ export async function initGenerator(
   const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
   const projectName = resolveRootProjectName(tree) ?? '{root-project}';
 
-  const paths = tree.listChanges().map((change) => change.path);
-  const hasLefthook = paths.some((p) => LEFTHOOK_FILE.test(p));
-  const hasPreCommit = paths.some((p) => PRE_COMMIT_FILE.test(p));
+  // tree.listChanges() only covers pending writes of this generator run —
+  // detect already-on-disk configs with tree.exists instead.
+  const hasLefthook = LEFTHOOK_CANDIDATES.some((p) => tree.exists(p));
+  const hasPreCommit = tree.exists(PRE_COMMIT_FILE);
 
   registerPlugin(tree, pluginPath);
   const installDeps = hasLefthook ? installPeerDeps(tree, LEFTHOOK_PEER) : () => {};

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { logger } from '@nx/devkit';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 import { parseLefthookConfig } from './lefthook-config.ts';
@@ -24,6 +24,7 @@ function isLefthookConfig(fileName: string): boolean {
 }
 
 function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
+  if (isAbsolute(projectRoot)) return true;
   const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot || '.'));
   if (rel === '') return false;
   const segments = rel.split(/[\\/]/);
@@ -44,7 +45,13 @@ function readLefthookHooks(absPath: string, configFile: string): string[] | null
     return null;
   }
   try {
-    return parseLefthookConfig(text).hooks;
+    const { hooks, skipped } = parseLefthookConfig(text);
+    for (const name of skipped) {
+      logger.warn(
+        `[${PLUGIN_NAME}] Skipped unsafe or non-mapping hook key "${name}" in ${configFile}`,
+      );
+    }
+    return hooks;
   } catch {
     logger.warn(`[${PLUGIN_NAME}] Could not parse ${configFile} — skipping its hook targets`);
     return null;
@@ -108,9 +115,11 @@ function inferDirProject(
 
   const token = dir === '' ? '{workspaceRoot}' : '{projectRoot}';
   // Every matched config in the dir participates in the hash — an
-  // edit redefines the targets.
+  // edit redefines the targets. At the workspace root there is no
+  // `**/*` wildcard: it would hash the whole monorepo and bust the
+  // cache on every unrelated change.
   const inputs = [
-    `${token}/**/*`,
+    ...(dir === '' ? [] : [`${token}/**/*`]),
     ...sorted.map((f) => `${token}/${dir === '' ? f : f.slice(dir.length + 1)}`),
   ];
 

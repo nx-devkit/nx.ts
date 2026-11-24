@@ -176,7 +176,8 @@ describe('@nx-devkit/git-hooks createNodesV2', () => {
     const targets = results[0]![1].projects!['']!.targets!;
     expect(targets['hooks:pre-commit']).toBeDefined();
     expect(targets['hooks:pre-commit']!.inputs).toContain('{workspaceRoot}/lefthook.yml');
-    expect(targets['hooks:pre-commit']!.inputs).toContain('{workspaceRoot}/**/*');
+    // At the workspace root there is no `**/*` — it would hash the whole monorepo.
+    expect(targets['hooks:pre-commit']!.inputs).not.toContain('{workspaceRoot}/**/*');
   });
 
   it('does not treat lefthook setting keys as hook targets', async () => {
