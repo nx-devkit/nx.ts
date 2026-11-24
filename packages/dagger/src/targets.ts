@@ -96,6 +96,7 @@ export function targetSegment(name: string): string {
 export function shellQuote(value: string): string | null {
   if (process.platform === 'win32') {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: control chars are exactly what we reject
+    // eslint-disable-next-line no-control-regex -- control chars are exactly what we reject
     return /["%!]/.test(value) || /[\x00-\x1f\x7f-\x9f]/.test(value) ? null : `"${value}"`;
   }
   return `'${value.replaceAll("'", `'\\''`)}'`;
