@@ -1,5 +1,5 @@
-import { formatFiles, visitNotIgnoredFiles, type GeneratorCallback, type Tree } from '@nx/devkit';
-import { installPeerDeps, registerPlugin, resolveRootProjectName } from '@nx-devkit/internal';
+import { formatFiles, type GeneratorCallback, type Tree, visitNotIgnoredFiles } from '@nx/devkit';
+import { installPeerDeps, registerPlugin } from '@nx-devkit/internal';
 
 export interface NxDocsInitOptions {
   pluginPath?: string;
@@ -34,7 +34,6 @@ export async function initGenerator(
   options: NxDocsInitOptions = {},
 ): Promise<GeneratorCallback> {
   const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
-  const projectName = resolveRootProjectName(tree) ?? '{root-project}';
 
   registerPlugin(tree, pluginPath);
   const installDeps = installPeerDeps(tree, detectPeerDeps(tree));
@@ -43,7 +42,7 @@ export async function initGenerator(
     `1. The plugin is registered (${pluginPath}) — projects containing .vitepress/config.* or astro.config.* (incl. Starlight) now have docs:dev, docs:build and docs:preview targets.`,
     '2. Inspect inferred targets:',
     '   bunx nx show projects',
-    `3. Run a target:  bunx nx run ${projectName}:docs:build`,
+    '3. Run a target:  bunx nx run <project>:docs:build',
     '   Start a dev server:  bunx nx run <project>:docs:dev',
   ];
   for (const line of checklist) {

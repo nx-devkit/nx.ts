@@ -1,6 +1,7 @@
+import childProcess from 'node:child_process';
 import type { Tree } from '@nx/devkit';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initGenerator } from './generator.ts';
 
 // formatter: 'none' — no formatter config is seeded into the tree, so
@@ -17,6 +18,15 @@ function readPlugins(tree: Tree): unknown[] {
 }
 
 describe('initGenerator', () => {
+  // The returned GeneratorCallback runs installPackagesTask → a real
+  // `bun install` via execSync — stub it so invoking stays in-memory.
+  beforeEach(() => {
+    vi.spyOn(childProcess, 'execSync').mockReturnValue(Buffer.from(''));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('registers @nx-devkit/docs in nx.json plugins', async () => {
     const tree = createTree();
 
@@ -69,10 +79,12 @@ describe('initGenerator', () => {
     const tree = createTree();
     tree.write('package.json', JSON.stringify({ name: 'x' }));
 
-    await initGenerator(tree, {});
+    const install = await initGenerator(tree, {});
+    await install();
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
     expect(pkg.devDependencies).toBeUndefined();
+    expect(childProcess.execSync).not.toHaveBeenCalled();
   });
 
   it('installs vitepress when a .vitepress config exists', async () => {
@@ -80,11 +92,16 @@ describe('initGenerator', () => {
     tree.write('package.json', JSON.stringify({ name: 'x' }));
     tree.write('docs/.vitepress/config.ts', 'export default {}');
 
-    await initGenerator(tree, {});
+    const install = await initGenerator(tree, {});
+    await install();
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
     expect(pkg.devDependencies.vitepress).toBe('^1.0.0 || ^2.0.0');
     expect(pkg.devDependencies.astro).toBeUndefined();
+    expect(childProcess.execSync).toHaveBeenCalledWith(
+      expect.stringContaining('install'),
+      expect.anything(),
+    );
   });
 
   it('installs astro when an astro.config exists', async () => {
@@ -92,11 +109,16 @@ describe('initGenerator', () => {
     tree.write('package.json', JSON.stringify({ name: 'x' }));
     tree.write('site/astro.config.mjs', 'export default {}');
 
-    await initGenerator(tree, {});
+    const install = await initGenerator(tree, {});
+    await install();
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
     expect(pkg.devDependencies.astro).toBe('^4.0.0 || ^5.0.0');
     expect(pkg.devDependencies.vitepress).toBeUndefined();
+    expect(childProcess.execSync).toHaveBeenCalledWith(
+      expect.stringContaining('install'),
+      expect.anything(),
+    );
   });
 
   it('installs both when both config kinds exist', async () => {
@@ -105,11 +127,16 @@ describe('initGenerator', () => {
     tree.write('docs/.vitepress/config.ts', 'export default {}');
     tree.write('site/astro.config.ts', 'export default {}');
 
-    await initGenerator(tree, {});
+    const install = await initGenerator(tree, {});
+    await install();
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
     expect(pkg.devDependencies.vitepress).toBe('^1.0.0 || ^2.0.0');
     expect(pkg.devDependencies.astro).toBe('^4.0.0 || ^5.0.0');
+    expect(childProcess.execSync).toHaveBeenCalledWith(
+      expect.stringContaining('install'),
+      expect.anything(),
+    );
   });
 
   it('skips peer deps already declared', async () => {
@@ -117,9 +144,11 @@ describe('initGenerator', () => {
     tree.write('package.json', JSON.stringify({ name: 'x', devDependencies: { astro: '^5.1.0' } }));
     tree.write('site/astro.config.ts', 'export default {}');
 
-    await initGenerator(tree, {});
+    const install = await initGenerator(tree, {});
+    await install();
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
     expect(pkg.devDependencies.astro).toBe('^5.1.0');
+    expect(childProcess.execSync).not.toHaveBeenCalled();
   });
 });

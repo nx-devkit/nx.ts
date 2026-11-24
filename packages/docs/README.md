@@ -56,7 +56,7 @@ The init generator also installs the matching peer (`vitepress` and/or `astro`) 
     {
       "plugin": "@nx-devkit/docs",
       "options": {
-        "targetPrefix": "docs", // rename the target set → site:dev etc.
+        "targetPrefix": "site", // rename the target set → site:dev etc.
       },
     },
   ],
@@ -68,5 +68,5 @@ The init generator also installs the matching peer (`vitepress` and/or `astro`) 
 ```bash
 npx nx show project my-docs         # see inferred targets
 npx nx run-many -t docs:build       # build every docs site in the workspace
-npx nx run my-docs:docs:dev         # start the dev server (continuous)
+npx nx run --project=my-docs --target=docs:dev  # start the dev server (continuous)
 ```
