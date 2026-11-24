@@ -1,10 +1,12 @@
 import type { Tree } from '@nx/devkit';
 import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { initGenerator } from './generator.ts';
 
-// formatter: 'none' — no formatter config is seeded into the tree, so
-// formatFiles detects nothing and generated content is asserted verbatim.
+// formatter: 'none' — no formatter config is seeded into the tree. Nx also
+// detects a formatter from declared package.json deps, and init seeds the
+// oxfmt devDependency itself, so the preservation test stubs NX_SKIP_FORMAT
+// to assert the JSONC edit verbatim.
 function createTree(): Tree {
   const tree = createTreeWithEmptyWorkspace({ formatter: 'none' });
   tree.write('nx.json', JSON.stringify({}));
@@ -56,12 +58,23 @@ describe('initGenerator', () => {
 
   it('preserves comments and formatting in nx.json', async () => {
     const tree = createTree();
-    tree.write('nx.json', '{\n  // keep me\n  "plugins": ["other-plugin"]\n}\n');
-
-    await initGenerator(tree, {});
+    tree.write(
+      'nx.json',
+      '{\n  // keep me\n  "plugins": ["other-plugin"],\n  "targetDefaults": {},\n}\n',
+    );
+    // installPeerDeps writes package.json with the oxfmt devDependency before
+    // formatFiles runs, so a real init canonicalizes nx.json with oxfmt —
+    // dropping the JSONC trailing comma. Skip formatting so this spec asserts
+    // the registerPlugin edit itself, where the comma must survive.
+    vi.stubEnv('NX_SKIP_FORMAT', 'true');
+    try {
+      await initGenerator(tree, {});
+    } finally {
+      vi.unstubAllEnvs();
+    }
 
     expect(tree.read('nx.json', 'utf8')).toBe(
-      '{\n  // keep me\n  "plugins": [\n    "other-plugin",\n    {\n      "options": {},\n      "plugin": "@nx-devkit/oxfmt"\n    }\n  ]\n}\n',
+      '{\n  // keep me\n  "plugins": [\n    "other-plugin",\n    {\n      "options": {},\n      "plugin": "@nx-devkit/oxfmt"\n    }\n  ],\n  "targetDefaults": {},\n}\n',
     );
   });
 
