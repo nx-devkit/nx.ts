@@ -100,12 +100,12 @@ export async function globFilesAsync(
 ): Promise<string[]> {
   const list = Array.isArray(patterns) ? patterns : [patterns];
   const found = new Set<string>();
-  try {
-    for (const pattern of list) {
-      const matches = glob(pattern, {
-        cwd: rootDir,
-        exclude: isExcludedEntry,
-      });
+  for (const pattern of list) {
+    const matches = glob(pattern, {
+      cwd: rootDir,
+      exclude: isExcludedEntry,
+    });
+    try {
       for await (const m of matches) {
         try {
           // eslint-disable-next-line security/detect-non-literal-fs-filename -- match paths are produced by glob under the project root
@@ -119,20 +119,21 @@ export async function globFilesAsync(
           continue;
         }
       }
+    } catch (error) {
+      // Same policy as globMatchAsync: only ENOENT means "no matches" — a
+      // missing dir for one pattern must not discard the others; every
+      // other failure surfaces so real errors are not silent.
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code: string }).code === 'ENOENT'
+      ) {
+        continue;
+      }
+      throw error;
     }
-    return [...found].sort();
-  } catch (error) {
-    // Same policy as globMatchAsync: only ENOENT means "no matches";
-    // everything else surfaces so real failures are not silent.
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error as { code: string }).code === 'ENOENT'
-    ) {
-      return [];
-    }
-    throw error;
   }
+  return [...found].sort();
 }
 
 // --- Backward-compat re-exports for the old hand-rolled glob engine ---
