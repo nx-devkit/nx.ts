@@ -174,7 +174,7 @@ export function joinRel(base: string, rel: string): string {
   for (const part of rel.replaceAll('\\', '/').split('/')) {
     if (part === '' || part === '.') continue;
     if (part === '..') {
-      if (segs.length === 0) {
+      if (segs.length === 0 || segs[segs.length - 1] === '..') {
         segs.push('..');
       } else {
         segs.pop();
