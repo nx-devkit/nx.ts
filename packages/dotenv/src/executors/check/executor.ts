@@ -60,17 +60,16 @@ export async function checkExecutor(
     }
   }
 
-  if (failed) {
-    return { success: false };
-  }
-  if (missing.size > 0) {
-    const sorted = [...missing].sort();
+  const sorted = [...missing].sort();
+  if (sorted.length > 0) {
     logger.error(
       `[dotenv] env check failed — ${sorted.length} required var(s) missing:\n` +
         sorted.map((key) => `  - ${key}`).join('\n') +
         '\nSet them in the environment or in the project .env file.',
     );
-    return { success: false, missing: sorted };
+  }
+  if (failed || sorted.length > 0) {
+    return sorted.length > 0 ? { success: false, missing: sorted } : { success: false };
   }
   return { success: true };
 }
