@@ -467,6 +467,30 @@ describe('check-boundaries executor', () => {
     }
   });
 
+  it('fails loudly when a source file cannot be read', async () => {
+    const spy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    try {
+      const ctx = scaffold([
+        {
+          name: '@acme/app',
+          root: 'apps/app',
+          tags: ['type:app'],
+          files: { 'src/main.ts': 'export const a = 1\n' },
+        },
+      ]);
+      // A directory matching the source glob: readFileSync fails on it, so
+      // the scan is partial and must not pass the boundary gate silently.
+      mkdirSync(join(root, 'apps/app/src/broken.ts'));
+      const res = await checkBoundaries({ depConstraints: CONSTRAINTS }, ctx);
+      expect(res.success).toBe(false);
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('cannot read'));
+      // Unreadable violations carry no line — the report must not render :0.
+      expect(spy).not.toHaveBeenCalledWith(expect.stringContaining(':0'));
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('throws for an unknown project option', async () => {
     const ctx = scaffold([{ name: 'a', root: 'libs/a', tags: ['t'], files: { 'src/a.ts': '' } }]);
     await expect(

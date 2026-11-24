@@ -15,7 +15,7 @@ function dependencyAdjacency(graph: ProjectGraph): Map<string, string[]> {
     const targets = adj.get(source);
     if (!targets) continue;
     for (const dep of deps) {
-      if (dep.type === 'implicit' || !graph.nodes[dep.target]) continue;
+      if (dep.type === 'implicit' || !Object.hasOwn(graph.nodes, dep.target)) continue;
       targets.push(dep.target);
     }
   }
@@ -142,6 +142,7 @@ export function findCircularDependencies(graph: ProjectGraph): CircularDependenc
       path: witnessCycle(start!, new Set(component), adj),
     });
   }
-  cycles.sort((a, b) => a.path[0]!.localeCompare(b.path[0]!));
+  // Code-unit order — localeCompare would make report order host-dependent.
+  cycles.sort((a, b) => (a.path[0]! < b.path[0]! ? -1 : a.path[0]! > b.path[0]! ? 1 : 0));
   return cycles;
 }

@@ -35,7 +35,8 @@
             "items": { "type": "string" }
           }
         },
-        "required": ["sourceTag"]
+        "required": ["sourceTag"],
+        "additionalProperties": false
       }
     },
     "project": {
@@ -64,7 +65,7 @@
     },
     "checkCircularDependencies": {
       "type": "boolean",
-      "description": "Report circular dependencies detected in the project graph.",
+      "description": "Report circular dependencies detected in the project graph. When enabled, per-project inferred targets also depend on all workspace sources (a cycle can be closed by another project's edit).",
       "default": true
     },
     "format": {

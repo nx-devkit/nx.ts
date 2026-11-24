@@ -66,6 +66,24 @@ describe('renderMermaid', () => {
 });
 
 describe('renderReport text', () => {
+  it('omits the line suffix when a violation carries no line', () => {
+    const out = renderReport(
+      [
+        {
+          kind: 'unreadable',
+          file: 'libs/a/src/x.ts',
+          source: 'a',
+          target: '(unreadable file)',
+          message: 'a: cannot read libs/a/src/x.ts: EISDIR',
+          hint: 'fix file permissions',
+        },
+      ],
+      'text',
+    );
+    expect(out).toContain('libs/a/src/x.ts — a: cannot read');
+    expect(out).not.toContain(':0');
+  });
+
   it('keeps file:line — message lines plus hints', () => {
     const out = renderReport(violations, 'text');
     expect(out).toContain(
