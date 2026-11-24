@@ -3,7 +3,8 @@
 `npm create @nx-devkit` — land in a working zero-config Nx monorepo in one command.
 
 Thin launcher: it detects your package manager (bun / npm / pnpm / yarn), installs
-`nx` + `@nx-devkit/typescript` in the target directory, and delegates all scaffolding
+`nx@^24.0.0` + `@nx/devkit@^24.0.0` + `@nx-devkit/typescript` in the target directory,
+and delegates all scaffolding
 to the `monorepo` generator at `@nx-devkit/typescript:monorepo`. The preset infers
 `typecheck`, `test`, `lint`, `format`, and `build` targets from config files —
 no `project.json` required.
@@ -33,7 +34,9 @@ yarn create @nx-devkit my-workspace
 
 ## Options
 
-Flags mirror the `monorepo` generator options:
+`--package-dir`, `--native-test`, and the `--no-*` capability flags are forwarded to
+the `monorepo` generator; `--dir`, `--pm`, and `--no-install` are handled by this
+launcher itself:
 
 ```text
 Usage: npm create @nx-devkit [name|.] [options]

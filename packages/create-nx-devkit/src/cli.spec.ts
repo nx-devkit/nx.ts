@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -157,7 +165,7 @@ describe('buildGeneratorArgs', () => {
 });
 
 describe('run', () => {
-  const pms: Array<[PackageManager, string[], string[]]> = [
+  const pms: Array<[PackageManager, [string, string[]], [string, string[]]]> = [
     ['bun', ['bun', ['add', '-D']], ['bunx', ['nx']]],
     ['npm', ['npm', ['install', '-D']], ['npx', ['nx']]],
     ['pnpm', ['pnpm', ['add', '-D']], ['pnpm', ['exec', 'nx']]],
@@ -169,7 +177,7 @@ describe('run', () => {
 
     const calls = execMock.mock.calls.map((c) => [c[0], c[1]]);
     const installCall = calls.find(
-      (c) => c[0] === install[0] && (c[1] as string[]).includes(install[1][0]),
+      (c) => c[0] === install[0] && (c[1] as string[])[0] === install[1][0],
     );
     expect(installCall).toBeTruthy();
     const pkgs = installCall![1] as string[];
@@ -199,6 +207,47 @@ describe('run', () => {
     expect(existsSync(pkgPath)).toBe(true);
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     expect(pkg.private).toBe(true);
+    expect(pkg.packageManager).toBe('npm@latest');
+  });
+
+  it('rejects a target that escapes the cwd through a symlink', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'create-nx-devkit-outside-'));
+    try {
+      symlinkSync(outside, join(workDir, 'escape'));
+      expect(() =>
+        run(
+          { ...parseArgs(['--dir', 'escape', '--pm', 'npm']), pm: 'npm' },
+          workDir,
+          execMock as never,
+          {},
+        ),
+      ).toThrow('inside the current directory');
+      expect(execMock).not.toHaveBeenCalled();
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects --no-install before mutating a fresh target', () => {
+    expect(() =>
+      run(
+        { ...parseArgs(['fresh-ws', '--no-install', '--pm', 'npm']), pm: 'npm' },
+        workDir,
+        execMock as never,
+        {},
+      ),
+    ).toThrow('--no-install');
+    expect(existsSync(join(workDir, 'fresh-ws'))).toBe(false);
+    expect(execMock).not.toHaveBeenCalled();
+  });
+
+  it('aborts when the target package already exists (existing-repo mode)', () => {
+    writeFileSync(join(workDir, 'package.json'), JSON.stringify({ name: 'existing-ws' }));
+    mkdirSync(join(workDir, 'packages', 'existing-ws'), { recursive: true });
+    expect(() =>
+      run({ ...parseArgs(['--pm', 'npm']), pm: 'npm' }, workDir, execMock as never, {}),
+    ).toThrow('already exists');
+    expect(execMock).not.toHaveBeenCalled();
   });
 
   it('does not overwrite an existing package.json (into-existing-repo mode)', () => {
@@ -217,17 +266,20 @@ describe('run', () => {
 
   it('runs compat fixups after the generator', () => {
     // Simulate the generator's output: recursive scripts + baseUrl tsconfig.
-    mkdirSync(join(workDir, 'my-ws', 'packages', 'my-ws'), { recursive: true });
-    writeFileSync(
-      join(workDir, 'my-ws', 'packages', 'my-ws', 'package.json'),
-      JSON.stringify({ name: 'my-ws', scripts: { build: 'nx build' } }),
-    );
-    writeFileSync(
-      join(workDir, 'my-ws', 'tsconfig.base.json'),
-      JSON.stringify({
-        compilerOptions: { baseUrl: '.', paths: { '@my-ws/*': ['packages/*/src'] } },
-      }),
-    );
+    execMock.mockImplementation(((_cmd: string, args: string[], cwd: string) => {
+      if (!(args as string[]).includes('g')) return;
+      mkdirSync(join(cwd, 'packages', 'my-ws'), { recursive: true });
+      writeFileSync(
+        join(cwd, 'packages', 'my-ws', 'package.json'),
+        JSON.stringify({ name: 'my-ws', scripts: { build: 'nx build' } }),
+      );
+      writeFileSync(
+        join(cwd, 'tsconfig.base.json'),
+        JSON.stringify({
+          compilerOptions: { baseUrl: '.', paths: { '@my-ws/*': ['packages/*/src'] } },
+        }),
+      );
+    }) as never);
 
     run({ ...parseArgs(['my-ws', '--pm', 'npm']), pm: 'npm' }, workDir, execMock as never, {});
 
@@ -240,12 +292,75 @@ describe('run', () => {
     expect(base.compilerOptions.paths['@my-ws/*']).toEqual(['./packages/*/src']);
   });
 
-  it('propagates install/generator failures', () => {
+  it('rebases tsconfig paths when baseUrl is a subdirectory', () => {
+    execMock.mockImplementation(((_cmd: string, args: string[], cwd: string) => {
+      if (!(args as string[]).includes('g')) return;
+      writeFileSync(
+        join(cwd, 'tsconfig.base.json'),
+        JSON.stringify({
+          compilerOptions: { baseUrl: './src', paths: { '@app/*': ['utils/*'] } },
+        }),
+      );
+    }) as never);
+
+    run({ ...parseArgs(['my-ws', '--pm', 'npm']), pm: 'npm' }, workDir, execMock as never, {});
+
+    const base = JSON.parse(readFileSync(join(workDir, 'my-ws', 'tsconfig.base.json'), 'utf8'));
+    expect(base.compilerOptions.baseUrl).toBeUndefined();
+    expect(base.compilerOptions.paths['@app/*']).toEqual(['./src/utils/*']);
+  });
+
+  it('still lists lint when only formatting stays enabled', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      run(
+        { ...parseArgs(['my-ws', '--no-lint', '--pm', 'npm']), pm: 'npm' },
+        workDir,
+        execMock as never,
+        {},
+      );
+      const line = log.mock.calls
+        .map((c) => String(c[0]))
+        .find((l) => l.startsWith('Inferred targets:'));
+      // biome.json still infers a fallback `lint` target without .oxlintrc.
+      expect(line).toContain('lint');
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('prints a resolvable verify command for nested --dir targets', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      run(
+        { ...parseArgs(['--dir', join('a', 'b', 'c'), '--pm', 'npm']), pm: 'npm' },
+        workDir,
+        execMock as never,
+        {},
+      );
+      const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith('Verify:'));
+      expect(line).toContain(join('a', 'b', 'c'));
+      expect(line).not.toContain('cd c');
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('propagates install failures', () => {
     execMock.mockImplementation(() => {
       throw new Error('spawn failed');
     });
     expect(() =>
       run({ ...parseArgs(['my-ws', '--pm', 'npm']), pm: 'npm' }, workDir, execMock as never, {}),
     ).toThrow('Failed to install');
+  });
+
+  it('propagates generator failures', () => {
+    execMock.mockImplementation(((_cmd: string, args: string[]) => {
+      if ((args as string[]).includes('g')) throw new Error('nx failed');
+    }) as never);
+    expect(() =>
+      run({ ...parseArgs(['my-ws', '--pm', 'npm']), pm: 'npm' }, workDir, execMock as never, {}),
+    ).toThrow('Failed to run @nx-devkit/typescript:monorepo');
   });
 });

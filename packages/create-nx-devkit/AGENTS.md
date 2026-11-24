@@ -46,7 +46,7 @@ lives in the generator — never duplicate it here.
 
 1. Write failing `src/*.spec.ts` (vitest). Mock `node:child_process` (`execFileSync`);
    use real `mkdtempSync` for fs.
-2. `bun test` → RED.
+2. `bun run test` → RED.
 3. Implement the minimum to pass.
 4. `bun run build`.
 

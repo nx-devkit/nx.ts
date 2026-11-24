@@ -10,7 +10,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { basename, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Bound each install/generator run so a stalled package-manager process
@@ -106,8 +106,9 @@ const BOOL_FLAGS: Record<string, (o: CreateOptions) => void> = {
 function parseValueFlag(opts: CreateOptions, argv: string[], i: number): number | null {
   const arg = argv[i];
   if (arg === '--dir') {
-    opts.dir = argv[i + 1];
-    if (!opts.dir) throw new Error('--dir requires a path');
+    const dir = argv[i + 1];
+    if (!dir) throw new Error('--dir requires a path');
+    opts.dir = dir;
     return i + 1;
   }
   if (arg === '--pm') {
@@ -154,6 +155,7 @@ export function parseArgs(argv: string[]): CreateOptions {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === undefined) continue;
     const boolHandler = BOOL_FLAGS[arg];
     if (boolHandler) {
       boolHandler(opts);
@@ -207,7 +209,9 @@ const defaultExec: Exec = (cmd, args, cwd) => {
   execFileSync(cmd, args, {
     stdio: 'inherit',
     cwd,
-    shell: false,
+    // Windows package managers are `.cmd` shims — they only resolve through
+    // the shell, so a bare spawn there fails with ENOENT.
+    shell: process.platform === 'win32',
     timeout: INSTALL_TIMEOUT_MS,
   });
 };
@@ -253,7 +257,9 @@ function inferredTargets(opts: CreateOptions): string[] {
       targets.push('test', 'test:watch', 'test:coverage');
     }
   }
-  if (opts.lint) targets.push('lint');
+  // biome.json infers a fallback `lint` target when no .oxlintrc is written,
+  // so `--no-lint --format` still yields `lint` in the scaffolded workspace.
+  if (opts.lint || opts.format) targets.push('lint');
   if (opts.format) targets.push('format', 'format-check');
   if (opts.build) targets.push('build', 'build:watch');
   return targets;
@@ -295,12 +301,19 @@ export function applyWorkspaceFixups(targetDir: string, packageDir: string, name
     }
     const co = cfg.compilerOptions;
     if (co && 'baseUrl' in co) {
+      // tsconfig paths are POSIX-style: resolve each target against
+      // `baseUrl`, then re-express it relative to this file. String concat
+      // would corrupt absolute baseUrls/targets into `.//...`.
+      const configDir = targetDir.split(sep).join(posix.sep);
       const baseUrl = co.baseUrl ?? '.';
+      const baseAbs = posix.isAbsolute(baseUrl) ? baseUrl : posix.resolve(configDir, baseUrl);
       delete co.baseUrl;
-      for (const [alias, targets] of Object.entries(co.paths ?? {})) {
-        co.paths![alias] = targets.map((t) => {
-          const rebased = baseUrl === '.' ? t : `${baseUrl.replace(/\/$/, '')}/${t}`;
-          return rebased.startsWith('.') ? rebased : `./${rebased}`;
+      const paths = co.paths ?? {};
+      for (const [alias, targets] of Object.entries(paths)) {
+        paths[alias] = targets.map((t) => {
+          const targetAbs = posix.isAbsolute(t) ? t : posix.resolve(baseAbs, t);
+          const rel = posix.relative(configDir, targetAbs);
+          return rel.startsWith('.') ? rel : `./${rel}`;
         });
       }
       writeFileSync(baseConfigPath, `${JSON.stringify(cfg, null, 2)}\n`);
@@ -331,33 +344,36 @@ function workspaceNameFrom(targetDir: string, opts: CreateOptions): string {
   return sanitized;
 }
 
+// The target may not exist yet — resolve symlinks in the longest existing
+// prefix so a `--dir` reaching outside cwd through a symlink is still caught
+// by the containment check in `run`.
+function canonicalize(path: string): string {
+  const missing: string[] = [];
+  let existing = path;
+  while (!existsSync(existing)) {
+    missing.unshift(basename(existing));
+    existing = dirname(existing);
+  }
+  return join(realpathSync(existing), ...missing);
+}
+
 export function run(
   opts: CreateOptions,
   cwd: string = process.cwd(),
   exec: Exec = defaultExec,
   env: NodeJS.ProcessEnv = process.env,
 ): void {
-  const targetDir = resolve(cwd, opts.dir ?? opts.name ?? '.');
-  if (relative(cwd, targetDir).split(/[\\/]/).includes('..')) {
+  const realCwd = canonicalize(cwd);
+  const targetDir = resolve(realCwd, opts.dir ?? opts.name ?? '.');
+  const relTarget = relative(realCwd, canonicalize(targetDir));
+  if (relTarget.split(/[\\/]/).includes('..') || isAbsolute(relTarget)) {
     throw new Error(
       `Target directory must be inside the current directory: ${opts.dir ?? opts.name}`,
     );
   }
-  mkdirSync(targetDir, { recursive: true });
 
-  const pm: PackageManager = opts.pm ?? detectPackageManager(targetDir, env);
-  const name = workspaceNameFrom(targetDir, opts);
-
-  // The generator merges workspaces/nx.json into whatever is here — write
-  // a stub only when missing so into-existing-repo mode never clobbers state.
-  const pkgPath = join(targetDir, 'package.json');
-  if (!existsSync(pkgPath)) {
-    writeFileSync(
-      pkgPath,
-      `${JSON.stringify({ name, version: '0.0.0', private: true }, null, 2)}\n`,
-    );
-  }
-
+  // Checked before any mutation so a rejected run leaves no partial
+  // workspace behind.
   if (
     opts.skipInstall &&
     !existsSync(join(targetDir, 'node_modules', '@nx-devkit', 'typescript'))
@@ -366,6 +382,33 @@ export function run(
       '--no-install requires @nx-devkit/typescript already installed in the target directory',
     );
   }
+
+  const pm: PackageManager = opts.pm ?? detectPackageManager(targetDir, env);
+  const name = workspaceNameFrom(targetDir, opts);
+
+  // The generator merges, it does not abort — refuse upfront when the first
+  // package would land on an existing one (e.g. a package named after the
+  // repo root in into-existing-repo mode).
+  if (existsSync(join(targetDir, opts.packageDir, name))) {
+    throw new Error(
+      `Package "${name}" already exists at ${join(opts.packageDir, name)} — pass a different name or remove it first.`,
+    );
+  }
+
+  mkdirSync(targetDir, { recursive: true });
+
+  // The generator merges workspaces/nx.json into whatever is here — write
+  // a stub only when missing so into-existing-repo mode never clobbers state.
+  // The stub records the selected package manager; fresh workspaces
+  // otherwise never persist it.
+  const pkgPath = join(targetDir, 'package.json');
+  if (!existsSync(pkgPath)) {
+    writeFileSync(
+      pkgPath,
+      `${JSON.stringify({ name, version: '0.0.0', private: true, packageManager: `${pm}@latest` }, null, 2)}\n`,
+    );
+  }
+
   console.log(`Using package manager: ${pm}`);
   console.log(`Installing bootstrap deps: ${BOOTSTRAP_DEPS.join(', ')}`);
   if (!opts.skipInstall) {
@@ -378,11 +421,11 @@ export function run(
   const verifyTargets = inferredTargets(opts).filter((t) =>
     ['typecheck', 'test', 'lint', 'build'].includes(t),
   );
+  const shown = relTarget === '' ? '.' : relTarget;
+  const cdArg = shown.includes(' ') ? `"${shown}"` : shown;
   console.log('');
   console.log(`Inferred targets: ${inferredTargets(opts).join(', ')}`);
-  console.log(
-    `Verify: cd ${targetDir === cwd ? '.' : basename(targetDir)} && nx run-many -t ${verifyTargets.join(',')}`,
-  );
+  console.log(`Verify: cd ${cdArg} && nx run-many -t ${verifyTargets.join(',')}`);
 }
 
 export function main(argv: string[] = process.argv.slice(2)): void {
