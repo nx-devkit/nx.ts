@@ -134,6 +134,18 @@ describe('createNodesV2', () => {
     expect(command).toContain("> 'zizmor.sarif'");
   });
 
+  it.each(['/etc/zizmor.sarif', '../../out.sarif', 'a/../../b.sarif'])(
+    'drops a zizmorOutput escaping the workspace root: %s',
+    (zizmorOutput) => {
+      const command = lintCiCommand(
+        run(workspace, WORKFLOWS, { zizmorFormat: 'sarif', zizmorOutput }),
+      );
+
+      expect(command).not.toContain(' > ');
+      expect(command).toContain("zizmor --format 'sarif'");
+    },
+  );
+
   it('appends tool-specific extra args', () => {
     const command = lintCiCommand(
       run(workspace, WORKFLOWS, {
