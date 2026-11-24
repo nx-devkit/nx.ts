@@ -45,10 +45,11 @@ const nxBin = resolveNxBin();
 
 type ServerEvent = { event: string; [key: string]: unknown };
 
+let root: string | undefined;
 let storeDir: string;
 let workspace: string;
 let marker: string;
-let server: Server;
+let server: Server | undefined;
 let base: string;
 let events: ServerEvent[];
 
@@ -90,7 +91,7 @@ function markerRuns(): number {
 }
 
 beforeEach(async () => {
-  const root = mkdtempSync(join(tmpdir(), 'nxrc-e2e-'));
+  root = mkdtempSync(join(tmpdir(), 'nxrc-e2e-'));
   storeDir = join(root, 'store');
   workspace = join(root, 'workspace');
   marker = join(root, 'build-marker.log');
@@ -125,20 +126,22 @@ beforeEach(async () => {
 
   events = [];
   const logger: LogFn = (event, ctx) => events.push({ event, ...ctx });
-  server = createRemoteCacheServer({
+  const s = createRemoteCacheServer({
     backend: new FileSystemBackend(storeDir),
     tokens: [{ token: 'tok', write: 'main', read: ['main'] }],
     logger,
   });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const addr = server.address();
+  server = s;
+  await new Promise<void>((resolve) => s.listen(0, '127.0.0.1', resolve));
+  const addr = s.address();
   if (addr === null || typeof addr !== 'object') throw new Error('no address');
   base = `http://127.0.0.1:${addr.port}`;
 });
 
 afterEach(async () => {
-  await new Promise((resolve) => server.close(resolve));
-  rmSync(dirname(storeDir), { recursive: true, force: true });
+  const s = server;
+  if (s) await new Promise((resolve) => s.close(resolve));
+  if (root) rmSync(root, { recursive: true, force: true });
 });
 
 describe.skipIf(nxBin === null)('real Nx <-> server (NX_SELF_HOSTED_REMOTE_CACHE_SERVER)', () => {
@@ -151,7 +154,8 @@ describe.skipIf(nxBin === null)('real Nx <-> server (NX_SELF_HOSTED_REMOTE_CACHE
     expect(markerRuns()).toBe(1);
     const stored = events.filter((e) => e.event === 'cache.stored');
     expect(stored).toHaveLength(1);
-    const hash = stored[0]!.hash;
+    const hash = stored[0]?.hash;
+    if (typeof hash !== 'string') throw new Error('cache.stored event missing string hash');
     expect(events.some((e) => e.event === 'cache.miss' && e.hash === hash)).toBe(true);
 
     // Cold local cache + deleted outputs — the only place left to serve
