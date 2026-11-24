@@ -9,18 +9,18 @@ A justfile lists recipes (shell commands). This plugin turns every public
 recipe into an Nx `just:<name>` target on the project that owns the
 justfile — `just` stays the source of truth, Nx provides the graph.
 
-| just concept                   | Nx concept                                      |
-| ------------------------------ | ----------------------------------------------- |
-| `name:` recipe                 | `<prefix>name` target (`just <name>`)           |
-| `@name:` quiet recipe          | same as normal (still listed)                   |
-| `_name:` or `[private]`        | skipped — just never lists them                 |
-| `a: b c` prior deps            | `dependsOn: [{target}]` on same project         |
-| `a: b && c` subsequent deps    | NOT mapped (Nx has no post-dep)                 |
-| `(dep args)` dep               | dep name only; args not forwarded               |
-| `mod foo` / `mod? foo`         | recurse into mod file → `foo::recipe` targets   |
-| `mod foo 'path'`               | explicit path (file or dir containing mod file) |
-| `alias a := b`                 | `<prefix>a` target running `just a`             |
-| `set`/`import`/`export`/assign | skipped                                         |
+| just concept                   | Nx concept                                                                                    |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| `name:` recipe                 | `<prefix>name` target (`just <name>`)                                                         |
+| `@name:` quiet recipe          | same as normal (still listed)                                                                 |
+| `_name:` or `[private]`        | skipped — just never lists them                                                               |
+| `a: b c` prior deps            | `dependsOn` + `just --no-deps` when all deps map to targets; otherwise `just a` owns its deps |
+| `a: b && c` subsequent deps    | NOT mapped — `just a` runs them (Nx has no post-dep)                                          |
+| `(dep args)` dep               | dep name only; args not forwarded; stays with just                                            |
+| `mod foo` / `mod? foo`         | recurse into mod file → `foo::recipe` targets                                                 |
+| `mod foo 'path'`               | explicit path (file or dir containing mod file)                                               |
+| `alias a := b`                 | `<prefix>a` target running `just a` — mod aliases too (`<prefix><mod>::a`)                    |
+| `set`/`import`/`export`/assign | skipped                                                                                       |
 
 ## File layout
 
@@ -51,19 +51,26 @@ packages/just/
   `JUSTFILE`, `.justfile`, `just.just`), just's own search preference
   wins (`justfile` > `just.just` > `Justfile` > `.justfile` > ...).
 - **Commands never embed recipe params or args** — the command is always
-  `just <name>` / `just <mod>::<name>`; users pass args via `nx run ... --`.
+  `just [--no-deps] <name>` / `just [--no-deps] <mod>::<name>`; users pass
+  args via `nx run ... --`. `--no-deps` is added only when Nx owns every
+  dep via `dependsOn` (bare-name deps that all map to targets), so no
+  prerequisite ever runs twice.
 - **Never cached.** Recipes have arbitrary side effects; all targets are
   `cache: false`.
-- **Mod resolution is bounded** — depth ≤ 4, canonical paths deduped.
+- **Mod resolution is bounded** — depth ≤ 4, cycle detection uses the
+  active recursion path (the same file may serve two mod names).
   `mod?` missing sources skip silently; non-optional missing sources
   logDebug only.
+- **Deps are module-local.** A bare dep inside `mod tools` resolves to
+  `tools::<dep>`; `super::` climbs toward the root.
 - **No `just` peer dep.** `just` is a Rust binary, not on npm; init
   installs nothing.
 - **`justfile` is always an input** (`{projectRoot}/<name>`), plus every
   resolved mod source file.
 - **A broken justfile must not break the project graph** — warn + skip.
-- `node_modules` and `..`-escaping directories are skipped; output order
-  is deterministic (sorted).
+- `node_modules` and `..`-escaping directories are skipped — both for
+  glob-matched justfiles and resolved mod sources; output order is
+  deterministic (sorted).
 
 ## Extending
 

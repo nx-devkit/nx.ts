@@ -72,8 +72,10 @@ describe('@nx-devkit/just createNodesV2', () => {
     const build = projects['']?.targets?.['just:build'];
     expect(build?.executor).toBe('nx:run-commands');
     expect(build?.options).toMatchObject({ command: 'just build', cwd: '{projectRoot}' });
+    // `test-unit: build` — deps are bare names, so Nx orchestrates them
+    // and --no-deps stops just from running `build` a second time.
     expect(projects['']?.targets?.['just:test-unit']).toMatchObject({
-      options: { command: 'just test-unit' },
+      options: { command: 'just --no-deps test-unit' },
     });
   });
 
@@ -93,7 +95,7 @@ describe('@nx-devkit/just createNodesV2', () => {
     ]);
   });
 
-  it('excludes subsequent && deps from dependsOn', async () => {
+  it('leaves subsequent && deps to just — no dependsOn edge, no --no-deps', async () => {
     const root = makeWorkspace({
       justfile: `a: b && c
     echo a
@@ -104,7 +106,34 @@ c:
 `,
     });
     const projects = await createNodes(root, ['justfile']);
-    expect(projects['']?.targets?.['just:a']?.dependsOn).toEqual([{ target: 'just:b' }]);
+    expect(projects['']?.targets?.['just:a']?.dependsOn).toBeUndefined();
+    expect(projects['']?.targets?.['just:a']?.options).toMatchObject({ command: 'just a' });
+  });
+
+  it('keeps arg-carrying deps with just — no dependsOn edge', async () => {
+    const root = makeWorkspace({
+      justfile: `a: (b fast)
+    echo a
+b mode:
+    echo b
+`,
+    });
+    const projects = await createNodes(root, ['justfile']);
+    expect(projects['']?.targets?.['just:a']?.dependsOn).toBeUndefined();
+    expect(projects['']?.targets?.['just:a']?.options).toMatchObject({ command: 'just a' });
+  });
+
+  it('leaves deps on private recipes to just — no dependsOn edge', async () => {
+    const root = makeWorkspace({
+      justfile: `a: _helper
+    echo a
+_helper:
+    echo h
+`,
+    });
+    const projects = await createNodes(root, ['justfile']);
+    expect(projects['']?.targets?.['just:a']?.dependsOn).toBeUndefined();
+    expect(projects['']?.targets?.['just:a']?.options).toMatchObject({ command: 'just a' });
   });
 
   it('documents params on parameterized recipes', async () => {
@@ -176,6 +205,91 @@ a:
     const projects = await createNodes(root, ['justfile']);
 
     expect(projects['']?.targets?.['just:tools::verify']).toBeDefined();
+  });
+
+  it('resolves an explicit mod path that is a directory to its mod file', async () => {
+    const root = makeWorkspace({
+      justfile: `mod tools 'toolsdir'
+
+a:
+    echo a
+`,
+      'toolsdir/mod.just': `verify:
+    ./verify
+`,
+    });
+    const projects = await createNodes(root, ['justfile']);
+
+    expect(projects['']?.targets?.['just:tools::verify']).toBeDefined();
+  });
+
+  it('emits two namespaces when two mod names resolve to the same file', async () => {
+    const root = makeWorkspace({
+      justfile: `mod one 'shared.just'
+mod two 'shared.just'
+`,
+      'shared.just': `x:
+    echo x
+`,
+    });
+    const projects = await createNodes(root, ['justfile']);
+
+    expect(projects['']?.targets?.['just:one::x']).toBeDefined();
+    expect(projects['']?.targets?.['just:two::x']).toBeDefined();
+  });
+
+  it('emits aliases declared inside mod files with the module qualifier', async () => {
+    const root = makeWorkspace({
+      justfile: `mod tools
+`,
+      'tools.just': `alias c := check
+
+check:
+    ./check
+`,
+    });
+    const projects = await createNodes(root, ['justfile']);
+
+    expect(projects['']?.targets?.['just:tools::c']).toMatchObject({
+      options: { command: 'just tools::c' },
+    });
+  });
+
+  it('resolves bare deps inside a module as module-local', async () => {
+    const root = makeWorkspace({
+      justfile: `mod tools
+`,
+      'tools.just': `x: check
+    echo x
+check:
+    ./check
+`,
+    });
+    const projects = await createNodes(root, ['justfile']);
+
+    expect(projects['']?.targets?.['just:tools::x']?.dependsOn).toEqual([
+      { target: 'just:tools::check' },
+    ]);
+    expect(projects['']?.targets?.['just:tools::x']?.options).toMatchObject({
+      command: 'just --no-deps tools::x',
+    });
+  });
+
+  it('skips mod sources that resolve under node_modules', async () => {
+    const root = makeWorkspace({
+      justfile: `mod vendored 'node_modules/vendored.just'
+
+a:
+    echo a
+`,
+      'node_modules/vendored.just': `x:
+    echo x
+`,
+    });
+    const projects = await createNodes(root, ['justfile']);
+
+    expect(projects['']?.targets?.['just:vendored::x']).toBeUndefined();
+    expect(projects['']?.targets?.['just:a']).toBeDefined();
   });
 
   it('skips missing optional modules silently', async () => {

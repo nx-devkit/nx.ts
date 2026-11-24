@@ -24,6 +24,12 @@ export interface JustRecipe {
   quiet: boolean;
   /** `_name` convention or `[private]` attribute — not listed by just. */
   private: boolean;
+  /**
+   * True when the dependency list is only bare `name`/`a::b` tokens — no
+   * `&&`, parenthesized args, or trailing comments — so a caller can hand
+   * the deps to Nx and run `just --no-deps` without dropping any.
+   */
+  depsArePlain: boolean;
 }
 
 export interface JustModule {
@@ -59,9 +65,15 @@ export function splitShellish(text: string): string[] {
   let cur = '';
   let depth = 0;
   let quote = '';
-  for (const ch of text) {
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
     if (quote) {
       cur += ch;
+      // `\` escapes the next char inside just's double-quoted strings.
+      if (quote === '"' && ch === '\\') {
+        cur += text[++i] ?? '';
+        continue;
+      }
       if (ch === quote) quote = '';
       continue;
     }
@@ -94,7 +106,9 @@ function headerColon(line: string): number {
   for (let i = 0; i < line.length; i++) {
     const ch = line[i]!;
     if (quote) {
-      if (ch === quote) quote = '';
+      if (quote === '"' && ch === '\\') {
+        i++; // skip the escaped char
+      } else if (ch === quote) quote = '';
     } else if (ch === '"' || ch === "'" || ch === '`') {
       quote = ch;
     } else if (ch === '(') {
@@ -130,13 +144,50 @@ export function parseDeps(text: string): string[] {
   return deps;
 }
 
+/** Split `a('x,y'), b` on commas outside quotes and parens. */
+function splitAttrs(inner: string): string[] {
+  const parts: string[] = [];
+  let cur = '';
+  let depth = 0;
+  let quote = '';
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i]!;
+    if (quote) {
+      cur += ch;
+      if (quote === '"' && ch === '\\') {
+        cur += inner[++i] ?? '';
+        continue;
+      }
+      if (ch === quote) quote = '';
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+    } else if (ch === '(') {
+      depth++;
+      cur += ch;
+    } else if (ch === ')') {
+      if (depth > 0) depth--;
+      cur += ch;
+    } else if (ch === ',' && depth === 0) {
+      parts.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  parts.push(cur);
+  return parts;
+}
+
 /** Parse the `[attr]` / `[attr, attr2]` / `[attr: 'x']` / `[attr('x')]` line. */
 export function parseAttributeLine(line: string): string[] | null {
   const trimmed = line.trim();
   if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return null;
   const inner = trimmed.slice(1, -1);
   const names: string[] = [];
-  for (const part of inner.split(',')) {
+  for (const part of splitAttrs(inner)) {
     const match = /^[\s]*([A-Za-z-]+)/.exec(part);
     if (match) names.push(match[1]!.toLowerCase());
   }
@@ -171,13 +222,15 @@ function tryRecipe(
   const colonIdx = headerColon(line);
   if (colonIdx <= 0) return;
   const paramText = line.slice((quiet ? 1 : 0) + name.length, colonIdx).trim();
+  const depText = line.slice(colonIdx + 1);
   data.recipes.push({
     name,
     params: paramText === '' ? [] : splitShellish(paramText),
-    deps: parseDeps(line.slice(colonIdx + 1)),
+    deps: parseDeps(depText),
     doc: pendingDoc.join('\n'),
     quiet,
     private: name.startsWith('_') || pendingAttrs.includes('private'),
+    depsArePlain: splitShellish(depText).every((t) => DEP_NAME_RE.test(t)),
   });
 }
 
@@ -212,7 +265,9 @@ export function parseJustfile(text: string): JustfileData {
     }
 
     // Directives and assignments end any pending attribute/doc run.
-    if (/^(set|import|unalias)\b/.test(line)) {
+    // A word alone is required — `set-version:` is a recipe, `import?` is
+    // the optional-import form.
+    if (/^(?:set|import\??|unalias)(?:\s|$)/.test(line)) {
       resetPending();
       continue;
     }

@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   logger,
   type CreateNodesResultArray,
@@ -7,7 +7,7 @@ import {
   type TargetConfiguration,
 } from '@nx/devkit';
 import { isVerbose, logDebug } from '@nx-devkit/internal';
-import { parseJustfile, type JustfileData, type JustRecipe } from './justfile.ts';
+import { parseJustfile, type JustAlias, type JustfileData, type JustRecipe } from './justfile.ts';
 import type { NxDevkitJustOptions } from './types.ts';
 
 const PLUGIN_SCOPE = 'nx-devkit/just';
@@ -24,6 +24,7 @@ interface ResolvedModule {
   /** Source path relative to the project root (the justfile's dir). */
   relPath: string;
   recipes: JustRecipe[];
+  aliases: JustAlias[];
 }
 
 /** Search order just uses for `mod foo` without an explicit path. */
@@ -59,12 +60,12 @@ function resolveModFile(declaringDir: string, name: string, modPath: string | nu
       join(abs, 'Justfile'),
       join(abs, '.justfile'),
     ]) {
-      if (existsSync(candidate)) return candidate;
+      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
     }
     return null;
   }
   for (const candidate of defaultModPaths(declaringDir, name)) {
-    if (existsSync(candidate)) return candidate;
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
   }
   return null;
 }
@@ -74,6 +75,8 @@ function readJustfile(absPath: string, relPath: string): ReturnType<typeof parse
   try {
     text = readFileSync(absPath, 'utf8');
   } catch {
+    // Unreadable files must not break the project graph — warn and skip.
+    logger.warn(`[${PLUGIN_SCOPE}] Could not read ${logSafe(relPath)} — skipping it`);
     return null;
   }
   try {
@@ -110,31 +113,40 @@ function collectModules(
       continue;
     }
     const canonical = resolve(abs);
+    // `visited` is the active recursion path — it breaks cycles without
+    // suppressing the same file reached under another mod name or from a
+    // sibling subtree.
     if (visited.has(canonical)) continue;
-    visited.add(canonical);
 
     const rel = relTo(projectDir, abs);
-    if (rel === null) {
+    if (rel === null || rel.split('/').includes('node_modules')) {
       logDebug(
         PLUGIN_SCOPE,
-        `mod ${logSafe(qualified)} resolves outside the project root — skipped`,
+        `mod ${logSafe(qualified)} resolves outside the project root or under node_modules — skipped`,
       );
       continue;
     }
+    visited.add(canonical);
     const modParsed = readJustfile(abs, rel);
-    if (modParsed === null) continue;
-    out.push({ qualifiedName: qualified, relPath: rel, recipes: modParsed.recipes });
-    collectModules(modParsed, dirname(abs), projectDir, qualified, depth + 1, visited, out);
+    if (modParsed !== null) {
+      out.push({
+        qualifiedName: qualified,
+        relPath: rel,
+        recipes: modParsed.recipes,
+        aliases: modParsed.aliases,
+      });
+      collectModules(modParsed, dirname(abs), projectDir, qualified, depth + 1, visited, out);
+    }
+    visited.delete(canonical);
   }
 }
 
 /** Path of `abs` relative to `root`, using forward slashes. `null` when `abs` escapes `root`. */
 function relTo(root: string, abs: string): string | null {
-  const resolvedRoot = resolve(root);
-  const resolvedAbs = resolve(abs);
-  if (resolvedAbs !== resolvedRoot && !resolvedAbs.startsWith(`${resolvedRoot}/`)) return null;
-  const rel = resolvedAbs.slice(resolvedRoot.length).replace(/\\/g, '/');
-  return rel.startsWith('/') ? rel.slice(1) : rel;
+  const rel = relative(resolve(root), resolve(abs));
+  // `..` escapes root; absolute again means a different drive/root.
+  if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
+  return rel.split(sep).join('/');
 }
 
 function buildTarget(
@@ -166,7 +178,15 @@ function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    // Strip C0/C1 controls and bidi isolates/overrides — both can forge log
+    // lines or re-order what a reader sees.
+    out +=
+      code < 32 ||
+      (code >= 127 && code <= 159) ||
+      (code >= 0x202a && code <= 0x202e) ||
+      (code >= 0x2066 && code <= 0x2069)
+        ? ' '
+        : char;
   }
   return out.trim();
 }
@@ -193,14 +213,6 @@ function justfileRank(path: string): number {
   return rank === -1 ? JUSTFILE_NAME_RANK.length : rank;
 }
 
-/**
- * Infer Nx targets from a justfile: every public recipe becomes a
- * `<prefix><name>` target running `just <name>` in the justfile's
- * directory. `mod` statements are followed when their source file
- * resolves; module recipes get `mod::recipe` target names. Prior deps
- * become `dependsOn` on the same project. Private recipes (`_name`,
- * `[private]`) and subsequent (`&&`) deps are skipped.
- */
 /** One justfile per directory — just's own search-order preference. */
 function pickByDir(configFiles: readonly string[]): Array<readonly [string, string]> {
   const byDir = new Map<string, string>();
@@ -231,6 +243,9 @@ function registerNames(
       if (!r.private)
         targetNames.set(`${m.qualifiedName}::${r.name}`, `${prefix}${m.qualifiedName}::${r.name}`);
     }
+    for (const a of m.aliases) {
+      targetNames.set(`${m.qualifiedName}::${a.name}`, `${prefix}${m.qualifiedName}::${a.name}`);
+    }
   }
   for (const a of parsed.aliases) {
     targetNames.set(a.name, `${prefix}${a.name}`);
@@ -246,16 +261,39 @@ interface EmitCtx {
   dir: string;
 }
 
+/**
+ * Resolve a dep name as just does inside module `qualifier`: bare names
+ * are module-local, `super::` climbs toward the root. `qualifier` is ''
+ * for the top-level justfile.
+ */
+function qualifyDep(qualifier: string, dep: string): string {
+  let q = qualifier;
+  let d = dep;
+  while (d.startsWith('super::')) {
+    if (q === '') return dep; // `super::` at the root — let just resolve it
+    const idx = q.lastIndexOf('::');
+    q = idx === -1 ? '' : q.slice(0, idx);
+    d = d.slice('super::'.length);
+  }
+  return q === '' ? d : `${q}::${d}`;
+}
+
 function emitRecipes(recipes: JustRecipe[], qualifier: string, ctx: EmitCtx): void {
   for (const r of recipes) {
     if (r.private) continue;
     const qualified = qualifier === '' ? r.name : `${qualifier}::${r.name}`;
     const targetName = `${ctx.prefix}${qualified}`;
-    const dependsOn = r.deps
-      .map((d) => ctx.targetNames.get(d))
-      .filter((t): t is string => t !== undefined)
-      .map((t) => ({ target: t }));
-    ctx.targets[targetName] = buildTarget(`just ${qualified}`, r, dependsOn, ctx.inputs, qualified);
+    const depTargets = r.deps.map((d) => ctx.targetNames.get(qualifyDep(qualifier, d)));
+    // Nx owns the deps only when every one maps to an emitted target and
+    // the dep list is bare names — then `--no-deps` keeps just from
+    // running each prerequisite a second time. Otherwise `just <name>`
+    // runs its own deps and no dependsOn edge is emitted (partial edges
+    // would double-run the mapped subset).
+    const orchestrated =
+      depTargets.length > 0 && depTargets.every((t) => t !== undefined) && r.depsArePlain;
+    const dependsOn = orchestrated ? depTargets.map((t) => ({ target: t as string })) : [];
+    const command = orchestrated ? `just --no-deps ${qualified}` : `just ${qualified}`;
+    ctx.targets[targetName] = buildTarget(command, r, dependsOn, ctx.inputs, qualified);
     if (isVerbose()) {
       logDebug(PLUGIN_SCOPE, `Registered ${logSafe(ctx.dir || '.')}:${logSafe(targetName)}`);
     }
@@ -263,10 +301,11 @@ function emitRecipes(recipes: JustRecipe[], qualifier: string, ctx: EmitCtx): vo
 }
 
 /** Aliases run `just <alias>` — just resolves the alias itself. */
-function emitAliases(parsed: JustfileData, ctx: EmitCtx): void {
-  for (const a of parsed.aliases) {
-    ctx.targets[`${ctx.prefix}${a.name}`] = buildTarget(
-      `just ${a.name}`,
+function emitAliases(aliases: JustAlias[], qualifier: string, ctx: EmitCtx): void {
+  for (const a of aliases) {
+    const qualified = qualifier === '' ? a.name : `${qualifier}::${a.name}`;
+    ctx.targets[`${ctx.prefix}${qualified}`] = buildTarget(
+      `just ${qualified}`,
       {
         name: a.name,
         params: [],
@@ -274,10 +313,11 @@ function emitAliases(parsed: JustfileData, ctx: EmitCtx): void {
         doc: `alias for \`${a.target}\``,
         quiet: false,
         private: false,
+        depsArePlain: true,
       },
       [],
       ctx.inputs,
-      a.name,
+      qualified,
     );
   }
 }
@@ -321,13 +361,26 @@ function inferProject(
   };
 
   emitRecipes(parsed.recipes, '', ctx);
-  for (const m of modules) emitRecipes(m.recipes, m.qualifiedName, ctx);
-  emitAliases(parsed, ctx);
+  emitAliases(parsed.aliases, '', ctx);
+  for (const m of modules) {
+    emitRecipes(m.recipes, m.qualifiedName, ctx);
+    emitAliases(m.aliases, m.qualifiedName, ctx);
+  }
 
   if (Object.keys(targets).length === 0) return null;
   return { projects: { [dir]: { root: dir, targets } } };
 }
 
+/**
+ * Infer Nx targets from a justfile: every public recipe becomes a
+ * `<prefix><name>` target running `just <name>` in the justfile's
+ * directory. `mod` statements are followed when their source file
+ * resolves; module recipes get `mod::recipe` target names. Prior deps
+ * become `dependsOn` on the same project when every dep maps to a
+ * target (and the command runs `just --no-deps` so prerequisites are
+ * not executed twice); arg'd or subsequent (`&&`) deps stay with just.
+ * Private recipes (`_name`, `[private]`) are skipped.
+ */
 export const createNodesV2: CreateNodesV2<NxDevkitJustOptions> = [
   JUSTFILE_GLOB,
   (configFiles, options = {}, context): CreateNodesResultArray => {

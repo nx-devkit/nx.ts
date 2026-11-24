@@ -70,6 +70,29 @@ mod tools 'tools/tools.just'
     ]);
   });
 
+  it('keeps recipe names that start with a directive word', () => {
+    const data = parseJustfile(`set-version:
+    echo v
+
+import-db: migrate
+    echo d
+
+unalias-old:
+    echo u
+`);
+    expect(data.recipes.map((r) => r.name)).toEqual(['set-version', 'import-db', 'unalias-old']);
+    expect(data.recipes[1]!.deps).toEqual(['migrate']);
+  });
+
+  it('does not mark a recipe private when a comma sits inside a quoted attribute value', () => {
+    const data = parseJustfile(`[confirm("a, private")]
+guarded:
+    echo g
+`);
+    expect(data.recipes[0]!.name).toBe('guarded');
+    expect(data.recipes[0]!.private).toBe(false);
+  });
+
   it('skips set, import, alias handled, and assignments', () => {
     const data = parseJustfile(`set dotenv-load
 set shell := ["bash", "-c"]
@@ -108,5 +131,9 @@ real:
 
   it('ignores non-name dep tokens', () => {
     expect(parseDeps('build foo=bar (p 1 2)')).toEqual(['build', 'p']);
+  });
+
+  it('keeps later deps when a dep argument contains an escaped quote', () => {
+    expect(parseDeps('(b "a\\" ") c')).toEqual(['b', 'c']);
   });
 });

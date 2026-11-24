@@ -16,7 +16,7 @@ export async function initGenerator(
   tree: Tree,
   options: NxJustInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
   const projectName = resolveRootProjectName(tree) ?? '{root-project}';
 
   registerPlugin(tree, pluginPath);
@@ -24,7 +24,7 @@ export async function initGenerator(
   const checklist = [
     `1. The plugin is registered (${pluginPath}) — every justfile/JUSTFILE/.justfile/just.just now yields just:<recipe> targets.`,
     '2. Inspect inferred targets:',
-    '   bunx nx show projects',
+    `   bunx nx show project ${projectName}`,
     `3. Run a recipe:  bunx nx run ${projectName}:just:build`,
     '4. Parameterized recipes take args after -- :  bunx nx run <proj>:just:<recipe> -- <args>',
     '5. Requires the `just` binary on PATH (https://just.systems) — nothing is installed via npm.',
