@@ -138,6 +138,21 @@ function dedupeProjectRoots(parsed: ParsedMoonConfig[]): ParsedMoonConfig[] {
  * map id — resolving it too keeps `dependsOn` ids from dangling on a
  * moon id that matches no Nx project.
  */
+function moonIdsForRoot(
+  root: string,
+  explicit: string | undefined,
+  moonWs: MoonWorkspace,
+): string[] {
+  const ids = new Set<string>();
+  const mapId = moonWs.projectIdsByRoot[root];
+  if (mapId !== undefined) ids.add(mapId);
+  if (explicit === undefined && mapId === undefined) {
+    const dirName = root.split('/').pop();
+    if (dirName !== undefined && dirName !== '') ids.add(dirName);
+  }
+  return [...ids];
+}
+
 function buildMoonIdNameMap(
   projects: ParsedMoonConfig[],
   moonWs: MoonWorkspace,
@@ -150,14 +165,7 @@ function buildMoonIdNameMap(
     const explicit = config.id ?? (typeof config.project === 'string' ? config.project : undefined);
     const nxName = explicit ?? deriveNxName(root, workspaceRoot);
     if (nxName === undefined) continue;
-    const ids = new Set<string>();
-    const mapId = moonWs.projectIdsByRoot[root];
-    if (mapId !== undefined) ids.add(mapId);
-    if (explicit === undefined && mapId === undefined) {
-      const dirName = root.split('/').pop();
-      if (dirName !== undefined && dirName !== '') ids.add(dirName);
-    }
-    for (const id of ids) {
+    for (const id of moonIdsForRoot(root, explicit, moonWs)) {
       if (id !== nxName && nameByMoonId.get(id) === undefined) nameByMoonId.set(id, nxName);
     }
   }
