@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { logger } from '@nx/devkit';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 import { parseMakefile } from './makefile.ts';
@@ -16,6 +16,9 @@ function normalize(path: string): string {
 
 function hasSkippedSegment(rel: string): boolean {
   if (rel === '') return false;
+  // `relative` returns an absolute path only when the two ends sit on
+  // different Windows drives — the dir is outside the workspace either way.
+  if (isAbsolute(rel)) return true;
   const segments = rel.split(/[\\/]/);
   return segments.includes('..') || segments.includes('node_modules');
 }
