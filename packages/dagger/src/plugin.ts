@@ -45,7 +45,15 @@ export const createNodesV2: CreateNodesV2<NxDevkitDaggerOptions> = [
         continue;
       }
 
-      const config = readDaggerConfig(resolve(workspaceRoot, configFile), configFile);
+      const absPath = resolve(workspaceRoot, configFile);
+      if (!absPath.startsWith(workspaceRoot + '/') && absPath !== workspaceRoot) {
+        logDebug(
+          PLUGIN_SCOPE,
+          `Skipping ${logSafe(configFile)} — resolved path escapes the workspace`,
+        );
+        continue;
+      }
+      const config = readDaggerConfig(absPath, configFile);
       if (config === null) continue;
 
       const project: Partial<Pick<ProjectConfiguration, 'root' | 'name'>> & {
@@ -55,7 +63,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitDaggerOptions> = [
         targets: buildCallTargets(config, {
           prefix,
           configFile,
-          sourceInputs: moduleSourceInputs(config),
+          sourceInputs: moduleSourceInputs(
+            config,
+            projectRoot === '' ? '{workspaceRoot}' : '{projectRoot}',
+          ),
         }),
       };
 
@@ -86,16 +97,16 @@ export default createNodesV2;
  * tracks the file itself). Without `source` the sdk picks the default —
  * `go` keeps sources at the module root, the other SDKs live under `src/`.
  */
-export function moduleSourceInputs(config: DaggerJson): string[] {
+export function moduleSourceInputs(config: DaggerJson, rootToken = '{projectRoot}'): string[] {
   if (config.source !== undefined) {
     const source = config.source.replace(/\\/g, '/').replace(/^\.\//, '');
-    if (source === '' || source === '.') return ['{projectRoot}/**/*'];
+    if (source === '' || source === '.') return [`${rootToken}/**/*`];
     return [
-      basename(source).includes('.') ? `{projectRoot}/${source}` : `{projectRoot}/${source}/**/*`,
+      basename(source).includes('.') ? `${rootToken}/${source}` : `${rootToken}/${source}/**/*`,
     ];
   }
-  if (config.sdk === 'go') return ['{projectRoot}/**/*'];
-  return ['{projectRoot}/src/**/*'];
+  if (config.sdk === 'go') return [`${rootToken}/**/*`];
+  return [`${rootToken}/src/**/*`];
 }
 
 function readDaggerConfig(absPath: string, configFile: string): DaggerJson | null {
@@ -139,7 +150,13 @@ function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    out +=
+      code < 32 ||
+      (code >= 127 && code <= 159) ||
+      (code >= 0x202a && code <= 0x202e) ||
+      (code >= 0x2066 && code <= 0x2069)
+        ? ' '
+        : char;
   }
   return out.trim();
 }

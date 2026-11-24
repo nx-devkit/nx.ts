@@ -1,3 +1,4 @@
+import { logger } from '@nx/devkit';
 import type { TargetConfiguration } from '@nx/devkit';
 import type { DaggerJson } from './dagger-config.ts';
 
@@ -30,11 +31,19 @@ export function buildCallTargets(
   const inputs = [...ctx.sourceInputs, `{workspaceRoot}/${ctx.configFile}`];
   const targets: Record<string, TargetConfiguration> = Object.create(null);
 
-  const seen = new Set<string>();
+  const seen = new Map<string, string>();
   for (const fn of config.functions) {
     const segment = targetSegment(fn);
-    if (segment === '' || seen.has(segment)) continue;
-    seen.add(segment);
+    if (segment === '') continue;
+    const claimedBy = seen.get(segment);
+    if (claimedBy !== undefined) {
+      // Two distinct names collapse to one segment — never silently drop.
+      logger.warn(
+        `[dagger] Function "${fn}" collides with "${claimedBy}" on target ${ctx.prefix}:call:${segment} — the later name is skipped`,
+      );
+      continue;
+    }
+    seen.set(segment, fn);
     targets[`${ctx.prefix}:call:${segment}`] = callTarget(`dagger call ${shQuote(fn)}`, inputs);
   }
 
