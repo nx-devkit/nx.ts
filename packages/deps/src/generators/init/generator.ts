@@ -6,7 +6,7 @@ export interface NxDepsInitOptions {
 }
 
 const SYNCPEER_DEPS: Record<string, string> = { syncpack: '^15.0.0' };
-const MANYPKG_DEPS: Record<string, string> = { '@manypkg/cli': '^0.24.0' };
+const MANYPKG_DEPS: Record<string, string> = { '@manypkg/cli': '^0.25.0' };
 
 function wantsManypkg(tree: Tree): boolean {
   if (tree.exists('.manypkg.json')) return true;

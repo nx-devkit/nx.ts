@@ -30,11 +30,32 @@ const MANYPKG_ROOT_PKG = JSON.stringify({
   devDependencies: { '@manypkg/cli': '^0.25.0' },
 });
 
+const SYNPACK_CONFIG_VARIANTS = [
+  'syncpack.config.js',
+  'syncpack.config.cjs',
+  'syncpack.config.mjs',
+  'syncpack.config.ts',
+  '.syncpackrc',
+  '.syncpackrc.json',
+  '.syncpackrc.yaml',
+  '.syncpackrc.yml',
+  '.syncpackrc.js',
+  '.syncpackrc.cjs',
+  '.syncpackrc.mjs',
+  '.syncpackrc.ts',
+];
+
 describe('@nx-devkit/deps createNodesV2', () => {
-  it('triggers on syncpack configs, .syncpackrc files, and package.json', () => {
-    expect(createNodesV2[0]).toContain('syncpack.config');
-    expect(createNodesV2[0]).toContain('.syncpackrc');
-    expect(createNodesV2[0]).toContain('package.json');
+  it('triggers on the complete config glob', () => {
+    expect(createNodesV2[0]).toBe(
+      '**/{syncpack.config.{js,cjs,mjs,ts},.syncpackrc,.syncpackrc.{json,yaml,yml,js,cjs,mjs,ts},.manypkg.json,package.json,bun.lock,bun.lockb,package-lock.json,yarn.lock,pnpm-workspace.yaml,lerna.json,rush.json}',
+    );
+  });
+
+  it.each(SYNPACK_CONFIG_VARIANTS)('infers deps:check for the %s variant', async (name) => {
+    const root = makeWorkspace({ [name]: '{}' });
+    const results = await createNodesV2[1]([name], {}, makeContext(root));
+    expect(results[0]![1].projects!['']!.targets!['deps:check']).toBeDefined();
   });
 
   it('infers a cached deps:check via syncpack lint for a root syncpack config', async () => {
@@ -76,8 +97,8 @@ describe('@nx-devkit/deps createNodesV2', () => {
   });
 
   it('falls back to manypkg check on a root package.json with workspaces + manypkg', async () => {
-    const root = makeWorkspace({ 'package.json': MANYPKG_ROOT_PKG });
-    const results = await createNodesV2[1](['package.json'], {}, makeContext(root));
+    const root = makeWorkspace({ 'package.json': MANYPKG_ROOT_PKG, 'bun.lock': '' });
+    const results = await createNodesV2[1](['bun.lock', 'package.json'], {}, makeContext(root));
 
     const targets = results[0]![1].projects!['']!.targets!;
     expect(targets['deps:check']!.options.command).toBe('npx manypkg check');
@@ -85,24 +106,67 @@ describe('@nx-devkit/deps createNodesV2', () => {
     expect(targets['deps:fix']).toBeUndefined();
   });
 
+  it('does not fall back to manypkg without a root lockfile/tool marker', async () => {
+    // Manypkg cannot resolve a workspace without a root marker — no target.
+    const root = makeWorkspace({ 'package.json': MANYPKG_ROOT_PKG });
+    const results = await createNodesV2[1](['package.json'], {}, makeContext(root));
+    expect(results).toHaveLength(0);
+  });
+
+  it('does not infer any target for a root marker alone', async () => {
+    const root = makeWorkspace({ 'bun.lock': '' });
+    const results = await createNodesV2[1](['bun.lock'], {}, makeContext(root));
+    expect(results).toHaveLength(0);
+  });
+
   it('does not fall back to manypkg on a nested package.json', async () => {
-    const root = makeWorkspace({ 'packages/a/package.json': MANYPKG_ROOT_PKG });
-    const results = await createNodesV2[1](['packages/a/package.json'], {}, makeContext(root));
+    const root = makeWorkspace({
+      'bun.lock': '',
+      'packages/a/package.json': MANYPKG_ROOT_PKG,
+    });
+    const results = await createNodesV2[1](
+      ['bun.lock', 'packages/a/package.json'],
+      {},
+      makeContext(root),
+    );
+    expect(results).toHaveLength(0);
+  });
+
+  it('does not fall back to manypkg on a nested .manypkg.json', async () => {
+    const root = makeWorkspace({ 'bun.lock': '', 'packages/a/.manypkg.json': '{}' });
+    const results = await createNodesV2[1](
+      ['bun.lock', 'packages/a/.manypkg.json'],
+      {},
+      makeContext(root),
+    );
     expect(results).toHaveLength(0);
   });
 
   it('does not fall back to manypkg without workspaces', async () => {
     const root = makeWorkspace({
       'package.json': '{"name":"x","devDependencies":{"manypkg":"^0.25.0"}}',
+      'bun.lock': '',
     });
-    const results = await createNodesV2[1](['package.json'], {}, makeContext(root));
+    const results = await createNodesV2[1](['bun.lock', 'package.json'], {}, makeContext(root));
     expect(results).toHaveLength(0);
   });
 
   it('does not fall back to manypkg without a manypkg dep', async () => {
-    const root = makeWorkspace({ 'package.json': '{"name":"x","workspaces":["packages/*"]}' });
-    const results = await createNodesV2[1](['package.json'], {}, makeContext(root));
+    const root = makeWorkspace({
+      'package.json': '{"name":"x","workspaces":["packages/*"]}',
+      'bun.lock': '',
+    });
+    const results = await createNodesV2[1](['bun.lock', 'package.json'], {}, makeContext(root));
     expect(results).toHaveLength(0);
+  });
+
+  it('falls back to manypkg check on a root .manypkg.json with a root marker', async () => {
+    const root = makeWorkspace({ '.manypkg.json': '{}', 'yarn.lock': '' });
+    const results = await createNodesV2[1](['.manypkg.json', 'yarn.lock'], {}, makeContext(root));
+
+    const targets = results[0]![1].projects!['']!.targets!;
+    expect(targets['deps:check']!.options.command).toBe('npx manypkg check');
+    expect(targets['deps:fix']).toBeUndefined();
   });
 
   it('prefers syncpack over manypkg when both signals exist at the root', async () => {

@@ -13,9 +13,10 @@ export interface NxDepsPluginOptions {
 
 // Standalone syncpack configs (cosmiconfig search places) plus package.json,
 // Which can host a "syncpack" key or — at the workspace root only — a
-// workspaces + manypkg fallback.
+// workspaces + manypkg fallback. The manypkg tool markers are globbed too so
+// adding/removing one re-triggers inference.
 const DEPS_GLOB =
-  '**/{syncpack.config.{js,cjs,mjs,ts},.syncpackrc,.syncpackrc.{json,yaml,yml,js,cjs,mjs,ts},.manypkg.json,package.json}';
+  '**/{syncpack.config.{js,cjs,mjs,ts},.syncpackrc,.syncpackrc.{json,yaml,yml,js,cjs,mjs,ts},.manypkg.json,package.json,bun.lock,bun.lockb,package-lock.json,yarn.lock,pnpm-workspace.yaml,lerna.json,rush.json}';
 
 const SYNPACK_CONFIG_NAMES = new Set([
   '.syncpackrc',
@@ -42,6 +43,20 @@ const LOCKFILE_INPUTS = [
   '{workspaceRoot}/pnpm-lock.yaml',
   '{workspaceRoot}/pnpm-workspace.yaml',
 ];
+
+// Root markers @manypkg/find-root uses to recognize a workspace root
+// (yarn/npm/bun lockfiles, pnpm-workspace.yaml, lerna.json, rush.json).
+// Without one of these next to the root package.json, `manypkg check`
+// cannot resolve the workspace — so the fallback gates on them.
+const MANYPKG_ROOT_MARKERS: Set<string> = new Set([
+  'bun.lock',
+  'bun.lockb',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-workspace.yaml',
+  'lerna.json',
+  'rush.json',
+]);
 
 type Tool = 'syncpack' | 'manypkg';
 
@@ -93,7 +108,12 @@ function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
   return segments.includes('..') || segments.includes('node_modules');
 }
 
-type DirEntry = { syncpack: string[]; manypkg: string[]; packageJson: string[] };
+type DirEntry = {
+  syncpack: string[];
+  manypkg: string[];
+  packageJson: string[];
+  rootMarkers: string[];
+};
 
 // One inference per owning directory — syncpack files and package.json hosts
 // are grouped by directory key ('' for the workspace root).
@@ -102,12 +122,19 @@ function groupByDir(configFiles: readonly string[]): Map<string, DirEntry> {
   for (const configFile of [...configFiles].sort()) {
     const dir = dirname(configFile).replace(/\\/g, '/');
     const key = dir === '.' ? '' : dir;
-    const entry = byDir.get(key) ?? { syncpack: [], manypkg: [], packageJson: [] };
+    const entry = byDir.get(key) ?? {
+      syncpack: [],
+      manypkg: [],
+      packageJson: [],
+      rootMarkers: [],
+    };
     const base = configFile.split('/').pop() ?? '';
     if (base === 'package.json') {
       entry.packageJson.push(configFile);
     } else if (isSyncpackConfig(base)) {
       entry.syncpack.push(configFile);
+    } else if (MANYPKG_ROOT_MARKERS.has(base)) {
+      entry.rootMarkers.push(configFile);
     } else {
       // Glob admits no other names — .manypkg.json lands here.
       entry.manypkg.push(configFile);
@@ -124,6 +151,7 @@ function pickTool(dir: string, entry: DirEntry, pkgs: Array<Record<string, unkno
   }
   if (
     dir === '' &&
+    entry.rootMarkers.length > 0 &&
     (entry.manypkg.length > 0 || pkgs.some((p) => hasWorkspaces(p) && hasManypkgDep(p)))
   ) {
     return 'manypkg';
@@ -197,12 +225,14 @@ export default createNodesV2;
 
 export const __testing: {
   DEPS_GLOB: typeof DEPS_GLOB;
+  MANYPKG_ROOT_MARKERS: typeof MANYPKG_ROOT_MARKERS;
   hasManypkgDep: typeof hasManypkgDep;
   hasSyncpackKey: typeof hasSyncpackKey;
   hasWorkspaces: typeof hasWorkspaces;
   isSyncpackConfig: typeof isSyncpackConfig;
 } = {
   DEPS_GLOB: DEPS_GLOB,
+  MANYPKG_ROOT_MARKERS: MANYPKG_ROOT_MARKERS,
   hasManypkgDep: hasManypkgDep,
   hasSyncpackKey: hasSyncpackKey,
   hasWorkspaces: hasWorkspaces,
