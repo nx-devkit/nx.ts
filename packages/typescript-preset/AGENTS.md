@@ -73,7 +73,7 @@ export interface NxDevkitTypescriptOptions {
 | `build`                                 | (`tsdown.config.*` or publishable `package.json` + `src/index.ts`) + `tsdown: true` | `npx tsdown`, outputs `{projectRoot}/dist`, `dependsOn: ['^build']`. Publishable = `exports`/`bin`, or `main` + `files`. |
 | `build:watch`                           | same as `build`                                                                     | `npx tsdown --watch`, cache disabled, `continuous: true` (readyWhen: 'Build complete').                                  |
 
-Inferred projects carry `metadata.technologies` (`typescript` always; `vitest`/`node`, `oxlint`/`eslint`/`biome`, `tsdown` as detected) and, when `testCi` is on, `metadata.targetGroups` grouping the CI group + per-file targets under `Test (CI)`.
+Inferred projects carry `metadata.technologies` (`typescript` always; `vitest`/`node`, `oxlint`/`eslint`/`biome`, `tsdown` as detected) and, when `testCi` is on and at least one test/spec file matches, `metadata.targetGroups` grouping the CI group + per-file targets under `Test (CI)`.
 
 ### Lint precedence
 

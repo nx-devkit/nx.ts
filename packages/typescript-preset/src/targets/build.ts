@@ -3,12 +3,13 @@ import { join } from 'node:path';
 
 // tsdown reads the project's tsconfig chain; `tsconfig*.json` covers
 // solution-style variants (tsconfig.lib.json, tsconfig.build.json, …)
-// and the workspace base covers `extends` hops outside the project.
+// and the workspace-level glob covers `extends` hops that resolve to a
+// root config under any name (tsconfig.base.json, tsconfig.json, …).
 const TSDOWN_INPUTS = [
   '{projectRoot}/src/**/*',
   '{projectRoot}/tsdown.config.*',
   '{projectRoot}/tsconfig*.json',
-  '{workspaceRoot}/tsconfig.base.json',
+  '{workspaceRoot}/tsconfig*.json',
   '{projectRoot}/package.json',
 ];
 

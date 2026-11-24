@@ -10,7 +10,7 @@ import {
   mapWithConcurrency,
   inferVitestTargets,
 } from '@nx-devkit/internal';
-import { globFilesAsync } from './glob.js';
+import { globFilesAsync, globMatchAsync } from './glob.js';
 import {
   BIOME_CONFIG_NAMES,
   ESLINT_CONFIG_NAMES,
@@ -35,7 +35,7 @@ import { inferTestCiTargets } from './targets/test-ci.js';
 // Re-export everything for backward compatibility
 export type { NxDevkitTypescriptOptions };
 export { shouldSkipPath, isVerbose, resetCachedEnv, logDebug };
-export { globMatch, globMatchAsync, globToRegExp, expandBraces } from './glob.js';
+export { globMatch, globMatchAsync, globFilesAsync, globToRegExp, expandBraces } from './glob.js';
 export { inferTypecheckTarget } from './targets/typecheck.js';
 export { inferVitestTargets } from '@nx-devkit/internal';
 export { inferNativeTestTargets } from './targets/native-test.js';
@@ -81,6 +81,7 @@ async function addTestCiGroup(
   files: string[],
   command: (file: string) => string,
   inputs: TargetConfiguration['inputs'],
+  outputs?: string[],
 ): Promise<void> {
   if (!ctx.testCi || files.length === 0) return;
   const ci = inferTestCiTargets(ctx.relProjectRoot, {
@@ -88,13 +89,19 @@ async function addTestCiGroup(
     files,
     command,
     inputs,
+    outputs,
     technologies: ctx.technologies.slice(-1),
   });
   Object.assign(ctx.targets, ci.targets);
   ctx.targetGroups['Test (CI)'] = ci.group;
 }
 
-const TEST_CI_EXTRA_GLOBS = ['**/*.test.tsx', '**/*.spec.tsx'];
+// Vitest's default `include` also collects .tsx/.cts/.cjs/.jsx test
+// files beyond the preset's testGlob/specGlob defaults — cover them so
+// the atomized `test-ci` group does not silently skip tests `test` runs.
+// (Files a Vitest config `exclude`s can't be detected statically; a
+// custom `test` include/exclude still applies to `vitest run <file>`.)
+const TEST_CI_EXTRA_GLOBS = ['**/*.test.{tsx,cts,cjs,jsx}', '**/*.spec.{tsx,cts,cjs,jsx}'];
 
 async function addTestTargets(ctx: PresetProjectCtx): Promise<void> {
   const vitestConfigPath = await findVitestConfig(ctx.projectRoot, ctx.workspaceRoot);
@@ -117,11 +124,22 @@ async function addTestTargets(ctx: PresetProjectCtx): Promise<void> {
       testFiles,
       (file) => `vitest run ${sq(file)}`,
       vitestTargets.test.inputs,
+      vitestTargets.test.outputs,
     );
     return;
   }
-  const discovered = await globFilesAsync(ctx.absProjectRoot, ciGlobs);
-  if (discovered.length === 0) return;
+  // Native runner: `node --test` cannot load .tsx (and the extras above
+  // exist only for Vitest), so discovery stays on testGlob/specGlob.
+  // When testCi is off only presence matters — globMatchAsync stops at
+  // the first match instead of walking the whole tree for a list that
+  // would be discarded anyway.
+  const nativeGlobs = [ctx.testGlob, ctx.specGlob];
+  const discovered = ctx.testCi ? await globFilesAsync(ctx.absProjectRoot, nativeGlobs) : [];
+  const hasTestFiles = ctx.testCi
+    ? discovered.length > 0
+    : (await globMatchAsync(ctx.absProjectRoot, ctx.testGlob)) ||
+      (await globMatchAsync(ctx.absProjectRoot, ctx.specGlob));
+  if (!hasTestFiles) return;
   const nativeTargets = inferNativeTestTargets(ctx.relProjectRoot, {
     tap: ctx.tap,
     coverage: ctx.coverage,

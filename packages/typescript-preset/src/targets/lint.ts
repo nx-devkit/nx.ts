@@ -19,6 +19,8 @@ export function inferOxlintTarget(projectRoot: string): {
       '!{projectRoot}/dist',
       '!{projectRoot}/node_modules',
       '!{projectRoot}/coverage',
+      // test:tap output — a TAP run must not invalidate the lint cache.
+      '!{projectRoot}/test-results.tap',
       '{projectRoot}/.oxlintrc.*',
       '{projectRoot}/package.json',
     ],
@@ -43,6 +45,8 @@ export function inferEslintTarget(projectRoot: string): {
       '!{projectRoot}/dist',
       '!{projectRoot}/node_modules',
       '!{projectRoot}/coverage',
+      // test:tap output — a TAP run must not invalidate the lint cache.
+      '!{projectRoot}/test-results.tap',
       '{projectRoot}/eslint.config.*',
       '{projectRoot}/package.json',
     ],

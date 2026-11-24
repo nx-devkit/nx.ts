@@ -168,7 +168,7 @@ describe('inferTypecheckTarget', () => {
     const t = inferTypecheckTarget('/w/p', opts);
     expect(t.inputs).toEqual(
       expect.arrayContaining([
-        '{projectRoot}/**/*.{ts,tsx,mts,cts}',
+        '{projectRoot}/**/*.{ts,tsx,mts,cts,js,jsx,cjs,mjs,json}',
         '{projectRoot}/tsconfig*.json',
         '{projectRoot}/package.json',
         '{workspaceRoot}/tsconfig.base.json',
@@ -1161,7 +1161,7 @@ describe('continuous targets', () => {
       const proj = firstProject(result, 'packages/foo');
       const watch = proj.targets?.['build:watch'] as Record<string, unknown>;
       expect(watch.continuous).toBe(true);
-      expect(watch.readyWhen).toBeDefined();
+      expect(watch.readyWhen).toEqual({ logMatches: 'Build complete' });
       expect(watch.cache).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -1177,6 +1177,7 @@ describe('continuous targets', () => {
       const proj = firstProject(result, 'packages/foo');
       const watch = proj.targets?.['test:watch'] as Record<string, unknown>;
       expect(watch.continuous).toBe(true);
+      expect(watch.readyWhen).toEqual({ logMatches: 'Waiting for file changes' });
       expect(watch.cache).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -1249,8 +1250,12 @@ describe('test-ci atomization', () => {
         expect(opts.cwd).toBe('packages/foo');
         expect(t.cache).toBe(true);
         const meta = t.metadata as Record<string, unknown>;
-        expect(meta.nonAtomizedTarget).toBe('test-ci');
+        // Atomizer convention: shards carry no nonAtomizedTarget — the
+        // noop group points at the ordinary `test` target it shards.
+        expect(meta.nonAtomizedTarget).toBeUndefined();
       }
+      const groupMeta = group.metadata as Record<string, unknown>;
+      expect(groupMeta.nonAtomizedTarget).toBe('test');
 
       // The group depends on every atomized target so `nx run test-ci`
       // runs the whole suite, shardable per file under DTE.
@@ -1330,6 +1335,36 @@ describe('test-ci atomization', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('atomizes .tsx/.cts test files Vitest would collect', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/vitest.config.ts');
+      touch(root, 'packages/foo/src/a.test.tsx');
+      touch(root, 'packages/foo/src/b.spec.cts');
+      const result = await callCreateNodes([ts], { testCi: true }, root);
+      const proj = firstProject(result, 'packages/foo');
+      expect(proj.targets?.['test-ci--src/a.test.tsx']).toBeDefined();
+      expect(proj.targets?.['test-ci--src/b.spec.cts']).toBeDefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not infer a native test target for .tsx files node --test cannot run', async () => {
+    const root = makeWorkspace();
+    try {
+      const ts = touch(root, 'packages/foo/tsconfig.json');
+      touch(root, 'packages/foo/src/a.test.tsx');
+      const result = await callCreateNodes([ts], { testCi: true }, root);
+      const proj = firstProject(result, 'packages/foo');
+      expect(proj.targets?.test).toBeUndefined();
+      expect(proj.targets?.['test-ci']).toBeUndefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('project metadata', () => {
@@ -1396,6 +1431,7 @@ describe('targetDefaults audit — inputs/outputs completeness', () => {
       expect(inputs).toContain('!{projectRoot}/dist');
       expect(inputs).toContain('!{projectRoot}/node_modules');
       expect(inputs).toContain('!{projectRoot}/coverage');
+      expect(inputs).toContain('!{projectRoot}/test-results.tap');
       expect(inputs).toContain('{projectRoot}/.oxlintrc.*');
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -1429,7 +1465,7 @@ describe('targetDefaults audit — inputs/outputs completeness', () => {
       const build = proj.targets?.build as Record<string, unknown>;
       const inputs = build.inputs as string[];
       expect(inputs).toContain('{projectRoot}/tsconfig*.json');
-      expect(inputs).toContain('{workspaceRoot}/tsconfig.base.json');
+      expect(inputs).toContain('{workspaceRoot}/tsconfig*.json');
       expect(build.outputs).toEqual(['{projectRoot}/dist']);
     } finally {
       rmSync(root, { recursive: true, force: true });
