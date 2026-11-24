@@ -252,6 +252,19 @@ describe('@nx-devkit/moon createNodesV2', () => {
     expect(projects['packages/app']?.implicitDependencies).toEqual(['@acme/shared']);
   });
 
+  it('reads the Nx name from a JSONC project.json with comments and trailing commas', async () => {
+    const root = makeWorkspace({
+      'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",
+      'packages/shared/moon.yml': "tasks:\n  build:\n    command: 'b'\n",
+      // project.json is JSONC — comments and trailing commas are legal.
+      'packages/shared/project.json':
+        '{\n  // resolved by Nx, not the moon id\n  "name": "@acme/shared",\n}\n',
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml', 'packages/shared/moon.yml']);
+
+    expect(projects['packages/app']?.implicitDependencies).toEqual(['@acme/shared']);
+  });
+
   it('maps dependsOn through .moon/workspace.* projects ids', async () => {
     const root = makeWorkspace({
       '.moon/workspace.yml': 'projects:\n  shared: packages/lib\n',
