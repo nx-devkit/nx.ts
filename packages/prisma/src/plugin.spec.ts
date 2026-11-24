@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { CreateNodesContextV2 } from 'nx/src/project-graph/plugins/public-api';
@@ -27,6 +27,8 @@ type Targets = Record<
   {
     executor: string;
     cache: boolean;
+    inputs?: string[];
+    outputs?: string[];
     options: { command: string; cwd: string };
     dependsOn?: string[];
   }
@@ -56,20 +58,20 @@ describe('@nx-devkit/prisma createNodesV2', () => {
     expect(targets['db:seed']).toBeUndefined();
   });
 
-  it('passes the schema path relative to projectRoot via --schema', async () => {
+  it('passes the schema path relative to projectRoot via --schema, shell-quoted', async () => {
     const result = await infer(['apps/api/prisma/schema.prisma']);
     const targets = result[0]![1].projects['apps/api']!.targets;
     expect(targets['db:generate']!.options.command).toBe(
-      'npx prisma generate --schema prisma/schema.prisma',
+      "npx prisma generate --schema 'prisma/schema.prisma'",
     );
     expect(targets['db:migrate']!.options.command).toBe(
-      'npx prisma migrate dev --schema prisma/schema.prisma',
+      "npx prisma migrate dev --schema 'prisma/schema.prisma'",
     );
     expect(targets['db:migrate-deploy']!.options.command).toBe(
-      'npx prisma migrate deploy --schema prisma/schema.prisma',
+      "npx prisma migrate deploy --schema 'prisma/schema.prisma'",
     );
     expect(targets['db:studio']!.options.command).toBe(
-      'npx prisma studio --schema prisma/schema.prisma',
+      "npx prisma studio --schema 'prisma/schema.prisma'",
     );
     expect(targets['db:generate']!.options.cwd).toBe('{projectRoot}');
   });
@@ -78,7 +80,7 @@ describe('@nx-devkit/prisma createNodesV2', () => {
     const result = await infer(['apps/api/schema.prisma']);
     const targets = result[0]![1].projects['apps/api']!.targets;
     expect(targets['db:generate']!.options.command).toBe(
-      'npx prisma generate --schema schema.prisma',
+      "npx prisma generate --schema 'schema.prisma'",
     );
   });
 
@@ -87,7 +89,7 @@ describe('@nx-devkit/prisma createNodesV2', () => {
     expect(result).toHaveLength(1);
     const targets = result[0]![1].projects['']!.targets;
     expect(targets['db:generate']!.options.command).toBe(
-      'npx prisma generate --schema prisma/schema.prisma',
+      "npx prisma generate --schema 'prisma/schema.prisma'",
     );
   });
 
@@ -96,6 +98,17 @@ describe('@nx-devkit/prisma createNodesV2', () => {
     const targets = result[0]![1].projects['apps/api']!.targets;
     expect(targets['db:generate']!.options.command).toBe('npx prisma generate');
     expect(targets['db:migrate']!.options.command).toBe('npx prisma migrate dev');
+  });
+
+  it('ignores unsupported prisma.config.* files instead of treating them as schemas', async () => {
+    // A backup next to the real schema must not become the --schema arg.
+    expect(await infer(['apps/api/prisma.config.bak'])).toEqual([]);
+
+    const result = await infer(['apps/api/prisma/schema.prisma', 'apps/api/prisma.config.bak']);
+    expect(result).toHaveLength(1);
+    expect(result[0]![1].projects['apps/api']!.targets['db:generate']!.options.command).toBe(
+      "npx prisma generate --schema 'prisma/schema.prisma'",
+    );
   });
 
   it('dedupes schema.prisma and prisma.config.ts owned by the same project', async () => {
@@ -113,6 +126,74 @@ describe('@nx-devkit/prisma createNodesV2', () => {
     expect(targets['db:migrate']!.cache).toBe(false);
     expect(targets['db:migrate-deploy']!.cache).toBe(false);
     expect(targets['db:studio']!.cache).toBe(false);
+  });
+
+  it('adds custom generator client output dirs to db:generate outputs', async () => {
+    const root = makeWorkspace({
+      'apps/api/prisma/schema.prisma': [
+        'generator client {',
+        '  provider = "prisma-client-js"',
+        '  output   = "../generated/client"',
+        '}',
+        'datasource db {',
+        '  provider = "postgresql"',
+        '}',
+      ].join('\n'),
+    });
+    const result = await infer(['apps/api/prisma/schema.prisma'], root);
+    const generate = result[0]![1].projects['apps/api']!.targets['db:generate']!;
+    expect(generate.outputs).toContain('{workspaceRoot}/apps/api/generated/client');
+    expect(generate.cache).toBe(true);
+  });
+
+  it('disables db:generate caching when a generator output is not static', async () => {
+    const root = makeWorkspace({
+      'apps/api/prisma/schema.prisma': [
+        'generator client {',
+        '  provider = "prisma-client-js"',
+        '  output   = env("CLIENT_OUT")',
+        '}',
+      ].join('\n'),
+    });
+    const result = await infer(['apps/api/prisma/schema.prisma'], root);
+    expect(result[0]![1].projects['apps/api']!.targets['db:generate']!.cache).toBe(false);
+  });
+
+  it('disables db:generate caching when a generator output leaves the workspace', async () => {
+    const root = makeWorkspace({
+      'apps/api/prisma/schema.prisma': [
+        'generator client {',
+        '  provider = "prisma-client-js"',
+        '  output   = "../../../../outside/client"',
+        '}',
+      ].join('\n'),
+    });
+    const result = await infer(['apps/api/prisma/schema.prisma'], root);
+    expect(result[0]![1].projects['apps/api']!.targets['db:generate']!.cache).toBe(false);
+  });
+
+  it('does not cache db:generate for prisma.config.* projects (untracked import closure)', async () => {
+    const root = makeWorkspace({
+      'apps/api/prisma.config.ts': 'export default {}\n',
+    });
+    const result = await infer(['apps/api/prisma.config.ts'], root);
+    const generate = result[0]![1].projects['apps/api']!.targets['db:generate']!;
+    expect(generate.cache).toBe(false);
+  });
+
+  it('includes dependency lockfiles in db:generate inputs', async () => {
+    const result = await infer(['apps/api/prisma/schema.prisma']);
+    const inputs = result[0]![1].projects['apps/api']!.targets['db:generate']!.inputs ?? [];
+    for (const lock of [
+      'bun.lock',
+      'bun.lockb',
+      'package-lock.json',
+      'pnpm-lock.yaml',
+      'yarn.lock',
+    ]) {
+      expect(inputs).toContain(`{workspaceRoot}/${lock}`);
+      expect(inputs).toContain(`{projectRoot}/${lock}`);
+    }
   });
 
   it('db:migrate-deploy depends on db:generate', async () => {
