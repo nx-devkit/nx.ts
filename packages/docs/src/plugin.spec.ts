@@ -81,6 +81,14 @@ describe('@nx-devkit/docs createNodesV2', () => {
     expect(inputs).toContain('!{projectRoot}/.vitepress/cache');
     expect(inputs).toContain('!{projectRoot}/dist');
     expect(inputs).toContain('!{projectRoot}/node_modules');
+    // Docs importing a workspace library re-hash when the library changes.
+    expect(inputs).toContain('^production');
+  });
+
+  it('astro build inputs also hash dependency projects', async () => {
+    const results = await infer(['site/astro.config.mjs']);
+    const inputs = results[0]![1].projects!.site!.targets!['docs:build']!.inputs!;
+    expect(inputs).toContain('^production');
   });
 
   it('vitepress config at the workspace root owns the root project', async () => {

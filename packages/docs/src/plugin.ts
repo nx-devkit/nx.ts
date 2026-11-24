@@ -117,6 +117,10 @@ function inferDocsTargets(
     [buildName]: {
       executor: 'nx:run-commands',
       cache: true,
+      // Hash alone is not enough — a docs site importing a workspace
+      // library's built output must rebuild it first (deps without a
+      // `build` target are skipped by Nx).
+      dependsOn: [{ target: 'build', dependencies: true }],
       inputs,
       outputs,
       options: { command: `npx ${bin} build`, cwd: '{projectRoot}' },
@@ -179,7 +183,9 @@ function buildProject(
   // **/* does not match dot-directories like .vitepress — list them
   // explicitly, alongside every matched config, so theme/config edits
   // bust the build cache. Outputs and tool caches are negated so a
-  // previous build cannot poison the next hash.
+  // previous build cannot poison the next hash. `^production` folds in
+  // dependency projects' filesets — a docs site importing a workspace
+  // library must re-hash when the library changes.
   const inputs =
     tool === 'vitepress'
       ? [
@@ -190,6 +196,7 @@ function buildProject(
           `!${token}/dist`,
           `!${token}/node_modules`,
           ...files.map((f) => `${token}/${rel(f)}`),
+          '^production',
         ]
       : [
           `${token}/**/*`,
@@ -197,6 +204,7 @@ function buildProject(
           `!${token}/.astro`,
           `!${token}/node_modules`,
           ...files.map((f) => `${token}/${rel(f)}`),
+          '^production',
         ];
 
   const absWinner = join(workspaceRoot, winner);
