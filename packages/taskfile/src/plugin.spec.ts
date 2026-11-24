@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CreateNodesContextV2, TargetConfiguration } from '@nx/devkit';
-import { afterEach, describe, expect, it } from 'vitest';
+import { logger } from '@nx/devkit';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createNodesV2 } from './plugin.ts';
 
 function makeContext(workspaceRoot: string): CreateNodesContextV2 {
@@ -67,8 +68,10 @@ async function collect(
 }
 
 describe('@nx-devkit/taskfile createNodesV2', () => {
-  it('watches every Taskfile spelling', () => {
-    expect(createNodesV2[0]).toBe('**/{Taskfile.yml,Taskfile.yaml,taskfile.yml,taskfile.yaml}');
+  it('watches every Taskfile spelling, *.dist.* included', () => {
+    expect(createNodesV2[0]).toBe(
+      '**/{Taskfile.yml,Taskfile.yaml,Taskfile.dist.yml,Taskfile.dist.yaml,taskfile.yml,taskfile.yaml,taskfile.dist.yml,taskfile.dist.yaml}',
+    );
   });
 
   it('infers a task:<name> target per task on the owning project', async () => {
@@ -101,11 +104,13 @@ describe('@nx-devkit/taskfile createNodesV2', () => {
     expect(projects['']?.targets?.['task:build']?.metadata?.description).toBe('Build the app');
   });
 
-  it('maps deps to dependsOn on the same project', async () => {
+  it('emits no dependsOn — the task CLI runs deps itself', async () => {
+    // `task build` already executes `deps: [lint]`; an Nx edge would
+    // run `task lint` a second time.
     const root = makeWorkspace({ 'Taskfile.yml': BASIC_TASKFILE });
     const projects = await collect(root, ['Taskfile.yml']);
 
-    expect(projects['']?.targets?.['task:build']?.dependsOn).toEqual([{ target: 'task:lint' }]);
+    expect(projects['']?.targets?.['task:build']?.dependsOn).toBeUndefined();
   });
 
   it('skips internal tasks', async () => {
@@ -126,7 +131,7 @@ tasks:
     expect(targets['task:helper']).toBeUndefined();
   });
 
-  it('drops a dep on an internal task — task runs it internally', async () => {
+  it('emits no target for an internal task even when another task deps on it', async () => {
     const root = makeWorkspace({
       'Taskfile.yml': `version: '3'
 tasks:
@@ -139,7 +144,10 @@ tasks:
     });
     const projects = await collect(root, ['Taskfile.yml']);
 
-    expect(projects['']?.targets?.['task:build']?.dependsOn).toEqual([{ target: 'task:lint' }]);
+    const targets = projects['']?.targets ?? {};
+    expect(targets['task:build']).toBeDefined();
+    expect(targets['task:lint']).toBeDefined();
+    expect(targets['task:helper']).toBeUndefined();
   });
 
   it('emits namespaced targets for included taskfiles', async () => {
@@ -199,48 +207,6 @@ tasks:
     });
   });
 
-  it('prefixes deps declared in an included taskfile with its namespace', async () => {
-    const root = makeWorkspace({
-      'Taskfile.yml': `version: '3'
-includes:
-  lib: ./lib
-tasks: {}
-`,
-      'lib/Taskfile.yml': `version: '3'
-tasks:
-  build:
-    deps: [gen]
-  gen: {}
-`,
-    });
-    const projects = await collect(root, ['Taskfile.yml']);
-
-    expect(projects['']?.targets?.['task:lib:build']?.dependsOn).toEqual([
-      { target: 'task:lib:gen' },
-    ]);
-  });
-
-  it('a dep on a namespaced task maps to the namespaced target', async () => {
-    const root = makeWorkspace({
-      'Taskfile.yml': `version: '3'
-includes:
-  lib: ./lib
-tasks:
-  release:
-    deps: [lib:build]
-`,
-      'lib/Taskfile.yml': `version: '3'
-tasks:
-  build: {}
-`,
-    });
-    const projects = await collect(root, ['Taskfile.yml']);
-
-    expect(projects['']?.targets?.['task:release']?.dependsOn).toEqual([
-      { target: 'task:lib:build' },
-    ]);
-  });
-
   it('skips internal includes', async () => {
     const root = makeWorkspace({
       'Taskfile.yml': `version: '3'
@@ -284,6 +250,7 @@ tasks:
   });
 
   it('skips a missing include, warning unless optional', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const root = makeWorkspace({
       'Taskfile.yml': `version: '3'
 includes:
@@ -298,6 +265,9 @@ tasks:
     const projects = await collect(root, ['Taskfile.yml']);
 
     expect(Object.keys(projects['']?.targets ?? {})).toEqual(['task:build']);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("'gone'"));
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("'maybe'"));
+    warn.mockRestore();
   });
 
   it('breaks include cycles', async () => {
@@ -345,8 +315,30 @@ tasks:
     const projects = await collect(root, ['Taskfile.yml']);
 
     const inputs = projects['']?.targets?.['task:lib:gen']?.inputs ?? [];
+    expect(inputs).toContain('default');
     expect(inputs).toContain('{workspaceRoot}/Taskfile.yml');
     expect(inputs).toContain('{workspaceRoot}/lib/Taskfile.yml');
+  });
+
+  it('infers targets from a *.dist.* Taskfile spelling', async () => {
+    const root = makeWorkspace({
+      'a/Taskfile.dist.yml': `version: '3'\ntasks:\n  gen: {}\n`,
+    });
+    const projects = await collect(root, ['a/Taskfile.dist.yml']);
+
+    expect(projects.a?.targets?.['task:gen']).toBeDefined();
+  });
+
+  it('prefers Taskfile.yml over Taskfile.dist.yml in the same directory', async () => {
+    const root = makeWorkspace({
+      'a/Taskfile.yml': `version: '3'\ntasks:\n  from-yml: {}\n`,
+      'a/Taskfile.dist.yml': `version: '3'\ntasks:\n  from-dist: {}\n`,
+    });
+    const projects = await collect(root, ['a/Taskfile.dist.yml', 'a/Taskfile.yml']);
+
+    const targets = projects.a?.targets ?? {};
+    expect(targets['task:from-yml']).toBeDefined();
+    expect(targets['task:from-dist']).toBeUndefined();
   });
 
   it('picks the highest-priority Taskfile when a dir has several', async () => {

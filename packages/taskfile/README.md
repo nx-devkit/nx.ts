@@ -29,14 +29,14 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger                                                   | Target             | Command            | Cacheable   |
-| --------------------------------------------------------- | ------------------ | ------------------ | ----------- |
-| `{Taskfile.yml,Taskfile.yaml,taskfile.yml,taskfile.yaml}` | `task:<name>`      | `task <name>`      | no (opt-in) |
-| same file via `includes: {ns: …}`                         | `task:<ns>:<name>` | `task <ns>:<name>` | no (opt-in) |
+| Trigger                                   | Target             | Command            | Cacheable   |
+| ----------------------------------------- | ------------------ | ------------------ | ----------- |
+| `{Taskfile,taskfile}{.,.dist.}{yml,yaml}` | `task:<name>`      | `task <name>`      | no (opt-in) |
+| same file via `includes: {ns: …}`         | `task:<ns>:<name>` | `task <ns>:<name>` | no (opt-in) |
 
 Each Taskfile becomes a project at its own directory, and each task a `task:<name>` target running `task <name>` from that directory. The task CLI stays the source of truth — `cmds`, `vars`, `env`, `dir:` and dependency execution all stay with `task`.
 
-- `deps:` entries (string or `{task: name}`) map to `dependsOn` on the same project. A dep declared inside an included file resolves in its own namespace (`lib:build` for a task reached as `lib:*`). Deps on `internal: true` or missing tasks are not emitted — `task` runs internal deps itself.
+- `deps:` are executed by `task` itself — the plugin emits no `dependsOn`, so a dependency never runs twice. A dep declared inside an included file resolves in its own namespace (`lib:build` for a task reached as `lib:*`), exactly as the task CLI resolves it. `internal: true` deps stay internal to `task`.
 - `internal: true` tasks and `internal: true` includes are skipped — they are not callable from the CLI.
 - `desc:` becomes `metadata.description`.
 - `includes:` are followed transitively, including `flatten: true` (merged without a prefix) and `optional: true` (missing files skipped silently). Include cycles are detected and broken.

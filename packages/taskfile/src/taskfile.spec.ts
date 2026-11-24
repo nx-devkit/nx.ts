@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseTaskfile } from './taskfile.ts';
 
 describe('parseTaskfile', () => {
-  it('parses the tasks map with desc, internal and deps', () => {
+  it('parses the tasks map with desc and internal', () => {
     const tf = parseTaskfile(
       `version: '3'
 tasks:
@@ -22,42 +22,25 @@ tasks:
       'Taskfile.yml',
     );
 
-    expect(tf.tasks.build).toEqual({ desc: 'Build the app', internal: false, deps: ['lint'] });
-    expect(tf.tasks.lint).toEqual({ desc: undefined, internal: false, deps: [] });
-    expect(tf.tasks.hidden).toEqual({ desc: undefined, internal: true, deps: [] });
+    expect(tf.tasks.build).toEqual({ desc: 'Build the app', internal: false });
+    expect(tf.tasks.lint).toEqual({ desc: undefined, internal: false });
+    expect(tf.tasks.hidden).toEqual({ desc: undefined, internal: true });
   });
 
-  it('normalizes deps given as objects with a task key', () => {
+  it('expands `<<` merge keys so inherited fields are visible', () => {
     const tf = parseTaskfile(
       `version: '3'
+defaults: &defaults
+  internal: true
+  desc: inherited
 tasks:
-  release:
-    deps:
-      - task: build
-        vars: {CHANNEL: stable}
-      - lint
-      - for: [a, b]
-        task: publish
+  helper:
+    <<: *defaults
 `,
       'Taskfile.yml',
     );
 
-    expect(tf.tasks.release?.deps).toEqual(['build', 'lint', 'publish']);
-  });
-
-  it('drops dep entries that carry no task name', () => {
-    const tf = parseTaskfile(
-      `version: '3'
-tasks:
-  t:
-    deps:
-      - 42
-      - {vars: {A: b}}
-`,
-      'Taskfile.yml',
-    );
-
-    expect(tf.tasks.t?.deps).toEqual([]);
+    expect(tf.tasks.helper).toEqual({ desc: 'inherited', internal: true });
   });
 
   it('normalizes string and map include forms', () => {

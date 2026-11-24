@@ -6,14 +6,15 @@ unless the bead body says otherwise.
 ## What this package does
 
 A `Taskfile.yml` describes go-task tasks. This plugin turns every
-`tasks:` entry into an Nx `task:<name>` target on the project at the
-Taskfile's directory — the target runs `task <name>` so the task CLI
-keeps owning `cmds`, `vars`, `env`, `dir:` and dep execution.
+non-internal `tasks:` entry with a shell-safe name into an Nx
+`task:<name>` target on the project at the Taskfile's directory — the
+target runs `task <name>` so the task CLI keeps owning `cmds`, `vars`,
+`env`, `dir:` and dep execution.
 
 | taskfile concept                | Nx concept                                     |
 | ------------------------------- | ---------------------------------------------- |
 | `tasks: {build: …}`             | `task:build` target on the owning project      |
-| `deps: [lint]` / `{task: lint}` | `dependsOn: [{ target: 'task:lint' }]` (self)  |
+| `deps: [lint]` / `{task: lint}` | run by `task` itself — no `dependsOn`          |
 | `internal: true` task/include   | skipped — not CLI-callable                     |
 | `desc:`                         | `metadata.description`                         |
 | `includes: {ns: ./dir}`         | `task:ns:<name>` targets, resolved recursively |
@@ -24,13 +25,13 @@ keeps owning `cmds`, `vars`, `env`, `dir:` and dep execution.
 ```text
 packages/taskfile/
 ├── package.json
-├── tsdown.config.ts        # entries: index, plugin, generators/init
+├── tsdown.config.ts        # entries: plugin, generators/init
 ├── vitest.config.ts
 ├── tsconfig.json
 ├── generators.json         # @nx-devkit/taskfile:init
 ├── src/
 │   ├── index.ts            # re-exports createNodesV2 + helpers
-│   ├── plugin.ts           # createNodesV2 — '**/{Taskfile,taskfile}.{yml,yaml}'
+│   ├── plugin.ts           # createNodesV2 — '**/{Taskfile,taskfile}{.,.dist.}{yml,yaml}'
 │   ├── plugin.spec.ts
 │   ├── taskfile.ts         # Taskfile types + YAML parse (yaml package)
 │   ├── taskfile.spec.ts
@@ -57,21 +58,25 @@ export interface NxDevkitTaskfileOptions {
   `nx:run-commands` with `cwd: '{projectRoot}'` — `cmds` are never
   inlined, so single- and multi-command tasks behave identically.
 - **Shell safety.** Task names are untrusted YAML keys interpolated into
-  a shell command; anything outside `[\w:.%@+-]` is skipped with a warn.
-- **`internal: true`** tasks produce no target; deps on them are dropped
-  (task CLI runs internal deps itself).
-- **Dep resolution is file-local.** A dep `build` declared in a file
-  reached as `lib:*` maps to `task:lib:build`. Only deps resolving to an
-  emitted (non-internal) target are emitted.
+  a shell command; anything outside `[\w:.%@+-]` — or a leading `-`,
+  which lands as a CLI flag — is skipped with a warn.
+- **`internal: true`** tasks produce no target; the task CLI still runs
+  them itself when another task deps on them.
+- **Deps stay with the task CLI.** `task <name>` executes `deps:`
+  itself, so no `dependsOn` is emitted — an Nx edge would run every
+  dependency a second time.
 - **A broken Taskfile must not break the project graph** — warn + skip.
   Same for unresolvable non-optional includes and include cycles.
 - **cache: false default** — task commands are arbitrary; `cache: true`
-  is an explicit consumer choice. Every contributing Taskfile (matched +
-  transitively included) is an `{workspaceRoot}` input.
+  is an explicit consumer choice. Target inputs are the `default` named
+  input (project sources) plus every contributing Taskfile (matched +
+  transitively included) as a `{workspaceRoot}` path, so both source
+  edits and config edits bust an opt-in cache.
 - **No task peer dep.** go-task is a Go binary on PATH, not npm — the
   init generator installs nothing.
 - **One target set per dir** — `Taskfile.yml` wins over `taskfile.yml`
-  over `Taskfile.yaml` over `taskfile.yaml` (the task CLI's own order).
+  over `Taskfile.yaml` over `taskfile.yaml`, then the `*.dist.*`
+  spellings (the task CLI's own order).
 
 ## Gotchas
 
@@ -80,8 +85,9 @@ export interface NxDevkitTaskfileOptions {
   both exist and both work.
 - `dir:` on an include is runtime cwd; `task` applies it, so the plugin
   ignores it — commands always run from the including file's project.
-- Include resolution probes `Taskfile*.yml/yaml` inside directories,
-  including `*.dist.*` spellings the glob does not watch.
+- Include resolution probes the same `Taskfile*.yml/yaml` spellings
+  inside directories, `*.dist.*` included — the glob watches all of
+  them, so an edit to an included dist file re-triggers inference.
 - Parses are memoized per plugin run (`parseCache`); the DFS `visiting`
   set owns cycle detection.
 

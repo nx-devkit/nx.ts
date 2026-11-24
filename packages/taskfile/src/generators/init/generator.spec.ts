@@ -53,6 +53,20 @@ describe('initGenerator', () => {
     expect(plugins.some((p) => p.plugin === './packages/taskfile/src/plugin.ts')).toBe(true);
   });
 
+  it('falls back to the default plugin path on an empty or blank pluginPath', async () => {
+    for (const pluginPath of ['', '   ']) {
+      const tree = createTree();
+
+      await initGenerator(tree, { pluginPath });
+
+      const plugins = readPlugins(tree) as Array<{ plugin: string }>;
+      expect(plugins.some((p) => p.plugin === '@nx-devkit/taskfile')).toBe(true);
+      expect(plugins.some((p) => typeof p.plugin === 'string' && p.plugin.trim() === '')).toBe(
+        false,
+      );
+    }
+  });
+
   it('preserves comments and formatting in nx.json', async () => {
     const tree = createTree();
     tree.write('nx.json', '{\n  // keep me\n  "plugins": ["other-plugin"]\n}\n');

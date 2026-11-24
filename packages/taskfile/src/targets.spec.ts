@@ -5,16 +5,13 @@ import { buildTaskTarget, isSafeTaskName, targetNameFor } from './targets.ts';
 const task = (over: Partial<TaskfileTask> = {}): TaskfileTask => ({
   desc: undefined,
   internal: false,
-  deps: [],
   ...over,
 });
 
 const ctx = (over: Partial<Parameters<typeof buildTaskTarget>[2]> = {}) => ({
   targetPrefix: 'task',
-  depPrefix: '',
   cache: false,
   inputs: ['{workspaceRoot}/Taskfile.yml'],
-  resolvable: new Set<string>(),
   ...over,
 });
 
@@ -44,6 +41,14 @@ describe('isSafeTaskName', () => {
     expect(isSafeTaskName('"quoted"')).toBe(false);
     expect(isSafeTaskName('')).toBe(false);
   });
+
+  it('rejects a leading dash — it would land on the CLI as a flag', () => {
+    expect(isSafeTaskName('--init')).toBe(false);
+    expect(isSafeTaskName('-w')).toBe(false);
+    expect(isSafeTaskName('-')).toBe(false);
+    expect(isSafeTaskName('a-b')).toBe(true);
+    expect(isSafeTaskName('lib:x-y')).toBe(true);
+  });
 });
 
 describe('buildTaskTarget', () => {
@@ -55,7 +60,7 @@ describe('buildTaskTarget', () => {
   });
 
   it('runs namespaced tasks through their task CLI name', () => {
-    const target = buildTaskTarget('lib:gen', task(), ctx({ depPrefix: 'lib:' }));
+    const target = buildTaskTarget('lib:gen', task(), ctx());
 
     expect(target.options).toEqual({ command: 'task lib:gen', cwd: '{projectRoot}' });
   });
@@ -68,11 +73,13 @@ describe('buildTaskTarget', () => {
     expect(buildTaskTarget('build', task(), ctx({ cache: true })).cache).toBe(true);
   });
 
-  it('carries the declaring taskfiles as inputs', () => {
+  it("keeps the project's normal inputs plus the declaring taskfiles", () => {
     const inputs = ['{workspaceRoot}/Taskfile.yml', '{workspaceRoot}/lib/Taskfile.yml'];
     const target = buildTaskTarget('build', task(), ctx({ inputs }));
 
-    expect(target.inputs).toEqual(inputs);
+    // 'default' so source edits bust an opt-in cache; the Taskfile
+    // paths cover includes outside the project root.
+    expect(target.inputs).toEqual(['default', ...inputs]);
   });
 
   it('maps desc to metadata.description', () => {
@@ -85,51 +92,16 @@ describe('buildTaskTarget', () => {
     expect(buildTaskTarget('build', task(), ctx()).metadata).toBeUndefined();
   });
 
-  it('maps deps to dependsOn targets on the same project', () => {
-    const target = buildTaskTarget(
-      'release',
-      task({ deps: ['build', 'lint'] }),
-      ctx({ resolvable: new Set(['build', 'lint']) }),
-    );
-
-    expect(target.dependsOn).toEqual([{ target: 'task:build' }, { target: 'task:lint' }]);
-  });
-
-  it('prefixes deps declared inside an included taskfile with its namespace', () => {
-    // `ns:release` deps on `build` — inside the included file that dep
-    // resolves as `ns:build`.
-    const target = buildTaskTarget(
-      'ns:release',
-      task({ deps: ['build'] }),
-      ctx({ depPrefix: 'ns:', resolvable: new Set(['ns:build']) }),
-    );
-
-    expect(target.dependsOn).toEqual([{ target: 'task:ns:build' }]);
-  });
-
-  it('drops deps that resolve to no emitted target', () => {
-    const target = buildTaskTarget(
-      'release',
-      task({ deps: ['build', 'internal-helper', 'missing'] }),
-      ctx({ resolvable: new Set(['build']) }),
-    );
-
-    expect(target.dependsOn).toEqual([{ target: 'task:build' }]);
-  });
-
-  it('omits dependsOn when nothing resolves', () => {
-    const target = buildTaskTarget('a', task({ deps: ['missing'] }), ctx());
+  it("never emits dependsOn — `task <name>` runs the task's deps itself", () => {
+    // An Nx edge would execute every Taskfile dep a second time.
+    const target = buildTaskTarget('release', task(), ctx());
 
     expect(target.dependsOn).toBeUndefined();
   });
 
   it('honours a custom targetPrefix', () => {
-    const target = buildTaskTarget(
-      'release',
-      task({ deps: ['build'] }),
-      ctx({ targetPrefix: 'tf', resolvable: new Set(['build']) }),
-    );
+    const target = buildTaskTarget('release', task(), ctx({ targetPrefix: 'tf' }));
 
-    expect(target.dependsOn).toEqual([{ target: 'tf:build' }]);
+    expect(target.options).toEqual({ command: 'task release', cwd: '{projectRoot}' });
   });
 });

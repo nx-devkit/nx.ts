@@ -8,36 +8,39 @@ import {
   type TargetConfiguration,
 } from '@nx/devkit';
 import { isVerbose, logDebug } from '@nx-devkit/internal';
-import { parseTaskfile, type Taskfile, type TaskfileInclude } from './taskfile.ts';
+import {
+  parseTaskfile,
+  type Taskfile,
+  type TaskfileInclude,
+  type TaskfileTask,
+} from './taskfile.ts';
 import { buildTaskTarget, isSafeTaskName, targetNameFor } from './targets.ts';
 import type { NxDevkitTaskfileOptions } from './types.ts';
 
 const PLUGIN_SCOPE = 'nx-devkit/taskfile';
 
-/** Config files the plugin reacts to — every Taskfile spelling. */
-export const TASKFILE_GLOB = '**/{Taskfile.yml,Taskfile.yaml,taskfile.yml,taskfile.yaml}';
+/**
+ * Config files the plugin reacts to — every Taskfile spelling, `*.dist.*`
+ * included, so an included `Taskfile.dist.yml` also re-triggers inference.
+ */
+export const TASKFILE_GLOB =
+  '**/{Taskfile.yml,Taskfile.yaml,Taskfile.dist.yml,Taskfile.dist.yaml,taskfile.yml,taskfile.yaml,taskfile.dist.yml,taskfile.dist.yaml}';
 
 /**
  * Basename priority when a directory holds several Taskfile spellings —
- * the same order the `task` CLI probes them.
+ * the same order the `task` CLI probes them, `*.dist.*` last. Also the
+ * probe order when an include points at a directory.
  */
-const TASKFILE_BASENAMES = ['Taskfile.yml', 'taskfile.yml', 'Taskfile.yaml', 'taskfile.yaml'];
-
-/** Additional names `task` probes when an include points at a directory. */
-const INCLUDE_BASENAMES = [
-  ...TASKFILE_BASENAMES,
+const TASKFILE_BASENAMES = [
+  'Taskfile.yml',
+  'taskfile.yml',
+  'Taskfile.yaml',
+  'taskfile.yaml',
   'Taskfile.dist.yml',
   'taskfile.dist.yml',
   'Taskfile.dist.yaml',
   'taskfile.dist.yaml',
 ];
-
-/** A task collected under its qualified (`ns:`-prefixed) CLI name. */
-interface CollectedTask {
-  /** The namespace the declaring file was reached through — deps resolve in it. */
-  depPrefix: string;
-  task: Taskfile['tasks'][string];
-}
 
 /**
  * Infer Nx targets from Taskfiles.
@@ -101,7 +104,7 @@ function inferDirProject(
   cache: boolean,
   parseCache: Map<string, Taskfile | null>,
 ): CreateNodesResultArray[number] | null {
-  const collected = new Map<string, CollectedTask>();
+  const collected = new Map<string, TaskfileTask>();
   const inputFiles = new Set<string>();
   collectTasks(
     resolve(workspaceRoot, configFile),
@@ -114,29 +117,22 @@ function inferDirProject(
     workspaceRoot,
   );
 
-  // Only non-internal tasks become targets; deps resolve against this
-  // set so a dep on an internal or missing task is never emitted.
-  const resolvable = new Set<string>();
-  for (const [qualified, entry] of collected) {
-    if (!entry.task.internal && isSafeTaskName(qualified)) resolvable.add(qualified);
-  }
-
+  // Only non-internal tasks become targets; `internal:` tasks stay
+  // callable as deps inside the task CLI, which runs them itself.
   const inputs = [...inputFiles].sort().map((f) => `{workspaceRoot}/${f}`);
   const targets: Record<string, TargetConfiguration> = Object.create(null);
-  for (const [qualified, entry] of collected) {
-    if (entry.task.internal) continue;
+  for (const [qualified, task] of collected) {
+    if (task.internal) continue;
     if (!isSafeTaskName(qualified)) {
       logger.warn(
         `[${PLUGIN_SCOPE}] Skipping task '${logSafe(qualified)}' in ${logSafe(configFile)} — unsafe name for a shell command`,
       );
       continue;
     }
-    targets[targetNameFor(qualified, targetPrefix)] = buildTaskTarget(qualified, entry.task, {
+    targets[targetNameFor(qualified, targetPrefix)] = buildTaskTarget(qualified, task, {
       targetPrefix,
-      depPrefix: entry.depPrefix,
       cache,
       inputs,
-      resolvable,
     });
   }
 
@@ -164,7 +160,7 @@ function collectTasks(
   absPath: string,
   relPath: string,
   nsPrefix: string,
-  collected: Map<string, CollectedTask>,
+  collected: Map<string, TaskfileTask>,
   inputFiles: Set<string>,
   visiting: Set<string>,
   parseCache: Map<string, Taskfile | null>,
@@ -180,7 +176,7 @@ function collectTasks(
   const taskfile = loadTaskfile(absPath, relPath, parseCache);
   if (taskfile !== null) {
     for (const [name, task] of Object.entries(taskfile.tasks)) {
-      collected.set(`${nsPrefix}${name}`, { depPrefix: nsPrefix, task });
+      collected.set(`${nsPrefix}${name}`, task);
     }
     for (const [ns, include] of Object.entries(taskfile.includes)) {
       if (include.internal) {
@@ -233,7 +229,7 @@ function resolveInclude(
   } else {
     // A directory (or a not-yet-existing path that may be one) — probe
     // the default Taskfile spellings inside it.
-    for (const name of INCLUDE_BASENAMES) {
+    for (const name of TASKFILE_BASENAMES) {
       const candidate = resolve(abs, name);
       if (isFile(candidate)) {
         file = candidate;

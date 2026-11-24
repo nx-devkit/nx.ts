@@ -5,15 +5,15 @@ import { parse } from 'yaml';
  * target. Fields the task CLI owns that have no Nx counterpart (`cmds`,
  * `vars`, `env`, `sources`, `generates`, `silent`, `prompt`, `label`,
  * `summary`, `preconditions`, …) are ignored on purpose — the inferred
- * target always shells out to `task <name>`.
+ * target always shells out to `task <name>`. `deps:` is ignored too:
+ * `task` executes the deps itself, so an Nx `dependsOn` would run every
+ * dependency a second time.
  */
 export interface TaskfileTask {
   /** `desc:` — becomes the target's `metadata.description`. */
   desc: string | undefined;
   /** `internal: true` tasks are not callable from the CLI — no target. */
   internal: boolean;
-  /** `deps:` entries normalized to task names as written. */
-  deps: string[];
 }
 
 /** An `includes:` entry, normalized from the string and map forms. */
@@ -22,8 +22,9 @@ export interface TaskfileInclude {
   taskfile: string | undefined;
   /**
    * `dir:` — the working dir the task CLI applies when it runs the
-   * included tasks. The plugin never needs it: `task ns:name` is invoked
-   * from the including file's project root and task applies `dir` itself.
+   * included tasks. The plugin reads it only as the include location
+   * when `taskfile:` is absent; `task ns:name` applies `dir` itself at
+   * run time.
    */
   dir: string | undefined;
   /** `optional: true` includes are skipped silently when unresolvable. */
@@ -45,7 +46,10 @@ export interface Taskfile {
  * the caller decides whether the config should be skipped.
  */
 export function parseTaskfile(text: string, path: string): Taskfile {
-  const raw: unknown = parse(text);
+  // `merge: true` expands `<<` merge keys — without it an `internal:`
+  // or `desc:` inherited through an anchor is invisible here and an
+  // internal task would get a runnable target the task CLI rejects.
+  const raw: unknown = parse(text, { merge: true });
   if (!isRecord(raw)) {
     throw new Error(`${path}: top level is not a mapping`);
   }
@@ -77,27 +81,7 @@ function normalizeTask(value: unknown): TaskfileTask | null {
   return {
     desc: typeof desc === 'string' && desc !== '' ? desc : undefined,
     internal: value.internal === true,
-    deps: normalizeDeps(value.deps),
   };
-}
-
-/**
- * `deps:` entries arrive as strings or objects carrying a `task` key
- * (optionally with `vars`, `for`, …). Anything without a task name —
- * numbers, `{for: …}` stubs without `task` — is dropped.
- */
-function normalizeDeps(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const out: string[] = [];
-  for (const entry of value) {
-    if (typeof entry === 'string') {
-      if (entry !== '') out.push(entry);
-    } else if (isRecord(entry)) {
-      const task = entry.task;
-      if (typeof task === 'string' && task !== '') out.push(task);
-    }
-  }
-  return out;
 }
 
 function normalizeInclude(value: unknown): TaskfileInclude | null {
