@@ -48,7 +48,10 @@ function inferModuleTargets(
   // Commands run at the workspace root; -chdir scopes each invocation to
   // the module dir (fmt validates that dir non-recursively — matching the
   // one-module-per-directory semantics).
-  const at = (args: string): string => `${binary} -chdir=${dir === '' ? '.' : dir} ${args}`;
+  // Single-quote the module path — spaces and shell metacharacters in
+  // directory names must not break or inject into the command.
+  const shq = (s: string): string => `'${s.replaceAll("'", "'\\''")}'`;
+  const at = (args: string): string => `${binary} -chdir=${shq(dir === '' ? '.' : dir)} ${args}`;
   const options = (command: string): { command: string; cwd: string } => ({
     command,
     cwd: '{workspaceRoot}',
@@ -121,12 +124,11 @@ export const createNodesV2: CreateNodesV2<NxTerraformPluginOptions> = [
       if (winner === undefined) continue;
 
       const token = dir ? '{projectRoot}' : '{workspaceRoot}';
-      // Non-recursive globs mirror terraform's own module semantics —
-      // a module is exactly one directory's files; nested dirs are their
-      // own modules (and get their own project).
       const inputs = [
-        `${token}/*.tf`,
-        `${token}/*.tf.json`,
+        // recursive: local child modules (./modules/foo) contribute to
+        // validate/plan; .terraform/** exclusion keeps vendored copies out.
+        `${token}/**/*.tf`,
+        `${token}/**/*.tf.json`,
         `${token}/*.tfvars`,
         `${token}/*.tfvars.json`,
         `${token}/.terraform.lock.hcl`,

@@ -34,7 +34,8 @@ export interface NxTerraformPluginOptions {
   target set per directory (a dir with any .tf file is a module). Nested
   dirs are their own modules, matching terraform's per-directory semantics.
 - Commands run with `cwd: '{workspaceRoot}'` and scope to the module via
-  `-chdir=<dir>` (`-chdir=.` for a workspace-root module).
+  `-chdir='<dir>'` — the path is single-quoted so spaces/metacharacters in
+  directory names cannot break or inject into the command.
 - `tf:fmt` is `fmt -check` — read-only, cached. `tf:validate` chains
   `init -backend=false -input=false && validate` — validate needs an
   initialized working dir; backendless init needs no credentials — cached.
@@ -44,8 +45,9 @@ export interface NxTerraformPluginOptions {
 - **Credentials and variables never reach argv.** No `TF_VAR_*`, no
   `-var`/`-var-file` flags, no provider creds in commands — terraform reads
   env and `*.tfvars` itself; `nx:run-commands` inherits `process.env`.
-- Inputs are non-recursive (`{projectRoot}/*.tf`, `*.tf.json`, `*.tfvars`,
-  `*.tfvars.json`, `.terraform.lock.hcl`) plus `!{projectRoot}/.terraform/**`
+- Inputs: `{projectRoot}/**/*.tf` + `**/*.tf.json` (recursive — local child
+  modules contribute to validate/plan) plus non-recursive `*.tfvars`,
+  `*.tfvars.json`, `.terraform.lock.hcl`, and `!{projectRoot}/.terraform/**`
   — init output and vendored modules must not poison the cache key.
 - `node_modules`, `.terraform`, and `..`-escaping directories are skipped;
   the workspace-root module IS supported; output is deterministic (sorted).

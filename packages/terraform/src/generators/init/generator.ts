@@ -15,7 +15,7 @@ export async function initGenerator(
   tree: Tree,
   options: NxTerraformInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
   const projectName = resolveRootProjectName(tree) ?? '{root-project}';
 
   registerPlugin(tree, pluginPath);
@@ -23,11 +23,11 @@ export async function initGenerator(
   const checklist = [
     `1. The plugin is registered (${pluginPath}) — directories containing *.tf files now have tf:fmt, tf:validate, and tf:plan targets.`,
     '2. terraform (or OpenTofu) must be installed and on PATH — it is not an npm package.',
-    '   For OpenTofu set plugin options: { "plugin": "@nx-devkit/terraform", "options": { "binary": "tofu" } }',
+    `   For OpenTofu set plugin options: { "plugin": "${pluginPath}", "options": { "binary": "tofu" } }`,
     '3. Inspect inferred targets:',
     '   bunx nx show projects',
-    `4. Run a target:  bunx nx run ${projectName}:tf:validate`,
-    '5. tf:plan needs provider credentials — supply them via the environment (TF_VAR_*, cloud creds) or .tfvars files, never as target args.',
+    '4. Run a target:  bunx nx run <module-project>:tf:validate',
+    '5. tf:plan needs an initialized module (terraform init) plus provider credentials — supply them via the environment (TF_VAR_*, cloud creds) or .tfvars files, never as target args.',
   ];
   for (const line of checklist) {
     console.log(line);

@@ -67,12 +67,12 @@ describe('@nx-devkit/terraform createNodesV2', () => {
     const target = results[0]![1].projects!['infra/vpc']!.targets!['tf:fmt']!;
     expect(target.executor).toBe('nx:run-commands');
     expect(target.options).toEqual({
-      command: 'terraform -chdir=infra/vpc fmt -check',
+      command: "terraform -chdir='infra/vpc' fmt -check",
       cwd: '{workspaceRoot}',
     });
     expect(target.cache).toBe(true);
     expect(target.inputs).toEqual(
-      expect.arrayContaining(['{projectRoot}/*.tf', '{projectRoot}/*.tfvars']),
+      expect.arrayContaining(['{projectRoot}/**/*.tf', '{projectRoot}/*.tfvars']),
     );
   });
 
@@ -84,7 +84,7 @@ describe('@nx-devkit/terraform createNodesV2', () => {
     expect(target.executor).toBe('nx:run-commands');
     expect(target.options).toEqual({
       command:
-        'terraform -chdir=infra/vpc init -backend=false -input=false && terraform -chdir=infra/vpc validate',
+        "terraform -chdir='infra/vpc' init -backend=false -input=false && terraform -chdir='infra/vpc' validate",
       cwd: '{workspaceRoot}',
     });
     expect(target.cache).toBe(true);
@@ -97,11 +97,11 @@ describe('@nx-devkit/terraform createNodesV2', () => {
     const target = results[0]![1].projects!['infra/vpc']!.targets!['tf:plan']!;
     expect(target.executor).toBe('nx:run-commands');
     expect(target.options).toEqual({
-      command: 'terraform -chdir=infra/vpc plan -input=false',
+      command: "terraform -chdir='infra/vpc' plan -input=false",
       cwd: '{workspaceRoot}',
     });
     expect(target.cache).toBe(false);
-    expect(target.metadata?.description).toMatch(/env/i);
+    expect(target.metadata?.description).toMatch(/env credentials/i);
     expect(target.metadata?.description).toMatch(/credential/i);
   });
 
@@ -126,7 +126,7 @@ describe('@nx-devkit/terraform createNodesV2', () => {
     expect(results).toHaveLength(1);
     const targets = results[0]![1].projects!['']!.targets!;
     expect(targets['tf:fmt']!.options).toEqual({
-      command: 'terraform -chdir=. fmt -check',
+      command: "terraform -chdir='.' fmt -check",
       cwd: '{workspaceRoot}',
     });
   });
