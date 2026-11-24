@@ -31,8 +31,7 @@ describe('initGenerator', () => {
     await initGenerator(tree, {});
     await initGenerator(tree, {});
 
-    const plugins = readPlugins(tree) as Array<{ plugin: string }>;
-    expect(plugins.filter((p) => p.plugin === '@nx-devkit/ci-lint')).toHaveLength(1);
+    expect(readPlugins(tree)).toEqual([{ options: {}, plugin: '@nx-devkit/ci-lint' }]);
   });
 
   it('does not duplicate a string-form plugin entry', async () => {
@@ -41,8 +40,7 @@ describe('initGenerator', () => {
 
     await initGenerator(tree, {});
 
-    const plugins = readPlugins(tree);
-    expect(plugins.filter((p) => p === '@nx-devkit/ci-lint')).toHaveLength(1);
+    expect(readPlugins(tree)).toEqual(['@nx-devkit/ci-lint']);
   });
 
   it('honours a custom pluginPath', async () => {
@@ -54,13 +52,13 @@ describe('initGenerator', () => {
     expect(plugins.some((p) => p.plugin === './local/plugin.ts')).toBe(true);
   });
 
-  it('installs the actionlint peer dependency into devDependencies', async () => {
+  it('does not install the npm actionlint package — it is a WASM API, not the CLI on PATH', async () => {
     const tree = createTree();
     tree.write('package.json', JSON.stringify({ name: 'x' }));
 
     await initGenerator(tree, {});
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
-    expect(pkg.devDependencies.actionlint).toBe('^2.0.0');
+    expect(pkg.devDependencies ?? {}).not.toHaveProperty('actionlint');
   });
 });

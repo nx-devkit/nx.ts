@@ -21,11 +21,14 @@ nx lint-ci
 
 ## Tools are optional peers
 
-The generated command probes each tool with `command -v` before running it:
+The generated command probes each tool on PATH (`command -v` / `where`)
+before running it:
 
-- **actionlint** — install via npm (`bun add -d actionlint`), brew, or go.
-  An optional `peerDependencies` entry declares it; the init generator adds
-  it to `devDependencies`.
+- **actionlint** — install the CLI via `brew install actionlint`,
+  `go install github.com/rhysd/actionlint/cmd/actionlint@latest`, scoop, or
+  the [download script](https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash).
+  npm's `actionlint` package is a WASM API — it does not put the CLI on PATH,
+  so the init generator does not install it.
 - **zizmor** — not on npm; install via `pipx install zizmor`,
   `cargo install zizmor`, or `brew install zizmor`.
 
@@ -53,12 +56,17 @@ target still succeeds; an installed tool's real findings fail the target.
 }
 ```
 
-Then upload `zizmor.sarif` with `github/codeql-action/upload-sarif`.
+Then upload `zizmor.sarif` with `github/codeql-action/upload-sarif`. Add
+`if: always()` to that step: `nx lint-ci` fails when zizmor reports findings,
+and GitHub otherwise skips the upload.
 
 ## How it works
 
 The plugin watches `.github/workflows/*.{yml,yaml}` — workflow files are
 inherently repo-wide, so the target lands on the root project (`.`). The
 target is `cache: true` with inputs covering the workflow glob plus
-`.github/actionlint.{yml,yaml}` and `zizmor.{yml,yaml}` configs, so any edit
-busts the cache.
+`.github/actionlint.{yml,yaml}`, `.github/zizmor.{yml,yaml}`, and
+`zizmor.{yml,yaml}` configs, plus a runtime hash of each enabled tool's
+`--version` — so config edits or installing/upgrading a linter bust the
+cache. Every installed tool runs even when another reports violations; the
+target fails if any leg fails.
