@@ -54,7 +54,17 @@ output:
 remote:
   git_url: git@example.com:repo.git
   refetch: true
+remotes:
+  - origin
 execution: parallel
+templates:
+  lint: npx eslint .
+glob_matcher: regexp
+install_non_git_hooks: true
+no_auto_install: true
+skip_lfs: true
+ai: {}
+lefthook: {}
 pre-commit:
   commands:
     lint:

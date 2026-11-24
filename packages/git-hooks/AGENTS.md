@@ -48,17 +48,22 @@ export interface NxDevkitGitHooksOptions {
   `**/{lefthook.yml,lefthook.yaml,.lefthook.yml,.lefthook.yaml,.pre-commit-config.yaml}`.
 - Configs group by owning directory; one target set per directory keyed on
   the lexically-first config file. The workspace-root dir is the root
-  project (`{workspaceRoot}` tokens).
+  project (`root: ''`).
 - Hook sections = top-level lefthook mappings minus known settings keys
-  (`remote`, `extends`, `min_version`, `skip_output`, `source_dir`,
-  `source_dir_local`, `colors`, `no_tty`, `rc`, `output`, `execution`,
-  `assert_lefthook_installed`). Scalar-valued or otherwise invalid
+  (`remote`, `remotes`, `extends`, `min_version`, `skip_output`,
+  `skip_lfs`, `source_dir`, `source_dir_local`, `colors`, `no_tty`,
+  `rc`, `output`, `execution`, `assert_lefthook_installed`,
+  `glob_matcher`, `install_non_git_hooks`, `no_auto_install`,
+  `templates`, `ai`, `lefthook` — mirrors the non-hook properties of
+  https://lefthook.dev/schema.json). Scalar-valued or otherwise invalid
   section names land in `skipped` — never silently dropped.
 - **Hook names are shell words.** `npx lefthook run <name>` interpolates
   the config key — only `[a-zA-Z0-9][a-zA-Z0-9._-]*` names become targets.
-- `hooks:<name>` and `hooks:run` are `cache: true` with inputs =
-  `<projectRoot-or-workspaceRoot>/**/*` + every matched config file.
-  `hooks:install` is `cache: false` — it mutates `.git/hooks`.
+- Every inferred target is `cache: false` — hook verdicts depend on
+  git state (`{staged_files}`, the index, repo-wide scans) that file
+  inputs cannot hash, so a cached pass could go stale (same rule as
+  the commitlint plugin). `hooks:install` also mutates `.git/hooks`.
+  No `inputs` are declared — nothing is hashed.
 - Fixed targets (`install`, `run`) are assigned after per-hook targets and
   win on a name collision.
 - Both managers in one dir → `hooks:install` uses `commands: [...]` with

@@ -57,6 +57,19 @@ describe('initGenerator', () => {
     expect(plugins.some((p) => p.plugin === './packages/git-hooks/src/plugin.ts')).toBe(true);
   });
 
+  it('trims pluginPath and falls back to the default on whitespace', async () => {
+    const tree = createTree();
+
+    await initGenerator(tree, { pluginPath: '  ./local-plugin.ts  ' });
+    let plugins = readPlugins(tree) as Array<{ plugin: string }>;
+    expect(plugins.some((p) => p.plugin === './local-plugin.ts')).toBe(true);
+
+    const tree2 = createTree();
+    await initGenerator(tree2, { pluginPath: '   ' });
+    plugins = readPlugins(tree2) as Array<{ plugin: string }>;
+    expect(plugins.some((p) => p.plugin === '@nx-devkit/git-hooks')).toBe(true);
+  });
+
   it('preserves comments and formatting in nx.json', async () => {
     const tree = createTree();
     tree.write('nx.json', '{\n  // keep me\n  "plugins": ["other-plugin"]\n}\n');
@@ -84,6 +97,30 @@ describe('initGenerator', () => {
     const tree = createTree({
       'package.json': JSON.stringify({ name: 'x' }),
       '.pre-commit-config.yaml': 'repos: []\n',
+    });
+
+    await initGenerator(tree, {});
+
+    const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
+    expect(pkg.devDependencies?.['lefthook']).toBeUndefined();
+  });
+
+  it('detects a nested lefthook config and installs the peer dep', async () => {
+    const tree = createTree({
+      'package.json': JSON.stringify({ name: 'x' }),
+      'packages/app/lefthook.yaml': 'pre-push:\n  commands:\n    t:\n      run: npm test\n',
+    });
+
+    await initGenerator(tree, {});
+
+    const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
+    expect(pkg.devDependencies['lefthook']).toBe('^1.0.0 || ^2.0.0');
+  });
+
+  it('ignores hook configs inside node_modules', async () => {
+    const tree = createTree({
+      'package.json': JSON.stringify({ name: 'x' }),
+      'node_modules/dep/lefthook.yml': 'pre-commit: {}\n',
     });
 
     await initGenerator(tree, {});

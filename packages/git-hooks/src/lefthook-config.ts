@@ -1,23 +1,32 @@
 import { parse } from 'yaml';
 
 /**
- * Top-level lefthook.yml keys that are settings, not git-hook sections.
+ * Top-level lefthook.yml keys that are settings, not git-hook sections
+ * (mirrors the non-hook properties of https://lefthook.dev/schema.json).
  * Every other top-level mapping is a hook — lefthook accepts all git hook
  * names plus user-defined sections runnable via `lefthook run <name>`.
  */
 const LEFTHOOK_SETTING_KEYS = new Set([
+  'ai',
   'assert_lefthook_installed',
   'colors',
   'execution',
   'extends',
+  'glob_matcher',
+  'install_non_git_hooks',
+  'lefthook',
   'min_version',
+  'no_auto_install',
   'no_tty',
   'output',
   'rc',
   'remote',
+  'remotes',
+  'skip_lfs',
   'skip_output',
   'source_dir',
   'source_dir_local',
+  'templates',
 ]);
 
 /**

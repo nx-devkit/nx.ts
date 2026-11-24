@@ -61,7 +61,7 @@ describe('@nx-devkit/git-hooks createNodesV2', () => {
     ]);
   });
 
-  it('hooks:<name> runs `lefthook run <name>` and is cacheable with source inputs', async () => {
+  it('hooks:<name> runs `lefthook run <name>` and is never cached', async () => {
     const root = makeWorkspace({ 'packages/app/lefthook.yml': LEFTHOOK });
     const results = await createNodesV2[1](['packages/app/lefthook.yml'], {}, makeContext(root));
 
@@ -71,10 +71,10 @@ describe('@nx-devkit/git-hooks createNodesV2', () => {
       command: 'npx lefthook run pre-commit',
       cwd: '{projectRoot}',
     });
-    expect(target.cache).toBe(true);
-    expect(target.inputs).toEqual(
-      expect.arrayContaining(['{projectRoot}/**/*', '{projectRoot}/lefthook.yml']),
-    );
+    // The verdict depends on git state ({staged_files}, the index) that
+    // file inputs cannot hash — a cached pass could go stale.
+    expect(target.cache).toBe(false);
+    expect(target.inputs).toBeUndefined();
   });
 
   it('hooks:install runs `lefthook install` and is never cached', async () => {
@@ -103,7 +103,8 @@ describe('@nx-devkit/git-hooks createNodesV2', () => {
       command: 'pre-commit run --all-files',
       cwd: '{projectRoot}',
     });
-    expect(targets['hooks:run']!.cache).toBe(true);
+    // `pre-commit run --all-files` scans the whole repo — never cached.
+    expect(targets['hooks:run']!.cache).toBe(false);
     expect(targets['hooks:install']!.options).toEqual({
       command: 'pre-commit install',
       cwd: '{projectRoot}',
@@ -165,7 +166,10 @@ describe('@nx-devkit/git-hooks createNodesV2', () => {
       'hooks:install',
       'hooks:pre-commit',
     ]);
-    expect(targets['hooks:pre-commit']!.inputs).toContain('{projectRoot}/.lefthook.yml');
+    expect(targets['hooks:pre-commit']!.options).toEqual({
+      command: 'npx lefthook run pre-commit',
+      cwd: '{projectRoot}',
+    });
   });
 
   it('maps a workspace-root config onto the root project', async () => {
@@ -175,9 +179,7 @@ describe('@nx-devkit/git-hooks createNodesV2', () => {
     expect(results).toHaveLength(1);
     const targets = results[0]![1].projects!['']!.targets!;
     expect(targets['hooks:pre-commit']).toBeDefined();
-    expect(targets['hooks:pre-commit']!.inputs).toContain('{workspaceRoot}/lefthook.yml');
-    // At the workspace root there is no `**/*` — it would hash the whole monorepo.
-    expect(targets['hooks:pre-commit']!.inputs).not.toContain('{workspaceRoot}/**/*');
+    expect(targets['hooks:pre-commit']!.cache).toBe(false);
   });
 
   it('does not treat lefthook setting keys as hook targets', async () => {
@@ -274,9 +276,7 @@ pre-commit:
     expect(fwd).toEqual(rev);
   });
 
-  it('returns no result for a directory whose configs produce nothing', async () => {
-    // A pre-commit glob only fires on files the glob matched — but an empty
-    // result set stays out of the graph entirely.
+  it('returns no results when no config files are matched', async () => {
     const root = makeWorkspace();
     const results = await createNodesV2[1]([], {}, makeContext(root));
     expect(results).toHaveLength(0);

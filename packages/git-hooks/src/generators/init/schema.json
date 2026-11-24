@@ -8,6 +8,7 @@
       "type": "string",
       "default": "@nx-devkit/git-hooks",
       "minLength": 1,
+      "pattern": "^\\S+$",
       "description": "Plugin specifier to register (e.g. a local path during development)."
     }
   },

@@ -61,13 +61,17 @@ function readLefthookHooks(absPath: string, configFile: string): string[] | null
 /**
  * Infer Nx targets from git-hook manager configs.
  *
- * A `lefthook.yml` / `.lefthook.yml` (`.yaml` too) gives one cacheable
+ * A `lefthook.yml` / `.lefthook.yml` (`.yaml` too) gives one
  * `<prefix>:<hook-name>` target per hook section (`npx lefthook run
- * <name>`) plus `<prefix>:install` (`npx lefthook install`, never cached).
- * A `.pre-commit-config.yaml` gives a cacheable `<prefix>:run`
+ * <name>`) plus `<prefix>:install` (`npx lefthook install`).
+ * A `.pre-commit-config.yaml` gives `<prefix>:run`
  * (`pre-commit run --all-files`) plus `<prefix>:install`
  * (`pre-commit install`). A directory with both kinds merges into a
  * single target set whose `<prefix>:install` installs both managers.
+ *
+ * Every inferred target is `cache: false` — hook verdicts depend on
+ * git state (`{staged_files}`, the index, repo-wide scans) that file
+ * inputs cannot hash, so a cached pass could silently go stale.
  */
 export const createNodesV2: CreateNodesV2<NxDevkitGitHooksOptions> = [
   HOOKS_GLOB,
@@ -113,23 +117,12 @@ function inferDirProject(
     for (const name of names ?? []) hookNames.add(name);
   }
 
-  const token = dir === '' ? '{workspaceRoot}' : '{projectRoot}';
-  // Every matched config in the dir participates in the hash — an
-  // edit redefines the targets. At the workspace root there is no
-  // `**/*` wildcard: it would hash the whole monorepo and bust the
-  // cache on every unrelated change.
-  const inputs = [
-    ...(dir === '' ? [] : [`${token}/**/*`]),
-    ...sorted.map((f) => `${token}/${dir === '' ? f : f.slice(dir.length + 1)}`),
-  ];
-
   const targets: Record<string, TargetConfiguration> = Object.create(null);
 
   for (const name of hookNames) {
     targets[`${prefix}:${name}`] = {
       executor: 'nx:run-commands',
-      cache: true,
-      inputs,
+      cache: false,
       options: { command: `npx lefthook run ${name}`, cwd: '{projectRoot}' },
     };
   }
@@ -137,8 +130,7 @@ function inferDirProject(
   if (preCommitFiles.length > 0) {
     targets[`${prefix}:run`] = {
       executor: 'nx:run-commands',
-      cache: true,
-      inputs,
+      cache: false,
       options: { command: 'pre-commit run --all-files', cwd: '{projectRoot}' },
     };
   }

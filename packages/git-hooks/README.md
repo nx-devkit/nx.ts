@@ -1,6 +1,6 @@
 # @nx-devkit/git-hooks
 
-Standalone Nx plugin: lefthook and pre-commit configs become `hooks:*` targets on the owning project — `hooks:install`, `hooks:run`, and one cacheable `hooks:<name>` per lefthook hook section. No `project.json` needed.
+Standalone Nx plugin: lefthook and pre-commit configs become `hooks:*` targets on the owning project — `hooks:install`, `hooks:run`, and one `hooks:<name>` per lefthook hook section. No `project.json` needed.
 
 Part of [nx-devkit](https://github.com/nx-devkit/nx.ts).
 
@@ -32,22 +32,24 @@ Or manually:
 
 | Trigger                                               | Target          | Command                      | Cacheable |
 | ----------------------------------------------------- | --------------- | ---------------------------- | --------- |
-| `lefthook.y*ml` / `.lefthook.y*ml` — per hook section | `hooks:<name>`  | `npx lefthook run <name>`    | yes       |
+| `lefthook.y*ml` / `.lefthook.y*ml` — per hook section | `hooks:<name>`  | `npx lefthook run <name>`    | no        |
 | `lefthook.y*ml` / `.lefthook.y*ml`                    | `hooks:install` | `npx lefthook install`       | no        |
-| `.pre-commit-config.yaml`                             | `hooks:run`     | `pre-commit run --all-files` | yes       |
+| `.pre-commit-config.yaml`                             | `hooks:run`     | `pre-commit run --all-files` | no        |
 | `.pre-commit-config.yaml`                             | `hooks:install` | `pre-commit install`         | no        |
 
 A lefthook config's hook sections are its top-level mappings (`pre-commit:`,
 `pre-push:`, `commit-msg:`, custom names…) — known lefthook settings
 (`remote`, `extends`, `min_version`, `skip_output`, `source_dir`, …) are
-never turned into targets. Sections named `install` or `run` lose to the
-fixed targets of the same name.
+never turned into targets. A section named `install` always loses to the
+fixed `hooks:install`; a section named `run` loses to `hooks:run` only
+when a `.pre-commit-config.yaml` sits in the same directory.
 
 When a directory has both a lefthook and a pre-commit config, the target
 set merges and `hooks:install` installs both hook managers (sequentially).
 
-Cacheable targets hash the project source globs plus every matched config
-file in the directory, so an edit to the hook config re-runs the hooks.
+No hook target is cached: a hook's verdict depends on git state
+(`{staged_files}`, the index, repo-wide scans) that file inputs cannot
+hash, so a cached pass could silently go stale.
 
 ## Options
 
