@@ -68,7 +68,7 @@ function hasPackageJsonSeed(projectRoot: string, workspaceRoot: string): boolean
 /** Prisma 6+/7 keeps the seed command in prisma.config.* (`migrations.seed`). */
 function hasConfigFileSeed(absPath: string): boolean {
   try {
-    return /(^|[^\w])seed\s*:/.test(readFileSync(absPath, 'utf8'));
+    return /(^|[\s{,])['"]?seed['"]?\s*:/.test(readFileSync(absPath, 'utf8'));
   } catch {
     return false;
   }
