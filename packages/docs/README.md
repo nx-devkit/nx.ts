@@ -43,7 +43,7 @@ The init generator also installs the matching peer (`vitepress` and/or `astro`) 
 - `cwd` is `{projectRoot}` — vitepress/astro auto-discover their config from the owning directory.
 - `.vitepress/config.*` maps to the **parent** of `.vitepress` (`docs/.vitepress/config.ts` → project `docs`).
 - `docs:dev` and `docs:preview` are `continuous` (Nx 21+), so other targets can depend on them; `docs:preview` `dependsOn` `docs:build`.
-- `docs:build` outputs: `{projectRoot}/.vitepress/dist` + `{projectRoot}/dist` for vitepress (covers the default and a `outDir: 'dist'` override), `{projectRoot}/dist` for astro. Build outputs, `.vitepress/cache`, `.astro`, and `node_modules` are negated from inputs so a previous build cannot poison the next hash.
+- `docs:build` outputs: `{projectRoot}/.vitepress/dist` + `{projectRoot}/dist` for vitepress (covers the default and a `outDir: 'dist'` override), `{projectRoot}/dist` for astro. A literal `outDir: '…'` in the config is sniffed and added too, so a custom output survives a cache hit (a computed `outDir` can't be detected — declare it via `outputs` in `project.json`/`package.json` if needed). Build outputs, `.vitepress/cache`, `.astro`, and `node_modules` are negated from inputs so a previous build cannot poison the next hash.
 - An `astro.config.*` that imports `@astrojs/starlight` is reported with `metadata.technologies: ['astro', 'starlight']` — same `astro` commands.
 - A project root holding both an astro and a vitepress config resolves to **astro**.
 

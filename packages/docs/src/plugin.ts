@@ -52,19 +52,46 @@ function isStarlightConfig(absPath: string): boolean {
   }
 }
 
+/**
+ * Sniff a literal `outDir: '<dir>'` from the config so a custom build output
+ * lands in the cached `outputs` — without it a cache hit restores nothing and
+ * `docs:preview` fails. Only static string literals are detectable without
+ * executing the config; anything else falls back to the tool defaults.
+ * Returns null for absolute paths and `..` escapes (nothing under
+ * `{projectRoot}` to declare) and for unreadable files.
+ */
+function sniffOutDir(absPath: string): string | null {
+  try {
+    const match = /\boutDir\s*:\s*['"]([^'"]+)['"]/.exec(readFileSync(absPath, 'utf8'));
+    const dir = match?.[1]?.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+    if (!dir || dir.startsWith('/') || /^[a-zA-Z]:/.test(dir) || dir.split('/').includes('..')) {
+      return null;
+    }
+    return dir;
+  } catch {
+    return null;
+  }
+}
+
 function inferDocsTargets(
   prefix: string,
   tool: DocsTool,
   inputs: string[],
+  outDir?: string,
 ): Record<string, TargetConfiguration> {
   const bin = tool === 'vitepress' ? 'vitepress' : 'astro';
   const buildName = `${prefix}:build`;
   // VitePress defaults to <root>/.vitepress/dist; `outDir: 'dist'` is the
   // common override, so both are declared. Astro builds to <root>/dist.
+  // A literal `outDir` sniffed from the config adds its directory too.
   const outputs =
     tool === 'vitepress'
       ? ['{projectRoot}/.vitepress/dist', '{projectRoot}/dist']
       : ['{projectRoot}/dist'];
+  if (outDir !== undefined) {
+    const custom = `{projectRoot}/${outDir}`;
+    if (!outputs.includes(custom)) outputs.push(custom);
+  }
 
   return {
     [`${prefix}:dev`]: {
@@ -146,10 +173,18 @@ export const createNodesV2: CreateNodesV2<NxDocsPluginOptions> = [
               ...files.map((f) => `${token}/${rel(f)}`),
             ];
 
-      const starlight = tool === 'astro' && isStarlightConfig(join(workspaceRoot, winner));
+      const absWinner = join(workspaceRoot, winner);
+      const customOutDir = sniffOutDir(absWinner) ?? undefined;
+      // A custom outDir is a build output too — negate it so it cannot
+      // poison the input hash on the next run.
+      if (customOutDir !== undefined) {
+        const negated = `!${token}/${customOutDir}`;
+        if (!inputs.includes(negated)) inputs.push(negated);
+      }
+      const starlight = tool === 'astro' && isStarlightConfig(absWinner);
       const project: ProjectConfiguration = {
         root,
-        targets: inferDocsTargets(prefix, tool, inputs),
+        targets: inferDocsTargets(prefix, tool, inputs, customOutDir),
         metadata: { technologies: starlight ? ['astro', 'starlight'] : [tool] },
       };
       results.push([winner, { projects: { [root]: project } }]);
