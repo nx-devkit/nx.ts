@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, posix, relative, resolve } from 'node:path';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 
 const PLUGIN_NAME = '@nx-devkit/docs';
@@ -62,12 +62,26 @@ function isStarlightConfig(absPath: string): boolean {
  */
 function sniffOutDir(absPath: string): string | null {
   try {
-    const match = /\boutDir\s*:\s*['"]([^'"]+)['"]/.exec(readFileSync(absPath, 'utf8'));
-    const dir = match?.[1]?.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
-    if (!dir || dir.startsWith('/') || /^[a-zA-Z]:/.test(dir) || dir.split('/').includes('..')) {
+    // Strip comments so a commented-out example cannot win over the live value.
+    const source = readFileSync(absPath, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    const match = /\boutDir\s*:\s*['"]([^'"]+)['"]/.exec(source);
+    // Normalize so `foo/../public` collapses to `public`; a path that still
+    // escapes the project root after normalization is rejected.
+    const dir = match?.[1]?.replace(/\\/g, '/').replace(/\/+$/, '');
+    if (dir === undefined) return null;
+    const normalized = posix.normalize(dir);
+    if (
+      normalized === '.' ||
+      normalized === '' ||
+      normalized.startsWith('/') ||
+      /^[a-zA-Z]:/.test(normalized) ||
+      normalized.split('/').includes('..')
+    ) {
       return null;
     }
-    return dir;
+    return normalized;
   } catch {
     return null;
   }
