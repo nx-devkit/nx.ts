@@ -151,6 +151,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitBazelOptions> = [
       const inputs = [
         '{projectRoot}/**',
         '!{projectRoot}/bazel-*',
+        '!{projectRoot}/bazel-*/**',
         ...buildFiles.map((f) => `{projectRoot}/${f.slice(dir === '' ? 0 : dir.length + 1)}`),
         ...collectMarkers(dir, workspaceRoot).map((m) => `{workspaceRoot}/${m}`),
       ];
