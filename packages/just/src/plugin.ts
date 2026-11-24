@@ -4,7 +4,6 @@ import {
   logger,
   type CreateNodesResultArray,
   type CreateNodesV2,
-  type ProjectConfiguration,
   type TargetConfiguration,
 } from '@nx/devkit';
 import { isVerbose, logDebug } from '@nx-devkit/internal';
