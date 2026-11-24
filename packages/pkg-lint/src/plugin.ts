@@ -13,6 +13,17 @@ export interface NxPkgLintPluginOptions {
 
 const PACKAGE_JSON_GLOB = '**/package.json';
 
+// `npx publint` / `npx attw` resolve from the workspace root, so the locked
+// tool versions live in the root lockfile — a version bump must bust the
+// cached lint verdict.
+const LOCKFILE_INPUTS = [
+  '{workspaceRoot}/bun.lock',
+  '{workspaceRoot}/bun.lockb',
+  '{workspaceRoot}/package-lock.json',
+  '{workspaceRoot}/yarn.lock',
+  '{workspaceRoot}/pnpm-lock.yaml',
+];
+
 interface PackageManifest {
   private?: boolean;
   exports?: unknown;
@@ -27,13 +38,23 @@ interface PackageManifest {
  * a private manifest is never published, so packaging lint is meaningless.
  */
 export function isPublishableManifest(absPath: string): boolean {
+  let contents: string;
   try {
-    const pkg = JSON.parse(readFileSync(absPath, 'utf8')) as PackageManifest | null;
+    contents = readFileSync(absPath, 'utf8');
+  } catch (error) {
+    // A vanished manifest is not publishable; any other fs failure is real and
+    // must surface instead of silently suppressing the target.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+  try {
+    const pkg = JSON.parse(contents) as PackageManifest | null;
     if (typeof pkg !== 'object' || pkg === null) return false;
     if (pkg.private === true) return false;
     return Boolean(pkg.exports || pkg.bin || (pkg.main && pkg.files));
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof SyntaxError) return false;
+    throw error;
   }
 }
 
@@ -52,9 +73,12 @@ export function lintPkgTarget(
   return {
     executor: 'nx:run-commands',
     cache: true,
-    // `attw --pack` packs the real tarball, so dist must exist first.
+    // `attw --pack` packs the real tarball, so dist must exist first and every
+    // file npm could pack must bust the cache: the whole project tree plus the
+    // dotfiles glob — npm honors .npmignore / .gitignore at any level when
+    // selecting packed files, and `**/*` does not reliably match dotfiles.
     dependsOn: ['build'],
-    inputs: [`${prefix}/package.json`, `${prefix}/.npmignore`, `${prefix}/dist/**/*`],
+    inputs: [`${prefix}/package.json`, `${prefix}/**/*`, `${prefix}/**/.*`, ...LOCKFILE_INPUTS],
     options: { commands: [...commands], parallel: false, cwd: prefix },
   };
 }

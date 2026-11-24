@@ -33,8 +33,9 @@ export interface NxPkgLintPluginOptions {
 ## Invariants
 
 - Trigger glob is `**/package.json`; a manifest infers `lint-pkg` only when it is publishable: `exports`, `bin`, or `main` + `files`, and `private !== true` (same signal the typescript preset uses for `build`, plus the private veto).
-- The target runs `npx publint` then `npx attw --pack` sequentially (`parallel: false`) with `cwd: '{projectRoot}'`.
-- `attw --pack` packs the real tarball, so the target is `dependsOn: ['build']` and its cached inputs are `package.json` + `dist/**/*` (`{workspaceRoot}` prefix for the root project, `{projectRoot}` otherwise).
+- The target runs `npx publint` then `npx attw --pack` sequentially (`parallel: false`) with `cwd` set to the project (`{workspaceRoot}` for the root project, `{projectRoot}` otherwise).
+- `attw --pack` packs the real tarball, so the target is `dependsOn: ['build']` and its cached inputs are `package.json` + the project file tree `**/*` + the dotfiles glob `**/.*` (same prefix rule as `cwd`) — npm honors `.npmignore`/`.gitignore` at any level, and any file npm could pack can change the lint result.
+- `isPublishableManifest` swallows only `ENOENT` reads and `SyntaxError` parses; any other fs failure must propagate, not silently suppress the target.
 - Disabling both tools (`publint: false` + `attw: false`) infers nothing.
 - `node_modules` and `..`-escaping directories are skipped; output is deterministic (sorted).
 

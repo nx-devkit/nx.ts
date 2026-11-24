@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { createNodesV2 } from './plugin.ts';
 
 function makeContext(workspaceRoot: string): CreateNodesContextV2 {
@@ -16,8 +16,11 @@ function makeContext(workspaceRoot: string): CreateNodesContextV2 {
   } as unknown as CreateNodesContextV2;
 }
 
+const tempRoots: string[] = [];
+
 function makeWorkspace(files: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'nx-pkg-lint-'));
+  tempRoots.push(root);
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel);
     mkdirSync(dirname(abs), { recursive: true });
@@ -25,6 +28,10 @@ function makeWorkspace(files: Record<string, string> = {}): string {
   }
   return root;
 }
+
+afterAll(() => {
+  for (const root of tempRoots) rmSync(root, { recursive: true, force: true });
+});
 
 const PUBLISHABLE = '{"name":"a","exports":{".":"./dist/index.mjs"}}';
 
@@ -49,14 +56,18 @@ describe('@nx-devkit/pkg-lint createNodesV2', () => {
     });
   });
 
-  it('runs after build and caches on package.json + dist', async () => {
+  it('runs after build and caches on the package file tree', async () => {
     const root = makeWorkspace({ 'packages/a/package.json': PUBLISHABLE });
     const results = await createNodesV2[1](['packages/a/package.json'], {}, makeContext(root));
     const target = results[0]![1].projects!['packages/a']!.targets!['lint-pkg']!;
 
     expect(target.dependsOn).toEqual(['build']);
     expect(target.inputs).toEqual(
-      expect.arrayContaining(['{projectRoot}/package.json', '{projectRoot}/dist/**/*']),
+      expect.arrayContaining([
+        '{projectRoot}/package.json',
+        '{projectRoot}/**/*',
+        '{projectRoot}/**/.*',
+      ]),
     );
   });
 
@@ -87,7 +98,7 @@ describe('@nx-devkit/pkg-lint createNodesV2', () => {
 
     const target = results[0]![1].projects!['']!.targets!['lint-pkg']!;
     expect(target.inputs).toEqual(
-      expect.arrayContaining(['{workspaceRoot}/package.json', '{workspaceRoot}/dist/**/*']),
+      expect.arrayContaining(['{workspaceRoot}/package.json', '{workspaceRoot}/**/*']),
     );
   });
 
@@ -106,8 +117,9 @@ describe('@nx-devkit/pkg-lint createNodesV2', () => {
   it('skips manifests that escape the workspace root', async () => {
     const root = makeWorkspace({});
     const outside = mkdtempSync(join(tmpdir(), 'nx-pkg-lint-outside-'));
+    tempRoots.push(outside);
     writeFileSync(join(outside, 'package.json'), PUBLISHABLE);
-    const rel = `../${outside.split(/[\\/]/).pop()}/package.json`;
+    const rel = `../${basename(outside)}/package.json`;
     const results = await createNodesV2[1]([rel], {}, makeContext(root));
     expect(results).toHaveLength(0);
   });
@@ -164,35 +176,46 @@ describe('@nx-devkit/pkg-lint createNodesV2', () => {
   });
 });
 
-describe('publint on a fixture package', () => {
-  const require = createRequire(import.meta.url);
-  // Publint does not export ./package.json — resolve its entry, then walk up
-  // to the manifest to read the bin field.
-  let publintDir = dirname(require.resolve('publint'));
-  while (publintDir !== dirname(publintDir)) {
-    const candidate = join(publintDir, 'package.json');
-    if (
-      existsSync(candidate) &&
-      (JSON.parse(readFileSync(candidate, 'utf8')) as { name?: string }).name === 'publint'
-    ) {
-      break;
+// Publint does not export ./package.json — resolve its entry, then walk up
+// to the manifest to read the bin field. The whole lookup is guarded: publint
+// is an optional peer, so a missing install must skip this describe rather
+// than crash the suite at module load.
+function resolvePublintBin(): string | null {
+  try {
+    const require = createRequire(import.meta.url);
+    let publintDir = dirname(require.resolve('publint'));
+    while (publintDir !== dirname(publintDir)) {
+      const candidate = join(publintDir, 'package.json');
+      if (
+        existsSync(candidate) &&
+        (JSON.parse(readFileSync(candidate, 'utf8')) as { name?: string }).name === 'publint'
+      ) {
+        break;
+      }
+      publintDir = dirname(publintDir);
     }
-    publintDir = dirname(publintDir);
+    const publintPkgJson = JSON.parse(readFileSync(join(publintDir, 'package.json'), 'utf8')) as {
+      bin: string | Record<string, string>;
+    };
+    return join(
+      publintDir,
+      typeof publintPkgJson.bin === 'string' ? publintPkgJson.bin : publintPkgJson.bin.publint!,
+    );
+  } catch {
+    return null;
   }
-  const publintPkgJson = JSON.parse(readFileSync(join(publintDir, 'package.json'), 'utf8')) as {
-    bin: string | Record<string, string>;
-  };
-  const publintBin = join(
-    publintDir,
-    typeof publintPkgJson.bin === 'string' ? publintPkgJson.bin : publintPkgJson.bin.publint!,
-  );
+}
 
-  function runPublint(cwd: string): number {
+const publintBin = resolvePublintBin();
+
+describe.skipIf(publintBin === null)('publint on a fixture package', () => {
+  function runPublint(cwd: string): { status: number; output: string } {
     try {
-      execFileSync(process.execPath, [publintBin], { cwd, stdio: 'pipe' });
-      return 0;
+      const stdout = execFileSync(process.execPath, [publintBin as string], { cwd, stdio: 'pipe' });
+      return { status: 0, output: String(stdout) };
     } catch (error) {
-      return (error as { status?: number }).status ?? 1;
+      const e = error as { status?: number; stdout?: unknown; stderr?: unknown };
+      return { status: e.status ?? 1, output: `${e.stdout ?? ''}${e.stderr ?? ''}` };
     }
   }
 
@@ -200,7 +223,11 @@ describe('publint on a fixture package', () => {
     const dir = makeWorkspace({
       'pkg/package.json': '{"name":"broken","version":"0.0.0","exports":{".":"./missing.mjs"}}',
     });
-    expect(runPublint(join(dir, 'pkg'))).not.toBe(0);
+    const { status, output } = runPublint(join(dir, 'pkg'));
+    expect(status).not.toBe(0);
+    // Proves publint actually reported the exports error — a crash or missing
+    // bin would also exit non-zero but never print this.
+    expect(output).toContain('missing.mjs');
   });
 
   it('passes on a well-formed package', () => {
@@ -210,6 +237,6 @@ describe('publint on a fixture package', () => {
       'pkg/dist/index.mjs': 'export const x = 1\n',
       'pkg/dist/index.d.ts': 'export declare const x: number\n',
     });
-    expect(runPublint(join(dir, 'pkg'))).toBe(0);
+    expect(runPublint(join(dir, 'pkg')).status).toBe(0);
   });
 });
