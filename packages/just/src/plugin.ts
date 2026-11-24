@@ -8,7 +8,7 @@ import {
   type TargetConfiguration,
 } from '@nx/devkit';
 import { isVerbose, logDebug } from '@nx-devkit/internal';
-import { parseJustfile, type JustRecipe } from './justfile.ts';
+import { parseJustfile, type JustfileData, type JustRecipe } from './justfile.ts';
 import type { NxDevkitJustOptions } from './types.ts';
 
 const PLUGIN_SCOPE = 'nx-devkit/just';
@@ -190,6 +190,132 @@ function justfileRank(path: string): number {
  * become `dependsOn` on the same project. Private recipes (`_name`,
  * `[private]`) and subsequent (`&&`) deps are skipped.
  */
+/** One justfile per directory — just's own search-order preference. */
+function pickByDir(configFiles: readonly string[]): Array<readonly [string, string]> {
+  const byDir = new Map<string, string>();
+  for (const raw of [...configFiles].sort()) {
+    const configFile = raw.startsWith('./') ? raw.slice(2) : raw;
+    const dir = dirname(configFile).replace(/\\/g, '/');
+    const key = dir === '.' ? '' : dir;
+    const existing = byDir.get(key);
+    if (existing === undefined || justfileRank(configFile) < justfileRank(existing)) {
+      byDir.set(key, configFile);
+    }
+  }
+  return [...byDir.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+/** Recipe-name → target-name registry so deps resolve forward references. */
+function registerNames(
+  parsed: JustfileData,
+  modules: ResolvedModule[],
+  prefix: string,
+): Map<string, string> {
+  const targetNames = new Map<string, string>();
+  for (const r of parsed.recipes) {
+    if (!r.private) targetNames.set(r.name, `${prefix}${r.name}`);
+  }
+  for (const m of modules) {
+    for (const r of m.recipes) {
+      if (!r.private)
+        targetNames.set(`${m.qualifiedName}::${r.name}`, `${prefix}${m.qualifiedName}::${r.name}`);
+    }
+  }
+  for (const a of parsed.aliases) {
+    targetNames.set(a.name, `${prefix}${a.name}`);
+  }
+  return targetNames;
+}
+
+interface EmitCtx {
+  prefix: string;
+  targetNames: Map<string, string>;
+  inputs: string[];
+  targets: Record<string, TargetConfiguration>;
+  dir: string;
+}
+
+function emitRecipes(recipes: JustRecipe[], qualifier: string, ctx: EmitCtx): void {
+  for (const r of recipes) {
+    if (r.private) continue;
+    const qualified = qualifier === '' ? r.name : `${qualifier}::${r.name}`;
+    const targetName = `${ctx.prefix}${qualified}`;
+    const dependsOn = r.deps
+      .map((d) => ctx.targetNames.get(d))
+      .filter((t): t is string => t !== undefined)
+      .map((t) => ({ target: t }));
+    ctx.targets[targetName] = buildTarget(`just ${qualified}`, r, dependsOn, ctx.inputs);
+    if (isVerbose()) {
+      logDebug(PLUGIN_SCOPE, `Registered ${logSafe(ctx.dir || '.')}:${logSafe(targetName)}`);
+    }
+  }
+}
+
+/** Aliases run `just <alias>` — just resolves the alias itself. */
+function emitAliases(parsed: JustfileData, ctx: EmitCtx): void {
+  for (const a of parsed.aliases) {
+    ctx.targets[`${ctx.prefix}${a.name}`] = buildTarget(
+      `just ${a.name}`,
+      {
+        name: a.name,
+        params: [],
+        deps: [],
+        doc: `alias for \`${a.target}\``,
+        quiet: false,
+        private: false,
+      },
+      [],
+      ctx.inputs,
+    );
+  }
+}
+
+function inferProject(
+  dir: string,
+  configFile: string,
+  workspaceRoot: string,
+  prefix: string,
+): {
+  projects: Record<string, { root: string; targets: Record<string, TargetConfiguration> }>;
+} | null {
+  const projectDir = resolve(workspaceRoot, dir === '' ? '.' : dir);
+  const parsed = readJustfile(join(workspaceRoot, configFile), configFile);
+  if (parsed === null) return null;
+
+  const modules: ResolvedModule[] = [];
+  collectModules(
+    parsed,
+    projectDir,
+    projectDir,
+    '',
+    0,
+    new Set([resolve(join(workspaceRoot, configFile))]),
+    modules,
+  );
+
+  const justfileName = dir === '' ? configFile : configFile.slice(dir.length + 1);
+  const inputs = [
+    `{projectRoot}/${justfileName}`,
+    ...modules.map((m) => `{projectRoot}/${m.relPath}`),
+  ];
+
+  const targets: Record<string, TargetConfiguration> = Object.create(null);
+  const ctx: EmitCtx = {
+    prefix,
+    targetNames: registerNames(parsed, modules, prefix),
+    inputs,
+    targets,
+    dir,
+  };
+
+  emitRecipes(parsed.recipes, '', ctx);
+  for (const m of modules) emitRecipes(m.recipes, m.qualifiedName, ctx);
+  emitAliases(parsed, ctx);
+
+  if (Object.keys(targets).length === 0) return null;
+  return { projects: { [dir]: { root: dir, targets } } };
+}
+
 export const createNodesV2: CreateNodesV2<NxDevkitJustOptions> = [
   JUSTFILE_GLOB,
   (configFiles, options = {}, context): CreateNodesResultArray => {
@@ -197,110 +323,13 @@ export const createNodesV2: CreateNodesV2<NxDevkitJustOptions> = [
     const prefix = options.targetPrefix ?? DEFAULT_TARGET_PREFIX;
     const results: CreateNodesResultArray = [];
 
-    // One justfile per directory — just's own search-order preference.
-    const byDir = new Map<string, string>();
-    for (const raw of [...configFiles].sort()) {
-      const configFile = raw.startsWith('./') ? raw.slice(2) : raw;
-      const dir = dirname(configFile).replace(/\\/g, '/');
-      const key = dir === '.' ? '' : dir;
-      const existing = byDir.get(key);
-      if (existing === undefined || justfileRank(configFile) < justfileRank(existing)) {
-        byDir.set(key, configFile);
-      }
-    }
-
-    for (const [dir, configFile] of [...byDir.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const [dir, configFile] of pickByDir(configFiles)) {
       if (isSkippedDir(dir)) {
         logDebug(PLUGIN_SCOPE, `Skipping ${logSafe(configFile)} — outside the workspace`);
         continue;
       }
-      const projectDir = resolve(workspaceRoot, dir === '' ? '.' : dir);
-      const parsed = readJustfile(join(workspaceRoot, configFile), configFile);
-      if (parsed === null) continue;
-
-      // Recipe-name → target-name registry for dependsOn resolution.
-      const targetNames = new Map<string, string>();
-      const modules: ResolvedModule[] = [];
-      collectModules(
-        parsed,
-        projectDir,
-        projectDir,
-        '',
-        0,
-        new Set([resolve(join(workspaceRoot, configFile))]),
-        modules,
-      );
-
-      const justfileName = dir === '' ? configFile : configFile.slice(dir.length + 1);
-      const inputs = [
-        `{projectRoot}/${justfileName}`,
-        ...modules.map((m) => `{projectRoot}/${m.relPath}`),
-      ];
-
-      const targets: Record<string, TargetConfiguration> = Object.create(null);
-
-      // First pass — collect names so deps resolve forward references.
-      for (const r of parsed.recipes) {
-        if (!r.private) targetNames.set(r.name, `${prefix}${r.name}`);
-      }
-      for (const m of modules) {
-        for (const r of m.recipes) {
-          if (!r.private)
-            targetNames.set(
-              `${m.qualifiedName}::${r.name}`,
-              `${prefix}${m.qualifiedName}::${r.name}`,
-            );
-        }
-      }
-      for (const a of parsed.aliases) {
-        targetNames.set(a.name, `${prefix}${a.name}`);
-      }
-
-      const emit = (recipes: JustRecipe[], qualifier: string) => {
-        for (const r of recipes) {
-          if (r.private) continue;
-          const qualified = qualifier === '' ? r.name : `${qualifier}::${r.name}`;
-          const targetName = `${prefix}${qualified}`;
-          const dependsOn = r.deps
-            .map((d) => targetNames.get(d))
-            .filter((t): t is string => t !== undefined)
-            .map((t) => ({ target: t }));
-          targets[targetName] = buildTarget(`just ${qualified}`, r, dependsOn, inputs);
-          if (isVerbose()) {
-            logDebug(PLUGIN_SCOPE, `Registered ${logSafe(dir || '.')}:${logSafe(targetName)}`);
-          }
-        }
-      };
-
-      emit(parsed.recipes, '');
-      for (const m of modules) emit(m.recipes, m.qualifiedName);
-
-      // Aliases run `just <alias>` — just resolves the alias itself.
-      for (const a of parsed.aliases) {
-        targets[`${prefix}${a.name}`] = buildTarget(
-          `just ${a.name}`,
-          {
-            name: a.name,
-            params: [],
-            deps: [],
-            doc: `alias for \`${a.target}\``,
-            quiet: false,
-            private: false,
-          },
-          [],
-          inputs,
-        );
-      }
-
-      if (Object.keys(targets).length === 0) continue;
-      const projects: Record<
-        string,
-        Partial<Pick<ProjectConfiguration, 'root'>> & {
-          targets: Record<string, TargetConfiguration>;
-        }
-      > = Object.create(null);
-      projects[dir] = { root: dir, targets };
-      results.push([configFile, { projects }]);
+      const project = inferProject(dir, configFile, workspaceRoot, prefix);
+      if (project !== null) results.push([configFile, project]);
     }
 
     return results;

@@ -112,7 +112,8 @@ function headerColon(line: string): number {
 export function parseDeps(text: string): string[] {
   const deps: string[] = [];
   for (const token of splitShellish(text)) {
-    if (token === '&&') break;
+    // `&&` starts subsequent (post) deps — Nx has no post-dep concept.
+    if (token.startsWith('&&')) break;
     let name = token;
     if (name.startsWith('(')) {
       // `(name args...)` — the recipe name is the first word inside the parens.
@@ -121,8 +122,8 @@ export function parseDeps(text: string): string[] {
       name = name.replace(/\)+$/g, '');
     }
     // Strip a trailing comment opener glued to a token.
+    if (name.startsWith('#')) break;
     const hash = name.indexOf('#');
-    if (hash === 0) break;
     if (hash > 0) name = name.slice(0, hash);
     if (DEP_NAME_RE.test(name)) deps.push(name);
   }
@@ -140,6 +141,44 @@ export function parseAttributeLine(line: string): string[] | null {
     if (match) names.push(match[1]!.toLowerCase());
   }
   return names.length > 0 ? names : null;
+}
+
+function tryModule(line: string, data: JustfileData): boolean {
+  const m = MOD_RE.exec(line);
+  if (m === null) return false;
+  data.modules.push({ name: m[2]!, path: m[4] ?? null, optional: m[1] === '?' });
+  return true;
+}
+
+function tryAlias(line: string, data: JustfileData): boolean {
+  const m = ALIAS_RE.exec(line);
+  if (m === null) return false;
+  data.aliases.push({ name: m[1]!, target: m[2]! });
+  return true;
+}
+
+function tryRecipe(
+  line: string,
+  pendingAttrs: string[],
+  pendingDoc: string[],
+  data: JustfileData,
+): void {
+  // Recipe header: [@]name [params...]: [deps...]
+  const quiet = line.startsWith('@');
+  const nameMatch = NAME_RE.exec(quiet ? line.slice(1) : line);
+  if (nameMatch === null) return;
+  const name = nameMatch[0];
+  const colonIdx = headerColon(line);
+  if (colonIdx <= 0) return;
+  const paramText = line.slice((quiet ? 1 : 0) + name.length, colonIdx).trim();
+  data.recipes.push({
+    name,
+    params: paramText === '' ? [] : splitShellish(paramText),
+    deps: parseDeps(line.slice(colonIdx + 1)),
+    doc: pendingDoc.join('\n'),
+    quiet,
+    private: name.startsWith('_') || pendingAttrs.includes('private'),
+  });
 }
 
 export function parseJustfile(text: string): JustfileData {
@@ -177,49 +216,16 @@ export function parseJustfile(text: string): JustfileData {
       resetPending();
       continue;
     }
-
-    const modMatch = MOD_RE.exec(line);
-    if (modMatch !== null) {
-      data.modules.push({
-        name: modMatch[2]!,
-        path: modMatch[4] ?? null,
-        optional: modMatch[1] === '?',
-      });
+    if (tryModule(line, data) || tryAlias(line, data)) {
       resetPending();
       continue;
     }
-
-    const aliasMatch = ALIAS_RE.exec(line);
-    if (aliasMatch !== null) {
-      data.aliases.push({ name: aliasMatch[1]!, target: aliasMatch[2]! });
-      resetPending();
-      continue;
-    }
-
     if (ASSIGN_RE.test(line)) {
       resetPending();
       continue;
     }
 
-    // Recipe header: [@]name [params...]: [deps...]
-    const quiet = line.startsWith('@');
-    const nameMatch = NAME_RE.exec(quiet ? line.slice(1) : line);
-    if (nameMatch !== null) {
-      const name = nameMatch[0];
-      const colonIdx = headerColon(line);
-      if (colonIdx > 0) {
-        const paramText = line.slice((quiet ? 1 : 0) + name.length, colonIdx).trim();
-        const recipe: JustRecipe = {
-          name,
-          params: paramText === '' ? [] : splitShellish(paramText),
-          deps: parseDeps(line.slice(colonIdx + 1)),
-          doc: pendingDoc.join('\n'),
-          quiet,
-          private: name.startsWith('_') || pendingAttrs.includes('private'),
-        };
-        data.recipes.push(recipe);
-      }
-    }
+    tryRecipe(line, pendingAttrs, pendingDoc, data);
     resetPending();
   }
   return data;
