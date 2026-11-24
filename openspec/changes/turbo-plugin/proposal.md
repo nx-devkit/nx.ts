@@ -12,7 +12,10 @@ it is the highest-leverage adoption play for the devkit.
 
 - New package `@nx-devkit/turbo` under `packages/turbo/`.
 - `createNodesV2` watches `**/turbo.json`: the root config and
-  package-level configs (`extends: ["//"]`).
+  package-level configs. A nested config applies its tasks to the owning
+  package only; when its `extends` includes `//` (turbo's Package
+  Configuration marker), the root config's `global*` inputs and the root
+  `turbo.json` itself fold into that package's target inputs.
 - Every entry in `tasks` (turbo v2) or `pipeline` (v1) becomes an inferred
   Nx target on every workspace package whose `package.json` carries a
   matching `scripts` entry — identical to turbo's own semantics. Targets
@@ -23,12 +26,15 @@ it is the highest-leverage adoption play for the devkit.
   - `"pkg#build"` → `{ target: "build", projects: ["pkg"] }`
   - `"//#task"` → `{ target: "task", projects: ["<root package name>"] }`
 - `outputs`/`inputs` map to Nx `outputs`/`inputs` (`$TURBO_DEFAULT$` →
-  `default`); `cache: false` is honored; `env`/`passThroughEnv`/
-  `globalEnv`/`globalPassThroughEnv` become `{ env: "VAR" }` hash inputs;
-  `globalDependencies`/`globalDotEnv`/`dotEnv` become file inputs;
-  `persistent: true` → `continuous: true` + `cache: false`.
+  `{projectRoot}/**/*`, `$TURBO_ROOT$/x` → `{workspaceRoot}/x`); `cache:
+  false` is honored; `env`/`globalEnv` become `{ env: "VAR" }` hash
+  inputs while `passThroughEnv`/`globalPassThroughEnv` stay out of the
+  cache key like in turbo; `globalDependencies`/`globalDotEnv`/`dotEnv`
+  become file inputs; `persistent: true` → `continuous: true` +
+  `cache: false`.
 - `//#task` keys create targets on the root project; `<package>#<task>`
-  keys create per-package target overrides.
+  keys create per-package target overrides that always win over the
+  same-named plain task for that package.
 - Workspace packages are discovered from `workspaces` (package.json),
   `pnpm-workspace.yaml` (`packages:`), or `lerna.json` (`packages`), with a
   `packages/*` + `apps/*` fallback.

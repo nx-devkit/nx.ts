@@ -12,6 +12,11 @@ export interface TaskTargetContext {
   configFile: string;
   /** Folded-in global inputs (globalDependencies, globalEnv, …). */
   globalInputs: TaskInput[];
+  /**
+   * Resolve a package.json `name` to the Nx project name — a
+   * `project.json` `name` wins over the manifest. Identity fallback.
+   */
+  projectNameFor: (packageName: string) => string;
 }
 
 /**
@@ -72,15 +77,18 @@ function mapDependsOn(deps: string[], ctx: TaskTargetContext): TargetDependencyC
       if (target !== '') out.push({ target, dependencies: true });
     } else if (dep.startsWith('//#')) {
       // //#task — the task on the root package. Unresolvable when the
-      // root package.json has no name.
-      if (ctx.rootProjectName !== undefined) {
-        out.push({ target: dep.slice(3), projects: [ctx.rootProjectName] });
+      // root project has no name.
+      const target = dep.slice(3);
+      if (target !== '' && ctx.rootProjectName !== undefined) {
+        out.push({ target, projects: [ctx.rootProjectName] });
       }
     } else if (dep.includes('#')) {
-      // pkg#task — the task on one named package.
+      // pkg#task — the task on one named package. `sel.package` is a
+      // package.json name; the Nx project may carry a different name
+      // when project.json renames it.
       const sel = splitTaskKey(dep);
       if (sel.package !== null && sel.package !== '' && sel.task !== '') {
-        out.push({ target: sel.task, projects: [sel.package] });
+        out.push({ target: sel.task, projects: [ctx.projectNameFor(sel.package)] });
       }
     } else {
       // task — the task on the same project (projects omitted = self).
@@ -91,12 +99,16 @@ function mapDependsOn(deps: string[], ctx: TaskTargetContext): TargetDependencyC
 }
 
 function buildInputs(task: TurboTask, ctx: TaskTargetContext): TaskInput[] {
-  // turbo treats a missing `inputs` as the default fileset.
-  const raw = task.inputs ?? ['$TURBO_DEFAULT$'];
+  // turbo treats a missing or empty `inputs` as the default fileset.
+  const raw =
+    task.inputs !== undefined && task.inputs.length > 0 ? task.inputs : ['$TURBO_DEFAULT$'];
   const inputs: TaskInput[] = [];
   for (const entry of raw) {
     if (entry === '$TURBO_DEFAULT$') {
-      inputs.push('default');
+      // turbo's default fileset — every file in the package. A literal
+      // fileset, not the `default` named input: a consumer's nx.json
+      // could redefine `default`.
+      inputs.push('{projectRoot}/**/*');
     } else {
       inputs.push(...mapGlobs([entry], '{projectRoot}'));
     }
@@ -107,7 +119,10 @@ function buildInputs(task: TurboTask, ctx: TaskTargetContext): TaskInput[] {
   // The config the task was read from always participates in the hash —
   // an edit redefines the target.
   inputs.push(`{workspaceRoot}/${ctx.configFile}`);
-  for (const name of [...(task.env ?? []), ...(task.passThroughEnv ?? [])]) {
+  // `env` entries are hash inputs. `passThroughEnv` only makes variables
+  // available to the task and never enters the cache key — `nx:run-script`
+  // already inherits the process environment.
+  for (const name of task.env ?? []) {
     inputs.push({ env: name });
   }
   inputs.push(...ctx.globalInputs);
@@ -123,7 +138,18 @@ export function mapGlobs(globs: string[], prefix: string): string[] {
   return globs.map((glob) => {
     const negated = glob.startsWith('!');
     const body = negated ? glob.slice(1) : glob;
-    if (body.startsWith('{')) return glob;
+    // Entries already carrying an Nx root token pass through untouched.
+    // Another leading `{` is a brace expansion (e.g. `{src,tests}/**`)
+    // and still needs the prefix.
+    if (body.startsWith('{projectRoot}') || body.startsWith('{workspaceRoot}')) {
+      return glob;
+    }
+    // `$TURBO_ROOT$` anchors the glob at the workspace root instead of
+    // the package directory.
+    if (body.startsWith('$TURBO_ROOT$')) {
+      const rest = body.slice('$TURBO_ROOT$'.length);
+      return `${negated ? '!' : ''}{workspaceRoot}${rest}`;
+    }
     return `${negated ? '!' : ''}${prefix}/${body}`;
   });
 }

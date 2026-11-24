@@ -23,6 +23,14 @@ NOT break the project graph — the plugin SHALL warn and skip it.
 - **THEN** project `packages/app` gains a `deploy` target — no other
   project does
 
+#### Scenario: extends // inherits root globals
+
+- **GIVEN** `packages/app/turbo.json` with `extends: ["//"]` and a root
+  `turbo.json` declaring `globalDependencies`
+- **WHEN** the nested config defines or overrides a task
+- **THEN** that target's inputs include the root `global*` entries and
+  `{workspaceRoot}/turbo.json`
+
 #### Scenario: unparseable config
 
 - **WHEN** a `turbo.json` cannot be parsed
@@ -33,16 +41,21 @@ NOT break the project graph — the plugin SHALL warn and skip it.
 
 The plugin SHALL read task definitions from `tasks` (turbo v2) and
 `pipeline` (turbo v1). When both keys are present, `tasks` wins.
+Unqualified keys (`build`) become target names on every matching
+package; selector keys (`pkg#task`, `//#task`) produce that task name on
+the selected project only — see "task keys with selectors".
 
 #### Scenario: v2 tasks key
 
 - **WHEN** `turbo.json` contains a `tasks` object
-- **THEN** each key becomes a target name
+- **THEN** each unqualified key becomes a target name on every matching
+  package; selector keys produce that task on the selected project
 
 #### Scenario: v1 pipeline key
 
 - **WHEN** `turbo.json` contains only a `pipeline` object
-- **THEN** each key becomes a target name
+- **THEN** each unqualified key becomes a target name on every matching
+  package; selector keys produce that task on the selected project
 
 ### Requirement: script-gated inference
 
@@ -90,7 +103,9 @@ emitted — Nx 24 rejects them.
 
 `//#task` keys SHALL produce targets on the root project (only when the
 root `package.json` has the matching script and a `name`).
-`<package>#<task>` keys SHALL produce targets only on the named package.
+`<package>#<task>` keys SHALL produce targets only on the named package
+and SHALL override the same-named plain task for that package
+regardless of key order in the file.
 
 #### Scenario: root task
 
@@ -107,42 +122,47 @@ root `package.json` has the matching script and a `name`).
 ### Requirement: inputs and outputs
 
 Each `inputs` entry SHALL map to `{projectRoot}/<glob>`; the literal
-`$TURBO_DEFAULT$` SHALL map to the `default` named input, and `!`
-negations SHALL be preserved. When `inputs` is absent the target SHALL
-use `default`. Each `outputs` entry SHALL map the same way; when absent
-the target SHALL default to `{projectRoot}/dist/**` and
-`{projectRoot}/build/**` (turbo's own defaults). The originating
-`turbo.json` SHALL always appear as a `{workspaceRoot}/...` input so
-config edits re-hash tasks.
+`$TURBO_DEFAULT$` SHALL map to the literal fileset `{projectRoot}/**/*`
+(turbo's default fileset — all package files), `$TURBO_ROOT$`-anchored
+globs SHALL map to `{workspaceRoot}/<glob>`, and `!` negations SHALL be
+preserved. When `inputs` is absent or empty the target SHALL use the
+default fileset. Each `outputs` entry SHALL map the same way; when
+absent the target SHALL declare no file outputs — turbo caches no task
+files without a declaration. The originating `turbo.json` SHALL always
+appear as a `{workspaceRoot}/...` input so config edits re-hash tasks.
 
 #### Scenario: explicit inputs
 
 - **WHEN** task `build` declares `inputs: ["src/**", "$TURBO_DEFAULT$", "!src/gen/**"]`
 - **THEN** the target's inputs contain `{projectRoot}/src/**`,
-  `default`, and `!{projectRoot}/src/gen/**`
+  `{projectRoot}/**/*`, and `!{projectRoot}/src/gen/**`
 
 #### Scenario: default outputs
 
 - **WHEN** task `build` declares no `outputs`
-- **THEN** the target's outputs are `{projectRoot}/dist/**` and
-  `{projectRoot}/build/**`
+- **THEN** the target's outputs are empty — no files are captured for
+  the cache
 
 ### Requirement: env hashing and cache
 
-`env` and `passThroughEnv` entries SHALL become `{ env: "VAR" }` inputs;
-`dotEnv` SHALL become `{projectRoot}/<file>` inputs. `cache: false`
-SHALL produce `cache: false`; otherwise targets are `cache: true`.
+`env` entries SHALL become `{ env: "VAR" }` inputs. `passThroughEnv`
+entries SHALL NOT become inputs — passthrough variables are available
+to the task but never enter the cache key, matching turbo semantics
+(`nx:run-script` already inherits the process environment). `dotEnv`
+SHALL become `{projectRoot}/<file>` inputs. `cache: false` SHALL
+produce `cache: false`; otherwise targets are `cache: true`.
 `persistent: true` SHALL produce `continuous: true` and `cache: false`.
-`globalDependencies`, `globalDotEnv`, `globalEnv` and
-`globalPassThroughEnv` SHALL fold into every inferred target's inputs —
-`CreateNodesResult` cannot emit `targetDefaults`/`namedInputs` in Nx 24.
+`globalDependencies`, `globalDotEnv` and `globalEnv` SHALL fold into
+every inferred target's inputs — `CreateNodesResult` cannot emit
+`targetDefaults`/`namedInputs` in Nx 24. `globalPassThroughEnv` is
+likewise never hashed.
 
 #### Scenario: env hashing
 
 - **WHEN** task `deploy` declares `env: ["DEPLOY_TOKEN"]` and
   `passThroughEnv: ["CI"]`
 - **THEN** the target's inputs contain `{ env: "DEPLOY_TOKEN" }` and
-  `{ env: "CI" }`
+  no `{ env: "CI" }` entry
 
 #### Scenario: uncached task
 

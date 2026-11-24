@@ -51,6 +51,25 @@ export const createNodesV2: CreateNodesV2<NxDevkitTurboOptions> = [
     const getPackages = () => (packages ??= discoverWorkspacePackages(workspaceRoot));
 
     const rootPkg = readRootPackage(workspaceRoot);
+    const rootProjectName = readRootProjectName(workspaceRoot, rootPkg.name);
+
+    // package.json name → Nx project name, resolved lazily — only
+    // `pkg#task` dependsOn entries need it.
+    let projectNames: Map<string, string> | undefined;
+    const projectNameFor = (packageName: string): string => {
+      projectNames ??= buildProjectNameMap(workspaceRoot, getPackages());
+      return projectNames.get(packageName) ?? packageName;
+    };
+
+    // The root config, cached for `extends: ["//"]` merges — reused when
+    // this batch already parsed it, read lazily from disk otherwise.
+    let rootConfig: TurboJson | null | undefined;
+    const getRootConfig = (): TurboJson | null => {
+      if (rootConfig === undefined) {
+        rootConfig = readTurboConfig(resolve(workspaceRoot, 'turbo.json'), 'turbo.json');
+      }
+      return rootConfig;
+    };
 
     for (const rawConfigFile of sortPathsByDepth(configFiles)) {
       // Nx's glob expander can emit a leading "./" — normalize so the path
@@ -67,12 +86,24 @@ export const createNodesV2: CreateNodesV2<NxDevkitTurboOptions> = [
       if (config === null) continue;
 
       const ctx = {
-        rootProjectName: rootPkg.name,
+        rootProjectName,
         configFile,
         globalInputs: buildGlobalInputs(config),
+        projectNameFor,
       };
 
+      // A package config extending `//` inherits the root config's
+      // globals — fold them (and the root config file itself) into the
+      // nested targets' inputs so root edits re-hash them.
+      if (!isRoot && config.extends.includes('//')) {
+        const inherited = getRootConfig();
+        if (inherited !== null) {
+          ctx.globalInputs.push(...buildGlobalInputs(inherited), '{workspaceRoot}/turbo.json');
+        }
+      }
+
       if (isRoot) {
+        rootConfig = config;
         const projects = inferRootConfig(config, getPackages(), rootPkg, ctx);
         if (Object.keys(projects).length > 0) {
           results.push([configFile, { projects }]);
@@ -123,7 +154,7 @@ function inferRootConfig(
   );
   const projects: ProjectMap = Object.create(null);
 
-  for (const [key, task] of Object.entries(config.tasks)) {
+  for (const [key, task] of orderedTaskEntries(config.tasks)) {
     const sel = splitTaskKey(key);
     let candidates: PackageRef[];
     if (sel.package === '//') {
@@ -145,6 +176,19 @@ function inferRootConfig(
 }
 
 /**
+ * Task entries in merge order: plain tasks first, `pkg#task`/`//#task`
+ * selector keys last — a scoped key overrides the same-named generic
+ * target regardless of its position in the file.
+ */
+function orderedTaskEntries(tasks: TurboJson['tasks']): [string, TurboTask][] {
+  const entries = Object.entries(tasks);
+  return [
+    ...entries.filter(([key]) => !key.includes('#')),
+    ...entries.filter(([key]) => key.includes('#')),
+  ];
+}
+
+/**
  * A nested config's tasks apply to its own package only. Selector keys
  * (`pkg#task`, `//#task`) are not allowed in package-level turbo.json —
  * any selector is dropped and the task lands on the owning package.
@@ -155,7 +199,7 @@ function inferNestedConfig(
   ctx: Parameters<typeof buildTaskTarget>[2],
 ): ProjectMap {
   const projects: ProjectMap = Object.create(null);
-  for (const [key, task] of Object.entries(config.tasks)) {
+  for (const [key, task] of orderedTaskEntries(config.tasks)) {
     const sel = splitTaskKey(key);
     addTarget(projects, ownPkg, sel.task, task, ctx);
   }
@@ -202,6 +246,42 @@ function readRootPackage(workspaceRoot: string): PackageRef {
   };
 }
 
+/**
+ * The Nx project name of the workspace-root project — `project.json`
+ * `name` wins, then `nx.json` `name`, then the root `package.json`.
+ */
+function readRootProjectName(
+  workspaceRoot: string,
+  pkgName: string | undefined,
+): string | undefined {
+  for (const file of ['project.json', 'nx.json']) {
+    const name = readPackageJson(join(workspaceRoot, file))?.name;
+    if (typeof name === 'string' && name !== '') return name;
+  }
+  return pkgName;
+}
+
+/**
+ * package.json `name` → Nx project name. A package-level `project.json`
+ * `name` wins over the manifest name; without one the manifest name is
+ * the project name.
+ */
+function buildProjectNameMap(
+  workspaceRoot: string,
+  packages: WorkspacePackage[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const pkg of packages) {
+    if (pkg.name === undefined) continue;
+    const projectName = readPackageJson(join(workspaceRoot, pkg.root, 'project.json'))?.name;
+    map.set(
+      pkg.name,
+      typeof projectName === 'string' && projectName !== '' ? projectName : pkg.name,
+    );
+  }
+  return map;
+}
+
 /** The package.json of `dir`, or null when it cannot be read. */
 function readPackageRef(workspaceRoot: string, dir: string): PackageRef | null {
   const pkg = readPackageJson(join(workspaceRoot, dir, 'package.json'));
@@ -227,15 +307,16 @@ function readScripts(pkg: Record<string, unknown> | null): Record<string, string
 
 /**
  * `CreateNodesResult` cannot emit `targetDefaults`/`namedInputs` (Nx 24),
- * so turbo's `globalDependencies`/`globalEnv`/`globalPassThroughEnv`/
- * `globalDotEnv` fold into every inferred target's inputs — equivalent
- * hash semantics.
+ * so turbo's `globalDependencies`/`globalEnv`/`globalDotEnv` fold into
+ * every inferred target's inputs — equivalent hash semantics.
+ * `globalPassThroughEnv` is left out on purpose: passthrough variables
+ * are available to tasks but never hashed.
  */
 function buildGlobalInputs(config: TurboJson): TaskInput[] {
   const inputs: TaskInput[] = [];
   inputs.push(...mapGlobs(config.globalDependencies, '{workspaceRoot}'));
   inputs.push(...mapGlobs(config.globalDotEnv, '{workspaceRoot}'));
-  for (const name of [...config.globalEnv, ...config.globalPassThroughEnv]) {
+  for (const name of config.globalEnv) {
     inputs.push({ env: name });
   }
   return inputs;

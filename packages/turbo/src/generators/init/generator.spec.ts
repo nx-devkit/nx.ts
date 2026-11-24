@@ -62,6 +62,20 @@ describe('initGenerator', () => {
     installDeps();
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
-    expect(pkg.devDependencies).toBeUndefined();
+    expect(pkg).toEqual({ name: 'x' });
+  });
+
+  it('preserves JSONC comments and formatting in nx.json', async () => {
+    const tree = createTree();
+    tree.write(
+      'nx.json',
+      '{\n  // keep this comment\n  "affected": { "defaultBase": "main" },\n}\n',
+    );
+
+    await initGenerator(tree, {});
+
+    const text = tree.read('nx.json', 'utf8') ?? '';
+    expect(text).toContain('// keep this comment');
+    expect(text).toContain('"@nx-devkit/turbo"');
   });
 });
