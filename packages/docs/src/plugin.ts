@@ -117,6 +117,10 @@ function inferDocsTargets(
     [buildName]: {
       executor: 'nx:run-commands',
       cache: true,
+      // Hash alone is not enough — a docs site importing a workspace
+      // library's built output must rebuild it first (deps without a
+      // `build` target are skipped by Nx).
+      dependsOn: [{ target: 'build', dependencies: true }],
       inputs,
       outputs,
       options: { command: `npx ${bin} build`, cwd: '{projectRoot}' },
