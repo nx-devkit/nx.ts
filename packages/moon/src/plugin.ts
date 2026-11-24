@@ -1,0 +1,179 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import {
+  logger,
+  type CreateNodesResultArray,
+  type CreateNodesV2,
+  type ProjectConfiguration,
+  type TargetConfiguration,
+} from '@nx/devkit';
+import { isVerbose, logDebug } from '@nx-devkit/internal';
+import { parseMoonYml, type MoonProjectYml } from './moon-config.ts';
+import { detectMoonWorkspace, type MoonWorkspace } from './workspace.ts';
+import { buildTaskTarget, type TaskTargetContext } from './targets.ts';
+import type { NxDevkitMoonOptions } from './types.ts';
+
+const PLUGIN_SCOPE = 'nx-devkit/moon';
+
+/**
+ * Project-level moon config files — moon supports both extensions.
+ * `.moon/workspace.{yml,yaml}` marks the workspace root; `moon.yml` in a
+ * project dir is the project config this plugin reacts to.
+ */
+export const MOON_GLOB = '**/moon.{yml,yaml}';
+
+/**
+ * Infer Nx targets from moon.yml. Every `tasks:` entry becomes a target
+ * on the project that owns the file — a `moon.yml` is already
+ * project-scoped, so no workspace fan-out is needed. A stray moon.yml
+ * without `.moon/workspace.*` still infers (it is a project file); when
+ * `.moon/workspace.{yml,yaml}` or `.moon/toolchain.{yml,yaml}` exists it
+ * is folded into every target's inputs and surfaced as metadata.
+ */
+export const createNodesV2: CreateNodesV2<NxDevkitMoonOptions> = [
+  MOON_GLOB,
+  (configFiles, options = {}, context): CreateNodesResultArray => {
+    const workspaceRoot = context.workspaceRoot;
+    const targetPrefix = options.targetPrefix ?? '';
+    const moonWs = detectMoonWorkspace(workspaceRoot);
+    const workspaceInputs = [moonWs.workspaceFile, moonWs.toolchainFile]
+      .filter((file): file is string => file !== undefined)
+      .map((file) => `{workspaceRoot}/${file}`);
+
+    const results: CreateNodesResultArray = [];
+    for (const rawConfigFile of [...configFiles].sort()) {
+      // Nx's glob expander can emit a leading "./" — normalize so the
+      // path stays canonical in inputs and result keys.
+      const configFile = rawConfigFile.startsWith('./') ? rawConfigFile.slice(2) : rawConfigFile;
+      const dir = dirname(configFile).replace(/\\/g, '/');
+      const root = dir === '.' ? '' : dir;
+      if (isSkippedDir(root)) {
+        logDebug(PLUGIN_SCOPE, `Skipping ${logSafe(configFile)} — not inside the workspace`);
+        continue;
+      }
+
+      const config = readMoonConfig(resolve(workspaceRoot, configFile), configFile);
+      if (config === null) continue;
+
+      const ctx: TaskTargetContext = {
+        targetPrefix,
+        projectRoot: root,
+        configFile,
+        projectEnv: config.env ?? {},
+        fileGroups: config.fileGroups ?? {},
+        workspaceInputs,
+      };
+
+      const targets: Record<string, TargetConfiguration> = Object.create(null);
+      for (const [taskName, task] of Object.entries(config.tasks)) {
+        targets[`${targetPrefix}${taskName}`] = buildTaskTarget(taskName, task, ctx);
+      }
+
+      const project = buildProject(root, config, targets, moonWs);
+      if (project === null) continue;
+      results.push([configFile, { projects: { [root]: project } }]);
+      if (isVerbose()) {
+        logDebug(
+          PLUGIN_SCOPE,
+          `Registered ${logSafe(root || '.')} — ${Object.keys(targets).length} target(s)`,
+        );
+      }
+    }
+    return results;
+  },
+];
+
+export default createNodesV2;
+
+type ProjectMap = Partial<ProjectConfiguration> & { root: string };
+
+/**
+ * Project-level fields: `id`/`project` → name, `tags` → tags, `type` →
+ * projectType, `dependsOn` → implicitDependencies (so `^:task` deps and
+ * `dependencies: true` resolve against real graph edges). The `.moon/*`
+ * files and the language/stack metadata ride in `metadata.moon`.
+ */
+function buildProject(
+  root: string,
+  config: MoonProjectYml,
+  targets: Record<string, TargetConfiguration>,
+  moonWs: MoonWorkspace,
+): ProjectMap | null {
+  const project: ProjectMap = { root };
+  if (config.id !== undefined) {
+    project.name = config.id;
+  } else if (typeof config.project === 'string') {
+    project.name = config.project;
+  }
+  if (config.tags !== undefined) project.tags = config.tags;
+  const projectType = mapProjectType(config.type);
+  if (projectType !== undefined) project.projectType = projectType;
+  const implicitDeps = (config.dependsOn ?? [])
+    .map((dep) => (typeof dep === 'string' ? dep : dep.id))
+    .filter((id): id is string => typeof id === 'string' && id !== '');
+  if (implicitDeps.length > 0) project.implicitDependencies = implicitDeps;
+
+  const moon: Record<string, unknown> = {};
+  if (moonWs.workspaceFile !== undefined) moon.workspaceFile = moonWs.workspaceFile;
+  if (moonWs.toolchainFile !== undefined) moon.toolchainFile = moonWs.toolchainFile;
+  if (config.language !== undefined) moon.language = config.language;
+  if (config.type !== undefined) moon.type = config.type;
+  if (config.stack !== undefined) moon.stack = config.stack;
+  if (typeof config.project === 'object' && config.project !== undefined) {
+    moon.project = config.project;
+  }
+  if (Object.keys(moon).length > 0) project.metadata = { moon };
+  if (Object.keys(targets).length > 0) project.targets = targets;
+
+  // A moon.yml that maps to nothing (e.g. only invalid task entries and
+  // no metadata) produces no project.
+  const hasContent =
+    Object.keys(targets).length > 0 ||
+    project.name !== undefined ||
+    project.tags !== undefined ||
+    project.implicitDependencies !== undefined ||
+    project.metadata !== undefined;
+  return hasContent ? project : null;
+}
+
+/** moon `type` → Nx `projectType`; moon-only kinds stay unset. */
+function mapProjectType(type: string | undefined): 'application' | 'library' | undefined {
+  if (type === 'application') return 'application';
+  if (type === 'library') return 'library';
+  return undefined;
+}
+
+function readMoonConfig(absPath: string, configFile: string): MoonProjectYml | null {
+  let text: string;
+  try {
+    text = readFileSync(absPath, 'utf8');
+  } catch {
+    return null;
+  }
+  try {
+    return parseMoonYml(text, configFile);
+  } catch {
+    // A broken moon.yml must not break the project graph — warn and skip.
+    logger.warn(`[${PLUGIN_SCOPE}] Could not parse ${logSafe(configFile)} — skipping it`);
+    return null;
+  }
+}
+
+/** node_modules and paths escaping the workspace are never projects. */
+function isSkippedDir(root: string): boolean {
+  if (root === '') return false;
+  const segments = root.split('/');
+  return segments[0] === '..' || segments.includes('node_modules');
+}
+
+/** A config value, safe inside a single log line. */
+function logSafe(value: string): string {
+  let out = '';
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 0;
+    out += code < 32 || code === 127 ? ' ' : char;
+  }
+  return out.trim();
+}
+
+export const __testing: { MOON_GLOB: typeof MOON_GLOB } = { MOON_GLOB };
