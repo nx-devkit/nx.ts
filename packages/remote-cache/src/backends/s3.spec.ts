@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { S3Backend } from './s3.ts';
 import type { S3BackendOptions } from './s3.ts';
@@ -23,12 +24,18 @@ describe('S3Backend', () => {
       return new Response(null, { status: 200 });
     });
     const b = new S3Backend({ ...OPTS, prefix: 'nx', fetchImpl });
-    const res = await b.putIfAbsent('main/h1', Buffer.from('body'), 'deadbeef');
+    const body = Buffer.from('body');
+    const res = await b.putIfAbsent('main/h1', body, 'deadbeef');
     expect(res).toBe('created');
     expect(seen!.url).toBe('https://acct.r2.cloudflarestorage.com/nx-cache/nx/main/h1');
+    expect(seen!.init.method).toBe('PUT');
+    expect(seen!.init.body).toBe(body);
     const headers = new Headers(seen!.init.headers);
     expect(headers.get('if-none-match')).toBe('*');
     expect(headers.get('x-amz-meta-sha256')).toBe('deadbeef');
+    expect(headers.get('x-amz-content-sha256')).toBe(
+      createHash('sha256').update(body).digest('hex'),
+    );
     expect(headers.get('authorization')).toMatch(/^AWS4-HMAC-SHA256 /);
   });
 

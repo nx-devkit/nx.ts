@@ -112,7 +112,10 @@ describe('spec-conformant PUT/GET /v1/cache/{hash}', () => {
   });
 
   it('rejects malformed hashes and unknown routes → 404', async () => {
-    expect((await req('GET', '/v1/cache/..', { token: 'tok-main' })).status).toBe(404);
+    // fetch normalizes `/v1/cache/..` to `/v1/` before it leaves the
+    // process; the encoded slash stays in the route and exercises
+    // decodeURIComponent → isValidHash.
+    expect((await req('GET', '/v1/cache/a%2Fb', { token: 'tok-main' })).status).toBe(404);
     expect((await req('GET', '/v1/cache/a/b', { token: 'tok-main' })).status).toBe(404);
     expect((await req('GET', '/nope', { token: 'tok-main' })).status).toBe(404);
   });
