@@ -351,8 +351,12 @@ function canonicalize(path: string): string {
   const missing: string[] = [];
   let existing = path;
   while (!existsSync(existing)) {
+    const parent = dirname(existing);
+    if (parent === existing) {
+      throw new Error(`Cannot resolve path: no existing ancestor found for "${path}"`);
+    }
     missing.unshift(basename(existing));
-    existing = dirname(existing);
+    existing = parent;
   }
   return join(realpathSync(existing), ...missing);
 }
