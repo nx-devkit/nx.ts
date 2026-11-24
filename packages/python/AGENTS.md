@@ -28,8 +28,8 @@ poetry table is the interpreter pin, not a dep.
 
 ## Runner detection
 
-- `[tool.uv]` or `uv.lock` (project dir, then workspace root) → `uv run ` prefix
-- `[tool.poetry]` → `poetry run ` prefix
+- `[tool.uv]` or `uv.lock` (project dir, then workspace root) → `uv run` prefix
+- `[tool.poetry]` → `poetry run` prefix
 - otherwise → no prefix
 
 `lock` is the exception — `uv lock --check` / `poetry check` are manager
