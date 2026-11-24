@@ -15,7 +15,7 @@ export async function initGenerator(
   tree: Tree,
   options: NxDotfilesInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
   const projectName = resolveRootProjectName(tree) ?? '{root-project}';
 
   registerPlugin(tree, pluginPath);
@@ -24,7 +24,8 @@ export async function initGenerator(
     `1. The plugin is registered (${pluginPath}) — chezmoi/dotbot marker files now infer dotfiles:* targets.`,
     '2. Inspect inferred targets:',
     '   bunx nx show projects',
-    `3. Run a target:  bunx nx run ${projectName}:dotfiles:diff`,
+    `3. Run a target:  bunx nx run ${projectName}:dotfiles:diff  (chezmoi)`,
+    `   or:              bunx nx run ${projectName}:dotfiles:install  (dotbot)`,
     '4. chezmoi/dotbot must be installed separately (brew, apt, pip) — the plugin never installs or wraps them.',
   ];
   for (const line of checklist) {

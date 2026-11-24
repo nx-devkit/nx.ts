@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
 import type { NxDevkitDotfilesOptions } from './types.ts';
@@ -54,7 +54,11 @@ function dotbotTargets(
   workspaceRoot: string,
   matchedFiles: string[],
 ): Record<string, TargetConfiguration> {
-  const hasInstallScript = existsSync(join(workspaceRoot, dir, 'install'));
+  const installPath = join(workspaceRoot, dir, 'install');
+  const hasInstallScript =
+    existsSync(installPath) &&
+    statSync(installPath).isFile() &&
+    (process.platform === 'win32' || (statSync(installPath).mode & 0o111) !== 0);
   const configName = matchedFiles
     .map((f) => basename(f))
     .filter((b) => DOTBOT_CONFIG_NAMES.has(b))

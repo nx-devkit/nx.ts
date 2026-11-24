@@ -29,12 +29,12 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger                                           | Detection          | Target             | Command                      | Cacheable |
-| ------------------------------------------------- | ------------------ | ------------------ | ---------------------------- | --------- |
-| `.chezmoiversion` (or any `.chezmoi*` in the dir) | chezmoi source dir | `dotfiles:diff`    | `chezmoi diff`               | no        |
-| same                                              |                    | `dotfiles:apply`   | `chezmoi apply`              | no        |
-| same                                              |                    | `dotfiles:doctor`  | `chezmoi doctor`             | no        |
-| `install.conf.yaml` / `.install.conf.yaml`        | dotbot config      | `dotfiles:install` | `./install` or `dotbot -c …` | no        |
+| Trigger                                                         | Detection          | Target             | Command                      | Cacheable |
+| --------------------------------------------------------------- | ------------------ | ------------------ | ---------------------------- | --------- |
+| `.chezmoiversion` (sibling `.chezmoi*` files augment detection) | chezmoi source dir | `dotfiles:diff`    | `chezmoi diff`               | no        |
+| same                                                            |                    | `dotfiles:apply`   | `chezmoi apply`              | no        |
+| same                                                            |                    | `dotfiles:doctor`  | `chezmoi doctor`             | no        |
+| `install.conf.yaml` / `.install.conf.yaml`                      | dotbot config      | `dotfiles:install` | `./install` or `dotbot -c …` | no        |
 
 Every target inspects or mutates the live home directory, so nothing is cached.
 
@@ -48,9 +48,10 @@ Stow layouts are deliberately not inferred in v1. A stow repo has no marker file
 ## Inspect
 
 ```bash
-npx nx show project dotfiles                 # see inferred targets
-npx nx dotfiles:diff dotfiles                # preview chezmoi changes
-npx nx dotfiles:apply dotfiles               # apply them
-npx nx dotfiles:doctor dotfiles              # chezmoi health check
-npx nx dotfiles:install dotfiles             # run dotbot install
+npx nx show projects                          # find the inferred project name
+npx nx show project <name>                   # see inferred targets
+npx nx dotfiles:diff <name>                  # preview chezmoi changes
+npx nx dotfiles:apply <name>                 # apply them
+npx nx dotfiles:doctor <name>                # chezmoi health check
+npx nx dotfiles:install <name>               # run dotbot install
 ```

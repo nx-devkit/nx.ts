@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports';
@@ -92,6 +92,7 @@ describe('@nx-devkit/dotfiles createNodesV2', () => {
       'dotfiles/install.conf.yaml': '[]',
       'dotfiles/install': '#!/bin/sh\n',
     });
+    chmodSync(join(root, 'dotfiles/install'), 0o755);
     const results = await createNodesV2[1](['dotfiles/install.conf.yaml'], {}, makeContext(root));
 
     const targets = results[0]![1].projects!.dotfiles!.targets!;
@@ -199,5 +200,24 @@ describe('@nx-devkit/dotfiles createNodesV2', () => {
       makeContext(root),
     );
     expect(fwd).toEqual(rev);
+  });
+
+  it('picks one deterministic winner when a dir holds several markers', async () => {
+    const root = makeWorkspace({
+      'dot/.chezmoiversion': '1',
+      'dot/install.conf.yaml': '[]',
+    });
+    const fwd = await createNodesV2[1](
+      ['dot/.chezmoiversion', 'dot/install.conf.yaml'],
+      {},
+      makeContext(root),
+    );
+    const rev = await createNodesV2[1](
+      ['dot/install.conf.yaml', 'dot/.chezmoiversion'],
+      {},
+      makeContext(root),
+    );
+    expect(fwd).toEqual(rev);
+    expect(fwd).toHaveLength(1);
   });
 });
