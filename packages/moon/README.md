@@ -53,7 +53,7 @@ into every target's inputs and reported under `metadata.moon`
 | `args`                                                                           | appended to the command                                                       |
 | `deps: ['task']` / `~:task`                                                      | `dependsOn: [{ target: 'task' }]` (same project)                              |
 | `deps: ['^:task']` / `^task`                                                     | `dependsOn: [{ target: 'task', dependencies: true }]`                         |
-| `deps: ['proj:task']`                                                            | `dependsOn: [{ target: 'task', projects: ['proj'] }]`                         |
+| `deps: ['proj:task']`                                                            | `dependsOn: [{ target: 'task', projects: ['proj'] }]` — id resolved to name   |
 | `inputs`                                                                         | `inputs` — `src/**` → `{projectRoot}/src/**`, `/x` → `{workspaceRoot}/x`      |
 | `$VAR` input                                                                     | `{ env: 'VAR' }` hash input (`$VAR_*` wildcards dropped)                      |
 | `@group(name)` / `group://name`                                                  | resolved against local `fileGroups:`                                          |

@@ -21,6 +21,8 @@ export interface TaskTargetContext {
   fileGroups: Record<string, string[]>;
   /** Detected `.moon/*` workspace files, already prefixed for hashing. */
   workspaceInputs: string[];
+  /** moon project id → resolved Nx project name (for `proj:task` deps). */
+  nameByMoonId: ReadonlyMap<string, string>;
 }
 
 export type ParsedDepTarget =
@@ -128,8 +130,11 @@ export function buildTaskTarget(
 /**
  * moon `deps` → Nx `TargetDependencyConfig`, matching the turbo plugin:
  * `task`/`~:task` → self, `^:task`/`^task` → all dependencies,
- * `project:task` → one named project. `args`/`env`/`optional` on object
- * deps have no Nx counterpart and are dropped.
+ * `project:task` → one named project, translated from the moon id to
+ * the resolved Nx project name when known — Nx `projects` selectors
+ * match names, and an unmatched id still passes through (it may name a
+ * project inferred by another plugin). `args`/`env`/`optional` on
+ * object deps have no Nx counterpart and are dropped.
  */
 function mapDependsOn(
   deps: Array<string | MoonTaskDep>,
@@ -147,7 +152,10 @@ function mapDependsOn(
         out.push({ target, dependencies: true });
         break;
       case 'project':
-        out.push({ target, projects: [parsed.project] });
+        out.push({
+          target,
+          projects: [ctx.nameByMoonId.get(parsed.project) ?? parsed.project],
+        });
         break;
       default:
         logDebug(

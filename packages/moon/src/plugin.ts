@@ -71,6 +71,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitMoonOptions> = [
         projectEnv: config.env ?? {},
         fileGroups: config.fileGroups ?? {},
         workspaceInputs,
+        nameByMoonId,
       };
 
       const targets: Record<string, TargetConfiguration> = Object.create(null);
