@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { CreateNodesContextV2, TargetConfiguration } from '@nx/devkit';
@@ -200,6 +200,23 @@ describe('@nx-devkit/make createNodesV2', () => {
     });
     const results = await createNodesV2[1](
       ['Makefile', 'node_modules/dep/Makefile', '../outside/Makefile'],
+      {},
+      makeContext(root),
+    );
+    const projectRoots = results.flatMap(([, r]) => Object.keys(r.projects ?? {}));
+
+    expect(projectRoots).toEqual(['']);
+  });
+
+  it('ignores Makefiles reached through a symlinked node_modules dir', async () => {
+    const root = makeWorkspace({
+      Makefile: 'build:\n\techo ok\n',
+      'node_modules/dep/Makefile': 'build:\n\techo dep\n',
+    });
+    // `vendor` lexically hides the node_modules segment it resolves to.
+    symlinkSync(join(root, 'node_modules'), join(root, 'vendor'), 'dir');
+    const results = await createNodesV2[1](
+      ['Makefile', 'vendor/dep/Makefile'],
       {},
       makeContext(root),
     );

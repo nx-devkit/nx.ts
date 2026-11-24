@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { logger } from '@nx/devkit';
 import type { CreateNodesV2, ProjectConfiguration, TargetConfiguration } from '@nx/devkit';
@@ -14,11 +14,24 @@ function normalize(path: string): string {
   return path.replace(/\\/g, '/').replace(/^\.\//, '');
 }
 
-function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
-  const rel = relative(workspaceRoot, resolve(workspaceRoot, projectRoot || '.'));
+function hasSkippedSegment(rel: string): boolean {
   if (rel === '') return false;
   const segments = rel.split(/[\\/]/);
   return segments.includes('..') || segments.includes('node_modules');
+}
+
+function shouldSkipDir(projectRoot: string, workspaceRoot: string): boolean {
+  const abs = resolve(workspaceRoot, projectRoot || '.');
+  if (hasSkippedSegment(relative(workspaceRoot, abs))) return true;
+  // A symlinked segment can hide a `node_modules` dir or a `..` escape
+  // the lexical check cannot see — compare real paths too. Both sides
+  // are canonicalized because the workspace root itself may be a link.
+  try {
+    const real = existsSync(abs) ? realpathSync(abs) : abs;
+    return hasSkippedSegment(relative(realpathSync(workspaceRoot), real));
+  } catch {
+    return false;
+  }
 }
 
 /**
