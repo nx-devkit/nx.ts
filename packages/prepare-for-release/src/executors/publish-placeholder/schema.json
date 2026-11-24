@@ -36,8 +36,8 @@
     },
     "trust": {
       "type": "boolean",
-      "description": "If true, run `npm trust github` for each published package (requires MFA).",
-      "default": false
+      "description": "Run `npm trust github` for each published package so GitHub OIDC trusted publishing stays configured (requires MFA). Pass false to opt out.",
+      "default": true
     },
     "trustRepo": {
       "type": "string",

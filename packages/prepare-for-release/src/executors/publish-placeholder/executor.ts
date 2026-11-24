@@ -1,60 +1,64 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
-import { dirname, isAbsolute, join } from 'node:path'
-import { spawn, spawnSync } from 'node:child_process'
-import { glob } from 'tinyglobby'
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
+import { dirname, isAbsolute, join } from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+import { glob } from 'tinyglobby';
 
 export interface NxPrepareForReleaseOptions {
   /** Path to a single package.json (workspace-relative or absolute). When set, only that package is processed — used by the per-package `prepare-for-release` target. */
-  packageJson?: string
+  packageJson?: string;
   /** Package scopes to check. Default: derived from packages/* names in the workspace. */
-  scope?: string[]
+  scope?: string[];
   /** Npm dist-tag applied to the placeholder publish. Default: "placeholder". */
-  placeholderTag?: string
+  placeholderTag?: string;
   /** Version written into the temporary placeholder package.json. Default: "0.0.0". */
-  placeholderVersion?: string
+  placeholderVersion?: string;
   /** Npm registry URL. Default: https://registry.npmjs.org/. */
-  registry?: string
+  registry?: string;
   /** If true, do not actually publish or pack; just report what would happen. Default: false. */
-  dryRun?: boolean
-  /** If true, run `npm trust github` for all packages including already-published (requires MFA). Default: false. */
-  trust?: boolean
+  dryRun?: boolean;
+  /**
+   * Run `npm trust github` for every package (published or skipped) so GitHub
+   * OIDC trusted publishing stays configured. Default: true — pass
+   * `trust: false` (or `--no-trust`) to opt out.
+   */
+  trust?: boolean;
   /**
    * `owner/repo` slug used to build the `npm trust github` command.
    * Falls back to `NPM_TRUST_REPO` env var, then `GITHUB_REPOSITORY` env var.
    * Throws if none are set.
    */
-  trustRepo?: string
+  trustRepo?: string;
 }
 
 export interface PublishPlaceholderResult {
-  success: boolean
-  published: string[]
-  skipped: string[]
-  trustCommands: string[]
+  success: boolean;
+  published: string[];
+  skipped: string[];
+  trustCommands: string[];
 }
 
-const DEFAULT_REGISTRY = 'https://registry.npmjs.org/'
-const DEFAULT_TAG = 'placeholder'
-const DEFAULT_VERSION = '0.0.0'
-const TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
-const NPM_SUBPROCESS_TIMEOUT_MS = 120_000
+const DEFAULT_REGISTRY = 'https://registry.npmjs.org/';
+const DEFAULT_TAG = 'placeholder';
+const DEFAULT_VERSION = '0.0.0';
+const TRUST_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const NPM_SUBPROCESS_TIMEOUT_MS = 120_000;
 
-const EOTP_RE = /\bEOTP\b|one-time password/i
-const WEB_AUTH_TIMEOUT_MS = 5 * 60_000
-const WEB_AUTH_POLL_MS = 4_000
-const WEB_AUTH_FETCH_TIMEOUT_MS = 15_000
+const EOTP_RE = /\bEOTP\b|one-time password/i;
+const WEB_AUTH_TIMEOUT_MS = 5 * 60_000;
+const WEB_AUTH_POLL_MS = 4_000;
+const WEB_AUTH_FETCH_TIMEOUT_MS = 15_000;
 
 interface ResolvedOptions {
-  registry: string
-  placeholderTag: string
-  placeholderVersion: string
-  dryRun: boolean
-  trust: boolean
-  trustRepo: string
-  scope: string[] | undefined
-  packageJson: string | undefined
+  registry: string;
+  placeholderTag: string;
+  placeholderVersion: string;
+  dryRun: boolean;
+  trust: boolean;
+  trustRepo: string;
+  scope: string[] | undefined;
+  packageJson: string | undefined;
 }
 
 function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
@@ -65,41 +69,41 @@ function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
     placeholderVersion: options.placeholderVersion ?? DEFAULT_VERSION,
     registry: options.registry ?? DEFAULT_REGISTRY,
     scope: options.scope,
-    trust: options.trust ?? false,
+    trust: options.trust ?? true,
     trustRepo: resolveTrustRepo(options.trustRepo),
-  }
+  };
 }
 
 function resolveNpmCommand(): string {
-  return 'npm'
+  return 'npm';
 }
 
 function resolveTrustRepo(option: string | undefined): string {
   const raw =
-    option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY ?? 'nx-devkit/nx.ts'
+    option ?? process.env.NPM_TRUST_REPO ?? process.env.GITHUB_REPOSITORY ?? 'nx-devkit/nx.ts';
   if (!TRUST_REPO_RE.test(raw)) {
     throw new Error(
       `Invalid trustRepo "${raw}": expected "owner/repo" slug (e.g. nx-devkit/nx.ts). ` +
         `Override via options.trustRepo or NPM_TRUST_REPO env var.`,
-    )
+    );
   }
-  return raw
+  return raw;
 }
 
 function detectPackageManager(): 'npm' {
-  return 'npm'
+  return 'npm';
 }
 
 function viewArgs(pkgName: string, registry: string): string[] {
-  return ['view', pkgName, 'version', '--registry', registry, '--json']
+  return ['view', pkgName, 'version', '--registry', registry, '--json'];
 }
 
 function packArgs(packDestination: string): string[] {
-  return ['pack', '--pack-destination', packDestination]
+  return ['pack', '--pack-destination', packDestination];
 }
 
 function publishArgs(tarball: string, registry: string, tag: string): string[] {
-  return ['publish', tarball, '--access', 'public', '--tag', tag, '--registry', registry]
+  return ['publish', tarball, '--access', 'public', '--tag', tag, '--registry', registry];
 }
 
 function spawnWithTimeout(
@@ -110,47 +114,47 @@ function spawnWithTimeout(
   return spawnSync(command, args, {
     ...options,
     timeout: NPM_SUBPROCESS_TIMEOUT_MS,
-  })
+  });
 }
 
 async function readPackageJson(pkgRoot: string): Promise<Record<string, unknown>> {
-  const raw = await readFile(join(pkgRoot, 'package.json'), 'utf8')
-  return JSON.parse(raw) as Record<string, unknown>
+  const raw = await readFile(join(pkgRoot, 'package.json'), 'utf8');
+  return JSON.parse(raw) as Record<string, unknown>;
 }
 
 function readPackageJsonSafe(pkgJsonPath: string): Record<string, unknown> | null {
-  let fileContent: string
+  let fileContent: string;
   try {
-    fileContent = readFileSync(pkgJsonPath, 'utf8')
+    fileContent = readFileSync(pkgJsonPath, 'utf8');
   } catch (error) {
     // Filesystem errors (EACCES, ENOENT on the dir itself) bubble up so the
     // Executor fails loudly rather than silently dropping the workspace.
     if (error instanceof SyntaxError) {
-      console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`)
-      return null
+      console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`);
+      return null;
     }
-    throw error
+    throw error;
   }
   try {
-    return JSON.parse(fileContent) as Record<string, unknown>
+    return JSON.parse(fileContent) as Record<string, unknown>;
   } catch (error) {
     if (error instanceof SyntaxError) {
-      console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`)
-      return null
+      console.warn(`Skipping ${pkgJsonPath}: invalid JSON (${error.message})`);
+      return null;
     }
-    throw error
+    throw error;
   }
 }
 
 function matchesScope(name: string, scope: string[] | undefined): boolean {
   if (!scope || scope.length === 0) {
-    return true
+    return true;
   }
-  return scope.some((s) => name.startsWith(s))
+  return scope.some((s) => name.startsWith(s));
 }
 
 function isNotFoundStderr(stderr: string): boolean {
-  return /\b(E404|404|not\s*found|ENOTFOUND_NOT_PUBLISHED)\b/i.test(stderr)
+  return /\b(E404|404|not\s*found|ENOTFOUND_NOT_PUBLISHED)\b/i.test(stderr);
 }
 
 async function buildPlaceholderTarball(
@@ -159,13 +163,13 @@ async function buildPlaceholderTarball(
   placeholderVersion: string,
   registry: string,
 ): Promise<{ tarballPath: string; tempDir: string }> {
-  const tempDir = await mkdtemp(join(tmpdir(), 'nx-prepare-placeholder-'))
-  const stagedPkgRoot = join(tempDir, pkgName)
+  const tempDir = await mkdtemp(join(tmpdir(), 'nx-prepare-placeholder-'));
+  const stagedPkgRoot = join(tempDir, pkgName);
 
   try {
-    await mkdir(stagedPkgRoot, { recursive: true })
+    await mkdir(stagedPkgRoot, { recursive: true });
 
-    const original = await readPackageJson(pkgRoot)
+    const original = await readPackageJson(pkgRoot);
     // Minimal metadata-only placeholder. Do NOT spread `original`: lifecycle
     // Scripts (prepare/prepack/prepublishOnly) from the source package would
     // Run during `npm pack` and crash because the staged dir has no sources
@@ -185,82 +189,82 @@ async function buildPlaceholderTarball(
       repository: original.repository,
       type: typeof original.type === 'string' ? original.type : undefined,
       version: placeholderVersion,
-    }
+    };
 
-    const placeholderJson = JSON.stringify(placeholder, null, 2)
-    await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf8')
+    const placeholderJson = JSON.stringify(placeholder, null, 2);
+    await writeFile(join(stagedPkgRoot, 'package.json'), placeholderJson, 'utf8');
     // A README in the tarball makes the placeholder look like a real package —
     // bare-manifest publishes get tombstoned by npm's abuse detection.
     await writeFile(
       join(stagedPkgRoot, 'README.md'),
       `# ${pkgName}\n\n${placeholder.description}\n`,
       'utf8',
-    )
+    );
 
-    const npmCmd = resolveNpmCommand()
+    const npmCmd = resolveNpmCommand();
     const packResult = spawnWithTimeout(npmCmd, packArgs(tempDir), {
       cwd: stagedPkgRoot,
       encoding: 'utf8',
-    })
+    });
 
     if (packResult.status !== 0) {
       throw new Error(
         `npm pack failed for ${pkgName} (exit ${packResult.status}): ${packResult.stderr ?? ''}`,
-      )
+      );
     }
 
-    const stdout = (packResult.stdout ?? '').toString().trim()
-    const tarballName = stdout.split('\n').pop()?.trim()
+    const stdout = (packResult.stdout ?? '').toString().trim();
+    const tarballName = stdout.split('\n').pop()?.trim();
     if (!tarballName) {
-      throw new Error(`npm pack produced no tarball name for ${pkgName}`)
+      throw new Error(`npm pack produced no tarball name for ${pkgName}`);
     }
 
-    return { tarballPath: join(tempDir, tarballName), tempDir }
+    return { tarballPath: join(tempDir, tarballName), tempDir };
   } catch (error) {
     // Best-effort cleanup on any failure so the OS tempdir does not fill up
     // When `npm pack` errors out.
-    await rm(tempDir, { force: true, recursive: true }).catch(() => undefined)
-    throw error
+    await rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
+    throw error;
   }
 }
 
 function isPublished(pkgName: string, registry: string): boolean {
-  const npmCmd = resolveNpmCommand()
+  const npmCmd = resolveNpmCommand();
   const result = spawnWithTimeout(npmCmd, viewArgs(pkgName, registry), {
     encoding: 'utf8',
-  })
+  });
   if (result.status !== 0) {
-    const stderr = (result.stderr ?? '').toString()
+    const stderr = (result.stderr ?? '').toString();
     if (isNotFoundStderr(stderr)) {
-      return false
+      return false;
     }
     // Any other npm-view failure (network, auth, registry error) is a hard
     // Error so the executor fails loudly instead of silently republishing.
     throw new Error(
       `npm view failed for ${pkgName} (exit ${result.status}): ${stderr || '<no stderr>'}`,
-    )
+    );
   }
-  const stdout = (result.stdout ?? '').toString().trim()
+  const stdout = (result.stdout ?? '').toString().trim();
   if (!stdout) {
-    return false
+    return false;
   }
   try {
-    const parsed = JSON.parse(stdout) as unknown
+    const parsed = JSON.parse(stdout) as unknown;
     if (typeof parsed === 'string') {
-      return parsed.length > 0
+      return parsed.length > 0;
     }
     if (parsed && typeof parsed === 'object' && 'version' in (parsed as Record<string, unknown>)) {
-      return Boolean((parsed as { version?: unknown }).version)
+      return Boolean((parsed as { version?: unknown }).version);
     }
   } catch {
-    return stdout.length > 0
+    return stdout.length > 0;
   }
-  return false
+  return false;
 }
 
 function trustCommandFor(pkgName: string, trustRepo: string, registry?: string): string {
-  const base = `npm trust github ${pkgName} --file release.yml --repo ${trustRepo} --allow-publish --yes`
-  return registry && registry !== DEFAULT_REGISTRY ? `${base} --registry ${registry}` : base
+  const base = `npm trust github ${pkgName} --file release.yml --repo ${trustRepo} --allow-publish --yes`;
+  return registry && registry !== DEFAULT_REGISTRY ? `${base} --registry ${registry}` : base;
 }
 
 function trustArgs(pkgName: string, trustRepo: string, registry?: string): string[] {
@@ -274,50 +278,87 @@ function trustArgs(pkgName: string, trustRepo: string, registry?: string): strin
     trustRepo,
     '--allow-publish',
     '--yes',
-  ]
+  ];
   if (registry && registry !== DEFAULT_REGISTRY) {
-    args.push('--registry', registry)
+    args.push('--registry', registry);
   }
-  return args
+  return args;
 }
 
-function runTrustFor(pkgName: string, trustRepo: string, registry?: string): Promise<void> {
-  const npmCmd = resolveNpmCommand()
+function spawnTrust(
+  pkgName: string,
+  trustRepo: string,
+  registry?: string,
+  otp?: string,
+): Promise<{ code: number | null; stderr: string }> {
+  const npmCmd = resolveNpmCommand();
+  const args = trustArgs(pkgName, trustRepo, registry);
+  if (otp) args.push('--otp', otp);
   return new Promise((resolvePromise, rejectPromise) => {
     // stderr is piped but forwarded live: npm writes the interactive MFA/OTP
     // prompt to stderr, so a plain 'pipe' would hide the prompt while the
     // child blocks on stdin. Tee keeps the prompt visible AND retains a copy
-    // for "already trusted" detection.
-    const child = spawn(npmCmd, trustArgs(pkgName, trustRepo, registry), {
+    // for EOTP / "already trusted" detection.
+    const child = spawn(npmCmd, args, {
       stdio: ['inherit', 'inherit', 'pipe'],
-    })
-    let stderr = ''
+    });
+    let stderr = '';
     const timer = setTimeout(() => {
-      child.kill()
-      rejectPromise(new Error(`npm trust github timed out for ${pkgName}`))
-    }, NPM_SUBPROCESS_TIMEOUT_MS)
+      child.kill();
+      rejectPromise(new Error(`npm trust github timed out for ${pkgName}`));
+    }, NPM_SUBPROCESS_TIMEOUT_MS);
     child.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
-      process.stderr.write(chunk)
-    })
+      stderr += chunk.toString();
+      process.stderr.write(chunk);
+    });
     child.on('error', (err) => {
-      clearTimeout(timer)
-      rejectPromise(err)
-    })
+      clearTimeout(timer);
+      rejectPromise(err);
+    });
     child.on('close', (code) => {
-      clearTimeout(timer)
-      if (code !== 0) {
-        rejectPromise(
-          new Error(
-            `npm trust github failed for ${pkgName} (exit ${code})${stderr ? `: ${stderr}` : ''}`,
-          ),
-        )
-        return
-      }
-      console.log(`  ✓ ${pkgName}`)
-      resolvePromise()
-    })
-  })
+      clearTimeout(timer);
+      resolvePromise({ code, stderr });
+    });
+  });
+}
+
+async function runTrustFor(
+  pkgName: string,
+  trustRepo: string,
+  registry: string | undefined,
+  workspaceRoot: string,
+): Promise<void> {
+  let { code, stderr } = await spawnTrust(pkgName, trustRepo, registry);
+  if (code !== 0 && EOTP_RE.test(stderr)) {
+    const token = readNpmAuthToken(registry ?? DEFAULT_REGISTRY, workspaceRoot);
+    if (!token) {
+      throw new Error(
+        `npm trust github requires a one-time password for ${pkgName}, but no npm ` +
+          `auth token was found in .npmrc. Run \`npm login\` first.`,
+      );
+    }
+    const { authUrl, doneUrl } = await requestWebAuthUrls(
+      pkgName,
+      registry ?? DEFAULT_REGISTRY,
+      token,
+    );
+    console.log(
+      `\n  npm requires one-time authorization for ${pkgName}.\n` +
+        `  Open this URL to approve trusted publishing setup:\n\n    ${authUrl}\n\n` +
+        `  Waiting for approval...`,
+    );
+    const otp = await pollForWebAuthOtp(doneUrl, token);
+    if (!otp) {
+      throw new Error(`Timed out waiting for npm web authorization for ${pkgName}`);
+    }
+    ({ code, stderr } = await spawnTrust(pkgName, trustRepo, registry, otp));
+  }
+  if (code !== 0) {
+    throw new Error(
+      `npm trust github failed for ${pkgName} (exit ${code})${stderr ? `: ${stderr}` : ''}`,
+    );
+  }
+  console.log(`  ✓ ${pkgName}`);
 }
 
 /**
@@ -327,36 +368,36 @@ function runTrustFor(pkgName: string, trustRepo: string, registry?: string): Pro
  * are never returned — sending one to the wrong host would leak it.
  */
 function readNpmAuthToken(registry: string, cwd: string): string | null {
-  const url = new URL(registry)
+  const url = new URL(registry);
   // Npmrc keys mirror the registry origin+path: //host/path/:_authToken.
   // A bare host has pathname "/", yielding "//host".
-  const registryKey = `//${url.host}${url.pathname.replace(/\/+$/, '')}`
+  const registryKey = `//${url.host}${url.pathname.replace(/\/+$/, '')}`;
   const keyRe = new RegExp(
     `${registryKey.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}/:_authToken=(\\S+)`,
-  )
+  );
   // Prefer $HOME over os.homedir(). Bun captures homedir() at process start.
   // Later process.env.HOME overrides are ignored, which breaks test isolation
   // (and any caller that intentionally remaps HOME).
   const home = process.env.HOME || homedir(),
-    candidates = [join(cwd, '.npmrc'), join(home, '.npmrc')]
+    candidates = [join(cwd, '.npmrc'), join(home, '.npmrc')];
   for (const rcPath of candidates) {
-    let text: string
+    let text: string;
     try {
-      text = readFileSync(rcPath, 'utf8')
+      text = readFileSync(rcPath, 'utf8');
     } catch {
-      continue
+      continue;
     }
-    const hostMatch = text.match(keyRe)
-    const unscopedMatch = text.match(/^\s*_authToken\s*=\s*(\S+)/m)
-    const match = hostMatch ?? unscopedMatch
-    if (match) return match[1]
+    const hostMatch = text.match(keyRe);
+    const unscopedMatch = text.match(/^\s*_authToken\s*=\s*(\S+)/m);
+    const match = hostMatch ?? unscopedMatch;
+    if (match) return match[1];
   }
-  return null
+  return null;
 }
 
 interface WebAuthUrls {
-  authUrl: string
-  doneUrl: string
+  authUrl: string;
+  doneUrl: string;
 }
 
 /**
@@ -369,7 +410,7 @@ async function requestWebAuthUrls(
   registry: string,
   token: string,
 ): Promise<WebAuthUrls> {
-  const base = registry.endsWith('/') ? registry.slice(0, -1) : registry
+  const base = registry.endsWith('/') ? registry.slice(0, -1) : registry;
   const res = await fetch(`${base}/${pkgName.replaceAll('/', '%2f')}`, {
     body: '{}',
     headers: {
@@ -380,13 +421,13 @@ async function requestWebAuthUrls(
     },
     method: 'PUT',
     signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
-  })
-  const text = await res.text()
-  let parsed: Partial<WebAuthUrls> = {}
+  });
+  const text = await res.text();
+  let parsed: Partial<WebAuthUrls> = {};
   try {
-    const body: unknown = JSON.parse(text)
+    const body: unknown = JSON.parse(text);
     if (typeof body === 'object' && body !== null) {
-      parsed = body as Partial<WebAuthUrls>
+      parsed = body as Partial<WebAuthUrls>;
     }
   } catch {
     // fall through to the error below
@@ -394,33 +435,33 @@ async function requestWebAuthUrls(
   if (!parsed.authUrl || !parsed.doneUrl) {
     throw new Error(
       `npm web-auth probe for ${pkgName} returned no auth URL (HTTP ${res.status}): ${text}`,
-    )
+    );
   }
-  return { authUrl: parsed.authUrl, doneUrl: parsed.doneUrl }
+  return { authUrl: parsed.authUrl, doneUrl: parsed.doneUrl };
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Poll the registry done endpoint until the web approval yields an OTP. */
 async function pollForWebAuthOtp(doneUrl: string, token: string): Promise<string | null> {
-  const deadline = Date.now() + WEB_AUTH_TIMEOUT_MS
+  const deadline = Date.now() + WEB_AUTH_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const res = await fetch(doneUrl, {
       headers: { authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(WEB_AUTH_FETCH_TIMEOUT_MS),
-    }).catch(() => null)
+    }).catch(() => null);
     if (res?.ok) {
       const body = (await res.json().catch(() => null)) as {
-        otp?: string
-        token?: string
-      } | null
+        otp?: string;
+        token?: string;
+      } | null;
       // The registry returns the approved OTP as `token` (not `otp`).
-      const otp = body?.otp ?? body?.token
-      if (otp) return otp
+      const otp = body?.otp ?? body?.token;
+      if (otp) return otp;
     }
-    await sleep(WEB_AUTH_POLL_MS)
+    await sleep(WEB_AUTH_POLL_MS);
   }
-  return null
+  return null;
 }
 
 function runNpmPublish(
@@ -429,14 +470,14 @@ function runNpmPublish(
   resolved: ResolvedOptions,
   otp?: string,
 ): ReturnType<typeof spawnSync> {
-  const args = publishArgs(tarballPath, resolved.registry, resolved.placeholderTag)
-  if (otp) args.push('--otp', otp)
-  const result = spawnWithTimeout(npmCmd, args, { encoding: 'utf8' })
+  const args = publishArgs(tarballPath, resolved.registry, resolved.placeholderTag);
+  if (otp) args.push('--otp', otp);
+  const result = spawnWithTimeout(npmCmd, args, { encoding: 'utf8' });
   // Output is piped (for EOTP detection) then teed so npm notices and
   // warnings still reach the user's terminal.
-  if (result.stdout) process.stdout.write(result.stdout)
-  if (result.stderr) process.stderr.write(result.stderr)
-  return result
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  return result;
 }
 
 async function publishOnePackage(
@@ -450,48 +491,48 @@ async function publishOnePackage(
     name,
     resolved.placeholderVersion,
     resolved.registry,
-  )
+  );
   try {
-    const npmCmd = resolveNpmCommand()
-    let result = runNpmPublish(npmCmd, tarballPath, resolved)
-    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
+    const npmCmd = resolveNpmCommand();
+    let result = runNpmPublish(npmCmd, tarballPath, resolved);
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
     if (result.status !== 0 && EOTP_RE.test(output)) {
-      const token = readNpmAuthToken(resolved.registry, workspaceRoot)
+      const token = readNpmAuthToken(resolved.registry, workspaceRoot);
       if (!token) {
         throw new Error(
           `npm publish requires a one-time password for ${name}, but no npm ` +
             `auth token was found in .npmrc. Run \`npm login\` first.`,
-        )
+        );
       }
-      const { authUrl, doneUrl } = await requestWebAuthUrls(name, resolved.registry, token)
+      const { authUrl, doneUrl } = await requestWebAuthUrls(name, resolved.registry, token);
       console.log(
         `\n  npm requires one-time authorization for ${name}.\n` +
           `  Open this URL to approve the publish:\n\n    ${authUrl}\n\n` +
           `  Waiting for approval...`,
-      )
-      const otp = await pollForWebAuthOtp(doneUrl, token)
+      );
+      const otp = await pollForWebAuthOtp(doneUrl, token);
       if (!otp) {
-        throw new Error(`Timed out waiting for npm web authorization for ${name}`)
+        throw new Error(`Timed out waiting for npm web authorization for ${name}`);
       }
-      result = runNpmPublish(npmCmd, tarballPath, resolved, otp)
+      result = runNpmPublish(npmCmd, tarballPath, resolved, otp);
     }
     if (result.status !== 0) {
-      const stderr = (result.stderr ?? '').toString()
+      const stderr = (result.stderr ?? '').toString();
       throw new Error(
         `npm publish failed for ${name} (exit ${result.status})${stderr ? `: ${stderr}` : ''}`,
-      )
+      );
     }
   } finally {
-    await rm(tempDir, { force: true, recursive: true }).catch(() => undefined)
+    await rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
   }
 }
 
-type PackageOutcome = 'published' | 'skipped' | 'ignored'
+type PackageOutcome = 'published' | 'skipped' | 'ignored';
 
 interface PackageAccumulators {
-  published: string[]
-  skipped: string[]
-  trustCommands: string[]
+  published: string[];
+  skipped: string[];
+  trustCommands: string[];
 }
 
 async function processPackage(
@@ -500,42 +541,42 @@ async function processPackage(
   acc: PackageAccumulators,
   workspaceRoot: string,
 ): Promise<PackageOutcome> {
-  const parsed = readPackageJsonSafe(pkgJsonPath)
+  const parsed = readPackageJsonSafe(pkgJsonPath);
   if (!parsed) {
-    return 'ignored'
+    return 'ignored';
   }
-  const name = typeof parsed.name === 'string' ? parsed.name : null
+  const name = typeof parsed.name === 'string' ? parsed.name : null;
   if (!name || parsed.private === true) {
-    return 'ignored'
+    return 'ignored';
   }
   if (!matchesScope(name, resolved.scope)) {
-    return 'ignored'
+    return 'ignored';
   }
 
   if (isPublished(name, resolved.registry)) {
-    acc.skipped.push(name)
-    return 'skipped'
+    acc.skipped.push(name);
+    return 'skipped';
   }
 
   if (resolved.dryRun) {
-    acc.published.push(name)
-    acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry))
-    return 'published'
+    acc.published.push(name);
+    acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry));
+    return 'published';
   }
 
-  const pkgRoot = dirname(pkgJsonPath)
-  await publishOnePackage(pkgRoot, name, resolved, workspaceRoot)
-  acc.published.push(name)
-  acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry))
-  return 'published'
+  const pkgRoot = dirname(pkgJsonPath);
+  await publishOnePackage(pkgRoot, name, resolved, workspaceRoot);
+  acc.published.push(name);
+  acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry));
+  return 'published';
 }
 
 export async function publishPlaceholderExecutor(
   options: NxPrepareForReleaseOptions,
   context: { root: string },
 ): Promise<PublishPlaceholderResult> {
-  const resolved = resolveOptions(options)
-  detectPackageManager()
+  const resolved = resolveOptions(options);
+  detectPackageManager();
 
   // Per-package mode (inferred `prepare-for-release` targets) processes a
   // single manifest; the tools-project mode scans `packages/*` as before.
@@ -549,11 +590,11 @@ export async function publishPlaceholderExecutor(
         absolute: true,
         cwd: context.root,
         onlyFiles: true,
-      })
+      });
 
-  const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] }
+  const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] };
   for (const pkgJsonPath of pkgDirs) {
-    await processPackage(pkgJsonPath, resolved, acc, context.root)
+    await processPackage(pkgJsonPath, resolved, acc, context.root);
   }
 
   if (existsSync(join(context.root, 'scripts/trust-github.sh'))) {
@@ -561,40 +602,40 @@ export async function publishPlaceholderExecutor(
   }
 
   if (acc.published.length > 0) {
-    console.log(`\nPublished: ${acc.published.join(', ')}`)
+    console.log(`\nPublished: ${acc.published.join(', ')}`);
   }
   if (acc.skipped.length > 0) {
-    console.log(`Skipped:   ${acc.skipped.join(', ')}`)
+    console.log(`Skipped:   ${acc.skipped.join(', ')}`);
   }
   if (acc.trustCommands.length > 0 || (resolved.trust && acc.skipped.length > 0)) {
     if (resolved.trust && !resolved.dryRun) {
-      const trustTargets = [...acc.published, ...acc.skipped]
+      const trustTargets = [...acc.published, ...acc.skipped];
       console.log(
         `\nConfiguring GitHub OIDC trusted publishing for ${trustTargets.length} package(s) (requires MFA)...\n`,
-      )
+      );
       for (const pkgName of trustTargets) {
         try {
-          await runTrustFor(pkgName, resolved.trustRepo, resolved.registry)
+          await runTrustFor(pkgName, resolved.trustRepo, resolved.registry, context.root);
         } catch (error) {
           if (error instanceof Error && /already.*trust|conflict|exists/i.test(error.message)) {
-            console.log(`  ⊙ ${pkgName} (trust already configured)`)
-            continue
+            console.log(`  ⊙ ${pkgName} (trust already configured)`);
+            continue;
           }
-          throw error
+          throw error;
         }
       }
     } else {
-      console.log('\nRun these locally (requires MFA) to enable GitHub OIDC trusted publishing:\n')
+      console.log('\nRun these locally (requires MFA) to enable GitHub OIDC trusted publishing:\n');
       for (const cmd of acc.trustCommands) {
-        console.log(`  ${cmd}`)
+        console.log(`  ${cmd}`);
       }
       for (const pkgName of acc.skipped) {
-        console.log(`  ${trustCommandFor(pkgName, resolved.trustRepo, resolved.registry)}`)
+        console.log(`  ${trustCommandFor(pkgName, resolved.trustRepo, resolved.registry)}`);
       }
     }
   }
 
-  return { success: true, ...acc }
+  return { success: true, ...acc };
 }
 
-export default publishPlaceholderExecutor
+export default publishPlaceholderExecutor;
