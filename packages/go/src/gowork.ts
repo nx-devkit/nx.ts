@@ -63,7 +63,7 @@ function unquote(value: string): string {
   if (value.length >= 2) {
     const first = value[0]!;
     const last = value[value.length - 1]!;
-    if ((first === '"' || first === '`' || first === "'") && last === first) {
+    if ((first === '"' || first === '`') && last === first) {
       return value.slice(1, -1);
     }
   }

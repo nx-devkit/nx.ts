@@ -82,41 +82,53 @@ export const createNodesV2: CreateNodesV2<NxDevkitGoOptions> = [
       }
     }
 
-    const results: CreateNodesResultArray = [];
-    // Members are keyed to their go.work so work-file edits re-infer them.
-    for (const workFile of [...membersByWork.keys()].sort()) {
-      const projects: Record<
-        string,
-        { root: string; targets: ReturnType<typeof buildModuleTargets> }
-      > = Object.create(null);
-      for (const dir of membersByWork.get(workFile)!) {
-        projects[dir] = {
-          root: dir,
-          targets: buildModuleTargets(dir, { workspaceRoot, goWorkFile: workFile, lint }),
-        };
-      }
-      results.push([workFile, { projects }]);
-    }
-    // Unclaimed go.mod files are standalone modules.
-    for (const [dir, goModFile] of [...goModByDir.entries()].sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
-      if (claimByDir.has(dir)) continue;
-      results.push([
-        goModFile,
-        {
-          projects: {
-            [dir]: {
-              root: dir,
-              targets: buildModuleTargets(dir, { workspaceRoot, goWorkFile: null, lint }),
-            },
-          },
-        },
-      ]);
-    }
-    return results;
+    return emitResults({ membersByWork, goModByDir, claimByDir, workspaceRoot, lint });
   },
 ];
+
+interface EmitArgs {
+  membersByWork: Map<string, string[]>;
+  goModByDir: Map<string, string>;
+  claimByDir: Map<string, string>;
+  workspaceRoot: string;
+  lint: boolean;
+}
+
+/** Members keyed to their go.work (so work edits re-infer them), then
+ * unclaimed go.mod dirs as standalone modules — both sorted for
+ * deterministic output. */
+function emitResults(args: EmitArgs): CreateNodesResultArray {
+  const { membersByWork, goModByDir, claimByDir, workspaceRoot, lint } = args;
+  const results: CreateNodesResultArray = [];
+  for (const workFile of [...membersByWork.keys()].sort()) {
+    const projects: Record<
+      string,
+      { root: string; targets: ReturnType<typeof buildModuleTargets> }
+    > = Object.create(null);
+    for (const dir of membersByWork.get(workFile)!) {
+      projects[dir] = {
+        root: dir,
+        targets: buildModuleTargets(dir, { workspaceRoot, goWorkFile: workFile, lint }),
+      };
+    }
+    results.push([workFile, { projects }]);
+  }
+  for (const [dir, goModFile] of [...goModByDir.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    if (claimByDir.has(dir)) continue;
+    results.push([
+      goModFile,
+      {
+        projects: {
+          [dir]: {
+            root: dir,
+            targets: buildModuleTargets(dir, { workspaceRoot, goWorkFile: null, lint }),
+          },
+        },
+      },
+    ]);
+  }
+  return results;
+}
 
 export default createNodesV2;
 
