@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/schema",
   "type": "object",
   "title": "Init generator",
-  "description": "Registers @nx-devkit/deps in nx.json plugins.",
+  "description": "Registers @nx-devkit/deps in nx.json plugins and installs the peer dependencies (syncpack, plus @manypkg/cli when manypkg is in use).",
   "properties": {
     "pluginPath": {
       "type": "string",

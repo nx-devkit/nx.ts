@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -76,8 +76,16 @@ describe('deps targets e2e (real CLIs)', () => {
 
   it('manypkg check flags the drifted fixture (fallback backend)', { timeout: 60_000 }, () => {
     const root = makeFixture();
-    // The bin is not in the package "exports" map — locate it via package.json.
-    const manypkg = join(dirname(require.resolve('@manypkg/cli/package.json')), 'bin.js');
+    // The bin is not in the package "exports" map — locate it via the "bin"
+    // field of the resolved package.json instead of a hardcoded filename.
+    const manypkgPkgJsonPath = require.resolve('@manypkg/cli/package.json');
+    const manypkgPkg = JSON.parse(readFileSync(manypkgPkgJsonPath, 'utf8')) as {
+      bin?: string | Record<string, string>;
+    };
+    const manypkgBin =
+      typeof manypkgPkg.bin === 'string' ? manypkgPkg.bin : manypkgPkg.bin?.manypkg;
+    if (!manypkgBin) throw new Error('@manypkg/cli exposes no "manypkg" bin entry');
+    const manypkg = join(dirname(manypkgPkgJsonPath), manypkgBin);
 
     const result = run(manypkg, ['check'], root);
     expect(result.status).not.toBe(0);

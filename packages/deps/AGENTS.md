@@ -32,10 +32,10 @@ export interface NxDepsPluginOptions {
 
 ## Invariants
 
-- Trigger glob covers standalone syncpack configs (`syncpack.config.*`, `.syncpackrc*`) AND `package.json`; a `package.json` is a syncpack host when it has a `"syncpack"` key, otherwise it is a manypkg host only at the workspace root (`workspaces` + `@manypkg/cli`/`manypkg` dep).
+- Trigger glob covers exactly: `syncpack.config.{js,cjs,mjs,ts}`, `.syncpackrc`, `.syncpackrc.{json,yaml,yml,js,cjs,mjs,ts}`, `.manypkg.json`, `package.json`, and the manypkg root markers (`bun.lock`, `bun.lockb`, `package-lock.json`, `yarn.lock`, `pnpm-workspace.yaml`, `lerna.json`, `rush.json`). A `package.json` is a syncpack host when it has a `"syncpack"` key, otherwise it is a manypkg host only at the workspace root (`workspaces` + `@manypkg/cli`/`manypkg` dep + a root marker — without one, `manypkg check` cannot resolve the workspace).
 - Syncpack always wins over manypkg in the same directory — manypkg is a fallback, never additive.
 - Commands: `npx syncpack lint` (check), `npx syncpack fix` (fix), `npx manypkg check` (fallback check). `cwd` is `{projectRoot}`; both tools auto-discover their config/workspace.
-- `deps:check` is `cache: true` — verdict depends only on `{prefix}/**/package.json`, workspace-root lockfiles, and the config files in the dir (all listed as inputs).
+- `deps:check` is `cache: true` — verdict depends only on `{prefix}/**/package.json`, workspace-root lockfiles, and the config files in the dir (all listed as inputs). Root markers gate inference only; they are not per-target inputs (lockfile inputs already cover them).
 - `deps:fix` is `cache: false` and never inferred for manypkg.
 - `node_modules` and `..`-escaping directories are skipped (`shouldSkipDir`); output ordering is deterministic.
 

@@ -6,7 +6,7 @@ export interface NxDepsInitOptions {
 }
 
 const SYNCPEER_DEPS: Record<string, string> = { syncpack: '^15.0.0' };
-const MANYPKG_DEPS: Record<string, string> = { '@manypkg/cli': '^0.24.0' };
+const MANYPKG_DEPS: Record<string, string> = { '@manypkg/cli': '^0.25.0' };
 
 function wantsManypkg(tree: Tree): boolean {
   if (tree.exists('.manypkg.json')) return true;
@@ -14,7 +14,7 @@ function wantsManypkg(tree: Tree): boolean {
   if (!pkgRaw) return false;
   try {
     const pkg = JSON.parse(pkgRaw.toString('utf8')) as Record<string, unknown>;
-    for (const field of ['dependencies', 'devDependencies']) {
+    for (const field of ['dependencies', 'devDependencies', 'peerDependencies']) {
       const deps = pkg[field];
       if (
         typeof deps === 'object' &&

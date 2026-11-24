@@ -4,7 +4,7 @@
     "init": {
       "factory": "./dist/generators/init/generator.mjs",
       "schema": "./src/generators/init/schema.json",
-      "description": "Registers @nx-devkit/deps in nx.json plugins."
+      "description": "Registers @nx-devkit/deps in nx.json plugins and installs the peer dependencies (syncpack, plus @manypkg/cli when manypkg is in use)."
     }
   }
 }
