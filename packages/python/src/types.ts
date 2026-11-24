@@ -9,4 +9,6 @@ export interface NxDevkitPythonOptions {
   lint?: boolean;
   /** Infer the `typecheck` target when ty or pyright is declared (default `true`). */
   typecheck?: boolean;
+  /** Infer the `lock` target when uv or poetry is the manager (default `true`). */
+  lock?: boolean;
 }

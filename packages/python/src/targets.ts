@@ -52,6 +52,7 @@ export function buildTargets(ctx: PythonTargetContext): Record<string, TargetCon
   }
   // The lock check is a manager command, not an env-run tool — no `uv run`
   // / `poetry run` prefix.
+  if (ctx.options.lock === false) return targets;
   if (ctx.runner === 'uv') {
     targets['lock'] = target('uv lock --check');
   } else if (ctx.runner === 'poetry') {

@@ -31,15 +31,13 @@ function makeWorkspace(files: Record<string, string> = {}): string {
   return root;
 }
 
-async function infer(
+function infer(
   root: string,
   files: string[],
   options: NxDevkitPythonOptions = {},
-): Promise<
-  Array<readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }]>
-> {
-  return createNodesV2[1](files, options, makeContext(root)) as Promise<
-    Array<readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }]>
+): Array<readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }]> {
+  return createNodesV2[1](files, options, makeContext(root)) as Array<
+    readonly [string, { projects: Record<string, { targets?: Record<string, unknown> }> }]
   >;
 }
 
