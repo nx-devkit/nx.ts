@@ -48,8 +48,8 @@ export interface NxBoundariesOptions {
 - Touch ONLY `packages/boundaries/`.
 - Do NOT modify other plugin packages or the root `nx.json` — except adding `packages/boundaries` to `release.projects` when the bead covers package onboarding.
 - The plugin emits a per-project `check-boundaries` on every project with EFFECTIVE tags (explicit `nx.tags`, else dir/type inference) plus a root aggregate gate. With `inferTags: false` and no `nx.tags` anywhere, nothing is emitted — a vacuous pass is a false green.
-- Per-project targets pass `options.project` (project name); the executor scopes edge scans to it and filters cycles to ones containing it.
-- Constraint semantics MUST match `@nx/enforce-module-boundaries`: matching sourceTag → target must share ≥1 allowed tag AND no banned tag; `allowedExternalDeps` (when present) is an externals allowlist, `bannedExternalDeps` a denylist; untagged sources permissive; self-imports allowed.
+- Per-project targets pass `options.project` as the **project root** (not the project name — the executor's by-root lookup survives npm-name ≠ graph-name divergence); the executor scopes edge scans to it and filters cycles to ones containing it.
+- Constraint semantics MUST match `@nx/enforce-module-boundaries`: matching sourceTag → when `onlyDependOnLibsWithTags` is present the target must share ≥1 listed tag (absent ⇒ deny-only constraint, empty ⇒ untagged targets only), AND the target must carry no `notDependOnLibsWithTags` tag; `allowedExternalDeps` (when present) is an externals allowlist, `bannedExternalDeps` a denylist; untagged sources permissive; self-imports allowed.
 - Circular dependencies come from `graph.dependencies` (implicit deps and non-workspace targets excluded) — one witness path per strongly-connected component.
 - Import scanning MUST use the TypeScript parser (`ts.createSourceFile`) — never regexes.
 - `typescript` stays on `^5.0.0 || ^6.0.0`: `ts.createSourceFile` needs the JS compiler API, which `typescript@7+` (native) no longer ships. The rest of the workspace builds on the latest TS — do not "fix" this ceiling when bumping TS repo-wide.

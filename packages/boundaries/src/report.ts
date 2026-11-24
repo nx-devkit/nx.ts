@@ -23,7 +23,7 @@ export interface BoundaryViolation {
 }
 
 function textLine(v: BoundaryViolation): string {
-  const loc = v.file !== undefined ? `${v.file}:${v.line ?? 0} — ` : '';
+  const loc = v.file !== undefined ? `${v.file}${v.line === undefined ? '' : `:${v.line}`} — ` : '';
   return `${loc}${v.message}`;
 }
 
@@ -68,7 +68,9 @@ export function renderMermaid(violations: BoundaryViolation[]): string {
       }
       continue;
     }
-    const key = `${v.kind}:${v.source}:${v.target}`;
+    // Encode as a tuple — a bare join collides when names contain the
+    // separator (`a`→`b:c` vs `a:b`→`c`) and silently drops real edges.
+    const key = JSON.stringify([v.kind, v.source, v.target]);
     if (seenEdges.has(key)) continue;
     seenEdges.add(key);
     const edge = `${idFor(v.source)} -->|${v.kind}| ${idFor(v.target)}`;

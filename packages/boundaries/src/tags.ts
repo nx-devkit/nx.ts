@@ -38,7 +38,12 @@ function inferWithResolved(root: string, resolved: ResolvedInference): string[] 
   if (!segment || segment === '.') {
     return [];
   }
-  return [...(resolved.dir ? [`dir:${segment}`] : []), ...(resolved.types[segment] ?? [])];
+  return [
+    ...(resolved.dir ? [`dir:${segment}`] : []),
+    // Own-property check: `resolved.types` is a plain object, so a segment
+    // like `constructor` would otherwise read (and spread) a prototype member.
+    ...(Object.hasOwn(resolved.types, segment) ? (resolved.types[segment] ?? []) : []),
+  ];
 }
 
 /**

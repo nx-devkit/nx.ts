@@ -49,12 +49,12 @@ Nx merges `nx.*` metadata into the project whether it was inferred or declared, 
 
 ## What it does
 
-- Infers a cacheable `check-boundaries` target **on every tagged project** plus a workspace-root aggregate — `nx affected -t check-boundaries` reruns only impacted checks while the root target stays the single gate.
+- Infers a cacheable `check-boundaries` target **on every package.json-backed tagged project** plus a workspace-root aggregate — `nx affected -t check-boundaries` reruns only impacted checks while the root target stays the single gate. (Discovery glob is `**/package.json`; `project.json`-only projects get no inferred target.)
 - The executor loads the project graph, scans each tagged project's sources with the TypeScript parser (`import`, `export ... from`, `import()`, `require()` — comments and strings can't produce false positives), resolves specifiers to workspace projects (relative paths, package names, tsconfig `paths`), and evaluates `depConstraints`.
 - Detects **circular dependencies** from the project graph (`dependencies` edges; implicit deps excluded) and reports them alongside edge violations.
-- Violations print `file:line — source (tags) cannot depend on target (tags) via "specifier"` plus an actionable `hint:` line, and fail the target.
+- Violations fail the target and print an actionable `hint:` line. The leading format depends on the violation kind: `constraint` edges print `file:line — source (tags) cannot depend on target (tags) via "specifier"`, `external` edges print `file:line — source (tags) cannot depend on external package "name" via "specifier"`, `circular` violations print `circular dependency: a -> b -> a` (graph-level — no file/line), and `unreadable` violations print `file — source: cannot read file: <error>` (a partial scan never passes silently).
 
-Semantics match the official rule: constraints apply when `sourceTag` matches the importing project's tags; the target must share a tag with `onlyDependOnLibsWithTags` and must not share a tag with `notDependOnLibsWithTags`; untagged sources are permissive; self-imports are always allowed. Tag patterns support wildcards — `*` matches any project carrying at least one tag, and partial globs like `scope:*` expand `*`; in `onlyDependOnLibsWithTags`, `*` means "the target must be tagged".
+Semantics match the official rule: constraints apply when `sourceTag` matches the importing project's tags; **when `onlyDependOnLibsWithTags` is present** the target must share a listed tag (an empty list allows only untagged targets — omit the key for a deny-only constraint), and the target must never share a tag with `notDependOnLibsWithTags`; untagged sources are permissive; self-imports are always allowed. Tag patterns support wildcards — `*` matches any project carrying at least one tag, and partial globs like `scope:*` expand `*`; in `onlyDependOnLibsWithTags`, `*` means "the target must be tagged".
 
 ## Tag inference
 
@@ -99,13 +99,13 @@ npx nx affected -t check-boundaries
 
 ## Options
 
-| Option                      | Default            | Description                                                                                                           |
-| --------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| `depConstraints`            | `[]`               | `[{ sourceTag, onlyDependOnLibsWithTags?, notDependOnLibsWithTags?, allowedExternalDeps?, bannedExternalDeps? }]`     |
-| `targetName`                | `check-boundaries` | Inferred target name                                                                                                  |
-| `inferTags`                 | `true`             | `boolean \| { dir?, types? }` — derive tags from directory layout; explicit `nx.tags` always win                      |
-| `checkCircularDependencies` | `true`             | Report circular dependencies found in the project graph                                                               |
-| `format`                    | `text`             | `text` \| `json` \| `mermaid` — `json` writes a machine-readable report to stdout; `mermaid` draws the violated edges |
+| Option                      | Default            | Description                                                                                                                                                         |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `depConstraints`            | `[]`               | `[{ sourceTag, onlyDependOnLibsWithTags?, notDependOnLibsWithTags?, allowedExternalDeps?, bannedExternalDeps? }]`                                                   |
+| `targetName`                | `check-boundaries` | Inferred target name                                                                                                                                                |
+| `inferTags`                 | `true`             | `boolean \| { dir?, types? }` — derive tags from directory layout; explicit `nx.tags` always win                                                                    |
+| `checkCircularDependencies` | `true`             | Report circular dependencies found in the project graph; per-project targets then depend on all workspace sources (a cycle can be closed by another project's edit) |
+| `format`                    | `text`             | `text` \| `json` \| `mermaid` — `json` writes a machine-readable report to stdout; `mermaid` draws the violated edges                                               |
 
 Executor-only option (also settable via CLI, e.g. `--format=json`): `project` — restrict the check to a single project (the inferred per-project targets set it automatically).
 

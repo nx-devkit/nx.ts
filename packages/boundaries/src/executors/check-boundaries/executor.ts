@@ -207,7 +207,9 @@ function cycleViolation(dep: CircularDependency): BoundaryViolation {
 
 /** Resolve `--project` (name or root) to a graph node name; throws when unknown. */
 function resolveProjectName(ref: string, graph: ProjectGraph): string {
-  if (graph.nodes[ref]) {
+  // Own-property check: `graph.nodes` is a plain object — `--project=toString`
+  // would otherwise resolve an inherited member and silently run an empty check.
+  if (Object.hasOwn(graph.nodes, ref)) {
     return ref;
   }
   const byRoot = Object.entries(graph.nodes).find(

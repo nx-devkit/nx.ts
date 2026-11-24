@@ -194,8 +194,10 @@ export function loadTsPaths(workspaceRoot: string): PathMapping[] {
     } catch {
       continue; // No readable tsconfig — paths simply absent
     }
-    const paths = raw.compilerOptions?.paths ?? {};
-    if (Object.keys(paths).length === 0) continue;
+    // An absent `paths` falls back to the base config; an explicit
+    // `paths: {}` replaces it wholesale and disables inherited aliases.
+    const paths = raw.compilerOptions?.paths;
+    if (paths === undefined) continue;
     const baseDir = resolve(workspaceRoot, raw.compilerOptions?.baseUrl ?? '.');
     for (const [pattern, targets] of Object.entries(paths)) {
       out.push({ pattern, targets, baseDir });

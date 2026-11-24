@@ -55,19 +55,27 @@ describe('findCircularDependencies', () => {
     });
     const cycles = findCircularDependencies(g);
     expect(cycles).toHaveLength(1);
-    expect(new Set(cycles[0]!.path)).toEqual(new Set(['a', 'b', 'c']));
+    // Assert the exact closed witness — every consecutive hop is a real edge.
+    expect(cycles[0]!.path).toEqual(['a', 'b', 'c', 'a']);
     expect(cycles[0]!.members).toEqual(['a', 'b', 'c']);
   });
 
   it('reports each strongly-connected component once', () => {
-    const g = graph(['a', 'b', 'x', 'y'], {
+    const g = graph(['a', 'b', 'c', 'x', 'y'], {
       a: [{ target: 'b' }],
-      b: [{ target: 'a' }],
+      // b -> c is an extra internal edge inside the {a,b,c} component —
+      // it must not spawn a duplicate cycle report.
+      b: [{ target: 'a' }, { target: 'c' }],
+      c: [{ target: 'a' }],
       x: [{ target: 'y' }],
       y: [{ target: 'x' }],
-      // extra internal edge does not spawn a duplicate cycle
     });
-    expect(findCircularDependencies(g)).toHaveLength(2);
+    const cycles = findCircularDependencies(g);
+    expect(cycles).toHaveLength(2);
+    expect(cycles.map((c) => c.members)).toEqual([
+      ['a', 'b', 'c'],
+      ['x', 'y'],
+    ]);
   });
 
   it('detects a self-dependency', () => {

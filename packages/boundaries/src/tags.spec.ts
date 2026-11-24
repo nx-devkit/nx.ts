@@ -35,6 +35,13 @@ describe('inferTagsFromRoot', () => {
     expect(inferTagsFromRoot('libs/feature/nested')).toEqual(['dir:libs', 'type:lib']);
   });
 
+  it('does not read inherited Object.prototype members as type mappings', () => {
+    // A first segment like `constructor`/`toString` must not spread a
+    // prototype member — it gets dir:<segment> and no type tags.
+    expect(inferTagsFromRoot('constructor/lib')).toEqual(['dir:constructor']);
+    expect(inferTagsFromRoot('toString/lib')).toEqual(['dir:toString']);
+  });
+
   it('honors inference options', () => {
     expect(inferTagsFromRoot('apps/web', { dir: false })).toEqual(['type:app']);
     expect(inferTagsFromRoot('modules/billing', { types: { modules: ['type:lib'] } })).toEqual([

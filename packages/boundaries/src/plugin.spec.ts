@@ -107,7 +107,14 @@ describe('@nx-devkit/boundaries createNodesV2', () => {
       makeContext(),
     );
     const files = results.map(([f]) => f);
-    expect(files).toEqual(expect.arrayContaining(['package.json', 'apps/web/package.json']));
+    expect(files).toEqual(['apps/web/package.json', 'package.json']);
+    // Result content does not depend on the configFiles order Nx hands in.
+    const reversed = await createNodesV2[1](
+      ['apps/web/package.json', 'package.json'],
+      {},
+      makeContext(),
+    );
+    expect(reversed.map(([f]) => f).sort()).toEqual([...files].sort());
   });
 
   it('infers tags from the directory layout — zero-config targets without nx.tags', async () => {
@@ -126,7 +133,9 @@ describe('@nx-devkit/boundaries createNodesV2', () => {
     const web = results.find(([f]) => f === 'apps/web/package.json');
     expect(web).toBeDefined();
     expect(web![1].projects!['apps/web']!.targets).toHaveProperty('check-boundaries');
-    // The inferred tags are resolved at run time — the executor gets inferTags.
+    // Inferred tags are resolved at createNodesV2 time and land on the node.
+    expect(web![1].projects!['apps/web']!.tags).toEqual(['dir:apps', 'type:app']);
+    // The executor also gets inferTags so run-time evaluation stays consistent.
     expect(web![1].projects!['apps/web']!.targets!['check-boundaries']!.options).toMatchObject({
       inferTags: true,
     });
@@ -220,7 +229,7 @@ describe('@nx-devkit/boundaries createNodesV2', () => {
     }
   });
 
-  it('derives the per-project name from nx.name, else package name, else directory', async () => {
+  it('scopes per-project targets by project root, not the resolved npm/graph name', async () => {
     vol.fromJSON(
       {
         '/workspace/package.json': '{"name":"root"}',
