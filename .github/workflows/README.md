@@ -131,7 +131,10 @@ no `NPM_TOKEN` is used.
 | `branch`   | string  | `main`  | Release branch guard.        |
 
 Secrets: `ANYROUTER_API_KEY` (optional — without it the engine cannot
-reach the model; omit the job instead if you don't want AI notes).
+reach the model: gh-aw's required-key validation fails before the agent
+starts and the conclusion job files a failure issue, so the run is loud
+rather than silently skipping highlights. Omit the job — or keep it wired
+with `disabled: true` — if you don't want AI notes).
 
 ## Requirements for the consuming repo
 
