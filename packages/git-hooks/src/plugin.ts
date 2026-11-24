@@ -82,73 +82,81 @@ export const createNodesV2: CreateNodesV2<NxDevkitGitHooksOptions> = [
       [];
     for (const [dir, files] of [...byDir.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       if (shouldSkipDir(dir, workspaceRoot)) continue;
-
-      const sorted = files.toSorted((a, b) => a.localeCompare(b));
-      const lefthookFiles = sorted.filter((f) => isLefthookConfig(basename(f)));
-      const preCommitFiles = sorted.filter((f) => basename(f) === '.pre-commit-config.yaml');
-
-      // Hook names union across every lefthook config in the directory.
-      const hookNames = new Set<string>();
-      for (const f of lefthookFiles) {
-        const names = readLefthookHooks(join(workspaceRoot, f), f);
-        for (const name of names ?? []) hookNames.add(name);
-      }
-
-      const token = dir === '' ? '{workspaceRoot}' : '{projectRoot}';
-      // Every matched config in the dir participates in the hash — an
-      // edit redefines the targets.
-      const inputs = [
-        `${token}/**/*`,
-        ...sorted.map((f) => `${token}/${dir === '' ? f : f.slice(dir.length + 1)}`),
-      ];
-
-      const targets: Record<string, TargetConfiguration> = Object.create(null);
-
-      for (const name of hookNames) {
-        targets[`${prefix}:${name}`] = {
-          executor: 'nx:run-commands',
-          cache: true,
-          inputs,
-          options: { command: `npx lefthook run ${name}`, cwd: '{projectRoot}' },
-        };
-      }
-
-      if (preCommitFiles.length > 0) {
-        targets[`${prefix}:run`] = {
-          executor: 'nx:run-commands',
-          cache: true,
-          inputs,
-          options: { command: 'pre-commit run --all-files', cwd: '{projectRoot}' },
-        };
-      }
-
-      // Fixed targets come last — they win over a hook section that
-      // happens to share the `install`/`run` name.
-      const installCommands: string[] = [];
-      if (lefthookFiles.length > 0) installCommands.push('npx lefthook install');
-      if (preCommitFiles.length > 0) installCommands.push('pre-commit install');
-      if (installCommands.length === 1) {
-        targets[`${prefix}:install`] = {
-          executor: 'nx:run-commands',
-          cache: false,
-          options: { command: installCommands[0]!, cwd: '{projectRoot}' },
-        };
-      } else if (installCommands.length > 1) {
-        targets[`${prefix}:install`] = {
-          executor: 'nx:run-commands',
-          cache: false,
-          options: { commands: installCommands, parallel: false, cwd: '{projectRoot}' },
-        };
-      }
-
-      // Every matched file is a lefthook or pre-commit config, so at
-      // least <prefix>:install is always present here.
-      results.push([sorted[0]!, { projects: { [dir]: { root: dir, targets } } }]);
+      results.push(inferDirProject(dir, files, workspaceRoot, prefix));
     }
-
     return results;
   },
 ];
+
+/** One directory's config set → its [configFile, projects] pair. */
+function inferDirProject(
+  dir: string,
+  files: string[],
+  workspaceRoot: string,
+  prefix: string,
+): readonly [string, { projects: Record<string, ProjectConfiguration> }] {
+  const sorted = files.toSorted((a, b) => a.localeCompare(b));
+  const lefthookFiles = sorted.filter((f) => isLefthookConfig(basename(f)));
+  const preCommitFiles = sorted.filter((f) => basename(f) === '.pre-commit-config.yaml');
+
+  // Hook names union across every lefthook config in the directory.
+  const hookNames = new Set<string>();
+  for (const f of lefthookFiles) {
+    const names = readLefthookHooks(join(workspaceRoot, f), f);
+    for (const name of names ?? []) hookNames.add(name);
+  }
+
+  const token = dir === '' ? '{workspaceRoot}' : '{projectRoot}';
+  // Every matched config in the dir participates in the hash — an
+  // edit redefines the targets.
+  const inputs = [
+    `${token}/**/*`,
+    ...sorted.map((f) => `${token}/${dir === '' ? f : f.slice(dir.length + 1)}`),
+  ];
+
+  const targets: Record<string, TargetConfiguration> = Object.create(null);
+
+  for (const name of hookNames) {
+    targets[`${prefix}:${name}`] = {
+      executor: 'nx:run-commands',
+      cache: true,
+      inputs,
+      options: { command: `npx lefthook run ${name}`, cwd: '{projectRoot}' },
+    };
+  }
+
+  if (preCommitFiles.length > 0) {
+    targets[`${prefix}:run`] = {
+      executor: 'nx:run-commands',
+      cache: true,
+      inputs,
+      options: { command: 'pre-commit run --all-files', cwd: '{projectRoot}' },
+    };
+  }
+
+  // Fixed targets come last — they win over a hook section that
+  // happens to share the `install`/`run` name.
+  const installCommands: string[] = [];
+  if (lefthookFiles.length > 0) installCommands.push('npx lefthook install');
+  if (preCommitFiles.length > 0) installCommands.push('pre-commit install');
+  if (installCommands.length === 1) {
+    targets[`${prefix}:install`] = {
+      executor: 'nx:run-commands',
+      cache: false,
+      options: { command: installCommands[0]!, cwd: '{projectRoot}' },
+    };
+  } else if (installCommands.length > 1) {
+    targets[`${prefix}:install`] = {
+      executor: 'nx:run-commands',
+      cache: false,
+      options: { commands: installCommands, parallel: false, cwd: '{projectRoot}' },
+    };
+  }
+
+  // Every matched file is a lefthook or pre-commit config, so at
+  // least <prefix>:install is always present here.
+  return [sorted[0]!, { projects: { [dir]: { root: dir, targets } } }];
+}
 
 const plugin: { name: string; createNodesV2: typeof createNodesV2 } = {
   name: PLUGIN_NAME,
