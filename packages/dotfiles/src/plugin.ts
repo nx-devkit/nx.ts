@@ -33,17 +33,17 @@ function chezmoiTargets(): Record<string, TargetConfiguration> {
     'dotfiles:diff': {
       executor: 'nx:run-commands',
       cache: false,
-      options: { command: 'chezmoi diff', cwd: '{projectRoot}' },
+      options: { command: 'chezmoi --source {projectRoot} diff', cwd: '{projectRoot}' },
     },
     'dotfiles:apply': {
       executor: 'nx:run-commands',
       cache: false,
-      options: { command: 'chezmoi apply', cwd: '{projectRoot}' },
+      options: { command: 'chezmoi --source {projectRoot} apply', cwd: '{projectRoot}' },
     },
     'dotfiles:doctor': {
       executor: 'nx:run-commands',
       cache: false,
-      options: { command: 'chezmoi doctor', cwd: '{projectRoot}' },
+      options: { command: 'chezmoi --source {projectRoot} doctor', cwd: '{projectRoot}' },
     },
   };
 }

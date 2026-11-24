@@ -55,19 +55,19 @@ describe('@nx-devkit/dotfiles createNodesV2', () => {
 
     expect(targets['dotfiles:diff']!.executor).toBe('nx:run-commands');
     expect(targets['dotfiles:diff']!.options).toEqual({
-      command: 'chezmoi diff',
+      command: 'chezmoi --source {projectRoot} diff',
       cwd: '{projectRoot}',
     });
     expect(targets['dotfiles:diff']!.cache).toBe(false);
 
     expect(targets['dotfiles:apply']!.options).toEqual({
-      command: 'chezmoi apply',
+      command: 'chezmoi --source {projectRoot} apply',
       cwd: '{projectRoot}',
     });
     expect(targets['dotfiles:apply']!.cache).toBe(false);
 
     expect(targets['dotfiles:doctor']!.options).toEqual({
-      command: 'chezmoi doctor',
+      command: 'chezmoi --source {projectRoot} doctor',
       cwd: '{projectRoot}',
     });
     expect(targets['dotfiles:doctor']!.cache).toBe(false);

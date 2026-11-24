@@ -29,16 +29,16 @@ Or manually:
 
 <!-- target table consistent with src/plugin.ts createNodesV2 -->
 
-| Trigger                                                         | Detection          | Target             | Command                      | Cacheable |
-| --------------------------------------------------------------- | ------------------ | ------------------ | ---------------------------- | --------- |
-| `.chezmoiversion` (sibling `.chezmoi*` files augment detection) | chezmoi source dir | `dotfiles:diff`    | `chezmoi diff`               | no        |
-| same                                                            |                    | `dotfiles:apply`   | `chezmoi apply`              | no        |
-| same                                                            |                    | `dotfiles:doctor`  | `chezmoi doctor`             | no        |
-| `install.conf.yaml` / `.install.conf.yaml`                      | dotbot config      | `dotfiles:install` | `./install` or `dotbot -c …` | no        |
+| Trigger                                                         | Detection          | Target             | Command                         | Cacheable |
+| --------------------------------------------------------------- | ------------------ | ------------------ | ------------------------------- | --------- |
+| `.chezmoiversion` (sibling `.chezmoi*` files augment detection) | chezmoi source dir | `dotfiles:diff`    | `chezmoi --source <dir> diff`   | no        |
+| same                                                            |                    | `dotfiles:apply`   | `chezmoi --source <dir> apply`  | no        |
+| same                                                            |                    | `dotfiles:doctor`  | `chezmoi --source <dir> doctor` | no        |
+| `install.conf.yaml` / `.install.conf.yaml`                      | dotbot config      | `dotfiles:install` | `./install` or `dotbot -c …`    | no        |
 
 Every target inspects or mutates the live home directory, so nothing is cached.
 
-- **chezmoi**: any `.chezmoi*` entry in a directory marks it as a chezmoi source dir (the glob triggers on `.chezmoiversion`; sibling `.chezmoi*` files are detected on disk). Commands run with `cwd` = the marker's directory.
+- **chezmoi**: any `.chezmoi*` entry in a directory marks it as a chezmoi source dir (the glob triggers on `.chezmoiversion`; sibling `.chezmoi*` files are detected on disk). Commands run with `cwd` = the marker's directory and pass `--source {projectRoot}` — chezmoi reads its source dir from `--source` or config, never from cwd alone.
 - **dotbot**: when the conventional `./install` launcher script exists in the directory it is used; otherwise the plugin runs `dotbot -c <config>` with the matched config basename (`install.conf.yaml` or `.install.conf.yaml`).
 
 ### GNU stow — not yet

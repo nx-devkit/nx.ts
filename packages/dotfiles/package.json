@@ -53,7 +53,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nx/devkit": "^24.0.0"
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@nx-devkit/internal": "0.0.0",
