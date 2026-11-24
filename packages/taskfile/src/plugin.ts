@@ -77,61 +77,81 @@ export const createNodesV2: CreateNodesV2<NxDevkitTaskfileOptions> = [
         continue;
       }
 
-      const collected = new Map<string, CollectedTask>();
-      const inputFiles = new Set<string>();
-      collectTasks(
-        resolve(workspaceRoot, configFile),
+      const project = inferDirProject(
+        dir,
         configFile,
-        '',
-        collected,
-        inputFiles,
-        new Set<string>(),
-        parseCache,
         workspaceRoot,
+        targetPrefix,
+        cache,
+        parseCache,
       );
-
-      // Only non-internal tasks become targets; deps resolve against this
-      // set so a dep on an internal or missing task is never emitted.
-      const resolvable = new Set<string>();
-      for (const [qualified, entry] of collected) {
-        if (!entry.task.internal && isSafeTaskName(qualified)) resolvable.add(qualified);
-      }
-
-      const inputs = [...inputFiles].sort().map((f) => `{workspaceRoot}/${f}`);
-      const targets: Record<string, TargetConfiguration> = Object.create(null);
-      for (const [qualified, entry] of collected) {
-        if (entry.task.internal) continue;
-        if (!isSafeTaskName(qualified)) {
-          logger.warn(
-            `[${PLUGIN_SCOPE}] Skipping task '${logSafe(qualified)}' in ${logSafe(configFile)} — unsafe name for a shell command`,
-          );
-          continue;
-        }
-        targets[targetNameFor(qualified, targetPrefix)] = buildTaskTarget(qualified, entry.task, {
-          targetPrefix,
-          depPrefix: entry.depPrefix,
-          cache,
-          inputs,
-          resolvable,
-        });
-      }
-
-      if (Object.keys(targets).length === 0) continue;
-      const project: Partial<Pick<ProjectConfiguration, 'root'>> & {
-        targets: Record<string, TargetConfiguration>;
-      } = { root: dir, targets };
-      results.push([configFile, { projects: { [dir]: project } }]);
-      if (isVerbose()) {
-        logDebug(
-          PLUGIN_SCOPE,
-          `Registered ${String(Object.keys(targets).length)} targets on ${logSafe(dir || '.')}`,
-        );
-      }
+      if (project !== null) results.push(project);
     }
 
     return results;
   },
 ];
+
+/** Collect one directory's tasks (with includes) and build its project targets. */
+function inferDirProject(
+  dir: string,
+  configFile: string,
+  workspaceRoot: string,
+  targetPrefix: string,
+  cache: boolean,
+  parseCache: Map<string, Taskfile | null>,
+): CreateNodesResultArray[number] | null {
+  const collected = new Map<string, CollectedTask>();
+  const inputFiles = new Set<string>();
+  collectTasks(
+    resolve(workspaceRoot, configFile),
+    configFile,
+    '',
+    collected,
+    inputFiles,
+    new Set<string>(),
+    parseCache,
+    workspaceRoot,
+  );
+
+  // Only non-internal tasks become targets; deps resolve against this
+  // set so a dep on an internal or missing task is never emitted.
+  const resolvable = new Set<string>();
+  for (const [qualified, entry] of collected) {
+    if (!entry.task.internal && isSafeTaskName(qualified)) resolvable.add(qualified);
+  }
+
+  const inputs = [...inputFiles].sort().map((f) => `{workspaceRoot}/${f}`);
+  const targets: Record<string, TargetConfiguration> = Object.create(null);
+  for (const [qualified, entry] of collected) {
+    if (entry.task.internal) continue;
+    if (!isSafeTaskName(qualified)) {
+      logger.warn(
+        `[${PLUGIN_SCOPE}] Skipping task '${logSafe(qualified)}' in ${logSafe(configFile)} — unsafe name for a shell command`,
+      );
+      continue;
+    }
+    targets[targetNameFor(qualified, targetPrefix)] = buildTaskTarget(qualified, entry.task, {
+      targetPrefix,
+      depPrefix: entry.depPrefix,
+      cache,
+      inputs,
+      resolvable,
+    });
+  }
+
+  if (Object.keys(targets).length === 0) return null;
+  const project: Partial<Pick<ProjectConfiguration, 'root'>> & {
+    targets: Record<string, TargetConfiguration>;
+  } = { root: dir, targets };
+  if (isVerbose()) {
+    logDebug(
+      PLUGIN_SCOPE,
+      `Registered ${String(Object.keys(targets).length)} targets on ${logSafe(dir || '.')}`,
+    );
+  }
+  return [configFile, { projects: { [dir]: project } }];
+}
 
 export default createNodesV2;
 
