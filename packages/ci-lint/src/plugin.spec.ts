@@ -69,7 +69,7 @@ describe('createNodesV2', () => {
     expect(target.options.cwd).toBe('{projectRoot}');
   });
 
-  it('builds actionlint and zizmor legs joined so either failure fails the target', () => {
+  it('runs every installed leg and fails the target when any leg fails', () => {
     const command = lintCiCommand(run(workspace, WORKFLOWS));
 
     // Each tool is probed on PATH; missing tools echo a skip instead of failing.
@@ -77,8 +77,12 @@ describe('createNodesV2', () => {
     expect(command).toContain('command -v zizmor');
     expect(command).toContain('actionlint');
     expect(command).toContain("zizmor --format 'plain' '.github/workflows'");
-    // A real lint failure in the first leg must still fail the whole command.
-    expect(command).toContain(' && ');
+    // Legs never short-circuit: a failing leg flips the flag, the trailing
+    // exit still fails the command, and later legs (zizmor/SARIF) still run.
+    expect(command).not.toContain(' && ');
+    expect(command).toContain('actionlint || ci_lint_failed=1');
+    expect(command).toContain("'.github/workflows' || ci_lint_failed=1");
+    expect(command).toContain('exit "$ci_lint_failed"');
   });
 
   it('honours a custom targetName', () => {
@@ -93,6 +97,19 @@ describe('createNodesV2', () => {
 
     expect(command).not.toContain('actionlint');
     expect(command).toContain('command -v zizmor');
+  });
+
+  it('hashes each enabled tool version so installing or upgrading it busts the cache', () => {
+    const target = run(workspace, WORKFLOWS)[0]![1].projects['.']!.targets['lint-ci'] as {
+      inputs: (string | { runtime: string })[];
+    };
+    const runtimes = target.inputs
+      .filter((i): i is { runtime: string } => typeof i === 'object' && 'runtime' in i)
+      .map((i) => i.runtime);
+
+    expect(runtimes).toHaveLength(2);
+    expect(runtimes[0]).toContain(`spawnSync('actionlint',['--version']`);
+    expect(runtimes[1]).toContain(`spawnSync('zizmor',['--version']`);
   });
 
   it('drops the zizmor leg when zizmor is disabled', () => {
@@ -129,11 +146,13 @@ describe('createNodesV2', () => {
     expect(command).toContain("zizmor --format 'plain' '--min-severity' 'medium'");
   });
 
-  it('anchors a single entry on the first sorted workflow file', () => {
-    const result = run(workspace, ['.github/workflows/b.yml', '.github/workflows/a.yaml']);
+  it('produces identical results regardless of config-file order', () => {
+    const forward = run(workspace, ['.github/workflows/b.yml', '.github/workflows/a.yaml']);
+    const reverse = run(workspace, ['.github/workflows/a.yaml', '.github/workflows/b.yml']);
 
-    expect(result).toHaveLength(1);
-    expect(result[0]![0]).toBe('.github/workflows/a.yaml');
+    expect(forward).toEqual(reverse);
+    expect(forward).toHaveLength(1);
+    expect(forward[0]![0]).toBe('.github/workflows/a.yaml');
   });
 
   it('ignores workflow files outside the root .github/workflows dir', () => {

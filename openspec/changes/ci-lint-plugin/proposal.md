@@ -19,17 +19,20 @@ exist → a cached `lint-ci` target exists.
 - **API**: `createNodesV2` (Nx 22+ / 23+)
 - **Inferred target**: `lint-ci` on the root project (`.`), `cache: true`,
   `nx:run-commands`, inputs covering the workflow glob plus
-  `.github/actionlint.{yml,yaml}` and `zizmor.{yml,yaml}` configs.
+  `.github/actionlint.{yml,yaml}`, `.github/zizmor.{yml,yaml}` and
+  `zizmor.{yml,yaml}` configs, plus a `{runtime}` input per enabled tool
+  hashing its `--version` so installing/upgrading a tool busts the cache.
 
 ### Tool invocation
 
-- Both tools are **optional**: each leg is
-  `if command -v <tool> ...; then <run>; else echo <skip>; fi`, joined with
-  `&&` so a real lint failure fails the target while a missing tool only
-  echoes a skip line.
-- `actionlint` is an optional npm peer (`>=1.0.0`); the init generator
-  installs it. `zizmor` has no npm package — it installs via pipx/cargo/brew
-  and is probed on PATH.
+- Both tools are **optional**: each leg probes the tool on PATH
+  (`command -v` on POSIX, `where` on cmd.exe — the command is generated for
+  the platform shell) and echoes a skip line when it is missing. Legs never
+  short-circuit: a failed run flips a shared flag and the trailing check
+  fails the target after every installed tool ran.
+- Neither tool is installed by the init generator: `zizmor` has no npm
+  package (pipx/cargo/brew) and npm's `actionlint` is a WASM API that does
+  not put the CLI on PATH; the checklist points at brew/go/scoop.
 - Options: `targetName`, `actionlint`, `zizmor`, `actionlintArgs`,
   `zizmorArgs`, `zizmorFormat` (`plain`/`json`/`sarif`), `zizmorOutput`
   (redirect path — `zizmor.sarif` for `codeql-action/upload-sarif`).

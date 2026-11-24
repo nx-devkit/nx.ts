@@ -23,7 +23,7 @@ The plugin SHALL watch workflow files matching `.github/workflows/*.{yml,yaml}` 
 
 ### Requirement: Optional tool execution
 
-The inferred `lint-ci` target SHALL run each enabled tool through an `nx:run-commands` command that probes `command -v <tool>` first: an installed tool runs and its real findings fail the target; a missing tool echoes a skip line and the target still succeeds.
+The inferred `lint-ci` target SHALL run each enabled tool through an `nx:run-commands` command generated for the platform shell (POSIX `command -v` / cmd.exe `where` probe): an installed tool runs and its real findings fail the target; a missing tool echoes a skip line and the target still succeeds. Every enabled leg runs even when an earlier leg fails — a failing leg records the failure and the command exits non-zero at the end.
 
 #### Scenario: Both tools installed
 
@@ -33,7 +33,12 @@ The inferred `lint-ci` target SHALL run each enabled tool through an `nx:run-com
 #### Scenario: Tool missing
 
 - **WHEN** `zizmor` is not on PATH
-- **THEN** the zizmor leg echoes `ci-lint: zizmor not found on PATH — skipping` and does not fail the target
+- **THEN** the zizmor leg echoes `ci-lint: zizmor not found on PATH — skipping` and does not fail the target; no `zizmorOutput` file is written. A `zizmorOutput` file left over from an earlier run is left untouched, so a later SARIF upload step may still pick up the stale file
+
+#### Scenario: Earlier leg fails
+
+- **WHEN** `actionlint` reports a violation and `zizmor` is installed
+- **THEN** the zizmor leg still runs (including any `zizmorOutput` redirect) and the target fails
 
 #### Scenario: Tool disabled
 
@@ -47,12 +52,17 @@ The inferred `lint-ci` target SHALL run each enabled tool through an `nx:run-com
 
 ### Requirement: Cached file-content target
 
-The inferred `lint-ci` target SHALL be `cache: true` with inputs covering `{workspaceRoot}/.github/workflows/*.{yml,yaml}` plus `.github/actionlint.{yml,yaml}` and `zizmor.{yml,yaml}` config files, so config edits bust the cache.
+The inferred `lint-ci` target SHALL be `cache: true` with inputs covering `{workspaceRoot}/.github/workflows/*.{yml,yaml}` plus `.github/actionlint.{yml,yaml}`, `.github/zizmor.{yml,yaml}`, and `zizmor.{yml,yaml}` config files, so config edits bust the cache. Each enabled tool SHALL also contribute a runtime input hashing its `--version` output, so installing or upgrading a tool on PATH busts the cache instead of replaying a stale skip or result.
 
 #### Scenario: Config edit busts the cache
 
 - **WHEN** `.github/actionlint.yaml` is added or changed after a successful run
 - **THEN** the next `lint-ci` run is a cache miss and re-executes the command
+
+#### Scenario: Tool installed after a cached skip
+
+- **WHEN** a run succeeded by skipping a missing tool and the tool is installed or upgraded afterwards
+- **THEN** the next `lint-ci` run is a cache miss and the tool actually executes
 
 ### Requirement: SARIF-friendly zizmor output
 

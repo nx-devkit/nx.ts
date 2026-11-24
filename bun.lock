@@ -120,12 +120,6 @@
         "typescript": "^6.0.3",
         "vitest": "^5.1.0",
       },
-      "peerDependencies": {
-        "actionlint": ">=2.0.0",
-      },
-      "optionalPeers": [
-        "actionlint",
-      ],
     },
     "packages/commitlint": {
       "name": "@nx-devkit/commitlint",
