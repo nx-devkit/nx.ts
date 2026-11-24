@@ -21,9 +21,9 @@ export async function initGenerator(
 
   const checklist = [
     `1. The plugin is registered (${pluginPath}) — projects containing schema.prisma or prisma.config.* now have db targets.`,
-    '2. Inspect inferred targets:',
-    '   bunx nx show projects',
-    `3. Run a target:  bunx nx run ${projectName}:db:generate`,
+    '2. Inspect inferred targets on the project that contains the schema:',
+    '   npx nx show project <project>',
+    `3. Run a target:  npx nx run <project>:db:generate  (e.g. ${projectName} when the schema sits at the workspace root)`,
     '4. Set DATABASE_URL via the environment (.env is picked up by prisma automatically) — never via CLI args.',
   ];
   for (const line of checklist) {
