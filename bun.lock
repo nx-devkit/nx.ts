@@ -322,6 +322,21 @@
         "knip": "^5.0.0 || ^6.0.0",
       },
     },
+    "packages/make": {
+      "name": "@nx-devkit/make",
+      "version": "0.0.0",
+      "dependencies": {
+        "@nx/devkit": "^24.0.0",
+        "jsonc-parser": "^3.3.1",
+      },
+      "devDependencies": {
+        "@nx-devkit/internal": "0.0.0",
+        "@types/node": "^26.6.6",
+        "tsdown": "^0.23.7",
+        "typescript": "^6.0.3",
+        "vitest": "^5.1.0",
+      },
+    },
     "packages/markdownlint": {
       "name": "@nx-devkit/markdownlint",
       "version": "0.0.9",
@@ -1316,6 +1331,8 @@
     "@nx-devkit/internal": ["@nx-devkit/internal@workspace:packages/internal"],
 
     "@nx-devkit/knip": ["@nx-devkit/knip@workspace:packages/knip"],
+
+    "@nx-devkit/make": ["@nx-devkit/make@workspace:packages/make"],
 
     "@nx-devkit/markdownlint": ["@nx-devkit/markdownlint@workspace:packages/markdownlint"],
 
@@ -2857,6 +2874,8 @@
 
     "@nx-devkit/knip/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
 
+    "@nx-devkit/make/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
+
     "@nx-devkit/markdownlint/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
 
     "@nx-devkit/nx-cloud/@nx/devkit": ["@nx/devkit@24.0.6", "", { "dependencies": { "ejs": "5.0.1", "minimatch": "10.2.5", "semver": "^7.6.3", "tslib": "^2.3.0", "yargs-parser": "21.1.1" }, "peerDependencies": { "nx": ">= 23 <= 25 || ^24.0.0-0" } }, "sha512-b/VfBRKLcjQm3w8m+tsQCpUIq8ChTiAghMFk2zgNDwXHFkQNblAA96Hm7a7+kbX2diPsQ7a1HpMXPp0iNbL6AA=="],
@@ -3160,6 +3179,8 @@
     "@nx-devkit/internal/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
 
     "@nx-devkit/knip/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
+
+    "@nx-devkit/make/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
 
     "@nx-devkit/markdownlint/@nx/devkit/minimatch": ["minimatch@10.2.5", "", { "dependencies": { "brace-expansion": "^5.0.5" } }, "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg=="],
 
