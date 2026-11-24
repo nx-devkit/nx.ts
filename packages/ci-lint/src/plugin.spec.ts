@@ -108,8 +108,8 @@ describe('createNodesV2', () => {
       .map((i) => i.runtime);
 
     expect(runtimes).toHaveLength(2);
-    expect(runtimes[0]).toContain('actionlint --version');
-    expect(runtimes[1]).toContain('zizmor --version');
+    expect(runtimes[0]).toContain(`spawnSync('actionlint',['--version']`);
+    expect(runtimes[1]).toContain(`spawnSync('zizmor',['--version']`);
   });
 
   it('drops the zizmor leg when zizmor is disabled', () => {

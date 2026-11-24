@@ -33,7 +33,7 @@ The inferred `lint-ci` target SHALL run each enabled tool through an `nx:run-com
 #### Scenario: Tool missing
 
 - **WHEN** `zizmor` is not on PATH
-- **THEN** the zizmor leg echoes `ci-lint: zizmor not found on PATH — skipping` and does not fail the target; no `zizmorOutput` file is written, so a later SARIF upload step finds no file
+- **THEN** the zizmor leg echoes `ci-lint: zizmor not found on PATH — skipping` and does not fail the target; no `zizmorOutput` file is written. A `zizmorOutput` file left over from an earlier run is left untouched, so a later SARIF upload step may still pick up the stale file
 
 #### Scenario: Earlier leg fails
 

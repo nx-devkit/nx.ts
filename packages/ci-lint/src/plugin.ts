@@ -62,7 +62,9 @@ function q(value: string): string {
 function toolLeg(tool: string, run: string): string {
   const skip = `ci-lint: ${tool} not found on PATH — skipping`;
   if (IS_WINDOWS) {
-    return `where ${tool} >nul 2>nul && (${run} || set "${FAIL_FLAG}=1") || echo ${q(skip)}`;
+    // echo prints surrounding quotes literally on cmd.exe — the skip text is a
+    // fixed constant without shell metachars, so it goes unquoted.
+    return `where ${tool} >nul 2>nul && (${run} || set "${FAIL_FLAG}=1") || echo ${skip}`;
   }
   return `if command -v ${tool} >/dev/null 2>&1; then ${run} || ${FAIL_FLAG}=1; else echo ${q(skip)}; fi`;
 }
@@ -105,7 +107,7 @@ function buildCommand(options: NxCiLintPluginOptions): string | null {
  */
 function toolRuntimeInput(tool: string): { runtime: string } {
   return {
-    runtime: `node -e "const r=require('node:child_process').spawnSync('${tool} --version',{shell:true});process.stdout.write(String(r.status)+(r.stdout||'')+(r.stderr||''))"`,
+    runtime: `node -e "const r=require('node:child_process').spawnSync('${tool}',['--version'],{shell:true});process.stdout.write(String(r.status)+(r.stdout||'')+(r.stderr||''))"`,
   };
 }
 
