@@ -46,36 +46,40 @@ into every target's inputs and reported under `metadata.moon`
 
 <!-- target mapping consistent with src/targets.ts -->
 
-| moon.yml field                                                             | Nx target field                                                          |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `tasks`                                                                    | one target per entry (`nx:run-commands`, or `nx:noop` when no command)   |
-| `command` / `script`                                                       | `options.command` — `script` wins; arrays join with spaces               |
-| `args`                                                                     | appended to the command                                                  |
-| `deps: ['task']` / `~:task`                                                | `dependsOn: [{ target: 'task' }]` (same project)                         |
-| `deps: ['^:task']` / `^task`                                               | `dependsOn: [{ target: 'task', dependencies: true }]`                    |
-| `deps: ['proj:task']`                                                      | `dependsOn: [{ target: 'task', projects: ['proj'] }]`                    |
-| `inputs`                                                                   | `inputs` — `src/**` → `{projectRoot}/src/**`, `/x` → `{workspaceRoot}/x` |
-| `$VAR` input                                                               | `{ env: 'VAR' }` hash input (`$VAR_*` wildcards dropped)                 |
-| `@group(name)` / `group://name`                                            | resolved against local `fileGroups:`                                     |
-| `file://` / `glob://` URIs                                                 | unwrapped to their path (`?query` params dropped)                        |
-| `project://id` / `#tag:task`                                               | dropped — no Nx equivalent                                               |
-| (no `inputs`)                                                              | `{projectRoot}/**/*` — moon's default fileset                            |
-| `outputs`                                                                  | `outputs` — same glob vocabulary (`!` kept)                              |
-| `options.cache: false`                                                     | `cache: false` (`local`/`remote` map to `true`)                          |
-| `local: true` (deprecated)                                                 | `cache: false`                                                           |
-| `options.persistent` / `preset: server` / task named `dev`/`start`/`serve` | `continuous: true` + `cache: false`                                      |
-| `preset: utility`                                                          | `cache: false`                                                           |
-| `env` (task + project level)                                               | `options.env` (project env applies to every task, task env wins)         |
-| `options.envFile: '<path>'`                                                | `options.envFile` + the file as an input                                 |
-| `options.envFile: true`/list                                               | all candidate files as inputs only — nx fails on a missing envFile       |
-| `id` / `project: '<name>'`                                                 | project `name`                                                           |
-| `tags`                                                                     | project `tags`                                                           |
-| `type: application`/`library`                                              | `projectType`                                                            |
-| `dependsOn` (project level)                                                | `implicitDependencies` — makes `^:task` resolve on real graph edges      |
-| `project:` metadata block                                                  | `metadata.moon.project`                                                  |
+| moon.yml field                                                                   | Nx target field                                                               |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `tasks`                                                                          | one target per entry (`nx:run-commands`, or `nx:noop` when no command)        |
+| `command` / `script`                                                             | `options.command` — `script` wins; arrays join with spaces                    |
+| `args`                                                                           | appended to the command                                                       |
+| `deps: ['task']` / `~:task`                                                      | `dependsOn: [{ target: 'task' }]` (same project)                              |
+| `deps: ['^:task']` / `^task`                                                     | `dependsOn: [{ target: 'task', dependencies: true }]`                         |
+| `deps: ['proj:task']`                                                            | `dependsOn: [{ target: 'task', projects: ['proj'] }]`                         |
+| `inputs`                                                                         | `inputs` — `src/**` → `{projectRoot}/src/**`, `/x` → `{workspaceRoot}/x`      |
+| `$VAR` input                                                                     | `{ env: 'VAR' }` hash input (`$VAR_*` wildcards dropped)                      |
+| `@group(name)` / `group://name`                                                  | resolved against local `fileGroups:`                                          |
+| `file://` / `glob://` URIs                                                       | unwrapped to their path (`?query` params dropped)                             |
+| `project://id` / `#tag:task`                                                     | dropped — no Nx equivalent                                                    |
+| (no `inputs`)                                                                    | `{projectRoot}/**/*` — moon's default fileset                                 |
+| `outputs`                                                                        | `outputs` — same glob vocabulary (`!` kept)                                   |
+| `options.cache: false`                                                           | `cache: false` (`local`/`remote` map to `true`)                               |
+| `local: true` (deprecated)                                                       | `cache: false`                                                                |
+| `options.persistent: true` / `preset: server` / task named `dev`/`start`/`serve` | `continuous: true` + `cache: false`                                           |
+| `preset: utility`                                                                | `cache: false`                                                                |
+| `env` (task + project level)                                                     | `options.env` (project env applies to every task, task env wins)              |
+| `options.envFile: '<path>'`                                                      | `options.envFile` + the file as an input                                      |
+| `options.envFile: ['a', 'b']`                                                    | `options.envFile` = first entry (workspace-relative) + every file as an input |
+| `options.envFile: true`                                                          | the 6-file moon `.env` chain as inputs only — nx fails on a missing envFile   |
+| `id` / `project: '<name>'`                                                       | project `name`                                                                |
+| `tags`                                                                           | project `tags`                                                                |
+| `type: application`/`library`                                                    | `projectType`                                                                 |
+| `dependsOn` (project level)                                                      | `implicitDependencies` — makes `^:task` resolve on real graph edges           |
+| `project:` metadata block                                                        | `metadata.moon.project`                                                       |
 
 The originating `moon.yml` is always added as a `{workspaceRoot}/…`
-input, so editing the config re-hashes every task it defines.
+input, so editing the config re-hashes every task it defines. An
+explicit `options.persistent: false` overrides the `preset: server` /
+`dev`/`start`/`serve` name default — the task stays non-continuous
+(the server preset still disables caching).
 
 `$projectRoot`/`$workspaceRoot` token variables inside `command`/`script`
 are substituted (`$projectRoot` → `.`, `$workspaceRoot` → the relative
@@ -101,9 +105,10 @@ tag and all-project scopes, `options` tuning knobs (`outputStyle`,
 global tasks are not merged — a project task of the same name always
 wins (closest moon semantics available at the file level).
 
-`options.envFile: true` and envFile lists hash every candidate file but
-only set `nx:run-commands` `envFile` for an explicit path — Nx hard-fails
-on a missing env file while moon tolerates the whole chain.
+`options.envFile: true` hashes the whole moon `.env` chain as inputs
+only. An envFile list hashes every declared file and sets
+`nx:run-commands` `envFile` to the first entry — Nx hard-fails on a
+missing env file while moon tolerates the whole chain.
 
 ## Options
 
@@ -111,9 +116,9 @@ on a missing env file while moon tolerates the whole chain.
 | -------------- | ------- | ----------------------------------------------------------------------------------------------------- |
 | `targetPrefix` | `''`    | Prefix for inferred target names — e.g. `'moon:'` → `moon:build`. Applied to `dependsOn` targets too. |
 
-moon task names are already project-qualified, so the default keeps the
-task's own name. Set `targetPrefix` when another plugin infers the same
-target names.
+moon task names are project-scoped — each `tasks.<name>` is local to its
+owning moon.yml — so the default keeps the task's own name. Set
+`targetPrefix` when another plugin infers the same target names.
 
 ```jsonc
 // nx.json

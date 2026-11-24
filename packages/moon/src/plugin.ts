@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
   logger,
   type CreateNodesResultArray,
@@ -40,7 +40,10 @@ export const createNodesV2: CreateNodesV2<NxDevkitMoonOptions> = [
       .filter((file): file is string => file !== undefined)
       .map((file) => `{workspaceRoot}/${file}`);
 
-    const results: CreateNodesResultArray = [];
+    // First pass: normalize paths and parse every moon.yml once, so
+    // second-pass resolution (same-dir dedupe, dependsOn id → Nx name)
+    // can see the whole batch.
+    const parsed: ParsedMoonConfig[] = [];
     for (const rawConfigFile of [...configFiles].sort()) {
       // Nx's glob expander can emit a leading "./" — normalize so the
       // path stays canonical in inputs and result keys.
@@ -51,10 +54,16 @@ export const createNodesV2: CreateNodesV2<NxDevkitMoonOptions> = [
         logDebug(PLUGIN_SCOPE, `Skipping ${logSafe(configFile)} — not inside the workspace`);
         continue;
       }
-
       const config = readMoonConfig(resolve(workspaceRoot, configFile), configFile);
       if (config === null) continue;
+      parsed.push({ configFile, root, config });
+    }
 
+    const projects = dedupeProjectRoots(parsed);
+    const nameByMoonId = buildMoonIdNameMap(projects, moonWs, workspaceRoot);
+
+    const results: CreateNodesResultArray = [];
+    for (const { configFile, root, config } of projects) {
       const ctx: TaskTargetContext = {
         targetPrefix,
         projectRoot: root,
@@ -69,7 +78,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitMoonOptions> = [
         targets[`${targetPrefix}${taskName}`] = buildTaskTarget(taskName, task, ctx);
       }
 
-      const project = buildProject(root, config, targets, moonWs);
+      const project = buildProject(root, config, targets, moonWs, nameByMoonId);
       if (project === null) continue;
       results.push([configFile, { projects: { [root]: project } }]);
       if (isVerbose()) {
@@ -85,19 +94,104 @@ export const createNodesV2: CreateNodesV2<NxDevkitMoonOptions> = [
 
 export default createNodesV2;
 
+interface ParsedMoonConfig {
+  configFile: string;
+  root: string;
+  config: MoonProjectYml;
+}
+
+/**
+ * One directory can hold both `moon.yml` and `moon.yaml` — moon treats
+ * them as the same project. Emitting a result for each would make Nx
+ * merge two sources of truth for one root, so keep one (`.yml` wins,
+ * moon's canonical extension) and warn about the loser.
+ */
+function dedupeProjectRoots(parsed: ParsedMoonConfig[]): ParsedMoonConfig[] {
+  const byRoot = new Map<string, ParsedMoonConfig>();
+  for (const entry of parsed) {
+    const prior = byRoot.get(entry.root);
+    if (prior === undefined) {
+      byRoot.set(entry.root, entry);
+      continue;
+    }
+    const [winner, loser] = entry.configFile.endsWith('.yml') ? [entry, prior] : [prior, entry];
+    byRoot.set(entry.root, winner);
+    logger.warn(
+      `[${PLUGIN_SCOPE}] ${logSafe(loser.configFile)} and ${logSafe(winner.configFile)} both define ${logSafe(winner.root || '.')} — using ${logSafe(winner.configFile)}`,
+    );
+  }
+  return [...byRoot.values()];
+}
+
+/**
+ * moon `dependsOn` lists moon project ids; Nx `implicitDependencies`
+ * match project *names*. Map each id to the owning project's resolved
+ * Nx name so `nx affected` / `^:task` deps land on real graph edges.
+ * moon resolves a project's id from `id:`/string `project:` in its
+ * moon.yml, the key in a map-form `.moon/workspace.*` `projects:`, or
+ * the directory name for glob-sourced projects. The Nx name is the
+ * explicit id/string `project`, else whatever `project.json`/
+ * `package.json` declares, else the lowercase directory name — the same
+ * order Nx applies when normalizing nameless plugin projects.
+ */
+function buildMoonIdNameMap(
+  projects: ParsedMoonConfig[],
+  moonWs: MoonWorkspace,
+  workspaceRoot: string,
+): Map<string, string> {
+  const nameByMoonId = new Map<string, string>();
+  for (const { root, config } of projects) {
+    const explicit = config.id ?? (typeof config.project === 'string' ? config.project : undefined);
+    const nxName = explicit ?? deriveNxName(root, workspaceRoot);
+    if (nxName === undefined) continue;
+    const ids = new Set<string>();
+    const mapId = moonWs.projectIdsByRoot[root];
+    if (mapId !== undefined) ids.add(mapId);
+    if (explicit === undefined && mapId === undefined) {
+      const dirName = root.split('/').pop();
+      if (dirName !== undefined && dirName !== '') ids.add(dirName);
+    }
+    for (const id of ids) {
+      if (id !== nxName && nameByMoonId.get(id) === undefined) nameByMoonId.set(id, nxName);
+    }
+  }
+  return nameByMoonId;
+}
+
+/** The name Nx ends up with for a nameless moon project root. */
+function deriveNxName(root: string, workspaceRoot: string): string | undefined {
+  if (root === '') return undefined;
+  for (const file of ['project.json', 'package.json']) {
+    try {
+      const json = JSON.parse(readFileSync(join(workspaceRoot, root, file), 'utf8')) as {
+        name?: unknown;
+      };
+      if (typeof json.name === 'string' && json.name !== '') return json.name;
+    } catch {
+      // Missing or unreadable — fall through to the next source.
+    }
+  }
+  const base = root.split('/').pop() ?? '';
+  return base === '' ? undefined : base.toLowerCase();
+}
+
 type ProjectMap = Partial<ProjectConfiguration> & { root: string };
 
 /**
  * Project-level fields: `id`/`project` → name, `tags` → tags, `type` →
  * projectType, `dependsOn` → implicitDependencies (so `^:task` deps and
- * `dependencies: true` resolve against real graph edges). The `.moon/*`
- * files and the language/stack metadata ride in `metadata.moon`.
+ * `dependencies: true` resolve against real graph edges); moon project
+ * ids are translated to Nx names via `nameByMoonId`, and unmatched ids
+ * pass through unchanged — they may still name a project inferred by
+ * another plugin. The `.moon/*` files and the language/stack metadata
+ * ride in `metadata.moon`.
  */
 function buildProject(
   root: string,
   config: MoonProjectYml,
   targets: Record<string, TargetConfiguration>,
   moonWs: MoonWorkspace,
+  nameByMoonId: Map<string, string>,
 ): ProjectMap | null {
   const project: ProjectMap = { root };
   if (config.id !== undefined) {
@@ -110,7 +204,8 @@ function buildProject(
   if (projectType !== undefined) project.projectType = projectType;
   const implicitDeps = (config.dependsOn ?? [])
     .map((dep) => (typeof dep === 'string' ? dep : dep.id))
-    .filter((id): id is string => typeof id === 'string' && id !== '');
+    .filter((id): id is string => typeof id === 'string' && id !== '')
+    .map((id) => nameByMoonId.get(id) ?? id);
   if (implicitDeps.length > 0) project.implicitDependencies = implicitDeps;
 
   const moon = buildMoonMetadata(config, moonWs);
@@ -177,7 +272,13 @@ function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    out +=
+      code < 32 ||
+      (code >= 127 && code < 160) ||
+      (code >= 0x202a && code <= 0x202e) ||
+      (code >= 0x2066 && code <= 0x2069)
+        ? ' '
+        : char;
   }
   return out.trim();
 }

@@ -96,7 +96,9 @@ describe('buildTaskTarget', () => {
   });
 
   it('maps options.persistent to a continuous, uncached target', () => {
-    const target = buildTaskTarget('dev', { options: { persistent: true } }, CTX);
+    // 'watch' carries no implicit server preset — 'dev' would make this
+    // pass even if options.persistent were ignored.
+    const target = buildTaskTarget('watch', { options: { persistent: true } }, CTX);
     expect(target.continuous).toBe(true);
     expect(target.cache).toBe(false);
   });
@@ -155,9 +157,18 @@ describe('buildTaskTarget', () => {
   });
 
   it('maps token variables', () => {
-    const target = buildTaskTarget('t', { inputs: ['$projectRoot', '$workspaceRoot'] }, CTX);
+    const target = buildTaskTarget(
+      't',
+      {
+        inputs: ['$projectRoot', '$workspaceRoot'],
+        command: 'cd $workspaceRoot && ls $projectRoot',
+      },
+      CTX,
+    );
     expect(target.inputs).toContain('{projectRoot}');
     expect(target.inputs).toContain('{workspaceRoot}');
+    // The same token variables are substituted inside commands.
+    expect(target.options).toMatchObject({ command: 'cd ../.. && ls .' });
   });
 
   it('resolves @group tokens against local fileGroups', () => {
@@ -177,11 +188,47 @@ describe('buildTaskTarget', () => {
     const target = buildTaskTarget(
       'build',
       { inputs: ['@group(sources)'] },
-      ctx({ fileGroups: { sources: ['/tsconfig.base.json', '$CI', 'src/**'] } }),
+      ctx({
+        fileGroups: { sources: ['/tsconfig.base.json', '$CI', '@group(src)'], src: ['src/**'] },
+      }),
     );
     expect(target.inputs).toContain('{workspaceRoot}/tsconfig.base.json');
     expect(target.inputs).toContainEqual({ env: 'CI' });
     expect(target.inputs).toContain('{projectRoot}/src/**');
+  });
+
+  it('ignores inherited object keys like @group(constructor)', () => {
+    const target = buildTaskTarget('t', { inputs: ['@group(constructor)', 'src/**'] }, CTX);
+    expect(target.inputs).toEqual([
+      '{projectRoot}/src/**',
+      '{workspaceRoot}/packages/app/moon.yml',
+    ]);
+  });
+
+  it('only passes the Nx {projectRoot}/{workspaceRoot} tokens through', () => {
+    const target = buildTaskTarget(
+      't',
+      { inputs: ['{projectRoot}/src/**', '{src,lib}/**/*.ts'] },
+      CTX,
+    );
+    expect(target.inputs).toEqual([
+      '{projectRoot}/src/**',
+      '{projectRoot}/{src,lib}/**/*.ts',
+      '{workspaceRoot}/packages/app/moon.yml',
+    ]);
+  });
+
+  it('toggles leading ! when negating a group instead of double-negating', () => {
+    const target = buildTaskTarget(
+      't',
+      { inputs: ['!@group(files)'] },
+      ctx({ fileGroups: { files: ['src/**', '!src/gen/**'] } }),
+    );
+    expect(target.inputs).toEqual([
+      '!{projectRoot}/src/**',
+      '{projectRoot}/src/gen/**',
+      '{workspaceRoot}/packages/app/moon.yml',
+    ]);
   });
 
   it('skips unresolved @tokens and group:// of unknown groups', () => {

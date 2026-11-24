@@ -15,7 +15,9 @@ export async function initGenerator(
   tree: Tree,
   options: NxMoonInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
+  // Whitespace-only or padded input would write an unresolvable plugin
+  // specifier into nx.json — trim and fall back to the default.
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
 
   registerPlugin(tree, pluginPath);
 

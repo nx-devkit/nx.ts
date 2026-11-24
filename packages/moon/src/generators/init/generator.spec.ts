@@ -54,6 +54,16 @@ describe('initGenerator', () => {
     expect(plugins.some((p) => p.plugin === './packages/moon/src/plugin.ts')).toBe(true);
   });
 
+  it('trims pluginPath and falls back on whitespace-only input', async () => {
+    const padded = createTree();
+    await initGenerator(padded, { pluginPath: '  ./tools/plugin.ts  ' });
+    expect((readPlugins(padded) as Array<{ plugin: string }>)[0]?.plugin).toBe('./tools/plugin.ts');
+
+    const blank = createTree();
+    await initGenerator(blank, { pluginPath: '   ' });
+    expect((readPlugins(blank) as Array<{ plugin: string }>)[0]?.plugin).toBe('@nx-devkit/moon');
+  });
+
   it('installs no dependencies — the plugin only reads moon.yml', async () => {
     const tree = createTree();
     tree.write('package.json', JSON.stringify({ name: 'x' }));
@@ -62,6 +72,7 @@ describe('initGenerator', () => {
     installDeps();
 
     const pkg = JSON.parse(tree.read('package.json', 'utf8') ?? '{}');
+    expect(pkg.dependencies).toBeUndefined();
     expect(pkg.devDependencies).toBeUndefined();
   });
 });

@@ -20,6 +20,7 @@ describe('detectMoonWorkspace', () => {
     expect(detectMoonWorkspace(root)).toEqual({
       workspaceFile: '.moon/workspace.yml',
       toolchainFile: undefined,
+      projectIdsByRoot: {},
     });
   });
 
@@ -28,6 +29,7 @@ describe('detectMoonWorkspace', () => {
     expect(detectMoonWorkspace(root)).toEqual({
       workspaceFile: '.moon/workspace.yaml',
       toolchainFile: undefined,
+      projectIdsByRoot: {},
     });
   });
 
@@ -39,6 +41,7 @@ describe('detectMoonWorkspace', () => {
     expect(detectMoonWorkspace(root)).toEqual({
       workspaceFile: '.moon/workspace.yml',
       toolchainFile: '.moon/toolchain.yml',
+      projectIdsByRoot: {},
     });
   });
 
@@ -55,6 +58,31 @@ describe('detectMoonWorkspace', () => {
     expect(detectMoonWorkspace(root)).toEqual({
       workspaceFile: undefined,
       toolchainFile: undefined,
+      projectIdsByRoot: {},
     });
+  });
+
+  it('reads the projects map into projectIdsByRoot', () => {
+    const root = makeWorkspace({
+      '.moon/workspace.yml': [
+        'projects:',
+        '  app: apps/app',
+        '  shared:',
+        '    path: packages/lib-shared',
+        '',
+      ].join('\n'),
+    });
+    expect(detectMoonWorkspace(root).projectIdsByRoot).toEqual({
+      'apps/app': 'app',
+      'packages/lib-shared': 'shared',
+    });
+  });
+
+  it('yields no ids for the glob list form or an unparseable file', () => {
+    const globbed = makeWorkspace({ '.moon/workspace.yml': "projects: ['packages/*']\n" });
+    expect(detectMoonWorkspace(globbed).projectIdsByRoot).toEqual({});
+
+    const broken = makeWorkspace({ '.moon/workspace.yml': 'projects: [unclosed\n' });
+    expect(detectMoonWorkspace(broken).projectIdsByRoot).toEqual({});
   });
 });

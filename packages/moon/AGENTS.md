@@ -13,32 +13,33 @@ of truth. `moon` itself is never invoked — inferred targets run the
 task's `command`/`script` via `nx:run-commands` in `{projectRoot}`
 (`node_modules/.bin` lands on PATH via npm-run-path).
 
-| moon concept                                                     | Nx concept                                              |
-| ---------------------------------------------------------------- | ------------------------------------------------------- |
-| `tasks.<name>`                                                   | target `<name>` (or `<targetPrefix><name>`)             |
-| `command`/`script`/`args`                                        | `options.command` (script supersedes; arrays join ' ')  |
-| no command                                                       | `nx:noop` aggregator                                    |
-| `deps: 'task'` / `~:task`                                        | `{ target: 'task' }` (self)                             |
-| `deps: '^:task'` / `^task`                                       | `{ target: 'task', dependencies: true }`                |
-| `deps: 'proj:task'`                                              | `{ target: 'task', projects: ['proj'] }`                |
-| `#tag:task`, `:task`, `proj:#tag`                                | dropped — no Nx dependsOn equivalent                    |
-| `inputs`/`outputs`                                               | `{projectRoot}`/`{workspaceRoot}` filesets, `!` kept    |
-| `$VAR` input                                                     | `{ env: 'VAR' }` input (wildcards dropped)              |
-| `@group(x)`/`group://x`                                          | resolved against local `fileGroups:` (depth-capped)     |
-| `file://`/`glob://`/`{file,glob}`                                | unwrapped to the path; `project://`/`{project}` dropped |
-| missing `inputs`                                                 | `{projectRoot}/**/*` (moon default)                     |
-| `options.persistent`/`preset:server`/`dev`,`start`,`serve` names | `continuous: true` + `cache: false`                     |
-| `preset: utility` / `local: true` / `options.cache: false`       | `cache: false`                                          |
-| `options.cache: local`/`remote`                                  | `cache: true` (Nx has no local/remote split)            |
-| task `env` + project `env`                                       | `options.env` (project first, task wins)                |
-| `options.envFile` string/list                                    | `options.envFile` = first file (workspace-rel) + inputs |
-| `options.envFile: true`                                          | the 6-file moon chain as inputs only                    |
-| `id` / string `project:`                                         | project `name`                                          |
-| `project:` block                                                 | `metadata.moon.project`                                 |
-| `tags`                                                           | project `tags`                                          |
-| `type: application`/`library`                                    | `projectType` (other kinds unset)                       |
-| `dependsOn`                                                      | `implicitDependencies`                                  |
-| `.moon/workspace.*`/`.moon/toolchain.*`                          | `{workspaceRoot}` inputs + `metadata.moon`              |
+| moon concept                                                           | Nx concept                                              |
+| ---------------------------------------------------------------------- | ------------------------------------------------------- |
+| `tasks.<name>`                                                         | target `<name>` (or `<targetPrefix><name>`)             |
+| `command`/`script`/`args`                                              | `options.command` (script supersedes; arrays join ' ')  |
+| no command                                                             | `nx:noop` aggregator                                    |
+| `deps: 'task'` / `~:task`                                              | `{ target: 'task' }` (self)                             |
+| `deps: '^:task'` / `^task`                                             | `{ target: 'task', dependencies: true }`                |
+| `deps: 'proj:task'`                                                    | `{ target: 'task', projects: ['proj'] }`                |
+| `#tag:task`, `:task`, `proj:#tag`                                      | dropped — no Nx dependsOn equivalent                    |
+| `inputs`/`outputs`                                                     | `{projectRoot}`/`{workspaceRoot}` filesets, `!` kept    |
+| `$VAR` input                                                           | `{ env: 'VAR' }` input (wildcards dropped)              |
+| `@group(x)`/`group://x`                                                | resolved against local `fileGroups:` (depth-capped)     |
+| `file://`/`glob://`/`{file,glob}`                                      | unwrapped to the path; `project://`/`{project}` dropped |
+| missing `inputs`                                                       | `{projectRoot}/**/*` (moon default)                     |
+| `options.persistent: true`/`preset:server`/`dev`,`start`,`serve` names | `continuous: true` + `cache: false`                     |
+| `options.persistent: false`                                            | overrides the name/preset default (not continuous)      |
+| `preset: utility` / `local: true` / `options.cache: false`             | `cache: false`                                          |
+| `options.cache: local`/`remote`                                        | `cache: true` (Nx has no local/remote split)            |
+| task `env` + project `env`                                             | `options.env` (project first, task wins)                |
+| `options.envFile` string/list                                          | `options.envFile` = first file (workspace-rel) + inputs |
+| `options.envFile: true`                                                | the 6-file moon chain as inputs only                    |
+| `id` / string `project:`                                               | project `name`                                          |
+| `project:` block                                                       | `metadata.moon.project`                                 |
+| `tags`                                                                 | project `tags`                                          |
+| `type: application`/`library`                                          | `projectType` (other kinds unset)                       |
+| `dependsOn`                                                            | `implicitDependencies`                                  |
+| `.moon/workspace.*`/`.moon/toolchain.*`                                | `{workspaceRoot}` inputs + `metadata.moon`              |
 
 ## File layout
 
@@ -69,7 +70,7 @@ packages/moon/
 
 ```ts
 export interface NxDevkitMoonOptions {
-  targetPrefix?: string; // default '' — moon task names are already qualified
+  targetPrefix?: string; // default '' — moon task names are project-scoped
 }
 ```
 
@@ -77,7 +78,8 @@ export interface NxDevkitMoonOptions {
 
 - **Glob is `**/moon.{yml,yaml}`** — moon supports both extensions.
 - **A stray moon.yml still infers** — `.moon/workspace.*` is NOT required;
-  its presence only adds inputs + `metadata.moon` (`toolchain.*` is
+  its presence only adds inputs + `metadata.moon` and its map-form
+  `projects:` resolves `dependsOn` ids to Nx names (`toolchain.*` is
   metadata only, never parsed).
 - **No moon peer dep.** The plugin reads moon.yml; `command`/`script`
   run verbatim via `nx:run-commands`. `nx:noop` for command-less
@@ -142,3 +144,7 @@ bun run test
 bun run build
 npx tsc --noEmit -p tsconfig.json
 ```
+
+The repo-root checks still apply before pushing — see the root
+AGENTS.md: `bun run lint`, `bun run format:check`, and
+`bun run check:spec` must also exit 0.

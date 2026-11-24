@@ -78,6 +78,13 @@ export function parseMoonYml(text: string, path: string): MoonProjectYml {
     throw new Error(`Expected ${path} to be a YAML map`);
   }
 
+  // A present-but-malformed `tasks` (e.g. `tasks: []`) is almost always
+  // a typo — fail loud so the caller's warn-and-skip reports it instead
+  // of silently dropping every inferred target.
+  if (raw.tasks != null && !isRecord(raw.tasks)) {
+    throw new Error(`Expected ${path} 'tasks' to be a YAML map`);
+  }
+
   // Null-prototype record: a task key like `__proto__` must not change
   // the prototype of the map.
   const tasks: Record<string, MoonTask> = Object.create(null);

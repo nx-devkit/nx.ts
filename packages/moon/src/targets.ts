@@ -383,7 +383,9 @@ function resolveGroup(
     logDebug(PLUGIN_SCOPE, `Skipping fileGroup '${logSafe(name)}' — reference cycle`);
     return [];
   }
-  const entries = ctx.fileGroups[name];
+  // Own-property lookup — an inherited key like `constructor` must not
+  // resolve to a function and crash the mapPatterns iteration.
+  const entries = Object.hasOwn(ctx.fileGroups, name) ? ctx.fileGroups[name] : undefined;
   if (entries === undefined) {
     logDebug(PLUGIN_SCOPE, `Skipping fileGroup '${logSafe(name)}' — not defined in moon.yml`);
     return [];
@@ -394,7 +396,9 @@ function resolveGroup(
 /**
  * A project-relative path → `{projectRoot}/…`, a leading `/` →
  * `{workspaceRoot}/…`, `!` preserved. An entry already carrying an Nx
- * `{…}` prefix passes through untouched.
+ * `{projectRoot}`/`{workspaceRoot}` token passes through untouched —
+ * a brace-expansion glob like `{src,lib}/**` is NOT a token and still
+ * gets the `{projectRoot}/` prefix.
  */
 function mapPath(path: string, negated: boolean): string {
   let s = path;
@@ -403,7 +407,9 @@ function mapPath(path: string, negated: boolean): string {
     neg = !neg;
     s = s.slice(1);
   }
-  if (s.startsWith('{')) return neg ? `!${s}` : s;
+  if (s.startsWith('{projectRoot}') || s.startsWith('{workspaceRoot}')) {
+    return neg ? `!${s}` : s;
+  }
   const prefixed = s.startsWith('/') ? `{workspaceRoot}${s}` : `{projectRoot}/${s}`;
   return neg ? `!${prefixed}` : prefixed;
 }
@@ -414,7 +420,12 @@ function negate(value: string, negated: boolean): string {
 
 function negateAll(inputs: TaskInput[], negated: boolean): TaskInput[] {
   if (!negated) return inputs;
-  return inputs.map((input) => (typeof input === 'string' ? `!${input}` : input));
+  // Toggle rather than prefix — `!group` containing `!src` yields
+  // `src`, and a `!!` fileset is not valid Nx input syntax.
+  return inputs.map((input) => {
+    if (typeof input !== 'string') return input;
+    return input.startsWith('!') ? input.slice(1) : `!${input}`;
+  });
 }
 
 function dedupe(inputs: TaskInput[]): TaskInput[] {
@@ -432,7 +443,13 @@ function logSafe(value: string): string {
   let out = '';
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0;
-    out += code < 32 || code === 127 ? ' ' : char;
+    out +=
+      code < 32 ||
+      (code >= 127 && code < 160) ||
+      (code >= 0x202a && code <= 0x202e) ||
+      (code >= 0x2066 && code <= 0x2069)
+        ? ' '
+        : char;
   }
   return out.trim();
 }

@@ -227,6 +227,53 @@ describe('@nx-devkit/moon createNodesV2', () => {
     expect(projects).not.toContain('node_modules/dep');
   });
 
+  it('emits one project when moon.yml and moon.yaml share a directory', async () => {
+    const root = makeWorkspace({
+      'packages/app/moon.yml': "id: 'yml-app'\ntasks:\n  build:\n    command: 'a'\n",
+      'packages/app/moon.yaml': "id: 'yaml-app'\ntasks:\n  test:\n    command: 'b'\n",
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml', 'packages/app/moon.yaml']);
+
+    // .yml wins — the pair is one project, not two merged sources.
+    expect(projects['packages/app']?.name).toBe('yml-app');
+    expect(projects['packages/app']?.targets?.build).toBeDefined();
+    expect(projects['packages/app']?.targets?.test).toBeUndefined();
+  });
+
+  it('maps dependsOn moon ids onto the resolved Nx project names', async () => {
+    const root = makeWorkspace({
+      'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",
+      'packages/shared/moon.yml': "tasks:\n  build:\n    command: 'b'\n",
+      // The dep project's Nx name comes from package.json, not its moon id.
+      'packages/shared/package.json': '{"name": "@acme/shared"}',
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml', 'packages/shared/moon.yml']);
+
+    expect(projects['packages/app']?.implicitDependencies).toEqual(['@acme/shared']);
+  });
+
+  it('maps dependsOn through .moon/workspace.* projects ids', async () => {
+    const root = makeWorkspace({
+      '.moon/workspace.yml': 'projects:\n  shared: packages/lib\n',
+      'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",
+      'packages/lib/moon.yml': "tasks:\n  build:\n    command: 'b'\n",
+      'packages/lib/package.json': '{"name": "@acme/lib"}',
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml', 'packages/lib/moon.yml']);
+
+    expect(projects['packages/app']?.implicitDependencies).toEqual(['@acme/lib']);
+  });
+
+  it('keeps dependsOn ids that resolve to named moon projects', async () => {
+    const root = makeWorkspace({
+      'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",
+      'packages/shared/moon.yml': "id: 'shared'\ntasks:\n  build:\n    command: 'b'\n",
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml', 'packages/shared/moon.yml']);
+
+    expect(projects['packages/app']?.implicitDependencies).toEqual(['shared']);
+  });
+
   it('infers independent projects for nested moon.yml files', async () => {
     const root = makeWorkspace({
       'packages/app/moon.yml': "tasks:\n  build:\n    command: 'vite build'\n",

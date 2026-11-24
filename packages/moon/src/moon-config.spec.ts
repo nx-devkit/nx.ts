@@ -23,6 +23,13 @@ describe('parseMoonYml', () => {
     expect(config.tasks.format?.command).toBe('prettier --check .');
   });
 
+  it('throws when tasks is present but not a map', () => {
+    expect(() => parseMoonYml('tasks: []\n', 'moon.yml')).toThrow(/tasks/);
+    expect(() => parseMoonYml("tasks: 'build'\n", 'moon.yml')).toThrow(/tasks/);
+    // An empty `tasks:` key is just absent, not malformed.
+    expect(parseMoonYml('tasks:\n', 'moon.yml').tasks).toEqual({});
+  });
+
   it('reads project metadata fields', () => {
     const config = parseMoonYml(
       [
