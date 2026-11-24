@@ -1,0 +1,68 @@
+{
+  "name": "@nx-devkit/cargo",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Standalone Nx plugin: Cargo.toml manifests infer Nx projects with build/test/clippy/fmt targets — workspaces, path-dep edges, no project.json required.",
+  "keywords": [
+    "cargo",
+    "monorepo",
+    "nx",
+    "nx-plugin",
+    "rust",
+    "workspace",
+    "zero-config"
+  ],
+  "homepage": "https://github.com/nx-devkit/nx.ts/tree/main/packages/cargo",
+  "bugs": {
+    "url": "https://github.com/nx-devkit/nx.ts/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nx-devkit/nx.ts",
+    "directory": "packages/cargo"
+  },
+  "files": [
+    "dist",
+    "generators.json",
+    "src/generators/init/schema.json",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/plugin.mjs",
+  "module": "./dist/plugin.mjs",
+  "types": "./dist/plugin.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.mts",
+      "default": "./dist/plugin.mjs"
+    },
+    "./package.json": "./package.json",
+    "./generators/init": {
+      "types": "./dist/generators/init/generator.d.mts",
+      "default": "./dist/generators/init/generator.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "prepublishOnly": "npm run build -- --clean",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nx/devkit": "^24.0.0",
+    "jsonc-parser": "^3.3.1",
+    "minimatch": "^11.0.5",
+    "smol-toml": "^1.9.1"
+  },
+  "devDependencies": {
+    "@nx-devkit/internal": "0.0.0",
+    "@types/node": "^26.6.6",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "generators": "./generators.json"
+}
