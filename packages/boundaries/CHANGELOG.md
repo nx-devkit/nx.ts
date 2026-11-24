@@ -2,7 +2,7 @@
 
 ### 🚀 Features
 
-- **typescript:** widen preset peer to >=3.0.0 — support every TS line ([#215](https://github.com/nx-devkit/nx.ts/pull/215), [#157](https://github.com/nx-devkit/nx.ts/issues/157))
+- **typescript:** limit the dependency to ^5.0.0 || ^6.0.0 — TypeScript 7 does not ship the JavaScript parser API used by the import scanner ([#215](https://github.com/nx-devkit/nx.ts/pull/215), [#157](https://github.com/nx-devkit/nx.ts/issues/157))
 
 ### ❤️ Thank You
 
