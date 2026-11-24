@@ -59,6 +59,21 @@ const ALIAS_RE =
   /^alias\s+([A-Za-z_][A-Za-z0-9_-]*)\s*:=\s*([A-Za-z_][A-Za-z0-9_-]*(?:::[A-Za-z_][A-Za-z0-9_-]*)?)/;
 const DEP_NAME_RE = /^[A-Za-z_][A-Za-z0-9_-]*(?:::[A-Za-z_][A-Za-z0-9_-]*)*$/;
 
+/**
+ * Consume one char while inside a quoted span.
+ * `\` escapes the next char inside just's double-quoted strings.
+ * Returns the still-open quote, or '' once the quote closes.
+ */
+function consumeQuoted(
+  text: string,
+  i: number,
+  quote: string,
+): { buf: string; quote: string; next: number } {
+  const ch = text[i]!;
+  if (quote === '"' && ch === '\\') return { buf: ch + (text[i + 1] ?? ''), quote, next: i + 1 };
+  return { buf: ch, quote: ch === quote ? '' : quote, next: i };
+}
+
 /** Split `text` on whitespace, keeping quoted and parenthesized chunks whole. */
 export function splitShellish(text: string): string[] {
   const tokens: string[] = [];
@@ -68,13 +83,10 @@ export function splitShellish(text: string): string[] {
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]!;
     if (quote) {
-      cur += ch;
-      // `\` escapes the next char inside just's double-quoted strings.
-      if (quote === '"' && ch === '\\') {
-        cur += text[++i] ?? '';
-        continue;
-      }
-      if (ch === quote) quote = '';
+      const q = consumeQuoted(text, i, quote);
+      cur += q.buf;
+      quote = q.quote;
+      i = q.next;
       continue;
     }
     if (ch === '"' || ch === "'" || ch === '`') {
