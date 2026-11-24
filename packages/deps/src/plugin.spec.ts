@@ -172,10 +172,11 @@ describe('@nx-devkit/deps createNodesV2', () => {
   it('prefers syncpack over manypkg when both signals exist at the root', async () => {
     const root = makeWorkspace({
       'package.json': MANYPKG_ROOT_PKG,
+      'bun.lock': '',
       'syncpack.config.js': 'module.exports = {}',
     });
     const results = await createNodesV2[1](
-      ['package.json', 'syncpack.config.js'],
+      ['package.json', 'bun.lock', 'syncpack.config.js'],
       {},
       makeContext(root),
     );

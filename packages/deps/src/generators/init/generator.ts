@@ -14,7 +14,7 @@ function wantsManypkg(tree: Tree): boolean {
   if (!pkgRaw) return false;
   try {
     const pkg = JSON.parse(pkgRaw.toString('utf8')) as Record<string, unknown>;
-    for (const field of ['dependencies', 'devDependencies']) {
+    for (const field of ['dependencies', 'devDependencies', 'peerDependencies']) {
       const deps = pkg[field];
       if (
         typeof deps === 'object' &&
