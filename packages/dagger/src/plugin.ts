@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   logger,
   type CreateNodesResultArray,
@@ -9,6 +9,7 @@ import {
 } from '@nx/devkit';
 import { isVerbose, logDebug } from '@nx-devkit/internal';
 import { parseDaggerJson, type DaggerJson } from './dagger-config.ts';
+import { logSafe } from './log-safe.ts';
 import { buildCallTargets } from './targets.ts';
 import type { NxDevkitDaggerOptions } from './types.ts';
 
@@ -46,7 +47,11 @@ export const createNodesV2: CreateNodesV2<NxDevkitDaggerOptions> = [
       }
 
       const absPath = resolve(workspaceRoot, configFile);
-      if (!absPath.startsWith(workspaceRoot + '/') && absPath !== workspaceRoot) {
+      // Containment via relative(): a '..' segment anywhere or an
+      // absolute remainder means the resolved path escaped the workspace.
+      // Works on Windows too — resolve() emits backslashes there.
+      const rel = relative(workspaceRoot, absPath);
+      if (rel === '' || isAbsolute(rel) || rel.split(sep).includes('..')) {
         logDebug(
           PLUGIN_SCOPE,
           `Skipping ${logSafe(configFile)} — resolved path escapes the workspace`,
@@ -66,6 +71,7 @@ export const createNodesV2: CreateNodesV2<NxDevkitDaggerOptions> = [
           sourceInputs: moduleSourceInputs(
             config,
             projectRoot === '' ? '{workspaceRoot}' : '{projectRoot}',
+            (source) => statKind(join(workspaceRoot, projectRoot, source)),
           ),
         }),
       };
@@ -94,19 +100,34 @@ export default createNodesV2;
 /**
  * Module source inputs: a declared `source` wins (a dir tracks every
  * file under `<source>` recursively; a file path like `src/index.ts`
- * tracks the file itself). Without `source` the sdk picks the default —
- * `go` keeps sources at the module root, the other SDKs live under `src/`.
+ * tracks the file itself). `sourceKind` consults the filesystem when
+ * the path exists — a basename containing a dot is usually a file, but
+ * directories like `src.v2` exist — and falls back to the basename
+ * heuristic when it does not. Without `source` the sdk picks the
+ * default — `go` keeps sources at the module root, the other SDKs live
+ * under `src/`.
  */
-export function moduleSourceInputs(config: DaggerJson, rootToken = '{projectRoot}'): string[] {
+export function moduleSourceInputs(
+  config: DaggerJson,
+  rootToken = '{projectRoot}',
+  sourceKind: (source: string) => 'file' | 'dir' | undefined = () => undefined,
+): string[] {
   if (config.source !== undefined) {
     const source = config.source.replace(/\\/g, '/').replace(/^\.\//, '');
     if (source === '' || source === '.') return [`${rootToken}/**/*`];
-    return [
-      basename(source).includes('.') ? `${rootToken}/${source}` : `${rootToken}/${source}/**/*`,
-    ];
+    const kind = sourceKind(source) ?? (basename(source).includes('.') ? 'file' : 'dir');
+    return [kind === 'file' ? `${rootToken}/${source}` : `${rootToken}/${source}/**/*`];
   }
   if (config.sdk === 'go') return [`${rootToken}/**/*`];
   return [`${rootToken}/src/**/*`];
+}
+
+function statKind(absSource: string): 'file' | 'dir' | undefined {
+  try {
+    return statSync(absSource).isDirectory() ? 'dir' : 'file';
+  } catch {
+    return undefined;
+  }
 }
 
 function readDaggerConfig(absPath: string, configFile: string): DaggerJson | null {
@@ -140,25 +161,6 @@ function isSkippedDir(projectRoot: string): boolean {
   if (projectRoot === '') return false;
   const segments = projectRoot.split('/');
   return segments[0] === '..' || segments.includes('..') || segments.includes('node_modules');
-}
-
-/**
- * A value from the config file, safe to put into a log message — the
- * config is untrusted input, and a log line must stay one line.
- */
-function logSafe(value: string): string {
-  let out = '';
-  for (const char of value) {
-    const code = char.codePointAt(0) ?? 0;
-    out +=
-      code < 32 ||
-      (code >= 127 && code <= 159) ||
-      (code >= 0x202a && code <= 0x202e) ||
-      (code >= 0x2066 && code <= 0x2069)
-        ? ' '
-        : char;
-  }
-  return out.trim();
 }
 
 export const __testing: { DAGGER_GLOB: typeof DAGGER_GLOB } = { DAGGER_GLOB };

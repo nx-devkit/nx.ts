@@ -1,8 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { logger } from '@nx/devkit';
 import type { CreateNodesContextV2 } from 'nx/src/devkit-exports';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createNodesV2 } from './plugin.ts';
 
 function makeContext(workspaceRoot: string): CreateNodesContextV2 {
@@ -17,6 +18,7 @@ function makeContext(workspaceRoot: string): CreateNodesContextV2 {
 const tempRoots: string[] = [];
 afterEach(() => {
   for (const r of tempRoots.splice(0)) rmSync(r, { recursive: true, force: true });
+  vi.restoreAllMocks();
 });
 
 function makeWorkspace(files: Record<string, string> = {}): string {
@@ -81,14 +83,48 @@ describe('@nx-devkit/dagger createNodesV2', () => {
     expect(Object.keys(targets).sort()).toEqual(['dagger:call:publish', 'dagger:call:test']);
   });
 
+  it('trims record-form function keys', async () => {
+    const root = makeWorkspace({
+      'ci/dagger.json': JSON.stringify({ functions: { ' build ': {}, test: {} } }),
+    });
+    const results = await createNodesV2[1](['ci/dagger.json'], {}, makeContext(root));
+
+    const targets = results[0]![1].projects!['ci']!.targets!;
+    expect(Object.keys(targets).sort()).toEqual(['dagger:call:build', 'dagger:call:test']);
+  });
+
+  it('warns on a malformed functions field instead of silently dropping it', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const root = makeWorkspace({
+      'ci/dagger.json': JSON.stringify({ functions: 'build' }),
+    });
+    const results = await createNodesV2[1](['ci/dagger.json'], {}, makeContext(root));
+
+    expect(results).toHaveLength(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"functions"'));
+    expect(Object.keys(results[0]![1].projects!['ci']!.targets!)).toEqual(['dagger:call']);
+  });
+
+  it('warns and falls back to dagger:call when every declared name folds to an empty segment', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const root = makeWorkspace({
+      'ci/dagger.json': JSON.stringify({ functions: ['!!!', '$$$'] }),
+    });
+    const results = await createNodesV2[1](['ci/dagger.json'], {}, makeContext(root));
+
+    expect(Object.keys(results[0]![1].projects!['ci']!.targets!)).toEqual(['dagger:call']);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
   it('never caches dagger targets but keeps inputs tracked', async () => {
     const root = makeWorkspace({ 'ci/dagger.json': TS_MODULE });
     const results = await createNodesV2[1](['ci/dagger.json'], {}, makeContext(root));
 
     const target = results[0]![1].projects!['ci']!.targets!['dagger:call']!;
     expect(target.cache).toBe(false);
+    // sdk without source → Dagger's own default is the module root.
     expect(target.inputs).toEqual(
-      expect.arrayContaining(['{projectRoot}/src/**/*', '{workspaceRoot}/ci/dagger.json']),
+      expect.arrayContaining(['{projectRoot}/**/*', '{workspaceRoot}/ci/dagger.json']),
     );
   });
 
@@ -106,6 +142,28 @@ describe('@nx-devkit/dagger createNodesV2', () => {
 
     const target = results[0]![1].projects!['ci']!.targets!['dagger:call']!;
     expect(target.inputs).toContain('{projectRoot}/**/*');
+  });
+
+  it('accepts the modern object-form sdk ({"source": "go"}) and applies the source default', async () => {
+    const root = makeWorkspace({
+      'ci/dagger.json': JSON.stringify({ sdk: { source: 'go' } }),
+    });
+    const results = await createNodesV2[1](['ci/dagger.json'], {}, makeContext(root));
+
+    const target = results[0]![1].projects!['ci']!.targets!['dagger:call']!;
+    expect(target.inputs).toContain('{projectRoot}/**/*');
+  });
+
+  it('treats a declared source with a dotted basename as a dir when it exists', async () => {
+    const root = makeWorkspace({
+      'ci/dagger.json': JSON.stringify({ sdk: 'typescript', source: 'src.v2' }),
+      'ci/src.v2/index.ts': '',
+    });
+    const results = await createNodesV2[1](['ci/dagger.json'], {}, makeContext(root));
+
+    const target = results[0]![1].projects!['ci']!.targets!['dagger:call']!;
+    expect(target.inputs).toContain('{projectRoot}/src.v2/**/*');
+    expect(target.inputs).not.toContain('{projectRoot}/src.v2');
   });
 
   it('honors a declared source directory', async () => {
@@ -172,9 +230,11 @@ describe('@nx-devkit/dagger createNodesV2', () => {
   });
 
   it('warns and skips a broken dagger.json instead of breaking the graph', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const root = makeWorkspace({ 'ci/dagger.json': '{ not json' });
     const results = await createNodesV2[1](['ci/dagger.json'], {}, makeContext(root));
     expect(results).toHaveLength(0);
+    expect(warn).toHaveBeenCalled();
   });
 
   it('skips dagger.json inside node_modules', async () => {

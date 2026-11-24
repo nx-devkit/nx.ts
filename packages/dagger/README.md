@@ -34,13 +34,13 @@ Or manually:
 | `dagger.json` | absent or empty         | `dagger:call`                           | `dagger call`      | no        |
 | `dagger.json` | `["build", "test"]`     | `dagger:call:build`, `dagger:call:test` | `dagger call <fn>` | no        |
 
-`dagger functions` can only be listed at run time, so per-function targets require a declared `functions` field in `dagger.json` (a list of names, or a record keyed by name). Function names are shell-quoted before they reach `nx:run-commands`.
+`dagger functions` can only be listed at run time, so per-function targets require a declared `functions` field in `dagger.json` (a list of names, or a record keyed by name). Each name is folded into a target segment — `unit test` becomes `dagger:call:unit-test` — and two names collapsing to one segment keep only the first (the later one is skipped with a warning). Function names are shell-quoted for the running platform before they reach `nx:run-commands`.
 
 Dagger pipelines are side-effectful, so every inferred target is `cache: false`. Inputs stay tracked — the `dagger.json` itself plus the module source — so the project graph and `nx affected` still see edits:
 
-- `source` field declared → `{projectRoot}/<source>/**/*` (a file path tracks the file itself)
-- no `source`, `sdk: "go"` → `{projectRoot}/**/*` (Go modules live at the module root)
-- no `source`, any other sdk → `{projectRoot}/src/**/*`
+- `source` field declared → `{projectRoot}/<source>/**/*` for a directory; a file path (e.g. `src/main.ts`) tracks `{projectRoot}/<source>` directly
+- no `source`, `sdk` declared (string or `{"source": "…"}` object) → `{projectRoot}/**/*` (Dagger's own default: the module root)
+- no `source`, no `sdk` → `{projectRoot}/src/**/*`
 
 `dagger.json`'s `name` becomes the Nx project name when the directory has no `package.json` of its own.
 

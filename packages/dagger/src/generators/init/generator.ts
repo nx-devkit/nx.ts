@@ -16,16 +16,18 @@ export async function initGenerator(
   tree: Tree,
   options: NxDaggerInitOptions = {},
 ): Promise<GeneratorCallback> {
-  const pluginPath = options.pluginPath || DEFAULT_PLUGIN_PATH;
+  const pluginPath = options.pluginPath?.trim() || DEFAULT_PLUGIN_PATH;
 
   registerPlugin(tree, pluginPath);
 
   const checklist = [
-    `1. The plugin is registered (${pluginPath}) — every dagger.json is now a project with call targets.`,
+    `1. The plugin is registered (${pluginPath}) — eligible in-workspace dagger.json files now infer projects with call targets.`,
     '2. Inspect inferred targets:',
     '   bunx nx show projects',
-    '3. Run a module function:',
-    '   bunx nx run <project>:dagger:call:<function>',
+    '3. Run a module without declared functions:',
+    '   bunx nx run --project=<project> --target=dagger:call',
+    '   Or a declared function:',
+    '   bunx nx run --project=<project> --target=dagger:call:<function>',
     '4. Requires the dagger CLI on PATH (https://docs.dagger.io/install).',
   ];
   for (const line of checklist) {
