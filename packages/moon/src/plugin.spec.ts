@@ -264,6 +264,20 @@ describe('@nx-devkit/moon createNodesV2', () => {
     expect(projects['packages/app']?.implicitDependencies).toEqual(['@acme/lib']);
   });
 
+  it('maps proj:task deps onto resolved Nx project names', async () => {
+    const root = makeWorkspace({
+      'packages/app/moon.yml': "tasks:\n  deploy:\n    command: 'a'\n    deps: ['shared:build']\n",
+      'packages/shared/moon.yml': "tasks:\n  build:\n    command: 'b'\n",
+      // The dep project's Nx name comes from package.json, not its moon id.
+      'packages/shared/package.json': '{"name": "@acme/shared"}',
+    });
+    const projects = await createNodes(root, ['packages/app/moon.yml', 'packages/shared/moon.yml']);
+
+    expect(projects['packages/app']?.targets?.deploy?.dependsOn).toEqual([
+      { target: 'build', projects: ['@acme/shared'] },
+    ]);
+  });
+
   it('keeps dependsOn ids that resolve to named moon projects', async () => {
     const root = makeWorkspace({
       'packages/app/moon.yml': "dependsOn: ['shared']\ntasks:\n  build:\n    command: 'a'\n",

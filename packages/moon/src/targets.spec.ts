@@ -8,6 +8,7 @@ const CTX: TaskTargetContext = {
   projectEnv: {},
   fileGroups: {},
   workspaceInputs: [],
+  nameByMoonId: new Map(),
 };
 
 const ctx = (overrides: Partial<TaskTargetContext> = {}): TaskTargetContext => ({
@@ -398,6 +399,19 @@ describe('buildTaskTarget', () => {
   it('maps proj:task to the named project', () => {
     const target = buildTaskTarget('deploy', { deps: ['shared:assets'] }, CTX);
     expect(target.dependsOn).toEqual([{ target: 'assets', projects: ['shared'] }]);
+  });
+
+  it('maps proj:task moon ids to resolved Nx project names', () => {
+    const target = buildTaskTarget(
+      'deploy',
+      { deps: ['shared:assets', 'other:prep'] },
+      ctx({ nameByMoonId: new Map([['shared', '@acme/shared']]) }),
+    );
+    expect(target.dependsOn).toEqual([
+      { target: 'assets', projects: ['@acme/shared'] },
+      // Unmatched ids pass through — another plugin may own the name.
+      { target: 'prep', projects: ['other'] },
+    ]);
   });
 
   it('maps object deps by target only', () => {

@@ -20,7 +20,7 @@ task's `command`/`script` via `nx:run-commands` in `{projectRoot}`
 | no command                                                             | `nx:noop` aggregator                                    |
 | `deps: 'task'` / `~:task`                                              | `{ target: 'task' }` (self)                             |
 | `deps: '^:task'` / `^task`                                             | `{ target: 'task', dependencies: true }`                |
-| `deps: 'proj:task'`                                                    | `{ target: 'task', projects: ['proj'] }`                |
+| `deps: 'proj:task'`                                                    | `{ target: 'task', projects: ['proj'] }` (id → Nx name) |
 | `#tag:task`, `:task`, `proj:#tag`                                      | dropped — no Nx dependsOn equivalent                    |
 | `inputs`/`outputs`                                                     | `{projectRoot}`/`{workspaceRoot}` filesets, `!` kept    |
 | `$VAR` input                                                           | `{ env: 'VAR' }` input (wildcards dropped)              |
