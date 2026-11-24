@@ -33,6 +33,14 @@ export function inferTypecheckTarget(
     inputs.push({ externalDependencies: ['typescript'] });
   } else if (nativeDep) {
     inputs.push({ externalDependencies: [nativeDep] });
+  } else {
+    // tsgo preferred but no native compiler declared — the executor's
+    // install-based detectCompiler can still resolve a transitively
+    // installed native package, else it falls back to `typescript`.
+    // Hash every candidate so a compiler upgrade always busts the cache.
+    inputs.push({
+      externalDependencies: ['typescript', '@typescript/native', '@typescript/native-preview'],
+    });
   }
 
   return {

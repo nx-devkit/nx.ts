@@ -145,6 +145,18 @@ describe('inferTypecheckTarget', () => {
     expect(ext?.externalDependencies).toEqual(['@typescript/native']);
   });
 
+  it('hashes every compiler candidate when tsgo=true and no native dep is declared', async () => {
+    const t = inferTypecheckTarget('/w/p', opts, false);
+    const ext = t.inputs.find((i) => typeof i === 'object') as
+      | { externalDependencies: string[] }
+      | undefined;
+    expect(ext?.externalDependencies).toEqual([
+      'typescript',
+      '@typescript/native',
+      '@typescript/native-preview',
+    ]);
+  });
+
   it('sets clean=true when clean=true', async () => {
     const t = inferTypecheckTarget('/w/p', {
       tsgo: true,
