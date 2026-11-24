@@ -333,7 +333,7 @@ function mapUriPattern(
   if (uri?.[1] === undefined || uri[2] === undefined) return null;
   const scheme = uri[1];
   const rest = uri[2].split('?')[0] ?? '';
-  if (scheme === 'group') return resolveGroup(rest, ctx, mode, depth);
+  if (scheme === 'group') return negateAll(resolveGroup(rest, ctx, mode, depth), negated);
   if (scheme === 'file' || scheme === 'glob') {
     return negateAll(mapPatternString(rest, ctx, mode, depth), negated);
   }

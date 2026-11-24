@@ -169,7 +169,7 @@ function readMoonConfig(absPath: string, configFile: string): MoonProjectYml | n
 function isSkippedDir(root: string): boolean {
   if (root === '') return false;
   const segments = root.split('/');
-  return segments[0] === '..' || segments.includes('node_modules');
+  return segments.includes('..') || segments.includes('node_modules');
 }
 
 /** A config value, safe inside a single log line. */
