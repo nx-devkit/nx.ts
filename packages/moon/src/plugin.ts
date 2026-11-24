@@ -113,15 +113,7 @@ function buildProject(
     .filter((id): id is string => typeof id === 'string' && id !== '');
   if (implicitDeps.length > 0) project.implicitDependencies = implicitDeps;
 
-  const moon: Record<string, unknown> = {};
-  if (moonWs.workspaceFile !== undefined) moon.workspaceFile = moonWs.workspaceFile;
-  if (moonWs.toolchainFile !== undefined) moon.toolchainFile = moonWs.toolchainFile;
-  if (config.language !== undefined) moon.language = config.language;
-  if (config.type !== undefined) moon.type = config.type;
-  if (config.stack !== undefined) moon.stack = config.stack;
-  if (typeof config.project === 'object' && config.project !== undefined) {
-    moon.project = config.project;
-  }
+  const moon = buildMoonMetadata(config, moonWs);
   if (Object.keys(moon).length > 0) project.metadata = { moon };
   if (Object.keys(targets).length > 0) project.targets = targets;
 
@@ -134,6 +126,20 @@ function buildProject(
     project.implicitDependencies !== undefined ||
     project.metadata !== undefined;
   return hasContent ? project : null;
+}
+
+/** `.moon/*` + language/stack metadata for `metadata.moon`. */
+function buildMoonMetadata(config: MoonProjectYml, moonWs: MoonWorkspace): Record<string, unknown> {
+  const moon: Record<string, unknown> = {};
+  if (moonWs.workspaceFile !== undefined) moon.workspaceFile = moonWs.workspaceFile;
+  if (moonWs.toolchainFile !== undefined) moon.toolchainFile = moonWs.toolchainFile;
+  if (config.language !== undefined) moon.language = config.language;
+  if (config.type !== undefined) moon.type = config.type;
+  if (config.stack !== undefined) moon.stack = config.stack;
+  if (typeof config.project === 'object' && config.project !== undefined) {
+    moon.project = config.project;
+  }
+  return moon;
 }
 
 /** moon `type` → Nx `projectType`; moon-only kinds stay unset. */

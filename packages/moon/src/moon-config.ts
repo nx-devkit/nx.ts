@@ -88,6 +88,12 @@ export function parseMoonYml(text: string, path: string): MoonProjectYml {
   }
 
   const config: MoonProjectYml = { tasks };
+  applyProjectFields(config, raw);
+  return config;
+}
+
+/** Copy the optional project-level fields from the raw YAML map. */
+function applyProjectFields(config: MoonProjectYml, raw: Record<string, unknown>): void {
   if (typeof raw.id === 'string' && raw.id !== '') config.id = raw.id;
   if (typeof raw.project === 'string' && raw.project !== '') {
     config.project = raw.project;
@@ -105,7 +111,6 @@ export function parseMoonYml(text: string, path: string): MoonProjectYml {
   if (Object.keys(env).length > 0) config.env = env;
   const fileGroups = normalizeFileGroups(raw.fileGroups);
   if (Object.keys(fileGroups).length > 0) config.fileGroups = fileGroups;
-  return config;
 }
 
 /** A string task value is command shorthand; a map is the full task. */
@@ -116,6 +121,13 @@ function normalizeTask(raw: unknown): MoonTask | null {
   if (!isRecord(raw)) return null;
 
   const task: MoonTask = {};
+  applyCommandFields(task, raw);
+  applyDepFields(task, raw);
+  applyMetaFields(task, raw);
+  return task;
+}
+
+function applyCommandFields(task: MoonTask, raw: Record<string, unknown>): void {
   if (typeof raw.command === 'string' || isStringArray(raw.command)) {
     task.command = raw.command;
   }
@@ -123,6 +135,9 @@ function normalizeTask(raw: unknown): MoonTask | null {
   if (typeof raw.args === 'string' || isStringArray(raw.args)) {
     task.args = raw.args;
   }
+}
+
+function applyDepFields(task: MoonTask, raw: Record<string, unknown>): void {
   const deps = normalizeTaskDeps(raw.deps);
   if (deps.length > 0) task.deps = deps;
   const env = stringMap(raw.env);
@@ -131,11 +146,13 @@ function normalizeTask(raw: unknown): MoonTask | null {
   if (raw.outputs !== undefined) task.outputs = patternList(raw.outputs);
   const options = normalizeOptions(raw.options);
   if (options !== undefined) task.options = options;
+}
+
+function applyMetaFields(task: MoonTask, raw: Record<string, unknown>): void {
   if (typeof raw.preset === 'string') task.preset = raw.preset;
   if (raw.local === true) task.local = true;
   if (typeof raw.description === 'string') task.description = raw.description;
   if (typeof raw.extends === 'string') task.extends = raw.extends;
-  return task;
 }
 
 function normalizeTaskDeps(raw: unknown): Array<string | MoonTaskDep> {

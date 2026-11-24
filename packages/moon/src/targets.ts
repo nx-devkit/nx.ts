@@ -301,32 +301,11 @@ function mapPatternString(
   const negated = s.startsWith('!');
   if (negated) s = s.slice(1);
 
-  // URI forms: file://, glob://, group://, project:// — query params
-  // (?optional, ?cache=false) are moon-side flags, dropped here.
-  const uri = /^([a-zA-Z]+):\/\/(.*)$/.exec(s);
-  if (uri?.[1] !== undefined && uri[2] !== undefined) {
-    const scheme = uri[1];
-    const rest = uri[2].split('?')[0] ?? '';
-    if (scheme === 'group') return resolveGroup(rest, ctx, mode, depth);
-    if (scheme === 'file' || scheme === 'glob') {
-      const mapped = mapPatternString(rest, ctx, mode, depth);
-      return negateAll(mapped, negated);
-    }
-    // project:// and unknown schemes can't map onto filesets.
-    logDebug(PLUGIN_SCOPE, `Skipping '${logSafe(raw)}' — unsupported URI scheme`);
-    return [];
-  }
+  const uriMapped = mapUriPattern(s, negated, raw, ctx, mode, depth);
+  if (uriMapped !== null) return uriMapped;
 
-  // @group(name)/@dirs/@files/@globs/@envs token functions → fileGroups.
-  const token = /^@([a-zA-Z]+)\(([^)]*)\)$/.exec(s);
-  if (token?.[1] !== undefined && token[2] !== undefined) {
-    if (GROUP_TOKENS.has(token[1])) {
-      const mapped = resolveGroup(token[2].trim(), ctx, mode, depth);
-      return negateAll(mapped, negated);
-    }
-    logDebug(PLUGIN_SCOPE, `Skipping '${logSafe(raw)}' — unsupported token function`);
-    return [];
-  }
+  const tokenMapped = mapTokenPattern(s, negated, raw, ctx, mode, depth);
+  if (tokenMapped !== null) return tokenMapped;
 
   // $VAR env inputs and token variables.
   if (s.startsWith('$')) {
@@ -339,6 +318,46 @@ function mapPatternString(
   }
 
   return [mapPath(s, negated)];
+}
+
+/** URI forms file://, glob://, group:// (project:// dropped). `null` = not a URI. */
+function mapUriPattern(
+  s: string,
+  negated: boolean,
+  raw: string,
+  ctx: TaskTargetContext,
+  mode: 'input' | 'output',
+  depth: number,
+): TaskInput[] | null {
+  const uri = /^([a-zA-Z]+):\/\/(.*)$/.exec(s);
+  if (uri?.[1] === undefined || uri[2] === undefined) return null;
+  const scheme = uri[1];
+  const rest = uri[2].split('?')[0] ?? '';
+  if (scheme === 'group') return resolveGroup(rest, ctx, mode, depth);
+  if (scheme === 'file' || scheme === 'glob') {
+    return negateAll(mapPatternString(rest, ctx, mode, depth), negated);
+  }
+  // project:// and unknown schemes can't map onto filesets.
+  logDebug(PLUGIN_SCOPE, `Skipping '${logSafe(raw)}' — unsupported URI scheme`);
+  return [];
+}
+
+/** @group(name)/@dirs/@files/@globs/@envs token functions → fileGroups. `null` = not a token. */
+function mapTokenPattern(
+  s: string,
+  negated: boolean,
+  raw: string,
+  ctx: TaskTargetContext,
+  mode: 'input' | 'output',
+  depth: number,
+): TaskInput[] | null {
+  const token = /^@([a-zA-Z]+)\(([^)]*)\)$/.exec(s);
+  if (token?.[1] === undefined || token[2] === undefined) return null;
+  if (GROUP_TOKENS.has(token[1])) {
+    return negateAll(resolveGroup(token[2].trim(), ctx, mode, depth), negated);
+  }
+  logDebug(PLUGIN_SCOPE, `Skipping '${logSafe(raw)}' — unsupported token function`);
+  return [];
 }
 
 const GROUP_TOKENS = new Set([
