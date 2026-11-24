@@ -41,7 +41,10 @@ describe('loadConfig (env)', () => {
       type: 's3',
       bucket: 'bkt',
       endpoint: 'https://acct.r2.cloudflarestorage.com',
+      region: 'auto',
       prefix: 'nx',
+      accessKeyId: 'k',
+      secretAccessKey: 's',
     });
   });
 
@@ -80,7 +83,9 @@ describe('loadConfigFile', () => {
   it('rejects missing files and bad documents', () => {
     expect(() => loadConfigFile(join(dir, 'nope.json'))).toThrow();
     const bad = join(dir, 'bad.json');
-    writeFileSync(bad, '{"tokens": "nope"}');
+    // The fixture needs a valid backend — otherwise loadConfigFile throws
+    // on the missing backend before ever validating `tokens`.
+    writeFileSync(bad, '{"backend":{"type":"fs","dir":"/tmp/cache"},"tokens":"nope"}');
     expect(() => loadConfigFile(bad)).toThrow();
   });
 });

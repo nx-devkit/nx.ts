@@ -44,8 +44,8 @@ describe('signRequest', () => {
     });
     expect(headers['x-amz-content-sha256']).toBe('abc123');
     expect(headers['x-amz-security-token']).toBe('sess');
-    expect(headers['Authorization']).toContain(
-      'AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260101/us-east-1/s3/aws4_request',
+    expect(headers['Authorization']).toBe(
+      'AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260101/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=51de0c9adc0e4944740c6bf397a02637c09a29a6b1fe3e45d889ac2bd5da2637',
     );
   });
 });

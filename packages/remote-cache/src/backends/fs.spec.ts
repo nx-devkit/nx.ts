@@ -40,6 +40,20 @@ describe('FileSystemBackend', () => {
     expect(got!.body.toString()).toBe('good');
   });
 
+  it('commits exactly one of two racing writers — atomic create-only', async () => {
+    const [r1, r2] = await Promise.all([
+      backend.putIfAbsent('main/race', Buffer.from('writer-A'), 'sa'),
+      backend.putIfAbsent('main/race', Buffer.from('writer-B'), 'sb'),
+    ]);
+    expect([r1, r2].sort()).toEqual(['conflict', 'created']);
+
+    // The stored pair is one writer's complete input — never a torn mix.
+    const got = await backend.get('main/race');
+    expect(got).not.toBeNull();
+    expect(['writer-A', 'writer-B']).toContain(got!.body.toString());
+    expect(got!.sha256).toBe(got!.body.toString() === 'writer-A' ? 'sa' : 'sb');
+  });
+
   it('keeps namespaces isolated on disk', async () => {
     await backend.putIfAbsent('main/h', Buffer.from('main-bytes'), 's1');
     await backend.putIfAbsent('pr-1/h', Buffer.from('pr-bytes'), 's2');
