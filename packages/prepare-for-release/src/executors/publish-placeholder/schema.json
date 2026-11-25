@@ -43,6 +43,11 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
       "description": "`owner/repo` slug used to build the `npm trust github` command. Falls back to NPM_TRUST_REPO or GITHUB_REPOSITORY env vars."
+    },
+    "refresh": {
+      "type": "boolean",
+      "description": "Re-validate packages recorded in .nx-devkit/release-state.json against the npm registry. Default false: recorded published+trusted packages are skipped with no npm calls.",
+      "default": false
     }
   },
   "additionalProperties": false

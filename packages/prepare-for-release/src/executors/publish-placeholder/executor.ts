@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
@@ -30,6 +30,12 @@ export interface NxPrepareForReleaseOptions {
    * Throws if none are set.
    */
   trustRepo?: string;
+  /**
+   * Re-validate packages already recorded in `.nx-devkit/release-state.json`
+   * against the npm registry. Default: false — recorded `published`/`trusted`
+   * packages are skipped without any npm calls.
+   */
+  refresh?: boolean;
 }
 
 export interface PublishPlaceholderResult {
@@ -50,6 +56,50 @@ const WEB_AUTH_TIMEOUT_MS = 5 * 60_000;
 const WEB_AUTH_POLL_MS = 4_000;
 const WEB_AUTH_FETCH_TIMEOUT_MS = 15_000;
 
+/**
+ * Committed artifact recording which packages are already on npm (`published`)
+ * and already have GitHub OIDC trusted publishing (`trusted`). Packages fully
+ * recorded are skipped without touching the registry — npm's web-auth
+ * challenges make repeat checks expensive. `--refresh` re-validates.
+ */
+interface ReleaseState {
+  packages: Record<string, { published?: boolean; trusted?: boolean; at?: string }>;
+}
+
+const RELEASE_STATE_FILE = join('.nx-devkit', 'release-state.json');
+
+function loadReleaseState(workspaceRoot: string): ReleaseState {
+  try {
+    const parsed = JSON.parse(readFileSync(join(workspaceRoot, RELEASE_STATE_FILE), 'utf8')) as {
+      packages?: ReleaseState['packages'];
+    };
+    return { packages: parsed.packages ?? {} };
+  } catch {
+    return { packages: {} };
+  }
+}
+
+function saveReleaseState(workspaceRoot: string, state: ReleaseState): void {
+  const file = join(workspaceRoot, RELEASE_STATE_FILE);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify({ packages: state.packages }, null, 2)}\n`);
+}
+
+function markPackage(
+  workspaceRoot: string,
+  state: ReleaseState,
+  name: string,
+  patch: { published?: boolean; trusted?: boolean },
+): void {
+  state.packages[name] = {
+    ...state.packages[name],
+    ...patch,
+    at: new Date().toISOString(),
+  };
+  // Incremental save: a mid-run crash keeps already-recorded progress.
+  saveReleaseState(workspaceRoot, state);
+}
+
 interface ResolvedOptions {
   registry: string;
   placeholderTag: string;
@@ -57,6 +107,7 @@ interface ResolvedOptions {
   dryRun: boolean;
   trust: boolean;
   trustRepo: string;
+  refresh: boolean;
   scope: string[] | undefined;
   packageJson: string | undefined;
 }
@@ -71,6 +122,7 @@ function resolveOptions(options: NxPrepareForReleaseOptions): ResolvedOptions {
     scope: options.scope,
     trust: options.trust ?? true,
     trustRepo: resolveTrustRepo(options.trustRepo),
+    refresh: options.refresh ?? false,
   };
 }
 
@@ -295,11 +347,9 @@ function spawnTrust(
   pkgName: string,
   trustRepo: string,
   registry?: string,
-  otp?: string,
 ): Promise<{ code: number | null; stderr: string }> {
   const npmCmd = resolveNpmCommand();
   const args = trustArgs(pkgName, trustRepo, registry);
-  if (otp) args.push('--otp', otp);
   return new Promise((resolvePromise, rejectPromise) => {
     // stderr is piped but forwarded live: npm writes the interactive MFA/OTP
     // prompt to stderr, so a plain 'pipe' would hide the prompt while the
@@ -353,11 +403,11 @@ async function runTrustFor(
         `  Open this URL to approve trusted publishing setup:\n\n    ${authUrl}\n\n` +
         `  Waiting for approval...`,
     );
-    const otp = await pollForWebAuthOtp(doneUrl, token);
-    if (!otp) {
+    const approved = await waitForWebApproval(doneUrl, token);
+    if (!approved) {
       throw new Error(`Timed out waiting for npm web authorization for ${pkgName}`);
     }
-    ({ code, stderr } = await spawnTrust(pkgName, trustRepo, registry, otp));
+    ({ code, stderr } = await spawnTrust(pkgName, trustRepo, registry));
   }
   if (code !== 0) {
     throw new Error(
@@ -448,8 +498,8 @@ async function requestWebAuthUrls(
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Poll the registry done endpoint until the web approval yields an OTP. */
-async function pollForWebAuthOtp(doneUrl: string, token: string): Promise<string | null> {
+/** Poll the registry done endpoint until the web approval completes. */
+async function waitForWebApproval(doneUrl: string, token: string): Promise<boolean> {
   const deadline = Date.now() + WEB_AUTH_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const res = await fetch(doneUrl, {
@@ -461,23 +511,22 @@ async function pollForWebAuthOtp(doneUrl: string, token: string): Promise<string
         otp?: string;
         token?: string;
       } | null;
-      // The registry returns the approved OTP as `token` (not `otp`).
-      const otp = body?.otp ?? body?.token;
-      if (otp) return otp;
+      // The registry returns `token` once the user approves the auth URL.
+      // The web approval itself elevates the session — no OTP is needed on
+      // the retry; a bare rerun of the npm command succeeds.
+      if (body?.otp ?? body?.token) return true;
     }
     await sleep(WEB_AUTH_POLL_MS);
   }
-  return null;
+  return false;
 }
 
 function runNpmPublish(
   npmCmd: string,
   tarballPath: string,
   resolved: ResolvedOptions,
-  otp?: string,
 ): ReturnType<typeof spawnSync> {
   const args = publishArgs(tarballPath, resolved.registry, resolved.placeholderTag);
-  if (otp) args.push('--otp', otp);
   const result = spawnWithTimeout(npmCmd, args, { encoding: 'utf8' });
   // Output is piped (for EOTP detection) then teed so npm notices and
   // warnings still reach the user's terminal.
@@ -516,11 +565,11 @@ async function publishOnePackage(
           `  Open this URL to approve the publish:\n\n    ${authUrl}\n\n` +
           `  Waiting for approval...`,
       );
-      const otp = await pollForWebAuthOtp(doneUrl, token);
-      if (!otp) {
+      const approved = await waitForWebApproval(doneUrl, token);
+      if (!approved) {
         throw new Error(`Timed out waiting for npm web authorization for ${name}`);
       }
-      result = runNpmPublish(npmCmd, tarballPath, resolved, otp);
+      result = runNpmPublish(npmCmd, tarballPath, resolved);
     }
     if (result.status !== 0) {
       const stderr = (result.stderr ?? '').toString();
@@ -544,8 +593,9 @@ interface PackageAccumulators {
 async function processPackage(
   pkgJsonPath: string,
   resolved: ResolvedOptions,
-  acc: PackageAccumulators,
+  releaseState: ReleaseState,
   workspaceRoot: string,
+  acc: PackageAccumulators,
 ): Promise<PackageOutcome> {
   const parsed = readPackageJsonSafe(pkgJsonPath);
   if (!parsed) {
@@ -559,8 +609,16 @@ async function processPackage(
     return 'ignored';
   }
 
-  if (isPublished(name, resolved.registry)) {
+  const recorded = resolved.refresh ? undefined : releaseState.packages[name];
+  if (recorded?.published && recorded.trusted) {
     acc.skipped.push(name);
+    return 'skipped';
+  }
+  if (recorded?.published || isPublished(name, resolved.registry)) {
+    acc.skipped.push(name);
+    if (!resolved.dryRun && !recorded?.published) {
+      markPackage(workspaceRoot, releaseState, name, { published: true });
+    }
     return 'skipped';
   }
 
@@ -574,6 +632,9 @@ async function processPackage(
   await publishOnePackage(pkgRoot, name, resolved, workspaceRoot);
   acc.published.push(name);
   acc.trustCommands.push(trustCommandFor(name, resolved.trustRepo, resolved.registry));
+  if (!resolved.dryRun) {
+    markPackage(workspaceRoot, releaseState, name, { published: true });
+  }
   return 'published';
 }
 
@@ -598,9 +659,11 @@ export async function publishPlaceholderExecutor(
         onlyFiles: true,
       });
 
+  const releaseState = loadReleaseState(context.root);
+
   const acc: PackageAccumulators = { published: [], skipped: [], trustCommands: [] };
   for (const pkgJsonPath of pkgDirs) {
-    await processPackage(pkgJsonPath, resolved, acc, context.root);
+    await processPackage(pkgJsonPath, resolved, releaseState, context.root, acc);
   }
 
   if (acc.published.length > 0) {
@@ -611,7 +674,9 @@ export async function publishPlaceholderExecutor(
   }
   if (acc.trustCommands.length > 0 || (resolved.trust && acc.skipped.length > 0)) {
     if (resolved.trust && !resolved.dryRun) {
-      const trustTargets = [...acc.published, ...acc.skipped];
+      const trustTargets = [...acc.published, ...acc.skipped].filter(
+        (pkgName) => resolved.refresh || !releaseState.packages[pkgName]?.trusted,
+      );
       console.log(
         `\nConfiguring GitHub OIDC trusted publishing for ${trustTargets.length} package(s) (requires MFA)...\n`,
       );
@@ -621,10 +686,12 @@ export async function publishPlaceholderExecutor(
         } catch (error) {
           if (error instanceof Error && /already.*trust|conflict|exists/i.test(error.message)) {
             console.log(`  ⊙ ${pkgName} (trust already configured)`);
+            markPackage(context.root, releaseState, pkgName, { trusted: true });
             continue;
           }
           throw error;
         }
+        markPackage(context.root, releaseState, pkgName, { trusted: true });
       }
     } else {
       console.log('\nRun these locally (requires MFA) to enable GitHub OIDC trusted publishing:\n');
