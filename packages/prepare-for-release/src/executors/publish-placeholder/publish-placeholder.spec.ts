@@ -3,13 +3,34 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+interface MockResponse {
+  status: number;
+  stdout: string;
+  stderr: string;
+  /** Consumed this many times, then the pattern stops matching. */
+  times?: number;
+}
+
 const state: {
   calls: { command: string; args: string[]; options?: unknown }[];
-  responses: Map<string, { status: number; stdout: string; stderr: string }>;
+  responses: Map<string, MockResponse>;
 } = {
   calls: [],
   responses: new Map(),
 };
+
+/** First matching response wins; entries with `times` are consumed. */
+function matchResponse(key: string): MockResponse | undefined {
+  for (const [pattern, response] of state.responses.entries()) {
+    if (!key.includes(pattern)) continue;
+    if (response.times !== undefined) {
+      if (response.times <= 0) continue;
+      response.times -= 1;
+    }
+    return response;
+  }
+  return undefined;
+}
 
 vi.mock('node:child_process', async () => {
   const { EventEmitter } = await import('node:events');
@@ -17,25 +38,16 @@ vi.mock('node:child_process', async () => {
     spawnSync: (command: string, args: string[] = [], options?: unknown) => {
       state.calls.push({ args, command, options });
       const key = `${command} ${args.join(' ')}`;
-      for (const [pattern, response] of state.responses.entries()) {
-        if (key.includes(pattern)) {
-          return response;
-        }
-      }
+      const response = matchResponse(key);
+      if (response) return response;
       return { status: 0, stderr: '', stdout: '' };
     },
     spawn: (command: string, args: string[] = [], options?: unknown) => {
       state.calls.push({ args, command, options });
       const key = `${command} ${args.join(' ')}`;
-      let status = 0;
-      let stderr = '';
-      for (const [pattern, response] of state.responses.entries()) {
-        if (key.includes(pattern)) {
-          status = response.status;
-          stderr = response.stderr;
-          break;
-        }
-      }
+      const response = matchResponse(key);
+      const status = response?.status ?? 0;
+      const stderr = response?.stderr ?? '';
       const child = new EventEmitter() as EventEmitter & {
         stderr: EventEmitter;
         kill: () => void;
@@ -356,23 +368,21 @@ describe('publishPlaceholderExecutor', () => {
       );
     }) as typeof fetch;
 
-    // `--otp` first so the retry succeeds while the first trust call EOTPs.
-    state.responses.set('--otp', { status: 0, stderr: '', stdout: '' });
+    // First `npm trust` EOTPs; the post-approval retry is a plain rerun.
     state.responses.set('npm trust', {
       status: 1,
       stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
       stdout: '',
+      times: 1,
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     try {
       const result = await publishPlaceholderExecutor({}, { root: workspace });
       expect(result.success).toBe(true);
-      const otpTrustCall = state.calls.find(
-        (c) => c.args[0] === 'trust' && c.args.includes('--otp'),
-      );
-      expect(otpTrustCall).toBeDefined();
-      expect(otpTrustCall?.args).toContain('654321');
+      const trustCalls = state.calls.filter((c) => c.args[0] === 'trust');
+      expect(trustCalls).toHaveLength(2);
+      expect(trustCalls.every((c) => !c.args.some((a) => a.startsWith('--otp')))).toBe(true);
       const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
       expect(printed).toContain('https://www.npmjs.com/auth/cli/test-auth-id');
     } finally {
@@ -392,6 +402,84 @@ describe('publishPlaceholderExecutor', () => {
     expect(publishCall).toBeUndefined();
     const packCall = state.calls.find((c) => c.args[0] === 'pack');
     expect(packCall).toBeUndefined();
+  });
+
+  it('skips npm calls entirely for a package recorded as published+trusted', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0');
+    mkdirSync(join(workspace, '.nx-devkit'), { recursive: true });
+    writeFileSync(
+      join(workspace, '.nx-devkit', 'release-state.json'),
+      JSON.stringify({
+        packages: {
+          '@nx-devkit/prepare-for-release': { published: true, trusted: true },
+        },
+      }),
+    );
+
+    const result = await publishPlaceholderExecutor({}, { root: workspace });
+
+    expect(result.skipped).toEqual(['@nx-devkit/prepare-for-release']);
+    expect(state.calls).toEqual([]);
+  });
+
+  it('skips publish for a recorded published package but still runs npm trust', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0');
+    mkdirSync(join(workspace, '.nx-devkit'), { recursive: true });
+    writeFileSync(
+      join(workspace, '.nx-devkit', 'release-state.json'),
+      JSON.stringify({
+        packages: { '@nx-devkit/prepare-for-release': { published: true } },
+      }),
+    );
+
+    const result = await publishPlaceholderExecutor({}, { root: workspace });
+
+    expect(result.skipped).toEqual(['@nx-devkit/prepare-for-release']);
+    expect(state.calls.find((c) => c.args[0] === 'view')).toBeUndefined();
+    expect(state.calls.find((c) => c.args[0] === 'publish')).toBeUndefined();
+    const trustCalls = state.calls.filter((c) => c.args[0] === 'trust');
+    expect(trustCalls).toHaveLength(1);
+    const saved = readJson(join(workspace, '.nx-devkit', 'release-state.json'));
+    const savedPackages = saved.packages as Record<string, { trusted?: boolean }>;
+    expect(savedPackages['@nx-devkit/prepare-for-release'].trusted).toBe(true);
+  });
+
+  it('writes publish+trust outcomes to .nx-devkit/release-state.json', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0');
+    state.responses.set('npm view', { status: 1, stderr: 'E404', stdout: '' });
+    state.responses.set('npm pack', {
+      status: 0,
+      stderr: '',
+      stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
+    });
+    state.responses.set('npm publish', { status: 0, stderr: '', stdout: 'ok' });
+    writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake');
+
+    await publishPlaceholderExecutor({}, { root: workspace });
+
+    const saved = readJson(join(workspace, '.nx-devkit', 'release-state.json'));
+    expect(saved.packages).toMatchObject({
+      '@nx-devkit/prepare-for-release': { published: true, trusted: true },
+    });
+  });
+
+  it('refresh: true re-validates a recorded published+trusted package against npm', async () => {
+    makePackage(workspace, '@nx-devkit/prepare-for-release', '0.0.0');
+    mkdirSync(join(workspace, '.nx-devkit'), { recursive: true });
+    writeFileSync(
+      join(workspace, '.nx-devkit', 'release-state.json'),
+      JSON.stringify({
+        packages: {
+          '@nx-devkit/prepare-for-release': { published: true, trusted: true },
+        },
+      }),
+    );
+    state.responses.set('npm view', { status: 0, stdout: '{"version":"0.0.0"}', stderr: '' });
+
+    const result = await publishPlaceholderExecutor({ refresh: true }, { root: workspace });
+
+    expect(result.skipped).toEqual(['@nx-devkit/prepare-for-release']);
+    expect(state.calls.find((c) => c.args[0] === 'view')).toBeDefined();
   });
 
   it('honors a custom placeholderVersion and placeholderTag', async () => {
@@ -533,22 +621,21 @@ describe('publishPlaceholderExecutor', () => {
       );
     }) as typeof fetch;
 
-    // Response patterns are matched in Map insertion order: `--otp` first so
-    // the retry (args contain --otp) succeeds while the first publish EOTPs.
-    state.responses.set('--otp', { status: 0, stderr: '', stdout: 'ok' });
+    // First `npm publish` EOTPs; the post-approval retry is a plain rerun.
     state.responses.set('npm publish', {
       status: 1,
       stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
       stdout: '',
+      times: 1,
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     try {
       const result = await publishPlaceholderExecutor({}, { root: workspace });
       expect(result.published).toEqual(['@nx-devkit/prepare-for-release']);
-      const otpCall = state.calls.find((c) => c.args[0] === 'publish' && c.args.includes('--otp'));
-      expect(otpCall).toBeDefined();
-      expect(otpCall?.args).toContain('654321');
+      const publishCalls = state.calls.filter((c) => c.args[0] === 'publish');
+      expect(publishCalls).toHaveLength(2);
+      expect(publishCalls.every((c) => !c.args.some((a) => a.startsWith('--otp')))).toBe(true);
       expect(fetchCalls.some((f) => f.url.includes('done'))).toBe(true);
       const probe = fetchCalls.find((f) => !f.url.includes('done'));
       expect(probe).toBeDefined();
@@ -617,11 +704,12 @@ describe('publishPlaceholderExecutor', () => {
       stdout: join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'),
     });
     writeFileSync(join(workspace, 'nx-devkit-prepare-for-release-0.0.0.tgz'), 'fake');
-    state.responses.set('--otp', { status: 0, stderr: '', stdout: 'ok' });
+    // First `npm publish` EOTPs; the post-approval retry is a plain rerun.
     state.responses.set('npm publish', {
       status: 1,
       stderr: 'npm ERR! code EOTP\nnpm ERR! Open this URL',
       stdout: '',
+      times: 1,
     });
 
     const fetchCalls: { url: string; init?: RequestInit }[] = [];

@@ -1,0 +1,68 @@
+{
+  "packages": {
+    "@nx-devkit/eslint": {
+      "published": true,
+      "at": "2026-11-24T23:36:44.701Z"
+    },
+    "@nx-devkit/vitest": {
+      "published": true,
+      "at": "2026-11-24T23:41:49.260Z"
+    },
+    "@nx-devkit/nx-cloud": {
+      "published": true,
+      "at": "2026-11-24T23:46:53.713Z"
+    },
+    "@nx-devkit/playwright": {
+      "published": true,
+      "at": "2026-11-24T23:51:57.837Z"
+    },
+    "@nx-devkit/release": {
+      "published": true,
+      "at": "2026-11-24T23:57:01.325Z"
+    },
+    "@nx-devkit/diagrams": {
+      "published": true,
+      "at": "2026-11-25T00:02:06.628Z"
+    },
+    "@nx-devkit/python": {
+      "published": true,
+      "at": "2026-11-25T00:07:11.326Z"
+    },
+    "@nx-devkit/knip": {
+      "published": true,
+      "at": "2026-11-25T00:12:15.143Z"
+    },
+    "@nx-devkit/markdownlint": {
+      "published": true,
+      "at": "2026-11-25T00:17:18.708Z"
+    },
+    "@nx-devkit/commitlint": {
+      "published": true,
+      "at": "2026-11-25T00:22:22.360Z"
+    },
+    "@nx-devkit/boundaries": {
+      "published": true,
+      "at": "2026-11-25T00:27:25.966Z"
+    },
+    "@nx-devkit/skill": {
+      "published": true,
+      "at": "2026-11-25T00:32:30.169Z"
+    },
+    "@nx-devkit/skillspector": {
+      "published": true,
+      "at": "2026-11-25T00:37:34.158Z"
+    },
+    "@nx-devkit/sverka": {
+      "published": true,
+      "at": "2026-11-25T00:42:37.787Z"
+    },
+    "@nx-devkit/openspec": {
+      "published": true,
+      "at": "2026-11-25T00:47:41.504Z"
+    },
+    "@nx-devkit/prepare-for-release": {
+      "published": true,
+      "at": "2026-11-25T00:52:45.570Z"
+    }
+  }
+}
